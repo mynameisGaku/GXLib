@@ -12,6 +12,7 @@
 #include "Graphics/PostEffect/Bloom.h"
 #include "Graphics/PostEffect/SSAO.h"
 #include "Graphics/PostEffect/DepthOfField.h"
+#include "Graphics/PostEffect/MotionBlur.h"
 
 namespace GX
 {
@@ -52,6 +53,9 @@ public:
 
     // --- DoF ---
     DepthOfField& GetDoF() { return m_dof; }
+
+    // --- Motion Blur ---
+    MotionBlur& GetMotionBlur() { return m_motionBlur; }
 
     // --- FXAA ---
     void SetFXAAEnabled(bool enabled) { m_fxaaEnabled = enabled; }
@@ -117,6 +121,9 @@ private:
 
     // DoF
     DepthOfField m_dof;
+
+    // Motion Blur
+    MotionBlur m_motionBlur;
 
     // シェーダー & パイプライン
     Shader m_shader;

@@ -370,6 +370,10 @@ void UpdateInput(float deltaTime)
     if (kb.IsKeyTriggered('0'))
         g_postEffect.GetDoF().SetEnabled(!g_postEffect.GetDoF().IsEnabled());
 
+    // Motion Blur ON/OFF
+    if (kb.IsKeyTriggered('B'))
+        g_postEffect.GetMotionBlur().SetEnabled(!g_postEffect.GetMotionBlur().IsEnabled());
+
     // DoF フォーカス距離調整 (F/G)
     if (g_inputManager.CheckHitKey('F'))
         g_postEffect.GetDoF().SetFocalDistance(g_postEffect.GetDoF().GetFocalDistance() + 5.0f * deltaTime);
@@ -563,8 +567,14 @@ void RenderFrame(float deltaTime)
                 g_postEffect.GetDoF().GetFocalRange(),
                 g_postEffect.GetDoF().GetBokehRadius());
 
+            g_textRenderer.DrawFormatString(g_fontHandle, 10, 210, 0xFF88FF88,
+                L"MotionBlur: %s  Intensity: %.2f  Samples: %d",
+                g_postEffect.GetMotionBlur().IsEnabled() ? L"ON" : L"OFF",
+                g_postEffect.GetMotionBlur().GetIntensity(),
+                g_postEffect.GetMotionBlur().GetSampleCount());
+
             const wchar_t* shadowDebugNames[] = { L"OFF", L"Factor", L"Cascade", L"ShadowUV", L"RawDepth", L"Normal", L"ViewZ" };
-            g_textRenderer.DrawFormatString(g_fontHandle, 10, 210, 0xFFFF8888,
+            g_textRenderer.DrawFormatString(g_fontHandle, 10, 235, 0xFFFF8888,
                 L"ShadowDebug: %s  Shadow: %s",
                 shadowDebugNames[g_renderer3D.GetShadowDebugMode()],
                 g_renderer3D.IsShadowEnabled() ? L"ON" : L"OFF");
@@ -575,7 +585,7 @@ void RenderFrame(float deltaTime)
             g_textRenderer.DrawString(g_fontHandle, 10, helpY + 25,
                 L"1/2/3: Tonemap  4: Bloom  5: FXAA  6: Vignette  7: ColorGrading  8: ShadowDbg  9: SSAO", 0xFFFFCC44);
             g_textRenderer.DrawString(g_fontHandle, 10, helpY + 50,
-                L"0: DoF  F/G: FocalDist+/-  +/-: Exposure", 0xFFFFCC44);
+                L"0: DoF  B: MotionBlur  F/G: FocalDist+/-  +/-: Exposure", 0xFFFFCC44);
         }
     }
     g_spriteBatch.End();
@@ -612,7 +622,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
                    _In_ LPSTR lpCmdLine, _In_ int nCmdShow)
 {
     GX::ApplicationDesc appDesc;
-    appDesc.title  = L"GXLib - Phase 4: Post-Effects (SSAO/Bloom/DoF/FXAA/Vignette/ColorGrading)";
+    appDesc.title  = L"GXLib - Phase 4: Post-Effects (SSAO/Bloom/DoF/MotionBlur/FXAA/Vignette/ColorGrading)";
     appDesc.width  = 1280;
     appDesc.height = 720;
 

@@ -60,7 +60,14 @@ bool PostEffectPipeline::Initialize(ID3D12Device* device, uint32_t width, uint32
         return false;
     }
 
-    GX_LOG_INFO("PostEffectPipeline initialized (%dx%d) with SSAO/Bloom/DoF/FXAA/Vignette/ColorGrading", width, height);
+    // Motion Blur
+    if (!m_motionBlur.Initialize(device, width, height))
+    {
+        GX_LOG_ERROR("PostEffectPipeline: Failed to initialize MotionBlur");
+        return false;
+    }
+
+    GX_LOG_INFO("PostEffectPipeline initialized (%dx%d) with SSAO/Bloom/DoF/MotionBlur/FXAA/Vignette/ColorGrading", width, height);
     return true;
 }
 
@@ -231,7 +238,7 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
                                   DepthBuffer& depthBuffer, const Camera3D& camera)
 {
     // ========================================
-    // HDR chain: hdrRT → [SSAO] → [Bloom] → [DoF] → [ColorGrading] → currentHDR
+    // HDR chain: hdrRT → [SSAO] → [Bloom] → [DoF] → [MotionBlur] → [ColorGrading] → currentHDR
     // ========================================
     RenderTarget* currentHDR = &m_hdrRT;
 
@@ -259,6 +266,17 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
         m_dof.Execute(m_cmdList, m_frameIndex, *currentHDR, *dest, depthBuffer, camera);
         currentHDR = dest;
     }
+
+    // Motion Blur (HDR space, after DoF)
+    if (m_motionBlur.IsEnabled())
+    {
+        RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
+        m_motionBlur.Execute(m_cmdList, m_frameIndex, *currentHDR, *dest, depthBuffer, camera);
+        currentHDR = dest;
+    }
+    // 前フレームVP行列を保存（次フレームのMotionBlurで使用）
+    // Execute の後に呼ぶ（先に呼ぶと今フレームのVPで上書きされ速度=0になる）
+    m_motionBlur.UpdatePreviousVP(camera);
 
     // Color Grading (HDR space)
     if (m_colorGradingEnabled)
@@ -360,6 +378,7 @@ void PostEffectPipeline::OnResize(ID3D12Device* device, uint32_t width, uint32_t
     m_ssao.OnResize(device, width, height);
     m_bloom.OnResize(device, width, height);
     m_dof.OnResize(device, width, height);
+    m_motionBlur.OnResize(device, width, height);
 }
 
 } // namespace GX
