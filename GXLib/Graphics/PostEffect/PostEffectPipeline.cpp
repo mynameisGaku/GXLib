@@ -53,7 +53,14 @@ bool PostEffectPipeline::Initialize(ID3D12Device* device, uint32_t width, uint32
         return false;
     }
 
-    GX_LOG_INFO("PostEffectPipeline initialized (%dx%d) with SSAO/Bloom/FXAA/Vignette/ColorGrading", width, height);
+    // DoF
+    if (!m_dof.Initialize(device, width, height))
+    {
+        GX_LOG_ERROR("PostEffectPipeline: Failed to initialize DoF");
+        return false;
+    }
+
+    GX_LOG_INFO("PostEffectPipeline initialized (%dx%d) with SSAO/Bloom/DoF/FXAA/Vignette/ColorGrading", width, height);
     return true;
 }
 
@@ -224,7 +231,7 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
                                   DepthBuffer& depthBuffer, const Camera3D& camera)
 {
     // ========================================
-    // HDR chain: hdrRT → [SSAO] → [Bloom] → [ColorGrading] → currentHDR
+    // HDR chain: hdrRT → [SSAO] → [Bloom] → [DoF] → [ColorGrading] → currentHDR
     // ========================================
     RenderTarget* currentHDR = &m_hdrRT;
 
@@ -243,6 +250,14 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
         m_bloom.Execute(m_cmdList, m_frameIndex, *currentHDR, m_hdrPingPongRT);
         m_hdrPingPongRT.TransitionTo(m_cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         currentHDR = &m_hdrPingPongRT;
+    }
+
+    // DoF (HDR space, after Bloom)
+    if (m_dof.IsEnabled())
+    {
+        RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
+        m_dof.Execute(m_cmdList, m_frameIndex, *currentHDR, *dest, depthBuffer, camera);
+        currentHDR = dest;
     }
 
     // Color Grading (HDR space)
@@ -344,6 +359,7 @@ void PostEffectPipeline::OnResize(ID3D12Device* device, uint32_t width, uint32_t
     m_ldrRT[1].Create(device, width, height, k_LDRFormat);
     m_ssao.OnResize(device, width, height);
     m_bloom.OnResize(device, width, height);
+    m_dof.OnResize(device, width, height);
 }
 
 } // namespace GX

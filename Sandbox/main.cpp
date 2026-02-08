@@ -366,6 +366,16 @@ void UpdateInput(float deltaTime)
     if (kb.IsKeyTriggered('9'))
         g_postEffect.GetSSAO().SetEnabled(!g_postEffect.GetSSAO().IsEnabled());
 
+    // DoF ON/OFF
+    if (kb.IsKeyTriggered('0'))
+        g_postEffect.GetDoF().SetEnabled(!g_postEffect.GetDoF().IsEnabled());
+
+    // DoF フォーカス距離調整 (F/G)
+    if (g_inputManager.CheckHitKey('F'))
+        g_postEffect.GetDoF().SetFocalDistance(g_postEffect.GetDoF().GetFocalDistance() + 5.0f * deltaTime);
+    if (g_inputManager.CheckHitKey('G'))
+        g_postEffect.GetDoF().SetFocalDistance((std::max)(g_postEffect.GetDoF().GetFocalDistance() - 5.0f * deltaTime, 0.5f));
+
     // 露出調整
     if (g_inputManager.CheckHitKey(VK_OEM_PLUS) || g_inputManager.CheckHitKey(VK_ADD))
         g_postEffect.SetExposure(g_postEffect.GetExposure() + 0.5f * deltaTime);
@@ -546,17 +556,26 @@ void RenderFrame(float deltaTime)
                 g_postEffect.GetSSAO().GetRadius(),
                 g_postEffect.GetSSAO().GetPower());
 
+            g_textRenderer.DrawFormatString(g_fontHandle, 10, 185, 0xFF88FF88,
+                L"DoF: %s  FocalDist: %.1f  Range: %.1f  Radius: %.1f",
+                g_postEffect.GetDoF().IsEnabled() ? L"ON" : L"OFF",
+                g_postEffect.GetDoF().GetFocalDistance(),
+                g_postEffect.GetDoF().GetFocalRange(),
+                g_postEffect.GetDoF().GetBokehRadius());
+
             const wchar_t* shadowDebugNames[] = { L"OFF", L"Factor", L"Cascade", L"ShadowUV", L"RawDepth", L"Normal", L"ViewZ" };
-            g_textRenderer.DrawFormatString(g_fontHandle, 10, 185, 0xFFFF8888,
+            g_textRenderer.DrawFormatString(g_fontHandle, 10, 210, 0xFFFF8888,
                 L"ShadowDebug: %s  Shadow: %s",
                 shadowDebugNames[g_renderer3D.GetShadowDebugMode()],
                 g_renderer3D.IsShadowEnabled() ? L"ON" : L"OFF");
 
-            float helpY = static_cast<float>(g_swapChain.GetHeight()) - 60.0f;
+            float helpY = static_cast<float>(g_swapChain.GetHeight()) - 80.0f;
             g_textRenderer.DrawString(g_fontHandle, 10, helpY,
                 L"WASD: Move  QE: Up/Down  Shift: Fast  RClick: Mouse  ESC: Quit", 0xFFAAAAAA);
             g_textRenderer.DrawString(g_fontHandle, 10, helpY + 25,
-                L"1/2/3: Tonemap  4: Bloom  5: FXAA  6: Vignette  7: ColorGrading  8: ShadowDbg  9: SSAO  +/-: Exposure", 0xFFFFCC44);
+                L"1/2/3: Tonemap  4: Bloom  5: FXAA  6: Vignette  7: ColorGrading  8: ShadowDbg  9: SSAO", 0xFFFFCC44);
+            g_textRenderer.DrawString(g_fontHandle, 10, helpY + 50,
+                L"0: DoF  F/G: FocalDist+/-  +/-: Exposure", 0xFFFFCC44);
         }
     }
     g_spriteBatch.End();
@@ -593,7 +612,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
                    _In_ LPSTR lpCmdLine, _In_ int nCmdShow)
 {
     GX::ApplicationDesc appDesc;
-    appDesc.title  = L"GXLib - Phase 4: Post-Effects (SSAO/Bloom/FXAA/Vignette/ColorGrading)";
+    appDesc.title  = L"GXLib - Phase 4: Post-Effects (SSAO/Bloom/DoF/FXAA/Vignette/ColorGrading)";
     appDesc.width  = 1280;
     appDesc.height = 720;
 

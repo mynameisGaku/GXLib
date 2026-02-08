@@ -239,12 +239,12 @@ MeshData MeshGenerator::CreateCylinder(float topRadius, float bottomRadius, floa
         {
             uint32_t base = i * ringCount;
             mesh.indices.push_back(base + j);
-            mesh.indices.push_back(base + j + ringCount);
             mesh.indices.push_back(base + j + 1);
+            mesh.indices.push_back(base + j + ringCount);
 
             mesh.indices.push_back(base + j + 1);
-            mesh.indices.push_back(base + j + ringCount);
             mesh.indices.push_back(base + j + ringCount + 1);
+            mesh.indices.push_back(base + j + ringCount);
         }
     }
 
@@ -282,8 +282,8 @@ MeshData MeshGenerator::CreateCylinder(float topRadius, float bottomRadius, floa
     for (uint32_t j = 0; j < sliceCount; ++j)
     {
         mesh.indices.push_back(bottomCenterIndex);
-        mesh.indices.push_back(bottomCenterIndex + j + 1);
         mesh.indices.push_back(bottomCenterIndex + j + 2);
+        mesh.indices.push_back(bottomCenterIndex + j + 1);
     }
 
     return mesh;

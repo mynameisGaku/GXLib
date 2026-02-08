@@ -11,6 +11,7 @@
 #include "Graphics/Pipeline/Shader.h"
 #include "Graphics/PostEffect/Bloom.h"
 #include "Graphics/PostEffect/SSAO.h"
+#include "Graphics/PostEffect/DepthOfField.h"
 
 namespace GX
 {
@@ -48,6 +49,9 @@ public:
 
     // --- ブルーム ---
     Bloom& GetBloom() { return m_bloom; }
+
+    // --- DoF ---
+    DepthOfField& GetDoF() { return m_dof; }
 
     // --- FXAA ---
     void SetFXAAEnabled(bool enabled) { m_fxaaEnabled = enabled; }
@@ -110,6 +114,9 @@ private:
 
     // ブルーム
     Bloom m_bloom;
+
+    // DoF
+    DepthOfField m_dof;
 
     // シェーダー & パイプライン
     Shader m_shader;
