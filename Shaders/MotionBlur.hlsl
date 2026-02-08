@@ -3,7 +3,7 @@
 ///
 /// 深度バッファからワールド座標を再構成し、前フレームVP行列で
 /// スクリーン座標に再投影して速度ベクトルを求める。
-/// 速度方向に沿ってHDRシーンを線形サンプリングしてブラーする。
+/// 現在位置から前フレーム位置に向かってHDRシーンをブラーする。
 
 #include "Fullscreen.hlsli"
 
@@ -26,7 +26,7 @@ float4 PSMotionBlur(FullscreenVSOutput input) : SV_Target
     float2 uv = input.uv;
     float depth = gDepth.Sample(gPointSampler, uv).r;
 
-    // スカイボックス（depth=1.0）はブラーしない
+    // スカイボックス（depth>=1.0）はブラーしない
     if (depth >= 1.0)
         return gScene.Sample(gLinearSampler, uv);
 
@@ -43,25 +43,30 @@ float4 PSMotionBlur(FullscreenVSOutput input) : SV_Target
     float2 prevNDC = prevClip.xy / prevClip.w;
     float2 prevUV = prevNDC * float2(0.5, -0.5) + 0.5;
 
-    // 速度ベクトル
+    // 速度ベクトル（current → previous 方向）
     float2 velocity = (uv - prevUV) * intensity;
 
-    // 速度が非常に小さい場合はブラーをスキップ
+    // 速度の大きさをチェック
     float velocityLen = length(velocity);
-    if (velocityLen < 0.0001)
+    if (velocityLen < 0.001)
         return gScene.Sample(gLinearSampler, uv);
 
-    // 速度方向にブラー（中心を基準に前後にサンプル）
+    // 最大速度をクランプ（画面の10%以上のブラーを防止）
+    float maxVelocity = 0.1;
+    if (velocityLen > maxVelocity)
+        velocity = velocity / velocityLen * maxVelocity;
+
+    // 現在位置から前フレーム位置に向かってブラー
+    // t=0 で現在位置、t=1 で前フレーム位置
     float4 color = float4(0.0, 0.0, 0.0, 0.0);
-    for (int i = 0; i < sampleCount; i++)
+    int count = max(sampleCount, 2);
+    for (int i = 0; i < count; i++)
     {
-        float t = (float)i / (float)(sampleCount - 1) - 0.5;
-        float2 sampleUV = uv + velocity * t;
-        // UV範囲クランプ
-        sampleUV = saturate(sampleUV);
+        float t = (float)i / (float)(count - 1);
+        float2 sampleUV = saturate(uv - velocity * t);
         color += gScene.Sample(gLinearSampler, sampleUV);
     }
-    color /= (float)sampleCount;
+    color /= (float)count;
 
     return color;
 }
