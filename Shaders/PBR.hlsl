@@ -23,11 +23,12 @@ cbuffer FrameConstants : register(b1)
     float4x4 gViewProjection;
     float3   gCameraPosition;
     float    gTime;
-    // シャドウ関連
+    // CSMシャドウ関連
     float4x4 gLightVP[NUM_SHADOW_CASCADES];
     float4   gCascadeSplitsVec;   // x,y,z,w = splits[0..3]
     float    gShadowMapSize;
     uint     gShadowEnabled;
+    float2   _fogPad;
     // フォグ関連
     float3   gFogColor;
     float    gFogStart;
@@ -35,6 +36,16 @@ cbuffer FrameConstants : register(b1)
     float    gFogDensity;
     uint     gFogMode;
     uint     gShadowDebugMode;
+    // スポットシャドウ関連
+    float4x4 gSpotLightVP;
+    float    gSpotShadowMapSize;
+    int      gSpotShadowLightIndex;
+    float2   _spotPad;
+    // ポイントシャドウ関連
+    float4x4 gPointLightVP[6];
+    float    gPointShadowMapSize;
+    int      gPointShadowLightIndex;
+    float2   _pointPad;
 };
 
 #define MAX_LIGHTS 16
@@ -173,6 +184,21 @@ float4 PSMain(PSInput input) : SV_Target
     float3 V = normalize(gCameraPosition - input.posW);
 
     // --- シャドウ ---
+    // ライト方向依存の法線オフセットバイアス
+    // 光に正対する面（床）→ オフセット0、光に平行な面（壁）→ オフセット大
+    float3 mainLightDir = float3(0, -1, 0);
+    for (uint li = 0; li < gNumLights; ++li)
+    {
+        if (gLights[li].type == LIGHT_DIRECTIONAL)
+        {
+            mainLightDir = normalize(gLights[li].direction);
+            break;
+        }
+    }
+    float NdotL = dot(N, -mainLightDir);
+    float normalOffsetScale = saturate(1.0f - NdotL);
+    float3 shadowPosW = input.posW + N * normalOffsetScale * 0.05f;
+
     float shadowFactor = 1.0f;
     if (gShadowEnabled)
     {
@@ -181,7 +207,7 @@ float4 PSMain(PSInput input) : SV_Target
             gCascadeSplitsVec.z, gCascadeSplitsVec.w
         };
         shadowFactor = ComputeCascadedShadow(
-            input.posW, input.viewZ,
+            shadowPosW, input.viewZ,
             gLightVP, cascadeSplits, gShadowMapSize);
     }
 
@@ -192,9 +218,22 @@ float4 PSMain(PSInput input) : SV_Target
         float3 contribution = EvaluateLight(gLights[i], input.posW, N, V,
                             albedo.rgb, metallic, roughness);
 
-        // シャドウはDirectionalライトにのみ適用
+        // per-light shadow
+        float shadow = 1.0f;
         if (gLights[i].type == LIGHT_DIRECTIONAL)
-            contribution *= shadowFactor;
+        {
+            shadow = shadowFactor; // CSM
+        }
+        else if ((int)i == gSpotShadowLightIndex)
+        {
+            shadow = ComputeSpotShadow(shadowPosW, gSpotLightVP, gSpotShadowMapSize);
+        }
+        else if ((int)i == gPointShadowLightIndex)
+        {
+            shadow = ComputePointShadow(shadowPosW, gLights[i].position,
+                                         gPointLightVP, gPointShadowMapSize);
+        }
+        contribution *= shadow;
 
         Lo += contribution;
     }

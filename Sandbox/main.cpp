@@ -1,7 +1,7 @@
 /// @file main.cpp
-/// @brief GXLib Phase 4c-e テストアプリケーション — HDR + Bloom + FXAA + Vignette + ColorGrading
+/// @brief GXLib Phase 4f テストアプリケーション — HDR + SSAO + Bloom + FXAA + Vignette + ColorGrading
 ///
-/// HDR浮動小数点RTに3D描画 → Bloom → ColorGrading → トーンマッピング → FXAA → Vignette → LDRバックバッファ
+/// HDR浮動小数点RTに3D描画 → SSAO → Bloom → ColorGrading → トーンマッピング → FXAA → Vignette → LDRバックバッファ
 
 #include "pch.h"
 #include "Core/Application.h"
@@ -48,18 +48,40 @@ static GX::PostEffectPipeline g_postEffect;
 static GX::GPUMesh           g_sphereMesh;
 static GX::GPUMesh           g_planeMesh;
 static GX::GPUMesh           g_cubeMesh;
+static GX::GPUMesh           g_cylinderMesh;
+static GX::GPUMesh           g_tallBoxMesh;
+static GX::GPUMesh           g_wallMesh;
 
-// 球体グリッド（メタリック×ラフネス）
-static constexpr int k_GridRows = 7;
-static constexpr int k_GridCols = 7;
-static GX::Transform3D g_sphereTransforms[k_GridRows * k_GridCols];
-static GX::Material    g_sphereMaterials[k_GridRows * k_GridCols];
+// 球体（少数、AO確認用）
+static constexpr int k_NumSpheres = 3;
+static GX::Transform3D g_sphereTransforms[k_NumSpheres];
+static GX::Material    g_sphereMaterials[k_NumSpheres];
 
 // 地面
 static GX::Transform3D g_planeTransform;
 static GX::Material    g_planeMaterial;
 
-// キューブ
+// 箱の集まり（地面に置いた箱群 → 接地部AO確認）
+static constexpr int k_NumBoxes = 6;
+static GX::Transform3D g_boxTransforms[k_NumBoxes];
+static GX::Material    g_boxMaterials[k_NumBoxes];
+
+// 柱（円柱 → 地面との接合部AO確認）
+static constexpr int k_NumPillars = 4;
+static GX::Transform3D g_pillarTransforms[k_NumPillars];
+static GX::Material    g_pillarMaterial;
+
+// 壁（L字コーナー → 凹角AO確認）
+static constexpr int k_NumWalls = 2;
+static GX::Transform3D g_wallTransforms[k_NumWalls];
+static GX::Material    g_wallMaterial;
+
+// 段差（階段状 → 角のAO確認）
+static constexpr int k_NumSteps = 4;
+static GX::Transform3D g_stepTransforms[k_NumSteps];
+static GX::Material    g_stepMaterial;
+
+// 回転キューブ
 static GX::Transform3D g_cubeTransform;
 static GX::Material    g_cubeMaterial;
 
@@ -81,15 +103,40 @@ static int   g_lastMouseY = 0;
 
 void DrawScene()
 {
+    // 地面
     g_renderer3D.SetMaterial(g_planeMaterial);
     g_renderer3D.DrawMesh(g_planeMesh, g_planeTransform);
 
-    for (int i = 0; i < k_GridRows * k_GridCols; ++i)
+    // 球体
+    for (int i = 0; i < k_NumSpheres; ++i)
     {
         g_renderer3D.SetMaterial(g_sphereMaterials[i]);
         g_renderer3D.DrawMesh(g_sphereMesh, g_sphereTransforms[i]);
     }
 
+    // 箱の集まり
+    for (int i = 0; i < k_NumBoxes; ++i)
+    {
+        g_renderer3D.SetMaterial(g_boxMaterials[i]);
+        g_renderer3D.DrawMesh(g_cubeMesh, g_boxTransforms[i]);
+    }
+
+    // 柱
+    g_renderer3D.SetMaterial(g_pillarMaterial);
+    for (int i = 0; i < k_NumPillars; ++i)
+        g_renderer3D.DrawMesh(g_cylinderMesh, g_pillarTransforms[i]);
+
+    // 壁（L字コーナー）
+    g_renderer3D.SetMaterial(g_wallMaterial);
+    for (int i = 0; i < k_NumWalls; ++i)
+        g_renderer3D.DrawMesh(g_wallMesh, g_wallTransforms[i]);
+
+    // 段差
+    g_renderer3D.SetMaterial(g_stepMaterial);
+    for (int i = 0; i < k_NumSteps; ++i)
+        g_renderer3D.DrawMesh(g_tallBoxMesh, g_stepTransforms[i]);
+
+    // 回転キューブ
     g_renderer3D.SetMaterial(g_cubeMaterial);
     g_renderer3D.DrawMesh(g_cubeMesh, g_cubeTransform);
 }
@@ -148,44 +195,98 @@ bool InitializeScene()
         g_fontHandle = g_fontManager.CreateFont(L"MS Gothic", 20);
 
     // メッシュ生成
-    auto sphereData = GX::MeshGenerator::CreateSphere(0.4f, 32, 16);
-    auto planeData  = GX::MeshGenerator::CreatePlane(40.0f, 40.0f, 40, 40);
-    auto boxData    = GX::MeshGenerator::CreateBox(1.0f, 1.0f, 1.0f);
+    auto sphereData   = GX::MeshGenerator::CreateSphere(0.5f, 32, 16);
+    auto planeData    = GX::MeshGenerator::CreatePlane(40.0f, 40.0f, 40, 40);
+    auto boxData      = GX::MeshGenerator::CreateBox(1.0f, 1.0f, 1.0f);
+    auto cylinderData = GX::MeshGenerator::CreateCylinder(0.3f, 0.3f, 3.0f, 16, 1);
+    auto tallBoxData  = GX::MeshGenerator::CreateBox(2.0f, 0.5f, 3.0f);
+    auto wallData     = GX::MeshGenerator::CreateBox(0.3f, 3.0f, 6.0f);
 
-    g_sphereMesh = g_renderer3D.CreateGPUMesh(sphereData);
-    g_planeMesh  = g_renderer3D.CreateGPUMesh(planeData);
-    g_cubeMesh   = g_renderer3D.CreateGPUMesh(boxData);
+    g_sphereMesh   = g_renderer3D.CreateGPUMesh(sphereData);
+    g_planeMesh    = g_renderer3D.CreateGPUMesh(planeData);
+    g_cubeMesh     = g_renderer3D.CreateGPUMesh(boxData);
+    g_cylinderMesh = g_renderer3D.CreateGPUMesh(cylinderData);
+    g_tallBoxMesh  = g_renderer3D.CreateGPUMesh(tallBoxData);
+    g_wallMesh     = g_renderer3D.CreateGPUMesh(wallData);
 
-    // 球体グリッド
-    float spacing = 1.2f;
-    float startX = -(k_GridCols - 1) * spacing * 0.5f;
-    float startZ = -(k_GridRows - 1) * spacing * 0.5f;
+    // === 球体（地面に接するように配置 → 接地部AO） ===
+    g_sphereTransforms[0].SetPosition(0.0f, 0.5f, 0.0f);
+    g_sphereMaterials[0].constants.albedoFactor = { 0.8f, 0.2f, 0.2f, 1.0f };
+    g_sphereMaterials[0].constants.metallicFactor  = 0.0f;
+    g_sphereMaterials[0].constants.roughnessFactor = 0.5f;
 
-    for (int row = 0; row < k_GridRows; ++row)
+    g_sphereTransforms[1].SetPosition(1.5f, 0.5f, 0.0f);
+    g_sphereMaterials[1].constants.albedoFactor = { 0.2f, 0.8f, 0.2f, 1.0f };
+    g_sphereMaterials[1].constants.metallicFactor  = 0.5f;
+    g_sphereMaterials[1].constants.roughnessFactor = 0.3f;
+
+    // 箱の角に置いた球 → 箱と球の間にAO
+    g_sphereTransforms[2].SetPosition(-3.0f, 1.5f, 2.0f);
+    g_sphereMaterials[2].constants.albedoFactor = { 0.2f, 0.2f, 0.8f, 1.0f };
+    g_sphereMaterials[2].constants.metallicFactor  = 0.0f;
+    g_sphereMaterials[2].constants.roughnessFactor = 0.8f;
+
+    // === 地面 ===
+    g_planeTransform.SetPosition(0.0f, 0.0f, 0.0f);
+    g_planeMaterial.constants.albedoFactor = { 0.5f, 0.5f, 0.52f, 1.0f };
+    g_planeMaterial.constants.metallicFactor  = 0.0f;
+    g_planeMaterial.constants.roughnessFactor = 0.9f;
+
+    // === 箱の集まり（密集配置 → 箱間のAO） ===
     {
-        for (int col = 0; col < k_GridCols; ++col)
+        XMFLOAT4 boxColor = { 0.7f, 0.65f, 0.55f, 1.0f };
+        // 地面に並べた箱
+        float bx = -3.0f, bz = 0.0f;
+        g_boxTransforms[0].SetPosition(bx, 0.5f, bz);
+        g_boxTransforms[1].SetPosition(bx + 1.05f, 0.5f, bz);
+        g_boxTransforms[2].SetPosition(bx + 0.5f, 0.5f, bz + 1.05f);
+        // 積み上げた箱
+        g_boxTransforms[3].SetPosition(bx, 1.5f, bz);
+        g_boxTransforms[3].SetRotation(0.0f, 0.3f, 0.0f);
+        // 大きさ違い
+        g_boxTransforms[4].SetPosition(bx + 2.5f, 0.75f, bz);
+        g_boxTransforms[4].SetScale(1.5f, 1.5f, 1.5f);
+        // 傾いた箱
+        g_boxTransforms[5].SetPosition(bx + 1.0f, 0.5f, bz - 1.5f);
+        g_boxTransforms[5].SetRotation(0.0f, 0.78f, 0.0f);
+        for (int i = 0; i < k_NumBoxes; ++i)
         {
-            int idx = row * k_GridCols + col;
-            float x = startX + col * spacing;
-            float z = startZ + row * spacing;
-            g_sphereTransforms[idx].SetPosition(x, 1.5f, z);
-
-            auto& mat = g_sphereMaterials[idx];
-            mat.constants.albedoFactor = { 0.8f, 0.2f, 0.2f, 1.0f };
-            mat.constants.metallicFactor  = static_cast<float>(col) / (k_GridCols - 1);
-            mat.constants.roughnessFactor = static_cast<float>(row) / (k_GridRows - 1);
-            mat.constants.roughnessFactor = (std::max)(mat.constants.roughnessFactor, 0.05f);
+            g_boxMaterials[i].constants.albedoFactor = boxColor;
+            g_boxMaterials[i].constants.metallicFactor  = 0.0f;
+            g_boxMaterials[i].constants.roughnessFactor = 0.7f;
         }
     }
 
-    // 地面
-    g_planeTransform.SetPosition(0.0f, 0.0f, 0.0f);
-    g_planeMaterial.constants.albedoFactor = { 0.3f, 0.3f, 0.35f, 1.0f };
-    g_planeMaterial.constants.metallicFactor  = 0.0f;
-    g_planeMaterial.constants.roughnessFactor = 0.8f;
+    // === 柱（地面との接合部 → 根元AO） ===
+    g_pillarTransforms[0].SetPosition(4.0f, 1.5f, 3.0f);
+    g_pillarTransforms[1].SetPosition(6.0f, 1.5f, 3.0f);
+    g_pillarTransforms[2].SetPosition(4.0f, 1.5f, 5.0f);
+    g_pillarTransforms[3].SetPosition(6.0f, 1.5f, 5.0f);
+    g_pillarMaterial.constants.albedoFactor = { 0.6f, 0.6f, 0.6f, 1.0f };
+    g_pillarMaterial.constants.metallicFactor  = 0.0f;
+    g_pillarMaterial.constants.roughnessFactor = 0.6f;
 
-    // キューブ
-    g_cubeTransform.SetPosition(5.0f, 0.5f, 0.0f);
+    // === L字壁（コーナー凹角 → 強いAO） ===
+    g_wallTransforms[0].SetPosition(8.0f, 1.5f, 0.0f);   // 壁1（Z方向）
+    g_wallTransforms[1].SetPosition(8.0f + 3.0f, 1.5f, -2.85f); // 壁2（X方向）
+    g_wallTransforms[1].SetRotation(0.0f, XM_PIDIV2, 0.0f);
+    g_wallMaterial.constants.albedoFactor = { 0.75f, 0.72f, 0.68f, 1.0f };
+    g_wallMaterial.constants.metallicFactor  = 0.0f;
+    g_wallMaterial.constants.roughnessFactor = 0.85f;
+
+    // === 段差（階段状） ===
+    for (int i = 0; i < k_NumSteps; ++i)
+    {
+        float y = (i + 1) * 0.25f;  // 0.25, 0.5, 0.75, 1.0
+        float z = -4.0f + i * 1.0f;
+        g_stepTransforms[i].SetPosition(0.0f, y, z);
+    }
+    g_stepMaterial.constants.albedoFactor = { 0.55f, 0.55f, 0.6f, 1.0f };
+    g_stepMaterial.constants.metallicFactor  = 0.0f;
+    g_stepMaterial.constants.roughnessFactor = 0.8f;
+
+    // === 回転キューブ ===
+    g_cubeTransform.SetPosition(3.0f, 0.5f, -2.0f);
     g_cubeMaterial.constants.albedoFactor = { 0.95f, 0.93f, 0.88f, 1.0f };
     g_cubeMaterial.constants.metallicFactor  = 1.0f;
     g_cubeMaterial.constants.roughnessFactor = 0.3f;
@@ -209,8 +310,8 @@ bool InitializeScene()
     uint32_t w = g_app.GetWindow().GetWidth();
     uint32_t h = g_app.GetWindow().GetHeight();
     g_camera.SetPerspective(XM_PIDIV4, static_cast<float>(w) / h, 0.1f, 1000.0f);
-    g_camera.SetPosition(0.0f, 5.0f, -10.0f);
-    g_camera.Rotate(0.4f, 0.0f);
+    g_camera.SetPosition(2.0f, 4.0f, -8.0f);
+    g_camera.Rotate(0.35f, 0.0f);
 
     return true;
 }
@@ -260,6 +361,10 @@ void UpdateInput(float deltaTime)
         uint32_t mode = (g_renderer3D.GetShadowDebugMode() + 1) % 7;
         g_renderer3D.SetShadowDebugMode(mode);
     }
+
+    // SSAO ON/OFF
+    if (kb.IsKeyTriggered('9'))
+        g_postEffect.GetSSAO().SetEnabled(!g_postEffect.GetSSAO().IsEnabled());
 
     // 露出調整
     if (g_inputManager.CheckHitKey(VK_OEM_PLUS) || g_inputManager.CheckHitKey(VK_ADD))
@@ -324,11 +429,26 @@ void RenderFrame(float deltaTime)
 
     // === シャドウパス ===
     g_renderer3D.UpdateShadow(g_camera);
+
+    // CSMパス
     for (uint32_t cascade = 0; cascade < GX::CascadedShadowMap::k_NumCascades; ++cascade)
     {
         g_renderer3D.BeginShadowPass(cmdList, g_frameIndex, cascade);
         DrawScene();
         g_renderer3D.EndShadowPass(cascade);
+    }
+
+    // スポットシャドウパス
+    g_renderer3D.BeginSpotShadowPass(cmdList, g_frameIndex);
+    DrawScene();
+    g_renderer3D.EndSpotShadowPass();
+
+    // ポイントシャドウパス（6面）
+    for (uint32_t face = 0; face < 6; ++face)
+    {
+        g_renderer3D.BeginPointShadowPass(cmdList, g_frameIndex, face);
+        DrawScene();
+        g_renderer3D.EndPointShadowPass(face);
     }
 
     // === HDRシーン描画パス ===
@@ -377,8 +497,8 @@ void RenderFrame(float deltaTime)
 
     auto rtvHandle = g_swapChain.GetCurrentRTVHandle();
 
-    // トーンマッピング → バックバッファ
-    g_postEffect.Resolve(rtvHandle);
+    // SSAO → Bloom → トーンマッピング → バックバッファ
+    g_postEffect.Resolve(rtvHandle, g_renderer3D.GetDepthBuffer(), g_camera);
 
     // === 2Dテキスト（LDRバックバッファ上に直接描画）===
     cmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
@@ -420,8 +540,14 @@ void RenderFrame(float deltaTime)
                     g_postEffect.GetTemperature());
             }
 
+            g_textRenderer.DrawFormatString(g_fontHandle, 10, 160, 0xFF88FF88,
+                L"SSAO: %s  Radius: %.2f  Power: %.2f",
+                g_postEffect.GetSSAO().IsEnabled() ? L"ON" : L"OFF",
+                g_postEffect.GetSSAO().GetRadius(),
+                g_postEffect.GetSSAO().GetPower());
+
             const wchar_t* shadowDebugNames[] = { L"OFF", L"Factor", L"Cascade", L"ShadowUV", L"RawDepth", L"Normal", L"ViewZ" };
-            g_textRenderer.DrawFormatString(g_fontHandle, 10, 160, 0xFFFF8888,
+            g_textRenderer.DrawFormatString(g_fontHandle, 10, 185, 0xFFFF8888,
                 L"ShadowDebug: %s  Shadow: %s",
                 shadowDebugNames[g_renderer3D.GetShadowDebugMode()],
                 g_renderer3D.IsShadowEnabled() ? L"ON" : L"OFF");
@@ -430,7 +556,7 @@ void RenderFrame(float deltaTime)
             g_textRenderer.DrawString(g_fontHandle, 10, helpY,
                 L"WASD: Move  QE: Up/Down  Shift: Fast  RClick: Mouse  ESC: Quit", 0xFFAAAAAA);
             g_textRenderer.DrawString(g_fontHandle, 10, helpY + 25,
-                L"1/2/3: Tonemap  4: Bloom  5: FXAA  6: Vignette  7: ColorGrading  8: ShadowDbg  +/-: Exposure", 0xFFFFCC44);
+                L"1/2/3: Tonemap  4: Bloom  5: FXAA  6: Vignette  7: ColorGrading  8: ShadowDbg  9: SSAO  +/-: Exposure", 0xFFFFCC44);
         }
     }
     g_spriteBatch.End();
@@ -467,7 +593,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
                    _In_ LPSTR lpCmdLine, _In_ int nCmdShow)
 {
     GX::ApplicationDesc appDesc;
-    appDesc.title  = L"GXLib - Phase 4: Post-Effects (Bloom/FXAA/Vignette/ColorGrading)";
+    appDesc.title  = L"GXLib - Phase 4: Post-Effects (SSAO/Bloom/FXAA/Vignette/ColorGrading)";
     appDesc.width  = 1280;
     appDesc.height = 720;
 
@@ -491,7 +617,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
         return -1;
 
     g_app.GetWindow().SetResizeCallback(OnResize);
-    GX_LOG_INFO("=== GXLib Phase 4: Post-Effects (Bloom/FXAA/Vignette/ColorGrading) ===");
+    GX_LOG_INFO("=== GXLib Phase 4: Post-Effects (SSAO/Bloom/FXAA/Vignette/ColorGrading) ===");
 
     g_app.Run(RenderFrame);
 

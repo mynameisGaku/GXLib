@@ -180,6 +180,20 @@ PipelineStateBuilder& PipelineStateBuilder::SetSubtractiveBlend()
     return *this;
 }
 
+PipelineStateBuilder& PipelineStateBuilder::SetMultiplyBlend()
+{
+    auto& rt = m_desc.BlendState.RenderTarget[0];
+    rt.BlendEnable           = TRUE;
+    rt.SrcBlend              = D3D12_BLEND_ZERO;
+    rt.DestBlend             = D3D12_BLEND_SRC_COLOR;
+    rt.BlendOp               = D3D12_BLEND_OP_ADD;
+    rt.SrcBlendAlpha         = D3D12_BLEND_ONE;
+    rt.DestBlendAlpha        = D3D12_BLEND_ZERO;
+    rt.BlendOpAlpha          = D3D12_BLEND_OP_ADD;
+    rt.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+    return *this;
+}
+
 ComPtr<ID3D12PipelineState> PipelineStateBuilder::Build(ID3D12Device* device)
 {
     ComPtr<ID3D12PipelineState> pso;

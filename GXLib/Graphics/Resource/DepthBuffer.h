@@ -34,6 +34,9 @@ public:
     /// DSVハンドルを取得
     D3D12_CPU_DESCRIPTOR_HANDLE GetDSVHandle() const;
 
+    /// 深度バッファをDSV+自前shader-visible SRV付きで作成（SSAO用）
+    bool CreateWithOwnSRV(ID3D12Device* device, uint32_t width, uint32_t height);
+
     /// SRVのGPUハンドルを取得（シャドウマップ用）
     D3D12_GPU_DESCRIPTOR_HANDLE GetSRVGPUHandle() const { return m_srvGPUHandle; }
 
@@ -44,13 +47,24 @@ public:
     uint32_t GetHeight() const { return m_height; }
     DXGI_FORMAT GetFormat() const { return m_format; }
 
+    /// リソースバリアを発行してステート遷移
+    void TransitionTo(ID3D12GraphicsCommandList* cmdList, D3D12_RESOURCE_STATES newState);
+    D3D12_RESOURCE_STATES GetCurrentState() const { return m_currentState; }
+
+    /// 自前SRVヒープを取得（SSAO用）
+    DescriptorHeap& GetOwnSRVHeap() { return m_ownSrvHeap; }
+    bool HasOwnSRV() const { return m_hasOwnSRV; }
+
 private:
     ComPtr<ID3D12Resource> m_resource;
     DescriptorHeap         m_dsvHeap;
+    DescriptorHeap         m_ownSrvHeap;    // 自前shader-visible SRVヒープ (SSAO用)
     D3D12_GPU_DESCRIPTOR_HANDLE m_srvGPUHandle = {};
     uint32_t    m_width  = 0;
     uint32_t    m_height = 0;
     DXGI_FORMAT m_format = DXGI_FORMAT_D32_FLOAT;
+    D3D12_RESOURCE_STATES m_currentState = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+    bool m_hasOwnSRV = false;
 };
 
 } // namespace GX

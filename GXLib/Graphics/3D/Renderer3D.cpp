@@ -16,8 +16,8 @@ bool Renderer3D::Initialize(ID3D12Device* device, ID3D12CommandQueue* cmdQueue,
     m_screenWidth  = screenWidth;
     m_screenHeight = screenHeight;
 
-    // 深度バッファ
-    if (!m_depthBuffer.Create(device, screenWidth, screenHeight))
+    // 深度バッファ（SSAO用に自前SRV付き）
+    if (!m_depthBuffer.CreateWithOwnSRV(device, screenWidth, screenHeight))
     {
         GX_LOG_ERROR("Renderer3D: Failed to create depth buffer");
         return false;
@@ -53,9 +53,10 @@ bool Renderer3D::Initialize(ID3D12Device* device, ID3D12CommandQueue* cmdQueue,
     if (!m_boneCB.Initialize(device, boneCBSize, boneCBSize))
         return false;
 
-    // Shadow pass CB (lightVP matrix per cascade, 256-aligned × 4 cascades)
-    if (!m_shadowPassCB.Initialize(device, 256 * CascadedShadowMap::k_NumCascades,
-                                    256 * CascadedShadowMap::k_NumCascades))
+    // Shadow pass CB (lightVP matrix per cascade/face, 256-aligned × 11 slots: 4 CSM + 1 Spot + 6 Point)
+    static constexpr uint32_t k_ShadowCBSlots = 4 + 1 + 6; // CSM + Spot + Point
+    if (!m_shadowPassCB.Initialize(device, 256 * k_ShadowCBSlots,
+                                    256 * k_ShadowCBSlots))
         return false;
 
     // シェーダーコンパイラ
@@ -63,15 +64,29 @@ bool Renderer3D::Initialize(ID3D12Device* device, ID3D12CommandQueue* cmdQueue,
         return false;
 
     // CSM初期化（TextureManagerのSRVヒープにSRVを配置）
-    // 連続4スロットをTextureManagerのSRVヒープから確保
+    // 連続6スロットをTextureManagerのSRVヒープから確保（CSM 4 + Spot 1 + Point 1）
     auto& srvHeap = m_textureManager.GetSRVHeap();
     uint32_t shadowSrvStart = srvHeap.AllocateIndex();
-    for (uint32_t i = 1; i < CascadedShadowMap::k_NumCascades; ++i)
+    for (uint32_t i = 1; i < 6; ++i)
         srvHeap.AllocateIndex();
 
     if (!m_csm.Initialize(device, &srvHeap, shadowSrvStart))
     {
         GX_LOG_ERROR("Renderer3D: Failed to initialize CSM");
+        return false;
+    }
+
+    // スポットシャドウマップ（SRV index = shadowSrvStart + 4 → t12）
+    if (!m_spotShadowMap.Create(device, k_SpotShadowMapSize, &srvHeap, shadowSrvStart + 4))
+    {
+        GX_LOG_ERROR("Renderer3D: Failed to create spot shadow map");
+        return false;
+    }
+
+    // ポイントシャドウマップ（SRV index = shadowSrvStart + 5 → t13）
+    if (!m_pointShadowMap.Create(device, &srvHeap, shadowSrvStart + 5))
+    {
+        GX_LOG_ERROR("Renderer3D: Failed to create point shadow map");
         return false;
     }
 
@@ -135,8 +150,8 @@ bool Renderer3D::CreatePipelineState(ID3D12Device* device)
         .AddCBV(3)  // b3: MaterialConstants
         .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 5, 0,
                             D3D12_SHADER_VISIBILITY_PIXEL)  // t0-t4
-        .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 8, 4, 0,
-                            D3D12_SHADER_VISIBILITY_PIXEL)  // t8-t11 shadow maps
+        .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 8, 6, 0,
+                            D3D12_SHADER_VISIBILITY_PIXEL)  // t8-t13 shadow maps (CSM + Spot + Point)
         .AddStaticSampler(0)  // s0: linear wrap
         .AddStaticSampler(2, D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
                           D3D12_TEXTURE_ADDRESS_MODE_BORDER,
@@ -188,8 +203,8 @@ bool Renderer3D::CreateShadowPipelineState(ID3D12Device* device)
         .SetInputLayout(k_Vertex3DPBRLayout, _countof(k_Vertex3DPBRLayout))
         .SetDepthFormat(DXGI_FORMAT_D32_FLOAT)
         .SetDepthEnable(true)
-        .SetCullMode(D3D12_CULL_MODE_FRONT)  // フロントフェイスカリング（シャドウアクネ対策）
-        .SetDepthBias(1500, 0.0f, 1.5f)      // 深度バイアス
+        .SetCullMode(D3D12_CULL_MODE_NONE)    // 両面描画（単面ジオメトリのライトリーク防止）
+        .SetDepthBias(200, 0.0f, 2.0f)        // 深度バイアス（自己シャドウ防止）
         .SetRenderTargetCount(0)               // カラー出力なし
         .Build(device);
 
@@ -215,12 +230,40 @@ void Renderer3D::UpdateShadow(const Camera3D& camera)
 
     // 最初のDirectionalライトをシャドウキャスターとして使用
     XMFLOAT3 lightDir = { 0.3f, -1.0f, 0.5f };
+    m_spotShadowLightIndex = -1;
+    m_pointShadowLightIndex = -1;
+
     for (uint32_t i = 0; i < m_currentLights.numLights; ++i)
     {
-        if (m_currentLights.lights[i].type == static_cast<uint32_t>(LightType::Directional))
+        auto type = static_cast<LightType>(m_currentLights.lights[i].type);
+        if (type == LightType::Directional)
         {
             lightDir = m_currentLights.lights[i].direction;
-            break;
+        }
+        else if (type == LightType::Spot && m_spotShadowLightIndex < 0)
+        {
+            m_spotShadowLightIndex = static_cast<int32_t>(i);
+            const auto& light = m_currentLights.lights[i];
+
+            // スポットライトVP行列計算
+            XMVECTOR spotPos = XMLoadFloat3(&light.position);
+            XMVECTOR spotDir = XMVector3Normalize(XMLoadFloat3(&light.direction));
+            XMVECTOR up = XMVectorSet(0, 1, 0, 0);
+            if (XMVectorGetX(XMVector3LengthSq(XMVector3Cross(spotDir, up))) < 0.001f)
+                up = XMVectorSet(0, 0, 1, 0);
+
+            float fov = acosf(light.spotAngle) * 2.0f * 1.2f;
+            fov = (std::min)(fov, XM_PI * 0.95f);
+
+            XMMATRIX view = XMMatrixLookAtLH(spotPos, XMVectorAdd(spotPos, spotDir), up);
+            XMMATRIX proj = XMMatrixPerspectiveFovLH(fov, 1.0f, 0.1f, light.range);
+            XMStoreFloat4x4(&m_spotLightVP, XMMatrixTranspose(view * proj));
+        }
+        else if (type == LightType::Point && m_pointShadowLightIndex < 0)
+        {
+            m_pointShadowLightIndex = static_cast<int32_t>(i);
+            const auto& light = m_currentLights.lights[i];
+            m_pointShadowMap.Update(light.position, light.range);
         }
     }
 
@@ -280,9 +323,16 @@ void Renderer3D::BeginShadowPass(ID3D12GraphicsCommandList* cmdList, uint32_t fr
         void* cbData = m_shadowPassCB.Map(frameIndex);
         if (cbData)
         {
+            auto* base = static_cast<uint8_t*>(cbData);
             const auto& sc = m_csm.GetShadowConstants();
+            // CSM cascades (slots 0-3)
             for (uint32_t i = 0; i < CascadedShadowMap::k_NumCascades; ++i)
-                memcpy(static_cast<uint8_t*>(cbData) + i * 256, &sc.lightVP[i], sizeof(XMFLOAT4X4));
+                memcpy(base + i * 256, &sc.lightVP[i], sizeof(XMFLOAT4X4));
+            // Spot shadow (slot 4)
+            memcpy(base + 4 * 256, &m_spotLightVP, sizeof(XMFLOAT4X4));
+            // Point shadow faces (slots 5-10)
+            for (uint32_t i = 0; i < PointShadowMap::k_NumFaces; ++i)
+                memcpy(base + (5 + i) * 256, &m_pointShadowMap.GetFaceVP(i), sizeof(XMFLOAT4X4));
             m_shadowPassCB.Unmap(frameIndex);
         }
 
@@ -311,6 +361,148 @@ void Renderer3D::EndShadowPass(uint32_t cascadeIndex)
     barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
     m_cmdList->ResourceBarrier(1, &barrier);
     shadowMap.SetCurrentState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+}
+
+void Renderer3D::BeginSpotShadowPass(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex)
+{
+    if (m_spotShadowLightIndex < 0) return;
+
+    m_cmdList    = cmdList;
+    m_frameIndex = frameIndex;
+    m_inShadowPass = true;
+
+    // Transition to DEPTH_WRITE
+    if (m_spotShadowMap.GetCurrentState() != D3D12_RESOURCE_STATE_DEPTH_WRITE)
+    {
+        D3D12_RESOURCE_BARRIER barrier = {};
+        barrier.Type                   = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+        barrier.Transition.pResource   = m_spotShadowMap.GetResource();
+        barrier.Transition.StateBefore = m_spotShadowMap.GetCurrentState();
+        barrier.Transition.StateAfter  = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+        barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+        cmdList->ResourceBarrier(1, &barrier);
+        m_spotShadowMap.SetCurrentState(D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    }
+
+    // Clear depth
+    auto dsvHandle = m_spotShadowMap.GetDSVHandle();
+    cmdList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+    cmdList->OMSetRenderTargets(0, nullptr, FALSE, &dsvHandle);
+
+    // Viewport & scissor
+    D3D12_VIEWPORT viewport = {};
+    viewport.Width    = static_cast<float>(k_SpotShadowMapSize);
+    viewport.Height   = static_cast<float>(k_SpotShadowMapSize);
+    viewport.MaxDepth = 1.0f;
+    cmdList->RSSetViewports(1, &viewport);
+
+    D3D12_RECT scissor = {};
+    scissor.right  = static_cast<LONG>(k_SpotShadowMapSize);
+    scissor.bottom = static_cast<LONG>(k_SpotShadowMapSize);
+    cmdList->RSSetScissorRects(1, &scissor);
+
+    // Shadow PSO
+    cmdList->SetPipelineState(m_shadowPso.Get());
+    cmdList->SetGraphicsRootSignature(m_shadowRootSignature.Get());
+    cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    // Bind spot lightVP (slot 4 in shadow CB)
+    cmdList->SetGraphicsRootConstantBufferView(1,
+        m_shadowPassCB.GetGPUVirtualAddress(frameIndex) + 4 * 256);
+}
+
+void Renderer3D::EndSpotShadowPass()
+{
+    if (m_spotShadowLightIndex < 0) return;
+
+    m_inShadowPass = false;
+
+    D3D12_RESOURCE_BARRIER barrier = {};
+    barrier.Type                   = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Transition.pResource   = m_spotShadowMap.GetResource();
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+    barrier.Transition.StateAfter  = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    m_cmdList->ResourceBarrier(1, &barrier);
+    m_spotShadowMap.SetCurrentState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+}
+
+void Renderer3D::BeginPointShadowPass(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
+                                        uint32_t face)
+{
+    if (m_pointShadowLightIndex < 0) return;
+
+    m_cmdList    = cmdList;
+    m_frameIndex = frameIndex;
+    m_inShadowPass = true;
+
+    // On first face: transition whole resource to DEPTH_WRITE and clear all faces
+    if (face == 0)
+    {
+        if (m_pointShadowMap.GetCurrentState() != D3D12_RESOURCE_STATE_DEPTH_WRITE)
+        {
+            D3D12_RESOURCE_BARRIER barrier = {};
+            barrier.Type                   = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            barrier.Transition.pResource   = m_pointShadowMap.GetResource();
+            barrier.Transition.StateBefore = m_pointShadowMap.GetCurrentState();
+            barrier.Transition.StateAfter  = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+            barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+            cmdList->ResourceBarrier(1, &barrier);
+            m_pointShadowMap.SetCurrentState(D3D12_RESOURCE_STATE_DEPTH_WRITE);
+        }
+
+        // Clear all 6 faces
+        for (uint32_t f = 0; f < PointShadowMap::k_NumFaces; ++f)
+        {
+            auto dsv = m_pointShadowMap.GetFaceDSVHandle(f);
+            cmdList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+        }
+    }
+
+    // Set this face's DSV
+    auto dsvHandle = m_pointShadowMap.GetFaceDSVHandle(face);
+    cmdList->OMSetRenderTargets(0, nullptr, FALSE, &dsvHandle);
+
+    // Viewport & scissor
+    D3D12_VIEWPORT viewport = {};
+    viewport.Width    = static_cast<float>(PointShadowMap::k_Size);
+    viewport.Height   = static_cast<float>(PointShadowMap::k_Size);
+    viewport.MaxDepth = 1.0f;
+    cmdList->RSSetViewports(1, &viewport);
+
+    D3D12_RECT scissor = {};
+    scissor.right  = static_cast<LONG>(PointShadowMap::k_Size);
+    scissor.bottom = static_cast<LONG>(PointShadowMap::k_Size);
+    cmdList->RSSetScissorRects(1, &scissor);
+
+    // Shadow PSO
+    cmdList->SetPipelineState(m_shadowPso.Get());
+    cmdList->SetGraphicsRootSignature(m_shadowRootSignature.Get());
+    cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    // Bind face VP (slots 5-10 in shadow CB)
+    cmdList->SetGraphicsRootConstantBufferView(1,
+        m_shadowPassCB.GetGPUVirtualAddress(frameIndex) + (5 + face) * 256);
+}
+
+void Renderer3D::EndPointShadowPass(uint32_t face)
+{
+    if (m_pointShadowLightIndex < 0) return;
+
+    m_inShadowPass = false;
+
+    // On last face: transition to PIXEL_SHADER_RESOURCE
+    if (face == PointShadowMap::k_NumFaces - 1)
+    {
+        D3D12_RESOURCE_BARRIER barrier = {};
+        barrier.Type                   = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+        barrier.Transition.pResource   = m_pointShadowMap.GetResource();
+        barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+        barrier.Transition.StateAfter  = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+        barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+        m_cmdList->ResourceBarrier(1, &barrier);
+        m_pointShadowMap.SetCurrentState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    }
 }
 
 void Renderer3D::Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
@@ -370,6 +562,17 @@ void Renderer3D::Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
         fc.fogEnd     = m_fogConstants.fogEnd;
         fc.fogDensity = m_fogConstants.fogDensity;
         fc.fogMode    = m_fogConstants.fogMode;
+
+        // スポットシャドウ情報
+        fc.spotLightVP = m_spotLightVP;
+        fc.spotShadowMapSize = static_cast<float>(k_SpotShadowMapSize);
+        fc.spotShadowLightIndex = m_spotShadowLightIndex;
+
+        // ポイントシャドウ情報
+        for (uint32_t i = 0; i < PointShadowMap::k_NumFaces; ++i)
+            fc.pointLightVP[i] = m_pointShadowMap.GetFaceVP(i);
+        fc.pointShadowMapSize = static_cast<float>(PointShadowMap::k_Size);
+        fc.pointShadowLightIndex = m_pointShadowLightIndex;
 
         memcpy(cbData, &fc, sizeof(FrameConstants));
         m_frameCB.Unmap(frameIndex);
@@ -561,7 +764,7 @@ void Renderer3D::OnResize(uint32_t width, uint32_t height)
     m_screenWidth  = width;
     m_screenHeight = height;
     if (m_device)
-        m_depthBuffer.Create(m_device, width, height);
+        m_depthBuffer.CreateWithOwnSRV(m_device, width, height);
 }
 
 } // namespace GX

@@ -12,6 +12,7 @@
 #include "Graphics/3D/Model.h"
 #include "Graphics/3D/AnimationPlayer.h"
 #include "Graphics/3D/CascadedShadowMap.h"
+#include "Graphics/3D/PointShadowMap.h"
 #include "Graphics/3D/Fog.h"
 #include "Graphics/3D/Skybox.h"
 #include "Graphics/3D/PrimitiveBatch3D.h"
@@ -43,7 +44,7 @@ struct FrameConstants
     XMFLOAT4X4 viewProjection;
     XMFLOAT3   cameraPosition;
     float      time;
-    // シャドウ関連
+    // CSMシャドウ関連
     XMFLOAT4X4 lightVP[ShadowConstants::k_NumCascades];
     float      cascadeSplits[ShadowConstants::k_NumCascades];
     float      shadowMapSize;
@@ -56,11 +57,26 @@ struct FrameConstants
     float      fogDensity;
     uint32_t   fogMode;
     uint32_t   shadowDebugMode;  // 0=OFF, 1=Factor, 2=Cascade
+    // --- offset 528 ---
+    // スポットシャドウ関連
+    XMFLOAT4X4 spotLightVP;
+    float      spotShadowMapSize;
+    int32_t    spotShadowLightIndex;
+    float      _spotPad[2];
+    // --- offset 608 ---
+    // ポイントシャドウ関連
+    XMFLOAT4X4 pointLightVP[6];
+    float      pointShadowMapSize;
+    int32_t    pointShadowLightIndex;
+    float      _pointPad[2];
+    // --- offset 1008 ---
 };
 
 static_assert(offsetof(FrameConstants, shadowEnabled) == 484, "shadowEnabled offset mismatch");
 static_assert(offsetof(FrameConstants, fogColor) == 496, "fogColor offset mismatch");
-static_assert(sizeof(FrameConstants) == 528, "FrameConstants size mismatch");
+static_assert(offsetof(FrameConstants, spotLightVP) == 528, "spotLightVP offset mismatch");
+static_assert(offsetof(FrameConstants, pointLightVP) == 608, "pointLightVP offset mismatch");
+static_assert(sizeof(FrameConstants) == 1008, "FrameConstants size mismatch");
 
 /// GPU上のメッシュ（VB + IB）
 struct GPUMesh
@@ -88,6 +104,14 @@ public:
     void BeginShadowPass(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
                           uint32_t cascadeIndex);
     void EndShadowPass(uint32_t cascadeIndex);
+
+    /// スポットライトシャドウパス
+    void BeginSpotShadowPass(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex);
+    void EndSpotShadowPass();
+
+    /// ポイントライトシャドウパス（6面）
+    void BeginPointShadowPass(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex, uint32_t face);
+    void EndPointShadowPass(uint32_t face);
 
     /// フレーム開始（メインパス）
     void Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
@@ -178,6 +202,16 @@ private:
     bool              m_shadowEnabled = true;
     bool              m_inShadowPass  = false;
     uint32_t          m_shadowDebugMode = 0;
+
+    // スポットシャドウ
+    ShadowMap   m_spotShadowMap;
+    XMFLOAT4X4  m_spotLightVP = {};
+    int32_t     m_spotShadowLightIndex = -1;
+    static constexpr uint32_t k_SpotShadowMapSize = 2048;
+
+    // ポイントシャドウ
+    PointShadowMap m_pointShadowMap;
+    int32_t        m_pointShadowLightIndex = -1;
 
     // フォグ
     FogConstants m_fogConstants;

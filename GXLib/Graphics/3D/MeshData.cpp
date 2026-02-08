@@ -220,7 +220,7 @@ MeshData MeshGenerator::CreateCylinder(float topRadius, float bottomRadius, floa
             XMFLOAT3 bitangent = { dr * c, height, dr * s };
             XMVECTOR T = XMLoadFloat3(&tangent);
             XMVECTOR B = XMLoadFloat3(&bitangent);
-            XMVECTOR N = XMVector3Normalize(XMVector3Cross(T, B));
+            XMVECTOR N = XMVector3Normalize(XMVector3Cross(B, T));
             XMStoreFloat3(&v.normal, N);
 
             v.texcoord = { static_cast<float>(j) / sliceCount,
@@ -282,8 +282,8 @@ MeshData MeshGenerator::CreateCylinder(float topRadius, float bottomRadius, floa
     for (uint32_t j = 0; j < sliceCount; ++j)
     {
         mesh.indices.push_back(bottomCenterIndex);
-        mesh.indices.push_back(bottomCenterIndex + j + 2);
         mesh.indices.push_back(bottomCenterIndex + j + 1);
+        mesh.indices.push_back(bottomCenterIndex + j + 2);
     }
 
     return mesh;

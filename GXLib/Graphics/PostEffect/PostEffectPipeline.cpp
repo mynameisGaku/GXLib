@@ -39,6 +39,13 @@ bool PostEffectPipeline::Initialize(ID3D12Device* device, uint32_t width, uint32
     // パイプライン
     if (!CreatePipelines(device)) return false;
 
+    // SSAO
+    if (!m_ssao.Initialize(device, width, height))
+    {
+        GX_LOG_ERROR("PostEffectPipeline: Failed to initialize SSAO");
+        return false;
+    }
+
     // ブルーム
     if (!m_bloom.Initialize(device, width, height))
     {
@@ -46,7 +53,7 @@ bool PostEffectPipeline::Initialize(ID3D12Device* device, uint32_t width, uint32
         return false;
     }
 
-    GX_LOG_INFO("PostEffectPipeline initialized (%dx%d) with Bloom/FXAA/Vignette/ColorGrading", width, height);
+    GX_LOG_INFO("PostEffectPipeline initialized (%dx%d) with SSAO/Bloom/FXAA/Vignette/ColorGrading", width, height);
     return true;
 }
 
@@ -213,12 +220,22 @@ void PostEffectPipeline::EndScene()
     m_hdrRT.TransitionTo(m_cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV)
+void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
+                                  DepthBuffer& depthBuffer, const Camera3D& camera)
 {
     // ========================================
-    // HDR chain: hdrRT → [Bloom] → [ColorGrading] → currentHDR
+    // HDR chain: hdrRT → [SSAO] → [Bloom] → [ColorGrading] → currentHDR
     // ========================================
     RenderTarget* currentHDR = &m_hdrRT;
+
+    // SSAO (HDRシーンにインプレース乗算合成)
+    if (m_ssao.IsEnabled())
+    {
+        m_ssao.Execute(m_cmdList, m_frameIndex, *currentHDR, depthBuffer, camera);
+        // hdrRT にインプレース乗算合成されるので currentHDR は変わらない
+        // hdrRT の状態を SRV に戻す（次のエフェクト用）
+        currentHDR->TransitionTo(m_cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    }
 
     // Bloom
     if (m_bloom.IsEnabled())
@@ -325,6 +342,7 @@ void PostEffectPipeline::OnResize(ID3D12Device* device, uint32_t width, uint32_t
     m_hdrPingPongRT.Create(device, width, height, k_HDRFormat);
     m_ldrRT[0].Create(device, width, height, k_LDRFormat);
     m_ldrRT[1].Create(device, width, height, k_LDRFormat);
+    m_ssao.OnResize(device, width, height);
     m_bloom.OnResize(device, width, height);
 }
 

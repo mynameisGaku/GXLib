@@ -10,6 +10,7 @@
 #include "Graphics/Resource/DynamicBuffer.h"
 #include "Graphics/Pipeline/Shader.h"
 #include "Graphics/PostEffect/Bloom.h"
+#include "Graphics/PostEffect/SSAO.h"
 
 namespace GX
 {
@@ -33,13 +34,17 @@ public:
     void BeginScene(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
                      D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle);
     void EndScene();
-    void Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV);
+    void Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
+                 DepthBuffer& depthBuffer, const Camera3D& camera);
 
     // --- トーンマッピング ---
     void SetTonemapMode(TonemapMode mode) { m_tonemapMode = mode; }
     TonemapMode GetTonemapMode() const { return m_tonemapMode; }
     void SetExposure(float exposure) { m_exposure = exposure; }
     float GetExposure() const { return m_exposure; }
+
+    // --- SSAO ---
+    SSAO& GetSSAO() { return m_ssao; }
 
     // --- ブルーム ---
     Bloom& GetBloom() { return m_bloom; }
@@ -99,6 +104,9 @@ private:
 
     // LDR RTs (FXAA/Vignette用)
     RenderTarget m_ldrRT[2];
+
+    // SSAO
+    SSAO m_ssao;
 
     // ブルーム
     Bloom m_bloom;

@@ -58,6 +58,9 @@ public:
     /// 減算ブレンドを設定
     PipelineStateBuilder& SetSubtractiveBlend();
 
+    /// 乗算ブレンドを設定 (Result = Dest * SrcColor)
+    PipelineStateBuilder& SetMultiplyBlend();
+
     /// PSOを構築
     ComPtr<ID3D12PipelineState> Build(ID3D12Device* device);
 
