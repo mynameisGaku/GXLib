@@ -1,0 +1,40 @@
+# Build output
+build/
+
+# Visual Studio
+.vs/
+*.vcxproj.user
+*.suo
+*.sdf
+*.opensdf
+*.db
+*.opendb
+*.ipch
+
+# CMake
+CMakeUserPresets.json
+
+# Compiled objects
+*.obj
+*.o
+*.lib
+*.dll
+*.exe
+*.pdb
+*.ilk
+*.exp
+
+# Compiled shaders
+*.cso
+*.dxo
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Null device file (Windows artifact)
+nul
+
+# Claude Code
+.claude/

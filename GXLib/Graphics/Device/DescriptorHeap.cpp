@@ -1,0 +1,79 @@
+/// @file DescriptorHeap.cpp
+/// @brief ディスクリプタヒープ管理の実装
+#include "pch.h"
+#include "Graphics/Device/DescriptorHeap.h"
+#include "Core/Logger.h"
+
+namespace GX
+{
+
+bool DescriptorHeap::Initialize(ID3D12Device* device,
+                                 D3D12_DESCRIPTOR_HEAP_TYPE type,
+                                 uint32_t numDescriptors,
+                                 bool shaderVisible)
+{
+    m_type           = type;
+    m_numDescriptors = numDescriptors;
+
+    D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+    desc.Type           = type;
+    desc.NumDescriptors = numDescriptors;
+    desc.Flags          = shaderVisible
+        ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
+        : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+    desc.NodeMask = 0;
+
+    HRESULT hr = device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_heap));
+    if (FAILED(hr))
+    {
+        GX_LOG_ERROR("Failed to create descriptor heap (HRESULT: 0x%08X)", hr);
+        return false;
+    }
+
+    m_descriptorSize = device->GetDescriptorHandleIncrementSize(type);
+    m_currentIndex = 0;
+
+    return true;
+}
+
+uint32_t DescriptorHeap::AllocateIndex()
+{
+    // フリーリストに空きがあればそこから再利用
+    if (!m_freeList.empty())
+    {
+        uint32_t index = m_freeList.back();
+        m_freeList.pop_back();
+        return index;
+    }
+
+    assert(m_currentIndex < m_numDescriptors && "Descriptor heap is full!");
+    return m_currentIndex++;
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE DescriptorHeap::Allocate()
+{
+    uint32_t index = AllocateIndex();
+    return GetCPUHandle(index);
+}
+
+void DescriptorHeap::Free(uint32_t index)
+{
+    assert(index < m_numDescriptors && "Invalid descriptor index!");
+    m_freeList.push_back(index);
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE DescriptorHeap::GetCPUHandle(uint32_t index) const
+{
+    D3D12_CPU_DESCRIPTOR_HANDLE handle = m_heap->GetCPUDescriptorHandleForHeapStart();
+    handle.ptr += static_cast<SIZE_T>(index) * m_descriptorSize;
+    return handle;
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE DescriptorHeap::GetGPUHandle(uint32_t index) const
+{
+    D3D12_GPU_DESCRIPTOR_HANDLE handle = m_heap->GetGPUDescriptorHandleForHeapStart();
+    handle.ptr += static_cast<UINT64>(index) * m_descriptorSize;
+    return handle;
+}
+
+} // namespace GX

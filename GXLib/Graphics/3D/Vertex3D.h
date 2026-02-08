@@ -1,0 +1,66 @@
+#pragma once
+/// @file Vertex3D.h
+/// @brief 3D頂点フォーマット定義
+
+#include "pch.h"
+
+namespace GX
+{
+
+/// 基本3D頂点（位置+法線+UV）
+struct Vertex3D
+{
+    XMFLOAT3 position;
+    XMFLOAT3 normal;
+    XMFLOAT2 texcoord;
+};
+
+/// PBR用3D頂点（位置+法線+UV+タンジェント）
+struct Vertex3D_PBR
+{
+    XMFLOAT3 position;
+    XMFLOAT3 normal;
+    XMFLOAT2 texcoord;
+    XMFLOAT4 tangent;  // w = bitangent符号
+};
+
+/// スキニング対応3D頂点
+struct Vertex3D_Skinned
+{
+    XMFLOAT3 position;
+    XMFLOAT3 normal;
+    XMFLOAT2 texcoord;
+    XMFLOAT4 tangent;
+    XMUINT4  joints;   // ボーンインデックス
+    XMFLOAT4 weights;  // ボーンウェイト
+};
+
+/// Vertex3D用InputLayout
+inline const D3D12_INPUT_ELEMENT_DESC k_Vertex3DLayout[] =
+{
+    { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 0,  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+    { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+    { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+};
+
+/// Vertex3D_PBR用InputLayout
+inline const D3D12_INPUT_ELEMENT_DESC k_Vertex3DPBRLayout[] =
+{
+    { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 0,  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+    { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+    { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+    { "TANGENT",  0, DXGI_FORMAT_R32G32B32A32_FLOAT,  0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+};
+
+/// Vertex3D_Skinned用InputLayout
+inline const D3D12_INPUT_ELEMENT_DESC k_Vertex3DSkinnedLayout[] =
+{
+    { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 0,  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+    { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+    { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+    { "TANGENT",  0, DXGI_FORMAT_R32G32B32A32_FLOAT,  0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+    { "JOINTS",   0, DXGI_FORMAT_R32G32B32A32_UINT,   0, 48, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+    { "WEIGHTS",  0, DXGI_FORMAT_R32G32B32A32_FLOAT,  0, 64, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+};
+
+} // namespace GX
