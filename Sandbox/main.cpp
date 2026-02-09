@@ -85,6 +85,15 @@ static GX::Material    g_stepMaterial;
 static GX::Transform3D g_cubeTransform;
 static GX::Material    g_cubeMaterial;
 
+// SSRデモ用: ミラーウォール + カラフルオブジェクト
+static GX::GPUMesh     g_mirrorMesh;
+static GX::Transform3D g_mirrorTransform;
+static GX::Material    g_mirrorMaterial;
+
+static constexpr int k_NumSSRDemoObjs = 3;
+static GX::Transform3D g_ssrDemoTransforms[k_NumSSRDemoObjs];
+static GX::Material    g_ssrDemoMaterials[k_NumSSRDemoObjs];
+
 static uint64_t g_frameFenceValues[GX::SwapChain::k_BufferCount] = {};
 static uint32_t g_frameIndex = 0;
 static float    g_totalTime  = 0.0f;
@@ -139,6 +148,17 @@ void DrawScene()
     // 回転キューブ
     g_renderer3D.SetMaterial(g_cubeMaterial);
     g_renderer3D.DrawMesh(g_cubeMesh, g_cubeTransform);
+
+    // SSRデモ: ミラーウォール
+    g_renderer3D.SetMaterial(g_mirrorMaterial);
+    g_renderer3D.DrawMesh(g_mirrorMesh, g_mirrorTransform);
+
+    // SSRデモ: カラフルオブジェクト（ミラーの前）
+    for (int i = 0; i < k_NumSSRDemoObjs; ++i)
+    {
+        g_renderer3D.SetMaterial(g_ssrDemoMaterials[i]);
+        g_renderer3D.DrawMesh(g_sphereMesh, g_ssrDemoTransforms[i]);
+    }
 }
 
 // ============================================================================
@@ -291,20 +311,56 @@ bool InitializeScene()
     g_cubeMaterial.constants.metallicFactor  = 1.0f;
     g_cubeMaterial.constants.roughnessFactor = 0.3f;
 
+    // === SSRデモ: ミラーウォール ===
+    {
+        // 大きな薄い壁（鏡面）— 右側の明るいエリアに配置
+        auto mirrorData = GX::MeshGenerator::CreateBox(0.1f, 4.0f, 8.0f);
+        g_mirrorMesh = g_renderer3D.CreateGPUMesh(mirrorData);
+        g_mirrorTransform.SetPosition(12.0f, 2.0f, 0.0f);
+        // 完全な鏡面: metallic=1, roughness=0, 明るいシルバー
+        g_mirrorMaterial.constants.albedoFactor = { 0.95f, 0.95f, 0.97f, 1.0f };
+        g_mirrorMaterial.constants.metallicFactor  = 1.0f;
+        g_mirrorMaterial.constants.roughnessFactor = 0.0f;
+    }
+
+    // === SSRデモ: ミラーの前にカラフルな球体（右側、青ライトから遠い） ===
+    {
+        // 赤い球
+        g_ssrDemoTransforms[0].SetPosition(10.0f, 1.0f, -2.0f);
+        g_ssrDemoTransforms[0].SetScale(1.5f, 1.5f, 1.5f);
+        g_ssrDemoMaterials[0].constants.albedoFactor = { 1.0f, 0.1f, 0.1f, 1.0f };
+        g_ssrDemoMaterials[0].constants.metallicFactor  = 0.0f;
+        g_ssrDemoMaterials[0].constants.roughnessFactor = 0.3f;
+
+        // 黄色い球
+        g_ssrDemoTransforms[1].SetPosition(10.0f, 1.0f, 0.0f);
+        g_ssrDemoTransforms[1].SetScale(1.5f, 1.5f, 1.5f);
+        g_ssrDemoMaterials[1].constants.albedoFactor = { 1.0f, 0.9f, 0.1f, 1.0f };
+        g_ssrDemoMaterials[1].constants.metallicFactor  = 0.0f;
+        g_ssrDemoMaterials[1].constants.roughnessFactor = 0.3f;
+
+        // 青い球
+        g_ssrDemoTransforms[2].SetPosition(10.0f, 1.0f, 2.0f);
+        g_ssrDemoTransforms[2].SetScale(1.5f, 1.5f, 1.5f);
+        g_ssrDemoMaterials[2].constants.albedoFactor = { 0.1f, 0.3f, 1.0f, 1.0f };
+        g_ssrDemoMaterials[2].constants.metallicFactor  = 0.0f;
+        g_ssrDemoMaterials[2].constants.roughnessFactor = 0.3f;
+    }
+
     // ライト設定
     GX::LightData lights[3];
     lights[0] = GX::Light::CreateDirectional({ 0.3f, -1.0f, 0.5f }, { 1.0f, 0.98f, 0.95f }, 3.0f);
-    lights[1] = GX::Light::CreatePoint({ -3.0f, 3.0f, -3.0f }, 15.0f, { 0.2f, 0.5f, 1.0f }, 10.0f);
+    lights[1] = GX::Light::CreatePoint({ -3.0f, 3.0f, -3.0f }, 15.0f, { 1.0f, 0.95f, 0.9f }, 3.0f);
     lights[2] = GX::Light::CreateSpot({ 4.0f, 4.0f, -2.0f }, { -0.5f, -1.0f, 0.3f },
                                         20.0f, 30.0f, { 1.0f, 0.8f, 0.3f }, 15.0f);
-    g_renderer3D.SetLights(lights, 3, { 0.03f, 0.03f, 0.04f });
+    g_renderer3D.SetLights(lights, 3, { 0.05f, 0.05f, 0.05f });
 
     // フォグ設定（Linear）
-    g_renderer3D.SetFog(GX::FogMode::Linear, { 0.6f, 0.65f, 0.75f }, 30.0f, 150.0f);
+    g_renderer3D.SetFog(GX::FogMode::Linear, { 0.7f, 0.7f, 0.7f }, 30.0f, 150.0f);
 
     // スカイボックスの太陽方向をDirectionalライトと合わせる
     g_renderer3D.GetSkybox().SetSun({ 0.3f, -1.0f, 0.5f }, 5.0f);
-    g_renderer3D.GetSkybox().SetColors({ 0.2f, 0.4f, 0.85f }, { 0.6f, 0.65f, 0.75f });
+    g_renderer3D.GetSkybox().SetColors({ 0.5f, 0.55f, 0.6f }, { 0.75f, 0.75f, 0.75f });
 
     // カメラ
     uint32_t w = g_app.GetWindow().GetWidth();
@@ -355,10 +411,10 @@ void UpdateInput(float deltaTime)
     if (kb.IsKeyTriggered('7'))
         g_postEffect.SetColorGradingEnabled(!g_postEffect.IsColorGradingEnabled());
 
-    // Shadow debug mode cycle
+    // Shadow debug mode cycle (0-8)
     if (kb.IsKeyTriggered('8'))
     {
-        uint32_t mode = (g_renderer3D.GetShadowDebugMode() + 1) % 7;
+        uint32_t mode = (g_renderer3D.GetShadowDebugMode() + 1) % 10;
         g_renderer3D.SetShadowDebugMode(mode);
     }
 
@@ -373,6 +429,14 @@ void UpdateInput(float deltaTime)
     // Motion Blur ON/OFF
     if (kb.IsKeyTriggered('B'))
         g_postEffect.GetMotionBlur().SetEnabled(!g_postEffect.GetMotionBlur().IsEnabled());
+
+    // SSR ON/OFF
+    if (kb.IsKeyTriggered('R'))
+        g_postEffect.GetSSR().SetEnabled(!g_postEffect.GetSSR().IsEnabled());
+
+    // Outline ON/OFF
+    if (kb.IsKeyTriggered('O'))
+        g_postEffect.GetOutline().SetEnabled(!g_postEffect.GetOutline().IsEnabled());
 
     // DoF フォーカス距離調整 (F/G)
     if (g_inputManager.CheckHitKey('F'))
@@ -573,8 +637,20 @@ void RenderFrame(float deltaTime)
                 g_postEffect.GetMotionBlur().GetIntensity(),
                 g_postEffect.GetMotionBlur().GetSampleCount());
 
-            const wchar_t* shadowDebugNames[] = { L"OFF", L"Factor", L"Cascade", L"ShadowUV", L"RawDepth", L"Normal", L"ViewZ" };
-            g_textRenderer.DrawFormatString(g_fontHandle, 10, 235, 0xFFFF8888,
+            g_textRenderer.DrawFormatString(g_fontHandle, 10, 235, 0xFF88FF88,
+                L"SSR: %s  Steps: %d  Intensity: %.2f",
+                g_postEffect.GetSSR().IsEnabled() ? L"ON" : L"OFF",
+                g_postEffect.GetSSR().GetMaxSteps(),
+                g_postEffect.GetSSR().GetIntensity());
+
+            g_textRenderer.DrawFormatString(g_fontHandle, 10, 260, 0xFF88FF88,
+                L"Outline: %s  DepthTh: %.2f  NormalTh: %.2f",
+                g_postEffect.GetOutline().IsEnabled() ? L"ON" : L"OFF",
+                g_postEffect.GetOutline().GetDepthThreshold(),
+                g_postEffect.GetOutline().GetNormalThreshold());
+
+            const wchar_t* shadowDebugNames[] = { L"OFF", L"Factor", L"Cascade", L"ShadowUV", L"RawDepth", L"Normal", L"ViewZ", L"Albedo", L"Light", L"LightCol" };
+            g_textRenderer.DrawFormatString(g_fontHandle, 10, 285, 0xFFFF8888,
                 L"ShadowDebug: %s  Shadow: %s",
                 shadowDebugNames[g_renderer3D.GetShadowDebugMode()],
                 g_renderer3D.IsShadowEnabled() ? L"ON" : L"OFF");
@@ -585,7 +661,7 @@ void RenderFrame(float deltaTime)
             g_textRenderer.DrawString(g_fontHandle, 10, helpY + 25,
                 L"1/2/3: Tonemap  4: Bloom  5: FXAA  6: Vignette  7: ColorGrading  8: ShadowDbg  9: SSAO", 0xFFFFCC44);
             g_textRenderer.DrawString(g_fontHandle, 10, helpY + 50,
-                L"0: DoF  B: MotionBlur  F/G: FocalDist+/-  +/-: Exposure", 0xFFFFCC44);
+                L"0: DoF  B: MotionBlur  R: SSR  O: Outline  F/G: FocalDist+/-  +/-: Exposure", 0xFFFFCC44);
         }
     }
     g_spriteBatch.End();
@@ -622,7 +698,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
                    _In_ LPSTR lpCmdLine, _In_ int nCmdShow)
 {
     GX::ApplicationDesc appDesc;
-    appDesc.title  = L"GXLib - Phase 4: Post-Effects (SSAO/Bloom/DoF/MotionBlur/FXAA/Vignette/ColorGrading)";
+    appDesc.title  = L"GXLib Phase4 [BUILD v3 - debug modes]";
     appDesc.width  = 1280;
     appDesc.height = 720;
 
@@ -646,7 +722,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
         return -1;
 
     g_app.GetWindow().SetResizeCallback(OnResize);
-    GX_LOG_INFO("=== GXLib Phase 4: Post-Effects (SSAO/Bloom/FXAA/Vignette/ColorGrading) ===");
+    GX_LOG_INFO("=== GXLib Phase 4: Post-Effects (SSAO/SSR/Bloom/DoF/MotionBlur/FXAA/Vignette/ColorGrading) ===");
 
     g_app.Run(RenderFrame);
 

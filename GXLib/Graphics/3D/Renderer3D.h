@@ -234,7 +234,9 @@ private:
     uint32_t      m_objectCBOffset = 0;        // リングバッファオフセット
     DynamicBuffer m_frameCB;      // b1: per-frame
     DynamicBuffer m_lightCB;      // b2: lights
-    DynamicBuffer m_materialCB;   // b3: material
+    DynamicBuffer m_materialCB;   // b3: material (ring buffer)
+    uint8_t*      m_materialCBMapped = nullptr;
+    uint32_t      m_materialCBOffset = 0;
     DynamicBuffer m_boneCB;       // b4: bone matrices (skinned)
 
     // 現在のライト状態

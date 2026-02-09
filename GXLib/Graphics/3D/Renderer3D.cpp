@@ -44,8 +44,8 @@ bool Renderer3D::Initialize(ID3D12Device* device, ID3D12CommandQueue* cmdQueue,
     if (!m_lightCB.Initialize(device, lightCBSize, lightCBSize))
         return false;
 
-    // MaterialConstants
-    if (!m_materialCB.Initialize(device, 256, 256))
+    // MaterialConstants (リングバッファ化: objectCBと同じくk_MaxObjectsPerFrame個)
+    if (!m_materialCB.Initialize(device, 256 * k_MaxObjectsPerFrame, 256))
         return false;
 
     // BoneConstants
@@ -593,6 +593,10 @@ void Renderer3D::Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
         m_objectCBOffset = 0;
     }
 
+    // マテリアルCBをマップ（リングバッファ方式）
+    m_materialCBMapped = static_cast<uint8_t*>(m_materialCB.Map(frameIndex));
+    m_materialCBOffset = 0;
+
     // パイプライン設定
     m_cmdList->SetPipelineState(m_pso.Get());
     m_cmdList->SetGraphicsRootSignature(m_rootSignature.Get());
@@ -632,14 +636,14 @@ void Renderer3D::SetMaterial(const Material& material)
 {
     if (m_inShadowPass) return;  // シャドウパスではマテリアル不要
 
-    // マテリアル定数バッファ更新
-    void* cbData = m_materialCB.Map(m_frameIndex);
-    if (cbData)
+    // マテリアル定数バッファ更新（リングバッファ方式）
+    if (m_materialCBMapped)
     {
-        memcpy(cbData, &material.constants, sizeof(MaterialConstants));
-        m_materialCB.Unmap(m_frameIndex);
+        memcpy(m_materialCBMapped + m_materialCBOffset, &material.constants, sizeof(MaterialConstants));
     }
-    m_cmdList->SetGraphicsRootConstantBufferView(3, m_materialCB.GetGPUVirtualAddress(m_frameIndex));
+    m_cmdList->SetGraphicsRootConstantBufferView(
+        3, m_materialCB.GetGPUVirtualAddress(m_frameIndex) + m_materialCBOffset);
+    m_materialCBOffset += 256;
 
     // テクスチャバインド（t0-t4）
     if (material.albedoMapHandle >= 0)
@@ -746,6 +750,12 @@ void Renderer3D::End()
     {
         m_objectCB.Unmap(m_frameIndex);
         m_objectCBMapped = nullptr;
+    }
+    // マテリアルCBアンマップ
+    if (m_materialCBMapped)
+    {
+        m_materialCB.Unmap(m_frameIndex);
+        m_materialCBMapped = nullptr;
     }
     m_cmdList = nullptr;
 }

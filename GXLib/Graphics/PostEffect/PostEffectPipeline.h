@@ -13,6 +13,8 @@
 #include "Graphics/PostEffect/SSAO.h"
 #include "Graphics/PostEffect/DepthOfField.h"
 #include "Graphics/PostEffect/MotionBlur.h"
+#include "Graphics/PostEffect/SSR.h"
+#include "Graphics/PostEffect/OutlineEffect.h"
 
 namespace GX
 {
@@ -56,6 +58,12 @@ public:
 
     // --- Motion Blur ---
     MotionBlur& GetMotionBlur() { return m_motionBlur; }
+
+    // --- SSR ---
+    SSR& GetSSR() { return m_ssr; }
+
+    // --- Outline ---
+    OutlineEffect& GetOutline() { return m_outline; }
 
     // --- FXAA ---
     void SetFXAAEnabled(bool enabled) { m_fxaaEnabled = enabled; }
@@ -124,6 +132,12 @@ private:
 
     // Motion Blur
     MotionBlur m_motionBlur;
+
+    // SSR
+    SSR m_ssr;
+
+    // Outline
+    OutlineEffect m_outline;
 
     // シェーダー & パイプライン
     Shader m_shader;

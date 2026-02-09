@@ -67,7 +67,21 @@ bool PostEffectPipeline::Initialize(ID3D12Device* device, uint32_t width, uint32
         return false;
     }
 
-    GX_LOG_INFO("PostEffectPipeline initialized (%dx%d) with SSAO/Bloom/DoF/MotionBlur/FXAA/Vignette/ColorGrading", width, height);
+    // SSR
+    if (!m_ssr.Initialize(device, width, height))
+    {
+        GX_LOG_ERROR("PostEffectPipeline: Failed to initialize SSR");
+        return false;
+    }
+
+    // Outline
+    if (!m_outline.Initialize(device, width, height))
+    {
+        GX_LOG_ERROR("PostEffectPipeline: Failed to initialize OutlineEffect");
+        return false;
+    }
+
+    GX_LOG_INFO("PostEffectPipeline initialized (%dx%d) with SSAO/SSR/Bloom/DoF/MotionBlur/Outline/FXAA/Vignette/ColorGrading", width, height);
     return true;
 }
 
@@ -251,12 +265,21 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
         currentHDR->TransitionTo(m_cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     }
 
+    // SSR (HDR space, after SSAO)
+    if (m_ssr.IsEnabled())
+    {
+        RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
+        m_ssr.Execute(m_cmdList, m_frameIndex, *currentHDR, *dest, depthBuffer, camera);
+        currentHDR = dest;
+    }
+
     // Bloom
     if (m_bloom.IsEnabled())
     {
-        m_bloom.Execute(m_cmdList, m_frameIndex, *currentHDR, m_hdrPingPongRT);
-        m_hdrPingPongRT.TransitionTo(m_cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-        currentHDR = &m_hdrPingPongRT;
+        RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
+        m_bloom.Execute(m_cmdList, m_frameIndex, *currentHDR, *dest);
+        dest->TransitionTo(m_cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        currentHDR = dest;
     }
 
     // DoF (HDR space, after Bloom)
@@ -277,6 +300,14 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
     // 前フレームVP行列を保存（次フレームのMotionBlurで使用）
     // Execute の後に呼ぶ（先に呼ぶと今フレームのVPで上書きされ速度=0になる）
     m_motionBlur.UpdatePreviousVP(camera);
+
+    // Outline (HDR space, after MotionBlur)
+    if (m_outline.IsEnabled())
+    {
+        RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
+        m_outline.Execute(m_cmdList, m_frameIndex, *currentHDR, *dest, depthBuffer, camera);
+        currentHDR = dest;
+    }
 
     // Color Grading (HDR space)
     if (m_colorGradingEnabled)
@@ -379,6 +410,8 @@ void PostEffectPipeline::OnResize(ID3D12Device* device, uint32_t width, uint32_t
     m_bloom.OnResize(device, width, height);
     m_dof.OnResize(device, width, height);
     m_motionBlur.OnResize(device, width, height);
+    m_ssr.OnResize(device, width, height);
+    m_outline.OnResize(device, width, height);
 }
 
 } // namespace GX

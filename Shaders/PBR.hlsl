@@ -356,6 +356,21 @@ float4 PSMain(PSInput input) : SV_Target
             float normalizedZ = saturate(input.viewZ / 100.0f);
             return float4(normalizedZ, normalizedZ, normalizedZ, 1.0f);
         }
+        else if (gShadowDebugMode == 7)
+        {
+            // Mode 7: アルベド可視化（ライティング無し）
+            return float4(albedo.rgb, 1.0f);
+        }
+        else if (gShadowDebugMode == 8)
+        {
+            // Mode 8: ライティング可視化（Lo のみ、アンビエント/フォグ無し）
+            return float4(Lo, 1.0f);
+        }
+        else if (gShadowDebugMode == 9)
+        {
+            // Mode 9: ライト[0]の生カラー表示（GPUが受け取った値の確認）
+            return float4(gLights[0].color, 1.0f);
+        }
     }
 
     // HDRリニア値をそのまま出力（トーンマッピングはポストエフェクトで実行）

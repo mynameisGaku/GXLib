@@ -54,7 +54,7 @@ void Application::Run(std::function<void(float)> updateCallback)
         if (titleUpdateTimer >= 1.0f)
         {
             wchar_t title[256];
-            swprintf_s(title, L"GXLib - FPS: %.1f", m_timer.GetFPS());
+            swprintf_s(title, L"GXLib [BUILD v3] FPS: %.1f", m_timer.GetFPS());
             m_window.SetTitle(title);
             titleUpdateTimer = 0.0f;
         }
