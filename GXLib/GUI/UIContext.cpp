@@ -28,6 +28,11 @@ void UIContext::SetRoot(std::unique_ptr<Widget> root)
     m_pressedWidget = nullptr;
 }
 
+void UIContext::SetStyleSheet(StyleSheet* sheet)
+{
+    m_styleSheet = sheet;
+}
+
 Widget* UIContext::FindById(const std::string& id)
 {
     if (!m_root) return nullptr;
@@ -325,6 +330,10 @@ Widget* UIContext::HitTest(Widget* widget, float x, float y)
 void UIContext::ComputeLayout()
 {
     if (!m_root) return;
+
+    // スタイルシートが設定されている場合、ツリー全体に適用
+    if (m_styleSheet)
+        m_styleSheet->ApplyToTree(m_root.get());
 
     float sw = static_cast<float>(m_screenWidth);
     float sh = static_cast<float>(m_screenHeight);

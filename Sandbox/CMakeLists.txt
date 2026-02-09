@@ -30,6 +30,14 @@ add_custom_command(TARGET Sandbox POST_BUILD
     COMMENT "Copying shaders to output directory..."
 )
 
+# アセットファイルを出力ディレクトリにコピー
+add_custom_command(TARGET Sandbox POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_SOURCE_DIR}/Assets"
+        "$<TARGET_FILE_DIR:Sandbox>/Assets"
+    COMMENT "Copying assets to output directory..."
+)
+
 # Visual Studioデバッガの作業ディレクトリをexeの場所に設定
 # これにより、相対パス（Shaders/...）が正しく解決される
 set_target_properties(Sandbox PROPERTIES

@@ -9,6 +9,7 @@
 #include "pch.h"
 #include "GUI/Widget.h"
 #include "GUI/UIRenderer.h"
+#include "GUI/StyleSheet.h"
 
 namespace GX
 {
@@ -51,6 +52,9 @@ public:
     /// フォーカスウィジェットを取得
     Widget* GetFocusedWidget() const { return m_focusedWidget; }
 
+    /// スタイルシートを設定（ツリー全体に自動適用）
+    void SetStyleSheet(StyleSheet* sheet);
+
     /// スクリーンサイズ更新
     void OnResize(uint32_t width, uint32_t height);
 
@@ -82,6 +86,7 @@ private:
     void CollectAncestors(Widget* widget, std::vector<Widget*>& path);
 
     UIRenderer*              m_renderer = nullptr;
+    StyleSheet*              m_styleSheet = nullptr;
     std::unique_ptr<Widget>  m_root;
     Widget*                  m_focusedWidget = nullptr;
     Widget*                  m_hoveredWidget = nullptr;

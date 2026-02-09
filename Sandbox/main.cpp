@@ -27,6 +27,7 @@
 #include "Input/InputManager.h"
 #include "GUI/UIContext.h"
 #include "GUI/UIRenderer.h"
+#include "GUI/StyleSheet.h"
 #include "GUI/Widgets/Panel.h"
 #include "GUI/Widgets/TextWidget.h"
 #include "GUI/Widgets/Button.h"
@@ -61,8 +62,9 @@ static GX::MaskScreen       g_maskScreen;
 static bool                 g_maskDemo   = false;     // マスクデモ表示
 
 // GUI
-static GX::GUI::UIRenderer  g_uiRenderer;
-static GX::GUI::UIContext   g_uiContext;
+static GX::GUI::UIRenderer   g_uiRenderer;
+static GX::GUI::UIContext    g_uiContext;
+static GX::GUI::StyleSheet  g_styleSheet;
 static bool                 g_guiDemo    = false;     // GUIデモ表示
 static int                  g_guiFontHandle = -1;
 static int                  g_guiFontLarge  = -1;
@@ -270,38 +272,26 @@ bool InitializeScene()
     g_guiFontLarge = g_fontManager.CreateFont(L"Meiryo", 48);
     if (g_guiFontLarge < 0) g_guiFontLarge = g_guiFontHandle;
 
-    // === GUI デモ構築（Phase 6a 検証） ===
+    // === GUI デモ構築（Phase 6b: StyleSheet 使用） ===
     {
         using namespace GX::GUI;
         uint32_t sw = g_app.GetWindow().GetWidth();
         uint32_t sh = g_app.GetWindow().GetHeight();
 
-        // ルートパネル（画面全体、中央配置）
+        // スタイルシート読み込み
+        if (!g_styleSheet.LoadFromFile("Assets/ui/menu.css"))
+            GX_LOG_WARN("Failed to load Assets/ui/menu.css");
+        g_uiContext.SetStyleSheet(&g_styleSheet);
+
+        // ルートパネル（width/height はランタイム値なのでインラインで設定）
         auto root = std::make_unique<Panel>();
         root->id = "root";
         root->computedStyle.width = StyleLength::Px(static_cast<float>(sw));
         root->computedStyle.height = StyleLength::Px(static_cast<float>(sh));
-        root->computedStyle.flexDirection = FlexDirection::Column;
-        root->computedStyle.justifyContent = JustifyContent::Center;
-        root->computedStyle.alignItems = AlignItems::Center;
 
-        // メニューパネル（半透明背景 + 角丸 + 影）
+        // メニューパネル
         auto menuPanel = std::make_unique<Panel>();
         menuPanel->id = "menuPanel";
-        menuPanel->computedStyle.width = StyleLength::Px(400.0f);
-        menuPanel->computedStyle.height = StyleLength::Auto();
-        menuPanel->computedStyle.backgroundColor = { 0.1f, 0.1f, 0.15f, 0.85f };
-        menuPanel->computedStyle.cornerRadius = 16.0f;
-        menuPanel->computedStyle.padding = StyleEdges(30.0f);
-        menuPanel->computedStyle.flexDirection = FlexDirection::Column;
-        menuPanel->computedStyle.alignItems = AlignItems::Center;
-        menuPanel->computedStyle.gap = 16.0f;
-        menuPanel->computedStyle.shadowOffsetX = 0.0f;
-        menuPanel->computedStyle.shadowOffsetY = 4.0f;
-        menuPanel->computedStyle.shadowBlur = 20.0f;
-        menuPanel->computedStyle.shadowColor = { 0.0f, 0.0f, 0.0f, 0.5f };
-        menuPanel->computedStyle.borderWidth = 1.0f;
-        menuPanel->computedStyle.borderColor = { 0.3f, 0.3f, 0.4f, 0.6f };
 
         // タイトルテキスト
         auto title = std::make_unique<TextWidget>();
@@ -309,66 +299,32 @@ bool InitializeScene()
         title->SetText(L"GXLib GUI Demo");
         title->SetFontHandle(g_guiFontLarge);
         title->SetRenderer(&g_uiRenderer);
-        title->computedStyle.color = { 1.0f, 1.0f, 1.0f, 1.0f };
-        title->computedStyle.textAlign = TextAlign::Center;
-        title->computedStyle.height = StyleLength::Px(60.0f);
-        title->computedStyle.width = StyleLength::Px(360.0f);
 
         // ボタン1: Start Game
         auto btn1 = std::make_unique<Button>();
         btn1->id = "btnStart";
+        btn1->className = "menuButton";
         btn1->SetText(L"Start Game");
         btn1->SetFontHandle(g_guiFontHandle);
         btn1->SetRenderer(&g_uiRenderer);
-        btn1->computedStyle.width = StyleLength::Px(300.0f);
-        btn1->computedStyle.height = StyleLength::Px(50.0f);
-        btn1->computedStyle.backgroundColor = { 0.29f, 0.56f, 0.85f, 1.0f };
-        btn1->computedStyle.cornerRadius = 8.0f;
-        btn1->computedStyle.color = { 1.0f, 1.0f, 1.0f, 1.0f };
-        btn1->hoverStyle = btn1->computedStyle;
-        btn1->hoverStyle.backgroundColor = { 0.36f, 0.63f, 0.91f, 1.0f };
-        btn1->pressedStyle = btn1->computedStyle;
-        btn1->pressedStyle.backgroundColor = { 0.22f, 0.45f, 0.72f, 1.0f };
-        btn1->disabledStyle = btn1->computedStyle;
-        btn1->disabledStyle.backgroundColor = { 0.4f, 0.4f, 0.4f, 1.0f };
         btn1->onClick = []() { GX_LOG_INFO("Button 'Start Game' clicked!"); };
 
         // ボタン2: Options
         auto btn2 = std::make_unique<Button>();
         btn2->id = "btnOptions";
+        btn2->className = "menuButton";
         btn2->SetText(L"Options");
         btn2->SetFontHandle(g_guiFontHandle);
         btn2->SetRenderer(&g_uiRenderer);
-        btn2->computedStyle.width = StyleLength::Px(300.0f);
-        btn2->computedStyle.height = StyleLength::Px(50.0f);
-        btn2->computedStyle.backgroundColor = { 0.25f, 0.25f, 0.3f, 1.0f };
-        btn2->computedStyle.cornerRadius = 8.0f;
-        btn2->computedStyle.color = { 0.9f, 0.9f, 0.9f, 1.0f };
-        btn2->computedStyle.borderWidth = 1.0f;
-        btn2->computedStyle.borderColor = { 0.4f, 0.4f, 0.5f, 1.0f };
-        btn2->hoverStyle = btn2->computedStyle;
-        btn2->hoverStyle.backgroundColor = { 0.35f, 0.35f, 0.4f, 1.0f };
-        btn2->pressedStyle = btn2->computedStyle;
-        btn2->pressedStyle.backgroundColor = { 0.18f, 0.18f, 0.22f, 1.0f };
-        btn2->disabledStyle = btn2->computedStyle;
         btn2->onClick = []() { GX_LOG_INFO("Button 'Options' clicked!"); };
 
         // ボタン3: Exit
         auto btn3 = std::make_unique<Button>();
         btn3->id = "btnExit";
+        btn3->className = "menuButton";
         btn3->SetText(L"Exit");
         btn3->SetFontHandle(g_guiFontHandle);
         btn3->SetRenderer(&g_uiRenderer);
-        btn3->computedStyle.width = StyleLength::Px(300.0f);
-        btn3->computedStyle.height = StyleLength::Px(50.0f);
-        btn3->computedStyle.backgroundColor = { 0.6f, 0.2f, 0.2f, 1.0f };
-        btn3->computedStyle.cornerRadius = 8.0f;
-        btn3->computedStyle.color = { 1.0f, 1.0f, 1.0f, 1.0f };
-        btn3->hoverStyle = btn3->computedStyle;
-        btn3->hoverStyle.backgroundColor = { 0.75f, 0.25f, 0.25f, 1.0f };
-        btn3->pressedStyle = btn3->computedStyle;
-        btn3->pressedStyle.backgroundColor = { 0.45f, 0.15f, 0.15f, 1.0f };
-        btn3->disabledStyle = btn3->computedStyle;
         btn3->onClick = []() { PostQuitMessage(0); };
 
         menuPanel->AddChild(std::move(title));
@@ -956,7 +912,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
                    _In_ LPSTR lpCmdLine, _In_ int nCmdShow)
 {
     GX::ApplicationDesc appDesc;
-    appDesc.title  = L"GXLib Phase6a [GUI Core Foundation]";
+    appDesc.title  = L"GXLib Phase6b [StyleSheet Parser]";
     appDesc.width  = 1280;
     appDesc.height = 720;
 
@@ -980,7 +936,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
         return -1;
 
     g_app.GetWindow().SetResizeCallback(OnResize);
-    GX_LOG_INFO("=== GXLib Phase 6a: GUI Core Foundation ===");
+    GX_LOG_INFO("=== GXLib Phase 6b: StyleSheet Parser ===");
 
     g_app.Run(RenderFrame);
 
