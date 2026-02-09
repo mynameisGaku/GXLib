@@ -518,8 +518,9 @@ void Renderer3D::Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
     {
         FrameConstants fc = {};
         XMStoreFloat4x4(&fc.view, XMMatrixTranspose(camera.GetViewMatrix()));
-        XMStoreFloat4x4(&fc.projection, XMMatrixTranspose(camera.GetProjectionMatrix()));
-        XMStoreFloat4x4(&fc.viewProjection, XMMatrixTranspose(camera.GetViewProjectionMatrix()));
+        XMStoreFloat4x4(&fc.projection, XMMatrixTranspose(camera.GetJitteredProjectionMatrix()));
+        XMMATRIX jitteredVP = camera.GetViewMatrix() * camera.GetJitteredProjectionMatrix();
+        XMStoreFloat4x4(&fc.viewProjection, XMMatrixTranspose(jitteredVP));
         fc.cameraPosition = camera.GetPosition();
         fc.time = time;
 

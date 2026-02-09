@@ -13,6 +13,7 @@ file(GLOB_RECURSE GXLIB_SOURCES
     "Graphics/*.cpp"    "Graphics/*.h"
     "Input/*.cpp"       "Input/*.h"
     "Audio/*.cpp"       "Audio/*.h"
+    "GUI/*.cpp"         "GUI/*.h"
     "pch.cpp"           "pch.h"
 )
 

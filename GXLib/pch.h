@@ -60,3 +60,4 @@ using Microsoft::WRL::ComPtr;
 #include <format>
 #include <fstream>
 #include <unordered_map>
+#include <algorithm>

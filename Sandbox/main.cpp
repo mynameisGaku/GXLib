@@ -1,7 +1,7 @@
 /// @file main.cpp
-/// @brief GXLib Phase 4f テストアプリケーション — HDR + SSAO + Bloom + FXAA + Vignette + ColorGrading
+/// @brief GXLib Phase 6a テストアプリケーション — GUI Core Foundation
 ///
-/// HDR浮動小数点RTに3D描画 → SSAO → Bloom → ColorGrading → トーンマッピング → FXAA → Vignette → LDRバックバッファ
+/// HDR浮動小数点RTに3D描画 → PostFX → LDR + GUI オーバーレイ
 
 #include "pch.h"
 #include "Core/Application.h"
@@ -21,7 +21,15 @@
 #include "Graphics/3D/Material.h"
 #include "Graphics/3D/Fog.h"
 #include "Graphics/PostEffect/PostEffectPipeline.h"
+#include "Graphics/Layer/LayerStack.h"
+#include "Graphics/Layer/LayerCompositor.h"
+#include "Graphics/Layer/MaskScreen.h"
 #include "Input/InputManager.h"
+#include "GUI/UIContext.h"
+#include "GUI/UIRenderer.h"
+#include "GUI/Widgets/Panel.h"
+#include "GUI/Widgets/TextWidget.h"
+#include "GUI/Widgets/Button.h"
 
 // ============================================================================
 // グローバル変数
@@ -43,6 +51,21 @@ static GX::Camera3D          g_camera;
 
 // ポストエフェクト
 static GX::PostEffectPipeline g_postEffect;
+
+// レイヤーシステム
+static GX::LayerStack       g_layerStack;
+static GX::LayerCompositor  g_compositor;
+static GX::RenderLayer*     g_sceneLayer = nullptr;  // Z:0, PostFX=true
+static GX::RenderLayer*     g_uiLayer    = nullptr;  // Z:1000
+static GX::MaskScreen       g_maskScreen;
+static bool                 g_maskDemo   = false;     // マスクデモ表示
+
+// GUI
+static GX::GUI::UIRenderer  g_uiRenderer;
+static GX::GUI::UIContext   g_uiContext;
+static bool                 g_guiDemo    = false;     // GUIデモ表示
+static int                  g_guiFontHandle = -1;
+static int                  g_guiFontLarge  = -1;
 
 // メッシュ
 static GX::GPUMesh           g_sphereMesh;
@@ -205,6 +228,33 @@ bool InitializeRenderers()
     if (!g_postEffect.Initialize(device, w, h))
         return false;
 
+    // JSON設定ファイル読み込み（存在すれば）
+    g_postEffect.LoadSettings("post_effects.json");
+
+    // レイヤーシステム初期化
+    g_sceneLayer = g_layerStack.CreateLayer(device, "Scene", 0, w, h);
+    if (!g_sceneLayer) return false;
+    g_sceneLayer->SetBlendMode(GX::LayerBlendMode::None);
+    g_sceneLayer->SetPostFXEnabled(true);
+
+    g_uiLayer = g_layerStack.CreateLayer(device, "UI", 1000, w, h);
+    if (!g_uiLayer) return false;
+    g_uiLayer->SetBlendMode(GX::LayerBlendMode::Alpha);
+
+    if (!g_compositor.Initialize(device, w, h))
+        return false;
+
+    // マスクスクリーン
+    if (!g_maskScreen.Create(device, w, h))
+        return false;
+
+    // GUI レンダラー
+    if (!g_uiRenderer.Initialize(device, queue, w, h,
+                                  &g_spriteBatch, &g_textRenderer, &g_fontManager))
+        return false;
+    if (!g_uiContext.Initialize(&g_uiRenderer, w, h))
+        return false;
+
     return true;
 }
 
@@ -213,6 +263,121 @@ bool InitializeScene()
     g_fontHandle = g_fontManager.CreateFont(L"Meiryo", 20);
     if (g_fontHandle < 0)
         g_fontHandle = g_fontManager.CreateFont(L"MS Gothic", 20);
+
+    // GUI フォント
+    g_guiFontHandle = g_fontManager.CreateFont(L"Meiryo", 24);
+    if (g_guiFontHandle < 0) g_guiFontHandle = g_fontHandle;
+    g_guiFontLarge = g_fontManager.CreateFont(L"Meiryo", 48);
+    if (g_guiFontLarge < 0) g_guiFontLarge = g_guiFontHandle;
+
+    // === GUI デモ構築（Phase 6a 検証） ===
+    {
+        using namespace GX::GUI;
+        uint32_t sw = g_app.GetWindow().GetWidth();
+        uint32_t sh = g_app.GetWindow().GetHeight();
+
+        // ルートパネル（画面全体、中央配置）
+        auto root = std::make_unique<Panel>();
+        root->id = "root";
+        root->computedStyle.width = StyleLength::Px(static_cast<float>(sw));
+        root->computedStyle.height = StyleLength::Px(static_cast<float>(sh));
+        root->computedStyle.flexDirection = FlexDirection::Column;
+        root->computedStyle.justifyContent = JustifyContent::Center;
+        root->computedStyle.alignItems = AlignItems::Center;
+
+        // メニューパネル（半透明背景 + 角丸 + 影）
+        auto menuPanel = std::make_unique<Panel>();
+        menuPanel->id = "menuPanel";
+        menuPanel->computedStyle.width = StyleLength::Px(400.0f);
+        menuPanel->computedStyle.height = StyleLength::Auto();
+        menuPanel->computedStyle.backgroundColor = { 0.1f, 0.1f, 0.15f, 0.85f };
+        menuPanel->computedStyle.cornerRadius = 16.0f;
+        menuPanel->computedStyle.padding = StyleEdges(30.0f);
+        menuPanel->computedStyle.flexDirection = FlexDirection::Column;
+        menuPanel->computedStyle.alignItems = AlignItems::Center;
+        menuPanel->computedStyle.gap = 16.0f;
+        menuPanel->computedStyle.shadowOffsetX = 0.0f;
+        menuPanel->computedStyle.shadowOffsetY = 4.0f;
+        menuPanel->computedStyle.shadowBlur = 20.0f;
+        menuPanel->computedStyle.shadowColor = { 0.0f, 0.0f, 0.0f, 0.5f };
+        menuPanel->computedStyle.borderWidth = 1.0f;
+        menuPanel->computedStyle.borderColor = { 0.3f, 0.3f, 0.4f, 0.6f };
+
+        // タイトルテキスト
+        auto title = std::make_unique<TextWidget>();
+        title->id = "title";
+        title->SetText(L"GXLib GUI Demo");
+        title->SetFontHandle(g_guiFontLarge);
+        title->SetRenderer(&g_uiRenderer);
+        title->computedStyle.color = { 1.0f, 1.0f, 1.0f, 1.0f };
+        title->computedStyle.textAlign = TextAlign::Center;
+        title->computedStyle.height = StyleLength::Px(60.0f);
+        title->computedStyle.width = StyleLength::Px(360.0f);
+
+        // ボタン1: Start Game
+        auto btn1 = std::make_unique<Button>();
+        btn1->id = "btnStart";
+        btn1->SetText(L"Start Game");
+        btn1->SetFontHandle(g_guiFontHandle);
+        btn1->SetRenderer(&g_uiRenderer);
+        btn1->computedStyle.width = StyleLength::Px(300.0f);
+        btn1->computedStyle.height = StyleLength::Px(50.0f);
+        btn1->computedStyle.backgroundColor = { 0.29f, 0.56f, 0.85f, 1.0f };
+        btn1->computedStyle.cornerRadius = 8.0f;
+        btn1->computedStyle.color = { 1.0f, 1.0f, 1.0f, 1.0f };
+        btn1->hoverStyle = btn1->computedStyle;
+        btn1->hoverStyle.backgroundColor = { 0.36f, 0.63f, 0.91f, 1.0f };
+        btn1->pressedStyle = btn1->computedStyle;
+        btn1->pressedStyle.backgroundColor = { 0.22f, 0.45f, 0.72f, 1.0f };
+        btn1->disabledStyle = btn1->computedStyle;
+        btn1->disabledStyle.backgroundColor = { 0.4f, 0.4f, 0.4f, 1.0f };
+        btn1->onClick = []() { GX_LOG_INFO("Button 'Start Game' clicked!"); };
+
+        // ボタン2: Options
+        auto btn2 = std::make_unique<Button>();
+        btn2->id = "btnOptions";
+        btn2->SetText(L"Options");
+        btn2->SetFontHandle(g_guiFontHandle);
+        btn2->SetRenderer(&g_uiRenderer);
+        btn2->computedStyle.width = StyleLength::Px(300.0f);
+        btn2->computedStyle.height = StyleLength::Px(50.0f);
+        btn2->computedStyle.backgroundColor = { 0.25f, 0.25f, 0.3f, 1.0f };
+        btn2->computedStyle.cornerRadius = 8.0f;
+        btn2->computedStyle.color = { 0.9f, 0.9f, 0.9f, 1.0f };
+        btn2->computedStyle.borderWidth = 1.0f;
+        btn2->computedStyle.borderColor = { 0.4f, 0.4f, 0.5f, 1.0f };
+        btn2->hoverStyle = btn2->computedStyle;
+        btn2->hoverStyle.backgroundColor = { 0.35f, 0.35f, 0.4f, 1.0f };
+        btn2->pressedStyle = btn2->computedStyle;
+        btn2->pressedStyle.backgroundColor = { 0.18f, 0.18f, 0.22f, 1.0f };
+        btn2->disabledStyle = btn2->computedStyle;
+        btn2->onClick = []() { GX_LOG_INFO("Button 'Options' clicked!"); };
+
+        // ボタン3: Exit
+        auto btn3 = std::make_unique<Button>();
+        btn3->id = "btnExit";
+        btn3->SetText(L"Exit");
+        btn3->SetFontHandle(g_guiFontHandle);
+        btn3->SetRenderer(&g_uiRenderer);
+        btn3->computedStyle.width = StyleLength::Px(300.0f);
+        btn3->computedStyle.height = StyleLength::Px(50.0f);
+        btn3->computedStyle.backgroundColor = { 0.6f, 0.2f, 0.2f, 1.0f };
+        btn3->computedStyle.cornerRadius = 8.0f;
+        btn3->computedStyle.color = { 1.0f, 1.0f, 1.0f, 1.0f };
+        btn3->hoverStyle = btn3->computedStyle;
+        btn3->hoverStyle.backgroundColor = { 0.75f, 0.25f, 0.25f, 1.0f };
+        btn3->pressedStyle = btn3->computedStyle;
+        btn3->pressedStyle.backgroundColor = { 0.45f, 0.15f, 0.15f, 1.0f };
+        btn3->disabledStyle = btn3->computedStyle;
+        btn3->onClick = []() { PostQuitMessage(0); };
+
+        menuPanel->AddChild(std::move(title));
+        menuPanel->AddChild(std::move(btn1));
+        menuPanel->AddChild(std::move(btn2));
+        menuPanel->AddChild(std::move(btn3));
+        root->AddChild(std::move(menuPanel));
+        g_uiContext.SetRoot(std::move(root));
+    }
 
     // メッシュ生成
     auto sphereData   = GX::MeshGenerator::CreateSphere(0.5f, 32, 16);
@@ -446,6 +611,26 @@ void UpdateInput(float deltaTime)
     if (kb.IsKeyTriggered('V'))
         g_postEffect.GetVolumetricLight().SetEnabled(!g_postEffect.GetVolumetricLight().IsEnabled());
 
+    // TAA ON/OFF
+    if (kb.IsKeyTriggered('T'))
+        g_postEffect.GetTAA().SetEnabled(!g_postEffect.GetTAA().IsEnabled());
+
+    // AutoExposure ON/OFF
+    if (kb.IsKeyTriggered('X'))
+        g_postEffect.GetAutoExposure().SetEnabled(!g_postEffect.GetAutoExposure().IsEnabled());
+
+    // Mask demo ON/OFF
+    if (kb.IsKeyTriggered('L'))
+        g_maskDemo = !g_maskDemo;
+
+    // GUI demo ON/OFF
+    if (kb.IsKeyTriggered('U'))
+        g_guiDemo = !g_guiDemo;
+
+    // F12: 設定保存
+    if (kb.IsKeyTriggered(VK_F12))
+        g_postEffect.SaveSettings("post_effects.json");
+
     // DoF フォーカス距離調整 (F/G)
     if (g_inputManager.CheckHitKey('F'))
         g_postEffect.GetDoF().SetFocalDistance(g_postEffect.GetDoF().GetFocalDistance() + 5.0f * deltaTime);
@@ -539,7 +724,7 @@ void RenderFrame(float deltaTime)
 
     // === HDRシーン描画パス ===
     auto dsvHandle = g_renderer3D.GetDepthBuffer().GetDSVHandle();
-    g_postEffect.BeginScene(cmdList, g_frameIndex, dsvHandle);
+    g_postEffect.BeginScene(cmdList, g_frameIndex, dsvHandle, g_camera);
 
     // スカイボックス（最初に描画、深度書き込みOFF）
     {
@@ -569,25 +754,31 @@ void RenderFrame(float deltaTime)
         prim.End();
     }
 
-    // === ポストエフェクト: HDR → LDR ===
+    // === ポストエフェクト: HDR → LDR (Sceneレイヤーに出力) ===
     g_postEffect.EndScene();
 
-    // バックバッファ → RENDER_TARGET
-    D3D12_RESOURCE_BARRIER barrier = {};
-    barrier.Type                   = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    barrier.Transition.pResource   = g_swapChain.GetCurrentBackBuffer();
-    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-    barrier.Transition.StateAfter  = D3D12_RESOURCE_STATE_RENDER_TARGET;
-    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-    cmdList->ResourceBarrier(1, &barrier);
+    // Sceneレイヤー → PostEffectPipeline.Resolve
+    g_sceneLayer->GetRenderTarget().TransitionTo(cmdList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    g_postEffect.Resolve(g_sceneLayer->GetRTVHandle(),
+                         g_renderer3D.GetDepthBuffer(), g_camera, deltaTime);
+    g_sceneLayer->GetRenderTarget().TransitionTo(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-    auto rtvHandle = g_swapChain.GetCurrentRTVHandle();
+    // === GUI 更新 ===
+    if (g_guiDemo)
+        g_uiContext.Update(deltaTime, g_inputManager);
 
-    // SSAO → Bloom → トーンマッピング → バックバッファ
-    g_postEffect.Resolve(rtvHandle, g_renderer3D.GetDepthBuffer(), g_camera);
+    // === UIレイヤー: テキスト描画 ===
+    g_uiLayer->Begin(cmdList);
+    g_uiLayer->Clear(cmdList, 0, 0, 0, 0);
 
-    // === 2Dテキスト（LDRバックバッファ上に直接描画）===
-    cmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+    // --- GUI 描画 ---
+    if (g_guiDemo)
+    {
+        g_uiRenderer.Begin(cmdList, g_frameIndex);
+        g_uiContext.Render();
+        g_uiRenderer.End();
+    }
+
     g_spriteBatch.Begin(cmdList, g_frameIndex);
     {
         if (g_fontHandle >= 0)
@@ -599,7 +790,6 @@ void RenderFrame(float deltaTime)
             g_textRenderer.DrawFormatString(g_fontHandle, 10, 35, 0xFF88BBFF,
                 L"Camera: (%.1f, %.1f, %.1f)", pos.x, pos.y, pos.z);
 
-            // トーンマッピング＋ブルーム情報
             const wchar_t* tonemapNames[] = { L"Reinhard", L"ACES", L"Uncharted2" };
             uint32_t tmIdx = static_cast<uint32_t>(g_postEffect.GetTonemapMode());
             g_textRenderer.DrawFormatString(g_fontHandle, 10, 60, 0xFF88FF88,
@@ -667,11 +857,28 @@ void RenderFrame(float deltaTime)
                     sunPos.x, sunPos.y, vl.GetLastSunVisible());
             }
 
+            g_textRenderer.DrawFormatString(g_fontHandle, 10, 310, 0xFF88FF88,
+                L"TAA: %s  BlendFactor: %.2f",
+                g_postEffect.GetTAA().IsEnabled() ? L"ON" : L"OFF",
+                g_postEffect.GetTAA().GetBlendFactor());
+
+            g_textRenderer.DrawFormatString(g_fontHandle, 10, 335, 0xFF88FF88,
+                L"AutoExposure: %s  Exposure: %.2f  Speed: %.1f",
+                g_postEffect.GetAutoExposure().IsEnabled() ? L"ON" : L"OFF",
+                g_postEffect.GetAutoExposure().GetCurrentExposure(),
+                g_postEffect.GetAutoExposure().GetAdaptationSpeed());
+
             const wchar_t* shadowDebugNames[] = { L"OFF", L"Factor", L"Cascade", L"ShadowUV", L"RawDepth", L"Normal", L"ViewZ", L"Albedo", L"Light", L"LightCol" };
-            g_textRenderer.DrawFormatString(g_fontHandle, 10, 310, 0xFFFF8888,
+            g_textRenderer.DrawFormatString(g_fontHandle, 10, 360, 0xFFFF8888,
                 L"ShadowDebug: %s  Shadow: %s",
                 shadowDebugNames[g_renderer3D.GetShadowDebugMode()],
                 g_renderer3D.IsShadowEnabled() ? L"ON" : L"OFF");
+
+            g_textRenderer.DrawFormatString(g_fontHandle, 10, 385, 0xFF88FF88,
+                L"Layers: %d  Mask: %s  GUI: %s",
+                g_layerStack.GetLayerCount(),
+                g_maskDemo ? L"ON" : L"OFF",
+                g_guiDemo ? L"ON" : L"OFF");
 
             float helpY = static_cast<float>(g_swapChain.GetHeight()) - 80.0f;
             g_textRenderer.DrawString(g_fontHandle, 10, helpY,
@@ -679,10 +886,38 @@ void RenderFrame(float deltaTime)
             g_textRenderer.DrawString(g_fontHandle, 10, helpY + 25,
                 L"1/2/3: Tonemap  4: Bloom  5: FXAA  6: Vignette  7: ColorGrading  8: ShadowDbg  9: SSAO", 0xFFFFCC44);
             g_textRenderer.DrawString(g_fontHandle, 10, helpY + 50,
-                L"0: DoF  B: MotionBlur  R: SSR  O: Outline  V: GodRays  F/G: FocalDist+/-  +/-: Exposure", 0xFFFFCC44);
+                L"0: DoF  B: MotionBlur  R: SSR  O: Outline  V: GodRays  T: TAA  X: AutoExp  L: Mask  U: GUI  F12: Save", 0xFFFFCC44);
         }
     }
     g_spriteBatch.End();
+    g_uiLayer->End();
+
+    // === マスクデモ ===
+    if (g_maskDemo)
+    {
+        g_maskScreen.Clear(cmdList, 0);
+        g_maskScreen.DrawFillRect(cmdList, g_frameIndex,
+            100.0f, 100.0f, 400.0f, 300.0f, 1.0f);
+        g_maskScreen.DrawCircle(cmdList, g_frameIndex,
+            800.0f, 360.0f, 200.0f, 1.0f);
+        g_uiLayer->SetMask(g_maskScreen.GetAsLayer());
+    }
+    else
+    {
+        g_uiLayer->SetMask(nullptr);
+    }
+
+    // === コンポジション → バックバッファ ===
+    D3D12_RESOURCE_BARRIER barrier = {};
+    barrier.Type                   = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Transition.pResource   = g_swapChain.GetCurrentBackBuffer();
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+    barrier.Transition.StateAfter  = D3D12_RESOURCE_STATE_RENDER_TARGET;
+    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    cmdList->ResourceBarrier(1, &barrier);
+
+    auto rtvHandle = g_swapChain.GetCurrentRTVHandle();
+    g_compositor.Composite(cmdList, g_frameIndex, rtvHandle, g_layerStack);
 
     // バックバッファ → PRESENT
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
@@ -708,6 +943,11 @@ void OnResize(uint32_t width, uint32_t height)
     g_spriteBatch.SetScreenSize(width, height);
     g_renderer3D.OnResize(width, height);
     g_postEffect.OnResize(g_device.GetDevice(), width, height);
+    g_layerStack.OnResize(g_device.GetDevice(), width, height);
+    g_compositor.OnResize(g_device.GetDevice(), width, height);
+    g_maskScreen.OnResize(g_device.GetDevice(), width, height);
+    g_uiRenderer.OnResize(width, height);
+    g_uiContext.OnResize(width, height);
     g_camera.SetPerspective(g_camera.GetFovY(), static_cast<float>(width) / height,
                              g_camera.GetNearZ(), g_camera.GetFarZ());
 }
@@ -716,7 +956,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
                    _In_ LPSTR lpCmdLine, _In_ int nCmdShow)
 {
     GX::ApplicationDesc appDesc;
-    appDesc.title  = L"GXLib Phase4 [BUILD v3 - debug modes]";
+    appDesc.title  = L"GXLib Phase6a [GUI Core Foundation]";
     appDesc.width  = 1280;
     appDesc.height = 720;
 
@@ -740,7 +980,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
         return -1;
 
     g_app.GetWindow().SetResizeCallback(OnResize);
-    GX_LOG_INFO("=== GXLib Phase 4: Post-Effects (SSAO/SSR/Bloom/DoF/MotionBlur/FXAA/Vignette/ColorGrading) ===");
+    GX_LOG_INFO("=== GXLib Phase 6a: GUI Core Foundation ===");
 
     g_app.Run(RenderFrame);
 

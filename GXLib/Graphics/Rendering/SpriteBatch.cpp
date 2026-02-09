@@ -189,9 +189,16 @@ void SpriteBatch::Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex)
     m_cmdList    = cmdList;
     m_frameIndex = frameIndex;
 
-    m_mappedVertices = static_cast<SpriteVertex*>(m_vertexBuffer.Map(frameIndex));
-    m_spriteCount    = 0;
-    m_currentTexture = -1;
+    m_mappedVertices    = static_cast<SpriteVertex*>(m_vertexBuffer.Map(frameIndex));
+    m_spriteCount       = 0;
+    m_currentTexture    = -1;
+
+    // フレームが変わった時だけオフセットをリセット（同一フレーム内の複数Begin/Endサイクルでは累積）
+    if (m_lastFrameIndex != frameIndex)
+    {
+        m_vertexWriteOffset = 0;
+        m_lastFrameIndex = frameIndex;
+    }
 
     // 正射影行列を定数バッファに書き込み
     void* cbData = m_constantBuffer.Map(frameIndex);
@@ -228,12 +235,12 @@ void SpriteBatch::AddQuad(const SpriteVertex& v0, const SpriteVertex& v1,
     if (m_currentTexture != -1 && m_currentTexture != actualTexHandle)
         Flush();
 
-    if (m_spriteCount >= k_MaxSprites)
+    if (m_vertexWriteOffset + m_spriteCount >= k_MaxSprites)
         Flush();
 
     m_currentTexture = actualTexHandle;
 
-    uint32_t base = m_spriteCount * 4;
+    uint32_t base = (m_vertexWriteOffset + m_spriteCount) * 4;
     m_mappedVertices[base + 0] = v0;
     m_mappedVertices[base + 1] = v1;
     m_mappedVertices[base + 2] = v2;
@@ -267,9 +274,14 @@ void SpriteBatch::Flush()
     // トポロジ
     m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    // 頂点バッファ
-    uint32_t vertexSize = m_spriteCount * 4 * sizeof(SpriteVertex);
-    auto vbv = m_vertexBuffer.GetVertexBufferView(m_frameIndex, vertexSize);
+    // 頂点バッファ（オフセット付き — 前回のFlush分を飛ばす）
+    uint32_t vertexOffset = m_vertexWriteOffset * 4 * sizeof(SpriteVertex);
+    uint32_t vertexSize   = m_spriteCount * 4 * sizeof(SpriteVertex);
+
+    D3D12_VERTEX_BUFFER_VIEW vbv = {};
+    vbv.BufferLocation = m_vertexBuffer.GetGPUVirtualAddress(m_frameIndex) + vertexOffset;
+    vbv.SizeInBytes    = vertexSize;
+    vbv.StrideInBytes  = sizeof(SpriteVertex);
     m_cmdList->IASetVertexBuffers(0, 1, &vbv);
 
     // インデックスバッファ
@@ -279,6 +291,7 @@ void SpriteBatch::Flush()
     // 描画
     m_cmdList->DrawIndexedInstanced(m_spriteCount * 6, 1, 0, 0, 0);
 
+    m_vertexWriteOffset += m_spriteCount;
     m_spriteCount = 0;
 }
 

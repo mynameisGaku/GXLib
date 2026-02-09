@@ -141,11 +141,13 @@ private:
     DynamicBuffer m_constantBuffer;
 
     // バッチ状態
-    SpriteVertex*  m_mappedVertices  = nullptr;
-    uint32_t       m_spriteCount    = 0;
-    int            m_currentTexture = -1;
+    SpriteVertex*  m_mappedVertices    = nullptr;
+    uint32_t       m_spriteCount      = 0;
+    uint32_t       m_vertexWriteOffset = 0;  ///< フレーム内の累積書き込み位置（Flush済みスプライト数）
+    int            m_currentTexture   = -1;
     BlendMode      m_blendMode      = BlendMode::Alpha;
     XMFLOAT4       m_drawColor      = { 1.0f, 1.0f, 1.0f, 1.0f };
+    uint32_t       m_lastFrameIndex = UINT32_MAX; ///< 前回のフレーム番号（同一フレームでのリセット防止）
 
     // スクリーン設定
     uint32_t m_screenWidth  = 1280;
