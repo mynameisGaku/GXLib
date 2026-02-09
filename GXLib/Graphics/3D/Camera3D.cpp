@@ -102,6 +102,22 @@ XMMATRIX Camera3D::GetProjectionMatrix() const
         return XMMatrixOrthographicLH(m_orthoWidth, m_orthoHeight, m_nearZ, m_farZ);
 }
 
+XMMATRIX Camera3D::GetJitteredProjectionMatrix() const
+{
+    XMMATRIX proj = GetProjectionMatrix();
+    // ジッターが無い場合はそのまま返す
+    if (m_jitterOffset.x == 0.0f && m_jitterOffset.y == 0.0f)
+        return proj;
+
+    // プロジェクション行列の _31, _32 にジッターオフセットを加算
+    // (row-major: proj.r[2].m128_f32[0] = _31, proj.r[2].m128_f32[1] = _32)
+    XMFLOAT4X4 projF;
+    XMStoreFloat4x4(&projF, proj);
+    projF._31 += m_jitterOffset.x;
+    projF._32 += m_jitterOffset.y;
+    return XMLoadFloat4x4(&projF);
+}
+
 XMMATRIX Camera3D::GetViewProjectionMatrix() const
 {
     return GetViewMatrix() * GetProjectionMatrix();

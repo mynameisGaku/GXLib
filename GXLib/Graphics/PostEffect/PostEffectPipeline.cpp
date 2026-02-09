@@ -6,6 +6,7 @@
 ///           → [FXAA(LDR)] → [Vignette+ChromAb(LDR)] → Backbuffer
 #include "pch.h"
 #include "Graphics/PostEffect/PostEffectPipeline.h"
+#include "Graphics/PostEffect/PostEffectSettings.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Core/Logger.h"
@@ -88,7 +89,21 @@ bool PostEffectPipeline::Initialize(ID3D12Device* device, uint32_t width, uint32
         return false;
     }
 
-    GX_LOG_INFO("PostEffectPipeline initialized (%dx%d) with SSAO/SSR/VolumetricLight/Bloom/DoF/MotionBlur/Outline/FXAA/Vignette/ColorGrading", width, height);
+    // TAA
+    if (!m_taa.Initialize(device, width, height))
+    {
+        GX_LOG_ERROR("PostEffectPipeline: Failed to initialize TAA");
+        return false;
+    }
+
+    // AutoExposure
+    if (!m_autoExposure.Initialize(device, width, height))
+    {
+        GX_LOG_ERROR("PostEffectPipeline: Failed to initialize AutoExposure");
+        return false;
+    }
+
+    GX_LOG_INFO("PostEffectPipeline initialized (%dx%d) with SSAO/SSR/VolumetricLight/Bloom/DoF/MotionBlur/Outline/TAA/FXAA/Vignette/ColorGrading", width, height);
     return true;
 }
 
@@ -225,10 +240,21 @@ void PostEffectPipeline::DrawFullscreenToRTV(ID3D12PipelineState* pso, ID3D12Roo
 }
 
 void PostEffectPipeline::BeginScene(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
-                                     D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle)
+                                     D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle, Camera3D& camera)
 {
     m_cmdList    = cmdList;
     m_frameIndex = frameIndex;
+
+    // TAA有効時: ジッターをカメラに適用
+    if (m_taa.IsEnabled())
+    {
+        auto jitter = m_taa.GetCurrentJitter();
+        camera.SetJitter(jitter.x, jitter.y);
+    }
+    else
+    {
+        camera.ClearJitter();
+    }
 
     m_hdrRT.TransitionTo(cmdList, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
@@ -256,7 +282,8 @@ void PostEffectPipeline::EndScene()
 }
 
 void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
-                                  DepthBuffer& depthBuffer, const Camera3D& camera)
+                                  DepthBuffer& depthBuffer, const Camera3D& camera,
+                                  float deltaTime)
 {
     // 毎フレーム太陽位置を計算（HUDデバッグ用、enabled に関係なく）
     m_volumetricLight.UpdateSunInfo(camera);
@@ -327,6 +354,17 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
         currentHDR = dest;
     }
 
+    // TAA (HDR space, after Outline, before ColorGrading)
+    if (m_taa.IsEnabled())
+    {
+        RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
+        m_taa.Execute(m_cmdList, m_frameIndex, *currentHDR, *dest, depthBuffer, camera);
+        currentHDR = dest;
+    }
+    // 前フレームVP行列を保存（次フレームのTAAで使用）
+    m_taa.UpdatePreviousVP(camera);
+    m_taa.AdvanceFrame();
+
     // Color Grading (HDR space)
     if (m_colorGradingEnabled)
     {
@@ -342,6 +380,13 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
     }
 
     // ========================================
+    // 自動露出 (トーンマッピング直前)
+    // ========================================
+    float exposure = m_exposure;
+    if (m_autoExposure.IsEnabled())
+        exposure = m_autoExposure.ComputeExposure(m_cmdList, m_frameIndex, *currentHDR, deltaTime);
+
+    // ========================================
     // Tonemapping + LDR chain
     // ========================================
     bool hasLDREffects = m_fxaaEnabled || m_vignetteEnabled;
@@ -351,7 +396,7 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
         // No LDR effects: tonemap directly to backbuffer
         TonemapConstants tc = {};
         tc.mode     = static_cast<uint32_t>(m_tonemapMode);
-        tc.exposure = m_exposure;
+        tc.exposure = exposure;
         DrawFullscreenToRTV(m_tonemapPSO.Get(), m_commonRS.Get(),
                             backBufferRTV, *currentHDR, m_tonemapCB, &tc, sizeof(tc));
         return;
@@ -360,7 +405,7 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
     // Tonemap → ldrRT[0]
     TonemapConstants tc = {};
     tc.mode     = static_cast<uint32_t>(m_tonemapMode);
-    tc.exposure = m_exposure;
+    tc.exposure = exposure;
     DrawFullscreen(m_tonemapPSO.Get(), m_commonRS.Get(),
                    m_ldrRT[0], *currentHDR, m_tonemapCB, &tc, sizeof(tc));
 
@@ -431,6 +476,18 @@ void PostEffectPipeline::OnResize(ID3D12Device* device, uint32_t width, uint32_t
     m_ssr.OnResize(device, width, height);
     m_outline.OnResize(device, width, height);
     m_volumetricLight.OnResize(device, width, height);
+    m_taa.OnResize(device, width, height);
+    m_autoExposure.OnResize(device, width, height);
+}
+
+bool PostEffectPipeline::LoadSettings(const std::string& filePath)
+{
+    return PostEffectSettings::Load(filePath, *this);
+}
+
+bool PostEffectPipeline::SaveSettings(const std::string& filePath) const
+{
+    return PostEffectSettings::Save(filePath, *this);
 }
 
 } // namespace GX

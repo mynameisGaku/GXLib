@@ -45,6 +45,12 @@ public:
     void MoveRight(float distance);
     void MoveUp(float distance);
 
+    // --- ジッター (TAA用) ---
+    void SetJitter(float x, float y) { m_jitterOffset = { x, y }; }
+    void ClearJitter() { m_jitterOffset = { 0.0f, 0.0f }; }
+    XMFLOAT2 GetJitter() const { return m_jitterOffset; }
+    XMMATRIX GetJitteredProjectionMatrix() const;
+
     // --- 行列取得 ---
     XMMATRIX GetViewMatrix() const;
     XMMATRIX GetProjectionMatrix() const;
@@ -85,6 +91,9 @@ private:
     float m_farZ   = 1000.0f;
     float m_orthoWidth  = 20.0f;
     float m_orthoHeight = 20.0f;
+
+    // ジッターオフセット (NDC空間、TAA用)
+    XMFLOAT2 m_jitterOffset = { 0.0f, 0.0f };
 
     // キャッシュ用方向ベクトル
     mutable XMFLOAT3 m_forward = { 0.0f, 0.0f, 1.0f };

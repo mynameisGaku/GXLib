@@ -16,6 +16,8 @@
 #include "Graphics/PostEffect/SSR.h"
 #include "Graphics/PostEffect/OutlineEffect.h"
 #include "Graphics/PostEffect/VolumetricLight.h"
+#include "Graphics/PostEffect/TAA.h"
+#include "Graphics/PostEffect/AutoExposure.h"
 
 namespace GX
 {
@@ -37,10 +39,11 @@ public:
     bool Initialize(ID3D12Device* device, uint32_t width, uint32_t height);
 
     void BeginScene(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
-                     D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle);
+                     D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle, Camera3D& camera);
     void EndScene();
     void Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
-                 DepthBuffer& depthBuffer, const Camera3D& camera);
+                 DepthBuffer& depthBuffer, const Camera3D& camera,
+                 float deltaTime = 0.0f);
 
     // --- トーンマッピング ---
     void SetTonemapMode(TonemapMode mode) { m_tonemapMode = mode; }
@@ -50,24 +53,39 @@ public:
 
     // --- SSAO ---
     SSAO& GetSSAO() { return m_ssao; }
+    const SSAO& GetSSAO() const { return m_ssao; }
 
     // --- ブルーム ---
     Bloom& GetBloom() { return m_bloom; }
+    const Bloom& GetBloom() const { return m_bloom; }
 
     // --- DoF ---
     DepthOfField& GetDoF() { return m_dof; }
+    const DepthOfField& GetDoF() const { return m_dof; }
 
     // --- Motion Blur ---
     MotionBlur& GetMotionBlur() { return m_motionBlur; }
+    const MotionBlur& GetMotionBlur() const { return m_motionBlur; }
 
     // --- SSR ---
     SSR& GetSSR() { return m_ssr; }
+    const SSR& GetSSR() const { return m_ssr; }
 
     // --- Outline ---
     OutlineEffect& GetOutline() { return m_outline; }
+    const OutlineEffect& GetOutline() const { return m_outline; }
 
     // --- VolumetricLight ---
     VolumetricLight& GetVolumetricLight() { return m_volumetricLight; }
+    const VolumetricLight& GetVolumetricLight() const { return m_volumetricLight; }
+
+    // --- TAA ---
+    TAA& GetTAA() { return m_taa; }
+    const TAA& GetTAA() const { return m_taa; }
+
+    // --- AutoExposure ---
+    AutoExposure& GetAutoExposure() { return m_autoExposure; }
+    const AutoExposure& GetAutoExposure() const { return m_autoExposure; }
 
     // --- FXAA ---
     void SetFXAAEnabled(bool enabled) { m_fxaaEnabled = enabled; }
@@ -90,6 +108,10 @@ public:
     float GetSaturation() const { return m_saturation; }
     void SetTemperature(float v) { m_temperature = v; }
     float GetTemperature() const { return m_temperature; }
+
+    // --- 設定ファイル ---
+    bool LoadSettings(const std::string& filePath);
+    bool SaveSettings(const std::string& filePath) const;
 
     D3D12_CPU_DESCRIPTOR_HANDLE GetHDRRTVHandle() const;
     DXGI_FORMAT GetHDRFormat() const { return k_HDRFormat; }
@@ -145,6 +167,12 @@ private:
 
     // VolumetricLight
     VolumetricLight m_volumetricLight;
+
+    // TAA
+    TAA m_taa;
+
+    // AutoExposure
+    AutoExposure m_autoExposure;
 
     // シェーダー & パイプライン
     Shader m_shader;
