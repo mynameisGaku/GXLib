@@ -15,6 +15,7 @@
 #include "Graphics/PostEffect/MotionBlur.h"
 #include "Graphics/PostEffect/SSR.h"
 #include "Graphics/PostEffect/OutlineEffect.h"
+#include "Graphics/PostEffect/VolumetricLight.h"
 
 namespace GX
 {
@@ -64,6 +65,9 @@ public:
 
     // --- Outline ---
     OutlineEffect& GetOutline() { return m_outline; }
+
+    // --- VolumetricLight ---
+    VolumetricLight& GetVolumetricLight() { return m_volumetricLight; }
 
     // --- FXAA ---
     void SetFXAAEnabled(bool enabled) { m_fxaaEnabled = enabled; }
@@ -138,6 +142,9 @@ private:
 
     // Outline
     OutlineEffect m_outline;
+
+    // VolumetricLight
+    VolumetricLight m_volumetricLight;
 
     // シェーダー & パイプライン
     Shader m_shader;

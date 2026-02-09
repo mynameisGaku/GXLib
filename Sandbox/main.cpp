@@ -362,6 +362,10 @@ bool InitializeScene()
     g_renderer3D.GetSkybox().SetSun({ 0.3f, -1.0f, 0.5f }, 5.0f);
     g_renderer3D.GetSkybox().SetColors({ 0.5f, 0.55f, 0.6f }, { 0.75f, 0.75f, 0.75f });
 
+    // VolumetricLight: ディレクショナルライトと同じ方向・色を設定
+    g_postEffect.GetVolumetricLight().SetLightDirection({ 0.3f, -1.0f, 0.5f });
+    g_postEffect.GetVolumetricLight().SetLightColor({ 1.0f, 0.98f, 0.95f });
+
     // カメラ
     uint32_t w = g_app.GetWindow().GetWidth();
     uint32_t h = g_app.GetWindow().GetHeight();
@@ -437,6 +441,10 @@ void UpdateInput(float deltaTime)
     // Outline ON/OFF
     if (kb.IsKeyTriggered('O'))
         g_postEffect.GetOutline().SetEnabled(!g_postEffect.GetOutline().IsEnabled());
+
+    // VolumetricLight ON/OFF
+    if (kb.IsKeyTriggered('V'))
+        g_postEffect.GetVolumetricLight().SetEnabled(!g_postEffect.GetVolumetricLight().IsEnabled());
 
     // DoF フォーカス距離調整 (F/G)
     if (g_inputManager.CheckHitKey('F'))
@@ -649,8 +657,18 @@ void RenderFrame(float deltaTime)
                 g_postEffect.GetOutline().GetDepthThreshold(),
                 g_postEffect.GetOutline().GetNormalThreshold());
 
+            {
+                auto& vl = g_postEffect.GetVolumetricLight();
+                auto sunPos = vl.GetLastSunScreenPos();
+                g_textRenderer.DrawFormatString(g_fontHandle, 10, 285, 0xFF88FF88,
+                    L"GodRay: %s  I:%.1f  SunUV:(%.2f,%.2f)  Visible:%.2f",
+                    vl.IsEnabled() ? L"ON" : L"OFF",
+                    vl.GetIntensity(),
+                    sunPos.x, sunPos.y, vl.GetLastSunVisible());
+            }
+
             const wchar_t* shadowDebugNames[] = { L"OFF", L"Factor", L"Cascade", L"ShadowUV", L"RawDepth", L"Normal", L"ViewZ", L"Albedo", L"Light", L"LightCol" };
-            g_textRenderer.DrawFormatString(g_fontHandle, 10, 285, 0xFFFF8888,
+            g_textRenderer.DrawFormatString(g_fontHandle, 10, 310, 0xFFFF8888,
                 L"ShadowDebug: %s  Shadow: %s",
                 shadowDebugNames[g_renderer3D.GetShadowDebugMode()],
                 g_renderer3D.IsShadowEnabled() ? L"ON" : L"OFF");
@@ -661,7 +679,7 @@ void RenderFrame(float deltaTime)
             g_textRenderer.DrawString(g_fontHandle, 10, helpY + 25,
                 L"1/2/3: Tonemap  4: Bloom  5: FXAA  6: Vignette  7: ColorGrading  8: ShadowDbg  9: SSAO", 0xFFFFCC44);
             g_textRenderer.DrawString(g_fontHandle, 10, helpY + 50,
-                L"0: DoF  B: MotionBlur  R: SSR  O: Outline  F/G: FocalDist+/-  +/-: Exposure", 0xFFFFCC44);
+                L"0: DoF  B: MotionBlur  R: SSR  O: Outline  V: GodRays  F/G: FocalDist+/-  +/-: Exposure", 0xFFFFCC44);
         }
     }
     g_spriteBatch.End();

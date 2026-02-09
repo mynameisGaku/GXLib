@@ -81,7 +81,14 @@ bool PostEffectPipeline::Initialize(ID3D12Device* device, uint32_t width, uint32
         return false;
     }
 
-    GX_LOG_INFO("PostEffectPipeline initialized (%dx%d) with SSAO/SSR/Bloom/DoF/MotionBlur/Outline/FXAA/Vignette/ColorGrading", width, height);
+    // VolumetricLight
+    if (!m_volumetricLight.Initialize(device, width, height))
+    {
+        GX_LOG_ERROR("PostEffectPipeline: Failed to initialize VolumetricLight");
+        return false;
+    }
+
+    GX_LOG_INFO("PostEffectPipeline initialized (%dx%d) with SSAO/SSR/VolumetricLight/Bloom/DoF/MotionBlur/Outline/FXAA/Vignette/ColorGrading", width, height);
     return true;
 }
 
@@ -251,6 +258,9 @@ void PostEffectPipeline::EndScene()
 void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
                                   DepthBuffer& depthBuffer, const Camera3D& camera)
 {
+    // 毎フレーム太陽位置を計算（HUDデバッグ用、enabled に関係なく）
+    m_volumetricLight.UpdateSunInfo(camera);
+
     // ========================================
     // HDR chain: hdrRT → [SSAO] → [Bloom] → [DoF] → [MotionBlur] → [ColorGrading] → currentHDR
     // ========================================
@@ -270,6 +280,14 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
     {
         RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
         m_ssr.Execute(m_cmdList, m_frameIndex, *currentHDR, *dest, depthBuffer, camera);
+        currentHDR = dest;
+    }
+
+    // VolumetricLight (HDR space, after SSR, before Bloom)
+    if (m_volumetricLight.IsEnabled())
+    {
+        RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
+        m_volumetricLight.Execute(m_cmdList, m_frameIndex, *currentHDR, *dest, depthBuffer, camera);
         currentHDR = dest;
     }
 
@@ -412,6 +430,7 @@ void PostEffectPipeline::OnResize(ID3D12Device* device, uint32_t width, uint32_t
     m_motionBlur.OnResize(device, width, height);
     m_ssr.OnResize(device, width, height);
     m_outline.OnResize(device, width, height);
+    m_volumetricLight.OnResize(device, width, height);
 }
 
 } // namespace GX
