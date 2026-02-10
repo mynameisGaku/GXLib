@@ -1,6 +1,7 @@
 # GXLib
 
 DirectX 12 ベースの 2D/3D ゲームエンジン。DXLib 互換 API を備え、C++20 / Windows 環境で動作します。
+このライブラリの作成には、AIを使用しています。
 
 ## 公開ページ (GitHub Pages)
 https://mynameisgaku.github.io/GXLib/
