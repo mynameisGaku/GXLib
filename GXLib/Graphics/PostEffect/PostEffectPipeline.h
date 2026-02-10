@@ -3,7 +3,7 @@
 /// @brief ポストエフェクトパイプライン管理
 ///
 /// エフェクトチェーン:
-/// HDR Scene → [Bloom] → [ColorGrading] → [Tonemapping] → [FXAA] → [Vignette+ChromAb] → Backbuffer
+/// HDRシーン → [ブルーム] → [カラーグレーディング] → [トーンマッピング] → [FXAA] → [ビネット+色収差] → バックバッファ
 
 #include "pch.h"
 #include "Graphics/Resource/RenderTarget.h"
@@ -59,31 +59,31 @@ public:
     Bloom& GetBloom() { return m_bloom; }
     const Bloom& GetBloom() const { return m_bloom; }
 
-    // --- DoF ---
+    // --- DoF (被写界深度) ---
     DepthOfField& GetDoF() { return m_dof; }
     const DepthOfField& GetDoF() const { return m_dof; }
 
-    // --- Motion Blur ---
+    // --- モーションブラー ---
     MotionBlur& GetMotionBlur() { return m_motionBlur; }
     const MotionBlur& GetMotionBlur() const { return m_motionBlur; }
 
-    // --- SSR ---
+    // --- SSR (スクリーン空間反射) ---
     SSR& GetSSR() { return m_ssr; }
     const SSR& GetSSR() const { return m_ssr; }
 
-    // --- Outline ---
+    // --- アウトライン ---
     OutlineEffect& GetOutline() { return m_outline; }
     const OutlineEffect& GetOutline() const { return m_outline; }
 
-    // --- VolumetricLight ---
+    // --- ボリューメトリックライト ---
     VolumetricLight& GetVolumetricLight() { return m_volumetricLight; }
     const VolumetricLight& GetVolumetricLight() const { return m_volumetricLight; }
 
-    // --- TAA ---
+    // --- TAA (時間的AA) ---
     TAA& GetTAA() { return m_taa; }
     const TAA& GetTAA() const { return m_taa; }
 
-    // --- AutoExposure ---
+    // --- 自動露出 ---
     AutoExposure& GetAutoExposure() { return m_autoExposure; }
     const AutoExposure& GetAutoExposure() const { return m_autoExposure; }
 
@@ -140,11 +140,11 @@ private:
     uint32_t                   m_width  = 0;
     uint32_t                   m_height = 0;
 
-    // HDR RTs
+    // HDR用RT (高ダイナミックレンジ)
     RenderTarget m_hdrRT;
     RenderTarget m_hdrPingPongRT;
 
-    // LDR RTs (FXAA/Vignette用)
+    // LDR用RT (FXAA/Vignette用)
     RenderTarget m_ldrRT[2];
 
     // SSAO
@@ -153,31 +153,31 @@ private:
     // ブルーム
     Bloom m_bloom;
 
-    // DoF
+    // DoF (被写界深度)
     DepthOfField m_dof;
 
-    // Motion Blur
+    // モーションブラー
     MotionBlur m_motionBlur;
 
-    // SSR
+    // SSR (スクリーン空間反射)
     SSR m_ssr;
 
-    // Outline
+    // アウトライン
     OutlineEffect m_outline;
 
-    // VolumetricLight
+    // ボリューメトリックライト
     VolumetricLight m_volumetricLight;
 
-    // TAA
+    // TAA (時間的AA)
     TAA m_taa;
 
-    // AutoExposure
+    // 自動露出
     AutoExposure m_autoExposure;
 
     // シェーダー & パイプライン
     Shader m_shader;
 
-    // Tonemapping
+    // トーンマッピング
     ComPtr<ID3D12RootSignature> m_commonRS;  // 全エフェクト共通: b0 + t0 + s0
     ComPtr<ID3D12PipelineState> m_tonemapPSO;
     DynamicBuffer               m_tonemapCB;
@@ -186,11 +186,11 @@ private:
     ComPtr<ID3D12PipelineState> m_fxaaPSO;
     DynamicBuffer               m_fxaaCB;
 
-    // Vignette + Chromatic Aberration
+    // ビネット + 色収差
     ComPtr<ID3D12PipelineState> m_vignettePSO;
     DynamicBuffer               m_vignetteCB;
 
-    // Color Grading (HDR空間)
+    // カラーグレーディング (HDR空間)
     ComPtr<ID3D12PipelineState> m_colorGradingHDRPSO;
     DynamicBuffer               m_colorGradingCB;
 

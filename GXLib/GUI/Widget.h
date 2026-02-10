@@ -112,10 +112,17 @@ public:
     bool pressed = false;
     bool focused = false;
 
+    // --- 描画用スタイル（アニメーション用） ---
+    const Style& GetRenderStyle() const { return m_hasRenderStyle ? m_renderStyle : computedStyle; }
+
     // --- レイアウト ---
     LayoutRect layoutRect;     ///< 親からの相対位置
     LayoutRect globalRect;     ///< スクリーン座標
     bool layoutDirty = true;
+
+    // --- スクロール ---
+    float scrollOffsetX = 0.0f;
+    float scrollOffsetY = 0.0f;
 
     /// ウィジェット固有の intrinsic size（テキスト幅等）
     virtual float GetIntrinsicWidth() const { return 0.0f; }
@@ -124,6 +131,13 @@ public:
     // --- イベント ---
     virtual bool OnEvent(const UIEvent& event);
     std::function<void()> onClick;
+    std::function<void()> onHover;
+    std::function<void()> onLeave;
+    std::function<void()> onPress;
+    std::function<void()> onRelease;
+    std::function<void()> onFocus;
+    std::function<void()> onBlur;
+    std::function<void()> onSubmit;
     std::function<void(const UIEvent&)> onEvent;
     std::function<void(const std::string&)> onValueChanged;
 
@@ -132,8 +146,17 @@ public:
     virtual void Render(UIRenderer& renderer);
 
 protected:
+    void UpdateStyleTransition(float deltaTime, const Style& targetStyle);
+
     Widget* m_parent = nullptr;
     std::vector<std::unique_ptr<Widget>> m_children;
+
+    Style m_renderStyle;
+    Style m_targetStyle;
+    Style m_startStyle;
+    float m_transitionTime = 0.0f;
+    float m_transitionDuration = 0.0f;
+    bool m_hasRenderStyle = false;
 };
 
 }} // namespace GX::GUI

@@ -38,7 +38,8 @@ void SoundPlayer::Play(const Sound& sound, float volume, float pan)
     // コールバック作成
     auto callback = std::make_unique<VoiceCallback>();
 
-    // SourceVoice作成
+    // ソースボイスを作成
+    // 初学者向け: 効果音ごとに「再生用の音声チャンネル」を作ります。
     IXAudio2SourceVoice* voice = nullptr;
     WAVEFORMATEX format = sound.GetFormat();
 

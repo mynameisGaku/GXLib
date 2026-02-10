@@ -58,6 +58,9 @@ public:
     /// スクリーンサイズ更新
     void OnResize(uint32_t width, uint32_t height);
 
+    /// デザイン解像度を設定（GUI座標空間の基準解像度）
+    void SetDesignResolution(uint32_t width, uint32_t height);
+
     /// UIRendererを取得
     UIRenderer* GetRenderer() const { return m_renderer; }
 
@@ -93,6 +96,8 @@ private:
     Widget*                  m_pressedWidget = nullptr;
     uint32_t                 m_screenWidth  = 1280;
     uint32_t                 m_screenHeight = 720;
+    uint32_t                 m_designWidth  = 0;   // 0 = スケーリング無効
+    uint32_t                 m_designHeight = 0;
     float                    m_prevMouseX = 0.0f;
     float                    m_prevMouseY = 0.0f;
     bool                     m_prevMouseDown = false;

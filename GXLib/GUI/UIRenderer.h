@@ -1,13 +1,10 @@
 #pragma once
-/// @file UIRenderer.h
-/// @brief GUI 描画統合クラス
-///
-/// UIRectBatch（SDF角丸矩形）+ SpriteBatch（テクスチャ）+ TextRenderer（テキスト）
-/// + ScissorStack（クリッピング）を統合する描画クラス。
+// GUI 描画ユーティリティ
 
 #include "pch.h"
 #include "GUI/Style.h"
 #include "GUI/Widget.h"
+#include "Math/Transform2D.h"
 #include "Graphics/Resource/DynamicBuffer.h"
 #include "Graphics/Resource/Buffer.h"
 #include "Graphics/Pipeline/Shader.h"
@@ -21,16 +18,13 @@ class FontManager;
 
 namespace GX { namespace GUI {
 
-// ============================================================================
-// ScissorStack — ネストしたクリッピング領域の管理
-// ============================================================================
-
-/// @brief スクリーン座標のクリッピング領域
+// ---------------------------------------------------------------------------
+// Scissor
+// ---------------------------------------------------------------------------
 struct ScissorRect
 {
     float left = 0, top = 0, right = 0, bottom = 0;
 
-    /// 2つの矩形の交差を計算
     ScissorRect Intersect(const ScissorRect& other) const
     {
         return {
@@ -42,149 +36,189 @@ struct ScissorRect
     }
 };
 
-// ============================================================================
-// UIRectInstance — バッチ化された矩形データ
-// ============================================================================
-
-/// @brief UIRectBatch用頂点データ
+// ---------------------------------------------------------------------------
+// UIRect Batch
+// ---------------------------------------------------------------------------
 struct UIRectVertex
 {
-    XMFLOAT2 position;   // スクリーン座標
-    XMFLOAT2 localUV;    // 矩形内のローカル座標 (0-rectSize)
+    XMFLOAT2 position;
+    XMFLOAT2 localUV;
 };
 
-/// @brief UIRect定数バッファ
 struct UIRectConstants
 {
-    XMFLOAT4X4 projection;         // 正射影行列 (64)
-    XMFLOAT2   rectSize;           // 矩形サイズ (8)
-    float      cornerRadius;       // 角丸半径 (4)
-    float      borderWidth;        // 枠線幅 (4)
-    XMFLOAT4   fillColor;          // 塗り色 (16)
-    XMFLOAT4   borderColor;        // 枠色 (16)
-    XMFLOAT2   shadowOffset;       // 影オフセット (8)
-    float      shadowBlur;         // 影ぼかし (4)
-    float      shadowAlpha;        // 影透明度 (4)
-    float      opacity;            // 全体透明度 (4)
-    float      _pad[3];            // パディング (12)
-};                                 // 合計: 144 bytes
+    XMFLOAT4X4 projection;         // 64
+    XMFLOAT2   rectSize;           // 8
+    float      cornerRadius;       // 4
+    float      borderWidth;        // 4
+    XMFLOAT4   fillColor;          // 16
+    XMFLOAT4   borderColor;        // 16
+    XMFLOAT2   shadowOffset;       // 8
+    float      shadowBlur;         // 4
+    float      shadowAlpha;        // 4
+    float      opacity;            // 4
+    float      _pad[3];            // 12
+    XMFLOAT4   gradientColor;      // 16
+    XMFLOAT2   gradientDir;        // 8
+    float      gradientEnabled;    // 4
+    float      _pad2;              // 4
+    XMFLOAT2   effectCenter;       // 8
+    float      effectTime;         // 4
+    float      effectDuration;     // 4
+    float      effectStrength;     // 4
+    float      effectWidth;        // 4
+    float      effectType;         // 4
+    float      _pad3;              // 4
+};                                 // 208 bytes
 
-// ============================================================================
+enum class UIRectEffectType
+{
+    None = 0,
+    Ripple = 1
+};
+
+struct UIRectEffect
+{
+    UIRectEffectType type = UIRectEffectType::None;
+    float centerX = 0.5f;   // 0..1
+    float centerY = 0.5f;   // 0..1
+    float time = 0.0f;      // 秒
+    float duration = 0.8f;  // 秒
+    float strength = 0.4f;  // 0..1
+    float width = 0.08f;    // 0..1
+};
+
+// ---------------------------------------------------------------------------
 // UIRenderer
-// ============================================================================
-
-/// @brief GUI描画統合クラス
+// ---------------------------------------------------------------------------
 class UIRenderer
 {
 public:
     UIRenderer() = default;
     ~UIRenderer() = default;
 
-    /// 初期化
     bool Initialize(ID3D12Device* device, ID3D12CommandQueue* cmdQueue,
                     uint32_t screenWidth, uint32_t screenHeight,
                     SpriteBatch* spriteBatch, TextRenderer* textRenderer,
                     FontManager* fontManager);
 
-    /// フレーム描画開始
     void Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex);
-
-    /// フレーム描画終了
     void End();
 
-    // --- 矩形描画 ---
-
-    /// スタイル付き矩形を描画（背景 + 枠線 + 影 + 角丸）
-    void DrawRect(const LayoutRect& rect, const Style& style, float opacity = 1.0f);
-
-    /// 単色矩形を描画（角丸なし、高速パス）
+    // --- Rect ---
+    void DrawRect(const LayoutRect& rect, const Style& style,
+                  float opacity = 1.0f,
+                  const UIRectEffect* effect = nullptr);
     void DrawSolidRect(float x, float y, float w, float h, const StyleColor& color);
+    void DrawGradientRect(float x, float y, float w, float h,
+                          const StyleColor& startColor, const StyleColor& endColor,
+                          float dirX = 0.0f, float dirY = 1.0f,
+                          float cornerRadius = 0.0f,
+                          float opacity = 1.0f);
 
-    // --- テキスト描画 ---
-
-    /// テキストを描画（フォントハンドル指定）
+    // --- Text ---
     void DrawText(float x, float y, int fontHandle, const std::wstring& text,
                   const StyleColor& color, float opacity = 1.0f);
-
-    /// テキスト幅を計算
     int GetTextWidth(int fontHandle, const std::wstring& text);
-
-    /// フォント行の高さを取得
     int GetLineHeight(int fontHandle);
+    float GetFontCapOffset(int fontHandle);
 
-    // --- テクスチャ描画 ---
-
-    /// テクスチャを描画
+    // --- Image ---
     void DrawImage(float x, float y, float w, float h, int textureHandle, float opacity = 1.0f);
+    void DrawImageUV(float x, float y, float w, float h, int textureHandle,
+                     float u0, float v0, float u1, float v1,
+                     float opacity = 1.0f);
 
-    // --- クリッピング ---
-
-    /// クリッピング矩形をプッシュ（ネスト対応）
+    // --- Scissor ---
     void PushScissor(const LayoutRect& rect);
-
-    /// クリッピング矩形をポップ
     void PopScissor();
 
-    /// スクリーンサイズ更新
+    // --- Transform / Opacity ---
+    void PushTransform(const Transform2D& local);
+    void PopTransform();
+    const Transform2D& GetTransform() const { return m_transformStack.back(); }
+
+    void PushOpacity(float opacity);
+    void PopOpacity();
+    float GetOpacity() const { return m_opacityStack.back(); }
+
+    // --- Deferred ---
+    void DeferDraw(std::function<void()> fn);
+    void FlushDeferredDraws();
+
+    // --- Resize ---
     void OnResize(uint32_t width, uint32_t height);
+    void SetDesignResolution(uint32_t designWidth, uint32_t designHeight);
 
-    /// フォントマネージャーを取得
+    float GetGuiScale() const { return m_guiScale; }
+    float GetGuiOffsetX() const { return m_guiOffsetX; }
+    float GetGuiOffsetY() const { return m_guiOffsetY; }
+
     FontManager* GetFontManager() const { return m_fontManager; }
-
-    /// SpriteBatchを取得
     SpriteBatch* GetSpriteBatch() const { return m_spriteBatch; }
-
-    /// TextRendererを取得
     TextRenderer* GetTextRenderer() const { return m_textRenderer; }
 
 private:
-    /// UIRectBatch パイプライン作成
     bool CreateRectPipeline(ID3D12Device* device);
-
-    /// 正射影行列を更新
     void UpdateProjectionMatrix();
 
-    /// 1矩形を描画（内部）
     void DrawRectInternal(float x, float y, float w, float h,
                           const StyleColor& fillColor, float cornerRadius,
                           float borderWidth, const StyleColor& borderColor,
                           float shadowOffsetX, float shadowOffsetY,
                           float shadowBlur, float shadowAlpha,
-                          float opacity);
+                          float opacity,
+                          const StyleColor* gradientColor,
+                          const XMFLOAT2& gradientDir,
+                          const UIRectEffect* effect);
 
-    /// 現在のシザー矩形をGPUに適用
     void ApplyScissor();
+    void UpdateGuiMetrics();
+    void ApplyGuiViewport();
 
-    // デバイス
+    // Device
     ID3D12Device*              m_device = nullptr;
     ID3D12GraphicsCommandList* m_cmdList = nullptr;
     uint32_t                   m_frameIndex = 0;
 
-    // 既存レンダラー参照
+    // Renderers
     SpriteBatch*  m_spriteBatch = nullptr;
     TextRenderer* m_textRenderer = nullptr;
     FontManager*  m_fontManager = nullptr;
 
-    // スクリーン設定
+    // Screen
     uint32_t m_screenWidth  = 1280;
     uint32_t m_screenHeight = 720;
     XMFLOAT4X4 m_projectionMatrix;
 
-    // UIRectBatch
+    // Design resolution scaling
+    uint32_t m_designWidth  = 0;
+    uint32_t m_designHeight = 0;
+    float    m_guiScale   = 1.0f;
+    float    m_guiOffsetX = 0.0f;
+    float    m_guiOffsetY = 0.0f;
+
+    // UIRect batch
     Shader                       m_rectShader;
     ComPtr<ID3D12RootSignature>  m_rectRootSignature;
     ComPtr<ID3D12PipelineState>  m_rectPSO;
     DynamicBuffer                m_rectVertexBuffer;
     DynamicBuffer                m_rectConstantBuffer;
     Buffer                       m_rectIndexBuffer;
+    uint32_t                     m_rectDrawCount = 0;
 
-    // 矩形描画カウンタ（フレーム内のオフセット計算用）
-    uint32_t m_rectDrawCount = 0;
-
-    // ScissorStack
+    // Scissor
     std::vector<ScissorRect> m_scissorStack;
     ScissorRect m_fullScreen;
     bool m_spriteBatchActive = false;
+
+    // Deferred
+    std::vector<std::function<void()>> m_deferredDraws;
+
+    // Transform/Opacity stacks
+    std::vector<Transform2D> m_transformStack;
+    std::vector<float> m_opacityStack;
 };
 
 }} // namespace GX::GUI
+

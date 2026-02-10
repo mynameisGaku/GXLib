@@ -92,6 +92,18 @@ int TextureManager::CreateTextureFromMemory(const void* pixels, uint32_t width, 
     return handle;
 }
 
+bool TextureManager::UpdateTextureFromMemory(int handle, const void* pixels, uint32_t width, uint32_t height)
+{
+    if (handle < 0 || handle >= static_cast<int>(m_entries.size()))
+        return false;
+
+    auto& entry = m_entries[handle];
+    if (!entry.texture || entry.isRegionOnly)
+        return false;
+
+    return entry.texture->UpdatePixels(m_device, m_cmdQueue, pixels, width, height);
+}
+
 Texture* TextureManager::GetTexture(int handle)
 {
     if (handle < 0 || handle >= static_cast<int>(m_entries.size()))

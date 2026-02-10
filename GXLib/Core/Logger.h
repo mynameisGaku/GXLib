@@ -20,7 +20,7 @@
 namespace GX
 {
 
-/// ログレベル（重要度）
+/// @brief ログレベル（重要度）を表す列挙型
 enum class LogLevel
 {
     Info,   ///< 情報メッセージ
@@ -32,13 +32,19 @@ enum class LogLevel
 class Logger
 {
 public:
-    /// 情報レベルのログを出力
+    /// @brief 情報レベルのログを出力する
+    /// @param format printfスタイルのフォーマット文字列
+    /// @param ... フォーマット引数（可変長）
     static void Info(const char* format, ...);
 
-    /// 警告レベルのログを出力
+    /// @brief 警告レベルのログを出力する
+    /// @param format printfスタイルのフォーマット文字列
+    /// @param ... フォーマット引数（可変長）
     static void Warn(const char* format, ...);
 
-    /// エラーレベルのログを出力
+    /// @brief エラーレベルのログを出力する
+    /// @param format printfスタイルのフォーマット文字列
+    /// @param ... フォーマット引数（可変長）
     static void Error(const char* format, ...);
 
 private:

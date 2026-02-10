@@ -4,6 +4,7 @@
 #include "Graphics/3D/Skybox.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
+#include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Core/Logger.h"
 
 namespace GX
@@ -17,17 +18,17 @@ bool Skybox::Initialize(ID3D12Device* device)
     // フルスクリーンキューブの頂点（位置のみ）
     struct SkyVertex { XMFLOAT3 position; };
     SkyVertex vertices[] = {
-        // Front
+        // 前面
         {{ -1, -1,  1 }}, {{  1, -1,  1 }}, {{  1,  1,  1 }}, {{ -1,  1,  1 }},
-        // Back
+        // 背面
         {{  1, -1, -1 }}, {{ -1, -1, -1 }}, {{ -1,  1, -1 }}, {{  1,  1, -1 }},
-        // Left
+        // 左面
         {{ -1, -1, -1 }}, {{ -1, -1,  1 }}, {{ -1,  1,  1 }}, {{ -1,  1, -1 }},
-        // Right
+        // 右面
         {{  1, -1,  1 }}, {{  1, -1, -1 }}, {{  1,  1, -1 }}, {{  1,  1,  1 }},
-        // Top
+        // 上面
         {{ -1,  1,  1 }}, {{  1,  1,  1 }}, {{  1,  1, -1 }}, {{ -1,  1, -1 }},
-        // Bottom
+        // 下面
         {{ -1, -1, -1 }}, {{  1, -1, -1 }}, {{  1, -1,  1 }}, {{ -1, -1,  1 }},
     };
 
@@ -50,6 +51,12 @@ bool Skybox::Initialize(ID3D12Device* device)
 
     if (!CreatePipelineState(device))
         return false;
+
+    // ホットリロード用PSO Rebuilder登録
+    ShaderLibrary::Instance().RegisterPSORebuilder(
+        L"Shaders/Skybox.hlsl",
+        [this](ID3D12Device* dev) { return CreatePipelineState(dev); }
+    );
 
     GX_LOG_INFO("Skybox initialized");
     return true;
@@ -84,7 +91,7 @@ bool Skybox::CreatePipelineState(ID3D12Device* device)
         .SetVertexShader(vsBlob.GetBytecode())
         .SetPixelShader(psBlob.GetBytecode())
         .SetInputLayout(inputLayout, _countof(inputLayout))
-        .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT)  // HDR RT
+        .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT)  // HDR用RT
         .SetDepthFormat(DXGI_FORMAT_D32_FLOAT)
         .SetDepthEnable(true)
         .SetDepthWriteMask(D3D12_DEPTH_WRITE_MASK_ZERO)  // 深度書き込みOFF

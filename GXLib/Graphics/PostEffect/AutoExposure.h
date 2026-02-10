@@ -46,6 +46,8 @@ public:
     float GetCurrentExposure() const { return m_currentExposure; }
 
 private:
+    bool CreatePipelines(ID3D12Device* device);
+
     bool m_enabled = false;
     float m_adaptationSpeed = 1.5f;
     float m_minExposure = 0.1f;

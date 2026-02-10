@@ -57,35 +57,57 @@ XMFLOAT4 AnimationClip::InterpolateQuat(const std::vector<Keyframe<XMFLOAT4>>& k
     return result;
 }
 
-void AnimationClip::Sample(float time, uint32_t jointCount, XMFLOAT4X4* outLocalTransforms) const
+void AnimationClip::SampleTRS(float time, uint32_t jointCount, TransformTRS* outPose,
+                              const TransformTRS* basePose) const
 {
-    // 初期化（デフォルト: identity）
-    for (uint32_t i = 0; i < jointCount; ++i)
-        XMStoreFloat4x4(&outLocalTransforms[i], XMMatrixIdentity());
+    if (!outPose) return;
 
-    // 各チャンネルをサンプリング
+    // ベース姿勢があればそれで初期化、無ければ単位姿勢で初期化
+    // 初学者向け: まず「何も動いていない姿勢」を用意し、そこにキーの変化だけを上書きします。
+    if (basePose)
+    {
+        for (uint32_t i = 0; i < jointCount; ++i)
+            outPose[i] = basePose[i];
+    }
+    else
+    {
+        for (uint32_t i = 0; i < jointCount; ++i)
+            outPose[i] = IdentityTRS();
+    }
+
+    // キー付きチャンネルで上書き
+    // 初学者向け: キーがある関節だけ更新し、未指定の関節はベース姿勢のままにします。
     for (const auto& channel : m_channels)
     {
         if (channel.jointIndex < 0 || channel.jointIndex >= static_cast<int>(jointCount))
             continue;
 
-        XMFLOAT3 translation = { 0, 0, 0 };
-        XMFLOAT4 rotation = { 0, 0, 0, 1 };
-        XMFLOAT3 scale = { 1, 1, 1 };
-
+        TransformTRS trs = outPose[channel.jointIndex];
         if (!channel.translationKeys.empty())
-            translation = InterpolateVec3(channel.translationKeys, time);
+            trs.translation = InterpolateVec3(channel.translationKeys, time);
         if (!channel.rotationKeys.empty())
-            rotation = InterpolateQuat(channel.rotationKeys, time);
+            trs.rotation = InterpolateQuat(channel.rotationKeys, time);
         if (!channel.scaleKeys.empty())
-            scale = InterpolateVec3(channel.scaleKeys, time);
+            trs.scale = InterpolateVec3(channel.scaleKeys, time);
 
-        XMMATRIX S = XMMatrixScaling(scale.x, scale.y, scale.z);
-        XMMATRIX R = XMMatrixRotationQuaternion(XMLoadFloat4(&rotation));
-        XMMATRIX T = XMMatrixTranslation(translation.x, translation.y, translation.z);
+        outPose[channel.jointIndex] = trs;
+    }
+}
+
+void AnimationClip::Sample(float time, uint32_t jointCount, XMFLOAT4X4* outLocalTransforms) const
+{
+    if (!outLocalTransforms) return;
+
+    std::vector<TransformTRS> pose(jointCount);
+    SampleTRS(time, jointCount, pose.data(), nullptr);
+
+    for (uint32_t i = 0; i < jointCount; ++i)
+    {
+        XMMATRIX S = XMMatrixScaling(pose[i].scale.x, pose[i].scale.y, pose[i].scale.z);
+        XMMATRIX R = XMMatrixRotationQuaternion(XMLoadFloat4(&pose[i].rotation));
+        XMMATRIX T = XMMatrixTranslation(pose[i].translation.x, pose[i].translation.y, pose[i].translation.z);
         XMMATRIX local = S * R * T;
-
-        XMStoreFloat4x4(&outLocalTransforms[channel.jointIndex], local);
+        XMStoreFloat4x4(&outLocalTransforms[i], local);
     }
 }
 

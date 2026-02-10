@@ -27,7 +27,8 @@ void MusicPlayer::Play(const Sound& sound, bool loop, float volume)
     // 現在再生中なら停止
     Stop();
 
-    // SourceVoice作成
+    // ソースボイスを作成
+    // 初学者向け: 再生用の「音声チャンネル」をXAudio2に作ってもらいます。
     WAVEFORMATEX format = sound.GetFormat();
     HRESULT hr = m_audioDevice->GetXAudio2()->CreateSourceVoice(&m_voice, &format);
     if (FAILED(hr))

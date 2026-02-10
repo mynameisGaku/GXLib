@@ -42,13 +42,13 @@ struct LightConstants
 class Light
 {
 public:
-    /// Directional Lightを作成
+    /// ディレクショナルライトを作成
     static LightData CreateDirectional(const XMFLOAT3& direction, const XMFLOAT3& color, float intensity);
 
-    /// Point Lightを作成
+    /// ポイントライトを作成
     static LightData CreatePoint(const XMFLOAT3& position, float range, const XMFLOAT3& color, float intensity);
 
-    /// Spot Lightを作成
+    /// スポットライトを作成
     static LightData CreateSpot(const XMFLOAT3& position, const XMFLOAT3& direction,
                                  float range, float spotAngleDeg,
                                  const XMFLOAT3& color, float intensity);

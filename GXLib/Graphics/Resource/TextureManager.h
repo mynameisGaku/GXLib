@@ -44,6 +44,9 @@ public:
     /// CPUメモリからテクスチャを作成
     int CreateTextureFromMemory(const void* pixels, uint32_t width, uint32_t height);
 
+    /// 既存テクスチャのピクセルデータを更新（ハンドル・SRV維持）
+    bool UpdateTextureFromMemory(int handle, const void* pixels, uint32_t width, uint32_t height);
+
     /// ハンドルからテクスチャを取得
     Texture* GetTexture(int handle);
 

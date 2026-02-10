@@ -63,6 +63,8 @@ public:
     uint32_t GetFrameCount() const { return m_frameCount; }
 
 private:
+    bool CreatePipelines(ID3D12Device* device);
+
     bool m_enabled = false;
     float m_blendFactor = 0.9f;
 

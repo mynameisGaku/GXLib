@@ -39,57 +39,132 @@ enum class BlendMode
 class SpriteBatch
 {
 public:
+    /// @brief 1バッチあたりの最大スプライト数
     static constexpr uint32_t k_MaxSprites = 4096;
 
     SpriteBatch() = default;
     ~SpriteBatch() = default;
 
-    /// スプライトバッチを初期化
+    /// @brief スプライトバッチを初期化する
+    /// @param device D3D12デバイスへのポインタ
+    /// @param cmdQueue コマンドキューへのポインタ
+    /// @param screenWidth スクリーン幅（ピクセル）
+    /// @param screenHeight スクリーン高さ（ピクセル）
+    /// @return 初期化に成功した場合true
     bool Initialize(ID3D12Device* device, ID3D12CommandQueue* cmdQueue,
                     uint32_t screenWidth, uint32_t screenHeight);
 
-    /// バッチ描画を開始
+    /// @brief バッチ描画を開始する
+    /// @param cmdList グラフィックスコマンドリスト
+    /// @param frameIndex 現在のフレームインデックス
     void Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex);
 
-    /// テクスチャを描画（DXLib DrawGraph互換）
+    /// @brief テクスチャを描画する（DXLib DrawGraph互換）
+    /// @param x 描画先X座標
+    /// @param y 描画先Y座標
+    /// @param handle テクスチャハンドル
+    /// @param transFlag 透過処理を有効にするかどうか
     void DrawGraph(float x, float y, int handle, bool transFlag = true);
 
-    /// 回転拡大描画（DXLib DrawRotaGraph互換）
+    /// @brief 回転拡大描画する（DXLib DrawRotaGraph互換）
+    /// @param cx 回転中心X座標
+    /// @param cy 回転中心Y座標
+    /// @param extRate 拡大率
+    /// @param angle 回転角度（ラジアン）
+    /// @param handle テクスチャハンドル
+    /// @param transFlag 透過処理を有効にするかどうか
     void DrawRotaGraph(float cx, float cy, float extRate, float angle,
                        int handle, bool transFlag = true);
 
-    /// 矩形切り出し描画（DXLib DrawRectGraph互換）
+    /// @brief 矩形切り出し描画する（DXLib DrawRectGraph互換）
+    /// @param x 描画先X座標
+    /// @param y 描画先Y座標
+    /// @param srcX 転送元矩形のX座標
+    /// @param srcY 転送元矩形のY座標
+    /// @param w 転送元矩形の幅
+    /// @param h 転送元矩形の高さ
+    /// @param handle テクスチャハンドル
+    /// @param transFlag 透過処理を有効にするかどうか
     void DrawRectGraph(float x, float y, int srcX, int srcY, int w, int h,
                        int handle, bool transFlag = true);
 
-    /// 拡大縮小描画（DXLib DrawExtendGraph互換）
+    /// @brief 矩形切り出し＋拡大縮小描画する
+    /// @param dstX 描画先X座標
+    /// @param dstY 描画先Y座標
+    /// @param dstW 描画先の幅
+    /// @param dstH 描画先の高さ
+    /// @param srcX 転送元矩形のX座標
+    /// @param srcY 転送元矩形のY座標
+    /// @param srcW 転送元矩形の幅
+    /// @param srcH 転送元矩形の高さ
+    /// @param handle テクスチャハンドル
+    /// @param transFlag 透過処理を有効にするかどうか
+    void DrawRectExtendGraph(float dstX, float dstY, float dstW, float dstH,
+                             int srcX, int srcY, int srcW, int srcH,
+                             int handle, bool transFlag = true);
+
+    /// @brief 拡大縮小描画する（DXLib DrawExtendGraph互換）
+    /// @param x1 描画先矩形の左上X座標
+    /// @param y1 描画先矩形の左上Y座標
+    /// @param x2 描画先矩形の右下X座標
+    /// @param y2 描画先矩形の右下Y座標
+    /// @param handle テクスチャハンドル
+    /// @param transFlag 透過処理を有効にするかどうか
     void DrawExtendGraph(float x1, float y1, float x2, float y2,
                          int handle, bool transFlag = true);
 
-    /// 自由変形描画（DXLib DrawModiGraph互換）
+    /// @brief 自由変形描画する（DXLib DrawModiGraph互換）
+    /// @param x1 左上のX座標
+    /// @param y1 左上のY座標
+    /// @param x2 右上のX座標
+    /// @param y2 右上のY座標
+    /// @param x3 右下のX座標
+    /// @param y3 右下のY座標
+    /// @param x4 左下のX座標
+    /// @param y4 左下のY座標
+    /// @param handle テクスチャハンドル
+    /// @param transFlag 透過処理を有効にするかどうか
     void DrawModiGraph(float x1, float y1, float x2, float y2,
                        float x3, float y3, float x4, float y4,
                        int handle, bool transFlag = true);
 
-    /// ブレンドモードを設定
+    /// @brief 任意四角形 + ソース矩形指定で描画（矩形の一部を変形して描画）
+    /// @param x1,y1 左上  @param x2,y2 右上  @param x3,y3 右下  @param x4,y4 左下
+    /// @param srcX,srcY ソース矩形左上（ピクセル）
+    /// @param srcW,srcH ソース矩形サイズ（ピクセル）
+    void DrawRectModiGraph(float x1, float y1, float x2, float y2,
+                           float x3, float y3, float x4, float y4,
+                           float srcX, float srcY, float srcW, float srcH,
+                           int handle, bool transFlag = true);
+
+    /// @brief ブレンドモードを設定する
+    /// @param mode 設定するブレンドモード
     void SetBlendMode(BlendMode mode);
 
-    /// 描画色を設定（以降の描画に乗算される）
+    /// @brief 描画色を設定する（以降の描画に乗算される）
+    /// @param r 赤成分（0.0〜1.0）
+    /// @param g 緑成分（0.0〜1.0）
+    /// @param b 青成分（0.0〜1.0）
+    /// @param a アルファ成分（0.0〜1.0）
     void SetDrawColor(float r, float g, float b, float a = 1.0f);
 
-    /// バッチ描画を終了（フラッシュ）
+    /// @brief バッチ描画を終了し、蓄積したスプライトをフラッシュする
     void End();
 
-    /// スクリーンサイズ更新
+    /// @brief スクリーンサイズを更新する
+    /// @param width 新しいスクリーン幅（ピクセル）
+    /// @param height 新しいスクリーン高さ（ピクセル）
     void SetScreenSize(uint32_t width, uint32_t height);
 
-    /// テクスチャマネージャへの参照を取得
+    /// @brief テクスチャマネージャへの参照を取得する
+    /// @return TextureManagerへの参照
     TextureManager& GetTextureManager() { return m_textureManager; }
 
-    /// カスタム正射影行列を設定（Camera2Dから使用）
+    /// @brief カスタム正射影行列を設定する（Camera2Dやスケーリング用）
+    /// @param matrix 正射影行列
     void SetProjectionMatrix(const XMMATRIX& matrix);
 
-    /// デフォルトの正射影行列にリセット
+    /// @brief デフォルトの正射影行列にリセットする
     void ResetProjectionMatrix();
 
 private:
@@ -146,6 +221,7 @@ private:
     uint32_t       m_vertexWriteOffset = 0;  ///< フレーム内の累積書き込み位置（Flush済みスプライト数）
     int            m_currentTexture   = -1;
     BlendMode      m_blendMode      = BlendMode::Alpha;
+    BlendMode      m_lastBoundBlend = BlendMode::Count; ///< 最後にバインドしたPSOのブレンドモード（冗長バインド防止）
     XMFLOAT4       m_drawColor      = { 1.0f, 1.0f, 1.0f, 1.0f };
     uint32_t       m_lastFrameIndex = UINT32_MAX; ///< 前回のフレーム番号（同一フレームでのリセット防止）
 

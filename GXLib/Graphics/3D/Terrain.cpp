@@ -99,7 +99,7 @@ bool Terrain::CreateProcedural(ID3D12Device* device, float width, float depth,
 
             vertices[idx].position = { fx, fy, fz };
 
-            // UV
+            // UV（テクスチャ座標）
             vertices[idx].texcoord = {
                 static_cast<float>(x) / xSegments * 4.0f,
                 static_cast<float>(z) / zSegments * 4.0f

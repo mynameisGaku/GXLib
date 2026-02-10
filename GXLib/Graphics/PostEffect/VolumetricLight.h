@@ -84,6 +84,8 @@ public:
     XMFLOAT2 GetLastSunScreenPos() const { return m_lastSunScreenPos; }
 
 private:
+    bool CreatePipelines(ID3D12Device* device);
+
     bool m_enabled = false;
 
     // ライトパラメータ

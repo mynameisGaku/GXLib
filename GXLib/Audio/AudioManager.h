@@ -9,8 +9,8 @@
 /// 使い方：
 /// 1. Initialize() — オーディオデバイス初期化
 /// 2. LoadSound("se.wav") → int handle — サウンド読み込み
-/// 3. PlaySound(handle) — SE再生
-/// 4. PlayMusic(handle) — BGM再生
+/// 3. PlaySound(handle) — 効果音（SE）を再生
+/// 4. PlayMusic(handle) — BGMを再生
 /// 5. Update(dt) — フレーム更新（フェード処理等）
 /// 6. Shutdown() — 終了処理
 

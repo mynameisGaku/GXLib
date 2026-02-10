@@ -4,6 +4,8 @@
 #include "Graphics/3D/Renderer3D.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
+#include "Graphics/Pipeline/ShaderLibrary.h"
+#include "Graphics/Device/BarrierBatch.h"
 #include "Core/Logger.h"
 
 namespace GX
@@ -30,6 +32,16 @@ bool Renderer3D::Initialize(ID3D12Device* device, ID3D12CommandQueue* cmdQueue,
         return false;
     }
 
+    // デフォルトテクスチャ（1x1）
+    {
+        const uint32_t white = 0xFFFFFFFF;
+        const uint32_t black = 0xFF000000;
+        const uint32_t normal = 0xFF8080FF; // (0.5, 0.5, 1.0)
+        m_defaultWhiteTex = m_textureManager.CreateTextureFromMemory(&white, 1, 1);
+        m_defaultBlackTex = m_textureManager.CreateTextureFromMemory(&black, 1, 1);
+        m_defaultNormalTex = m_textureManager.CreateTextureFromMemory(&normal, 1, 1);
+    }
+
     // 定数バッファ（256アラインメント）- リングバッファ化
     if (!m_objectCB.Initialize(device, 256 * k_MaxObjectsPerFrame, 256))
         return false;
@@ -39,7 +51,7 @@ bool Renderer3D::Initialize(ID3D12Device* device, ID3D12CommandQueue* cmdQueue,
     if (!m_frameCB.Initialize(device, frameCBSize, frameCBSize))
         return false;
 
-    // LightConstants
+    // LightConstants（ライト定数バッファ）
     uint32_t lightCBSize = ((sizeof(LightConstants) + 255) / 256) * 256;
     if (!m_lightCB.Initialize(device, lightCBSize, lightCBSize))
         return false;
@@ -48,12 +60,13 @@ bool Renderer3D::Initialize(ID3D12Device* device, ID3D12CommandQueue* cmdQueue,
     if (!m_materialCB.Initialize(device, 256 * k_MaxObjectsPerFrame, 256))
         return false;
 
-    // BoneConstants
+    // BoneConstants（ボーン定数バッファ）
     uint32_t boneCBSize = ((sizeof(BoneConstants) + 255) / 256) * 256;
     if (!m_boneCB.Initialize(device, boneCBSize, boneCBSize))
         return false;
 
-    // Shadow pass CB (lightVP matrix per cascade/face, 256-aligned × 11 slots: 4 CSM + 1 Spot + 6 Point)
+    // シャドウパス用CB（各カスケード/面ごとのLightVP、256アライン×11枠: CSM4 + Spot1 + Point6）
+    // 初学者向け: 影用のビュー行列をまとめてGPUへ渡すためのバッファです。
     static constexpr uint32_t k_ShadowCBSlots = 4 + 1 + 6; // CSM + Spot + Point
     if (!m_shadowPassCB.Initialize(device, 256 * k_ShadowCBSlots,
                                     256 * k_ShadowCBSlots))
@@ -98,6 +111,16 @@ bool Renderer3D::Initialize(ID3D12Device* device, ID3D12CommandQueue* cmdQueue,
     if (!CreateShadowPipelineState(device))
         return false;
 
+    // ホットリロード用PSO Rebuilder登録
+    ShaderLibrary::Instance().RegisterPSORebuilder(
+        L"Shaders/PBR.hlsl",
+        [this](ID3D12Device* dev) { return CreatePipelineState(dev); }
+    );
+    ShaderLibrary::Instance().RegisterPSORebuilder(
+        L"Shaders/ShadowDepth.hlsl",
+        [this](ID3D12Device* dev) { return CreateShadowPipelineState(dev); }
+    );
+
     // スカイボックス
     if (!m_skybox.Initialize(device))
     {
@@ -126,21 +149,24 @@ bool Renderer3D::CreatePipelineState(ID3D12Device* device)
 {
     auto vsBlob = m_shaderCompiler.CompileFromFile(L"Shaders/PBR.hlsl", L"VSMain", L"vs_6_0");
     auto psBlob = m_shaderCompiler.CompileFromFile(L"Shaders/PBR.hlsl", L"PSMain", L"ps_6_0");
-    if (!vsBlob.valid || !psBlob.valid)
+    std::vector<std::pair<std::wstring, std::wstring>> skinnedDefines = { { L"SKINNED", L"1" } };
+    auto vsSkinned = m_shaderCompiler.CompileFromFile(L"Shaders/PBR.hlsl", L"VSMain", L"vs_6_0", skinnedDefines);
+    auto psSkinned = m_shaderCompiler.CompileFromFile(L"Shaders/PBR.hlsl", L"PSMain", L"ps_6_0", skinnedDefines);
+    if (!vsBlob.valid || !psBlob.valid || !vsSkinned.valid || !psSkinned.valid)
     {
         GX_LOG_ERROR("Renderer3D: Failed to compile PBR shaders");
         return false;
     }
 
     // ルートシグネチャ
-    // Root Param 0: b0 ObjectConstants (CBV)
-    // Root Param 1: b1 FrameConstants  (CBV)
-    // Root Param 2: b2 LightConstants  (CBV)
-    // Root Param 3: b3 MaterialConstants (CBV)
-    // Root Param 4: Descriptor table for textures (t0-t4)
-    // Root Param 5: Descriptor table for shadow maps (t8-t11)
-    // s0: linear wrap sampler
-    // s2: comparison sampler for PCF
+    // ルートパラメータ0: b0 ObjectConstants (CBV)
+    // ルートパラメータ1: b1 FrameConstants  (CBV)
+    // ルートパラメータ2: b2 LightConstants  (CBV)
+    // ルートパラメータ3: b3 MaterialConstants (CBV)
+    // ルートパラメータ4: テクスチャ用ディスクリプタテーブル (t0-t4)
+    // ルートパラメータ5: シャドウマップ用ディスクリプタテーブル (t8-t11)
+    // s0: リニアWrapサンプラ
+    // s2: PCF用の比較サンプラ（影のソフト化）
     RootSignatureBuilder rsBuilder;
     m_rootSignature = rsBuilder
         .SetFlags(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT)
@@ -148,14 +174,23 @@ bool Renderer3D::CreatePipelineState(ID3D12Device* device)
         .AddCBV(1)  // b1: FrameConstants
         .AddCBV(2)  // b2: LightConstants
         .AddCBV(3)  // b3: MaterialConstants
-        .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 5, 0,
-                            D3D12_SHADER_VISIBILITY_PIXEL)  // t0-t4
+        .AddCBV(4)  // b4: BoneConstants
+        .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, 0,
+                            D3D12_SHADER_VISIBILITY_PIXEL)  // t0: albedo
+        .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0,
+                            D3D12_SHADER_VISIBILITY_PIXEL)  // t1: normal
+        .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 1, 0,
+                            D3D12_SHADER_VISIBILITY_PIXEL)  // t2: met/rough
+        .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 1, 0,
+                            D3D12_SHADER_VISIBILITY_PIXEL)  // t3: AO
+        .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 1, 0,
+                            D3D12_SHADER_VISIBILITY_PIXEL)  // t4: emissive
         .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 8, 6, 0,
-                            D3D12_SHADER_VISIBILITY_PIXEL)  // t8-t13 shadow maps (CSM + Spot + Point)
-        .AddStaticSampler(0)  // s0: linear wrap
+                            D3D12_SHADER_VISIBILITY_PIXEL)  // t8-t13: シャドウマップ（CSM + Spot + Point）
+        .AddStaticSampler(0)  // s0: リニアWrapサンプラ
         .AddStaticSampler(2, D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
                           D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-                          D3D12_COMPARISON_FUNC_LESS_EQUAL)  // s2: shadow comparison
+                          D3D12_COMPARISON_FUNC_LESS_EQUAL)  // s2: 影比較サンプラ
         .Build(device);
 
     if (!m_rootSignature)
@@ -167,19 +202,34 @@ bool Renderer3D::CreatePipelineState(ID3D12Device* device)
         .SetVertexShader(vsBlob.GetBytecode())
         .SetPixelShader(psBlob.GetBytecode())
         .SetInputLayout(k_Vertex3DPBRLayout, _countof(k_Vertex3DPBRLayout))
-        .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT)  // HDR RT
+        .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT)  // HDR用RT
         .SetDepthFormat(DXGI_FORMAT_D32_FLOAT)
         .SetDepthEnable(true)
         .SetCullMode(D3D12_CULL_MODE_BACK)
         .Build(device);
 
-    return m_pso != nullptr;
+    PipelineStateBuilder psoSkinnedBuilder;
+    m_psoSkinned = psoSkinnedBuilder
+        .SetRootSignature(m_rootSignature.Get())
+        .SetVertexShader(vsSkinned.GetBytecode())
+        .SetPixelShader(psSkinned.GetBytecode())
+        .SetInputLayout(k_Vertex3DSkinnedLayout, _countof(k_Vertex3DSkinnedLayout))
+        .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT)
+        .SetDepthFormat(DXGI_FORMAT_D32_FLOAT)
+        .SetDepthEnable(true)
+        .SetCullMode(D3D12_CULL_MODE_BACK)
+        .Build(device);
+
+    m_currentPso = nullptr;
+    return m_pso != nullptr && m_psoSkinned != nullptr;
 }
 
 bool Renderer3D::CreateShadowPipelineState(ID3D12Device* device)
 {
     auto vsBlob = m_shaderCompiler.CompileFromFile(L"Shaders/ShadowDepth.hlsl", L"VSMain", L"vs_6_0");
-    if (!vsBlob.valid)
+    std::vector<std::pair<std::wstring, std::wstring>> skinnedDefines = { { L"SKINNED", L"1" } };
+    auto vsSkinned = m_shaderCompiler.CompileFromFile(L"Shaders/ShadowDepth.hlsl", L"VSMain", L"vs_6_0", skinnedDefines);
+    if (!vsBlob.valid || !vsSkinned.valid)
     {
         GX_LOG_ERROR("Renderer3D: Failed to compile ShadowDepth VS");
         return false;
@@ -191,6 +241,7 @@ bool Renderer3D::CreateShadowPipelineState(ID3D12Device* device)
         .SetFlags(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT)
         .AddCBV(0)  // b0: ObjectConstants
         .AddCBV(1)  // b1: ShadowPassConstants (lightVP)
+        .AddCBV(4)  // b4: BoneConstants
         .Build(device);
 
     if (!m_shadowRootSignature)
@@ -208,7 +259,96 @@ bool Renderer3D::CreateShadowPipelineState(ID3D12Device* device)
         .SetRenderTargetCount(0)               // カラー出力なし
         .Build(device);
 
-    return m_shadowPso != nullptr;
+    PipelineStateBuilder psoSkinnedBuilder;
+    m_shadowPsoSkinned = psoSkinnedBuilder
+        .SetRootSignature(m_shadowRootSignature.Get())
+        .SetVertexShader(vsSkinned.GetBytecode())
+        .SetInputLayout(k_Vertex3DSkinnedLayout, _countof(k_Vertex3DSkinnedLayout))
+        .SetDepthFormat(DXGI_FORMAT_D32_FLOAT)
+        .SetDepthEnable(true)
+        .SetCullMode(D3D12_CULL_MODE_NONE)
+        .SetDepthBias(200, 0.0f, 2.0f)
+        .SetRenderTargetCount(0)
+        .Build(device);
+
+    return m_shadowPso != nullptr && m_shadowPsoSkinned != nullptr;
+}
+
+int Renderer3D::CreateMaterialShader(const ShaderProgramDesc& desc)
+{
+    if (!m_device || !m_rootSignature)
+        return -1;
+    if (desc.vsPath.empty() || desc.psPath.empty())
+        return -1;
+
+    auto vsBlob = m_shaderCompiler.CompileFromFile(desc.vsPath, desc.vsEntry, L"vs_6_0", desc.defines);
+    auto psBlob = m_shaderCompiler.CompileFromFile(desc.psPath, desc.psEntry, L"ps_6_0", desc.defines);
+
+    auto skinnedDefines = desc.defines;
+    skinnedDefines.push_back({ L"SKINNED", L"1" });
+    auto vsSkinned = m_shaderCompiler.CompileFromFile(desc.vsPath, desc.vsEntry, L"vs_6_0", skinnedDefines);
+    auto psSkinned = m_shaderCompiler.CompileFromFile(desc.psPath, desc.psEntry, L"ps_6_0", skinnedDefines);
+
+    if (!vsBlob.valid || !psBlob.valid || !vsSkinned.valid || !psSkinned.valid)
+        return -1;
+
+    ShaderPipeline pipeline;
+    pipeline.desc = desc;
+
+    PipelineStateBuilder psoBuilder;
+    pipeline.pso = psoBuilder
+        .SetRootSignature(m_rootSignature.Get())
+        .SetVertexShader(vsBlob.GetBytecode())
+        .SetPixelShader(psBlob.GetBytecode())
+        .SetInputLayout(k_Vertex3DPBRLayout, _countof(k_Vertex3DPBRLayout))
+        .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT)
+        .SetDepthFormat(DXGI_FORMAT_D32_FLOAT)
+        .SetDepthEnable(true)
+        .SetCullMode(D3D12_CULL_MODE_BACK)
+        .Build(m_device);
+
+    PipelineStateBuilder psoSkinnedBuilder;
+    pipeline.psoSkinned = psoSkinnedBuilder
+        .SetRootSignature(m_rootSignature.Get())
+        .SetVertexShader(vsSkinned.GetBytecode())
+        .SetPixelShader(psSkinned.GetBytecode())
+        .SetInputLayout(k_Vertex3DSkinnedLayout, _countof(k_Vertex3DSkinnedLayout))
+        .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT)
+        .SetDepthFormat(DXGI_FORMAT_D32_FLOAT)
+        .SetDepthEnable(true)
+        .SetCullMode(D3D12_CULL_MODE_BACK)
+        .Build(m_device);
+
+    if (!pipeline.pso || !pipeline.psoSkinned)
+        return -1;
+
+    int handle = m_nextShaderHandle++;
+    m_customShaders[handle] = std::move(pipeline);
+    return handle;
+}
+
+void Renderer3D::BindPipeline(bool skinned, int shaderHandle)
+{
+    ID3D12PipelineState* target = nullptr;
+    if (m_inShadowPass)
+    {
+        target = skinned ? m_shadowPsoSkinned.Get() : m_shadowPso.Get();
+    }
+    else if (shaderHandle >= 0)
+    {
+        auto it = m_customShaders.find(shaderHandle);
+        if (it != m_customShaders.end())
+            target = skinned ? it->second.psoSkinned.Get() : it->second.pso.Get();
+    }
+
+    if (!target)
+        target = skinned ? m_psoSkinned.Get() : m_pso.Get();
+
+    if (target && target != m_currentPso)
+    {
+        m_cmdList->SetPipelineState(target);
+        m_currentPso = target;
+    }
 }
 
 GPUMesh Renderer3D::CreateGPUMesh(const MeshData& meshData)
@@ -314,6 +454,7 @@ void Renderer3D::BeginShadowPass(ID3D12GraphicsCommandList* cmdList, uint32_t fr
 
     // シャドウPSO設定
     cmdList->SetPipelineState(m_shadowPso.Get());
+    m_currentPso = m_shadowPso.Get();
     cmdList->SetGraphicsRootSignature(m_shadowRootSignature.Get());
     cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -325,12 +466,12 @@ void Renderer3D::BeginShadowPass(ID3D12GraphicsCommandList* cmdList, uint32_t fr
         {
             auto* base = static_cast<uint8_t*>(cbData);
             const auto& sc = m_csm.GetShadowConstants();
-            // CSM cascades (slots 0-3)
+            // CSMカスケード（スロット0-3）
             for (uint32_t i = 0; i < CascadedShadowMap::k_NumCascades; ++i)
                 memcpy(base + i * 256, &sc.lightVP[i], sizeof(XMFLOAT4X4));
-            // Spot shadow (slot 4)
+            // スポットシャドウ（スロット4）
             memcpy(base + 4 * 256, &m_spotLightVP, sizeof(XMFLOAT4X4));
-            // Point shadow faces (slots 5-10)
+            // ポイントシャドウ各面（スロット5-10）
             for (uint32_t i = 0; i < PointShadowMap::k_NumFaces; ++i)
                 memcpy(base + (5 + i) * 256, &m_pointShadowMap.GetFaceVP(i), sizeof(XMFLOAT4X4));
             m_shadowPassCB.Unmap(frameIndex);
@@ -371,7 +512,8 @@ void Renderer3D::BeginSpotShadowPass(ID3D12GraphicsCommandList* cmdList, uint32_
     m_frameIndex = frameIndex;
     m_inShadowPass = true;
 
-    // Transition to DEPTH_WRITE
+    // DEPTH_WRITEへ遷移
+    // 初学者向け: 描画前に「書き込み可能な状態」へ戻す必要があります。
     if (m_spotShadowMap.GetCurrentState() != D3D12_RESOURCE_STATE_DEPTH_WRITE)
     {
         D3D12_RESOURCE_BARRIER barrier = {};
@@ -384,12 +526,12 @@ void Renderer3D::BeginSpotShadowPass(ID3D12GraphicsCommandList* cmdList, uint32_
         m_spotShadowMap.SetCurrentState(D3D12_RESOURCE_STATE_DEPTH_WRITE);
     }
 
-    // Clear depth
+    // 深度クリア
     auto dsvHandle = m_spotShadowMap.GetDSVHandle();
     cmdList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
     cmdList->OMSetRenderTargets(0, nullptr, FALSE, &dsvHandle);
 
-    // Viewport & scissor
+    // ビューポートとシザー
     D3D12_VIEWPORT viewport = {};
     viewport.Width    = static_cast<float>(k_SpotShadowMapSize);
     viewport.Height   = static_cast<float>(k_SpotShadowMapSize);
@@ -401,12 +543,13 @@ void Renderer3D::BeginSpotShadowPass(ID3D12GraphicsCommandList* cmdList, uint32_
     scissor.bottom = static_cast<LONG>(k_SpotShadowMapSize);
     cmdList->RSSetScissorRects(1, &scissor);
 
-    // Shadow PSO
+    // シャドウPSO
     cmdList->SetPipelineState(m_shadowPso.Get());
+    m_currentPso = m_shadowPso.Get();
     cmdList->SetGraphicsRootSignature(m_shadowRootSignature.Get());
     cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    // Bind spot lightVP (slot 4 in shadow CB)
+    // スポットライトのVPをバインド（シャドウCBのスロット4）
     cmdList->SetGraphicsRootConstantBufferView(1,
         m_shadowPassCB.GetGPUVirtualAddress(frameIndex) + 4 * 256);
 }
@@ -436,7 +579,7 @@ void Renderer3D::BeginPointShadowPass(ID3D12GraphicsCommandList* cmdList, uint32
     m_frameIndex = frameIndex;
     m_inShadowPass = true;
 
-    // On first face: transition whole resource to DEPTH_WRITE and clear all faces
+    // 最初の面ではリソース全体をDEPTH_WRITEへ遷移し、全6面をクリア
     if (face == 0)
     {
         if (m_pointShadowMap.GetCurrentState() != D3D12_RESOURCE_STATE_DEPTH_WRITE)
@@ -451,7 +594,7 @@ void Renderer3D::BeginPointShadowPass(ID3D12GraphicsCommandList* cmdList, uint32
             m_pointShadowMap.SetCurrentState(D3D12_RESOURCE_STATE_DEPTH_WRITE);
         }
 
-        // Clear all 6 faces
+        // 6面すべてをクリア
         for (uint32_t f = 0; f < PointShadowMap::k_NumFaces; ++f)
         {
             auto dsv = m_pointShadowMap.GetFaceDSVHandle(f);
@@ -459,11 +602,11 @@ void Renderer3D::BeginPointShadowPass(ID3D12GraphicsCommandList* cmdList, uint32
         }
     }
 
-    // Set this face's DSV
+    // 現在の面のDSVを設定
     auto dsvHandle = m_pointShadowMap.GetFaceDSVHandle(face);
     cmdList->OMSetRenderTargets(0, nullptr, FALSE, &dsvHandle);
 
-    // Viewport & scissor
+    // ビューポートとシザー
     D3D12_VIEWPORT viewport = {};
     viewport.Width    = static_cast<float>(PointShadowMap::k_Size);
     viewport.Height   = static_cast<float>(PointShadowMap::k_Size);
@@ -475,12 +618,13 @@ void Renderer3D::BeginPointShadowPass(ID3D12GraphicsCommandList* cmdList, uint32
     scissor.bottom = static_cast<LONG>(PointShadowMap::k_Size);
     cmdList->RSSetScissorRects(1, &scissor);
 
-    // Shadow PSO
+    // シャドウPSO
     cmdList->SetPipelineState(m_shadowPso.Get());
+    m_currentPso = m_shadowPso.Get();
     cmdList->SetGraphicsRootSignature(m_shadowRootSignature.Get());
     cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    // Bind face VP (slots 5-10 in shadow CB)
+    // 面ごとのVPをバインド（シャドウCBのスロット5-10）
     cmdList->SetGraphicsRootConstantBufferView(1,
         m_shadowPassCB.GetGPUVirtualAddress(frameIndex) + (5 + face) * 256);
 }
@@ -491,7 +635,7 @@ void Renderer3D::EndPointShadowPass(uint32_t face)
 
     m_inShadowPass = false;
 
-    // On last face: transition to PIXEL_SHADER_RESOURCE
+    // 最後の面でPIXEL_SHADER_RESOURCEへ遷移
     if (face == PointShadowMap::k_NumFaces - 1)
     {
         D3D12_RESOURCE_BARRIER barrier = {};
@@ -594,6 +738,10 @@ void Renderer3D::Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
         m_objectCBOffset = 0;
     }
 
+    // 冗長バインド防止用リセット
+    m_lastBoundVB = nullptr;
+    m_lastBoundIB = nullptr;
+
     // マテリアルCBをマップ（リングバッファ方式）
     m_materialCBMapped = static_cast<uint8_t*>(m_materialCB.Map(frameIndex));
     m_materialCBOffset = 0;
@@ -601,6 +749,7 @@ void Renderer3D::Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
     // パイプライン設定
     m_cmdList->SetPipelineState(m_pso.Get());
     m_cmdList->SetGraphicsRootSignature(m_rootSignature.Get());
+    m_currentPso = m_pso.Get();
 
     // ディスクリプタヒープ（テクスチャ + シャドウマップは同一ヒープ）
     ID3D12DescriptorHeap* heaps[] = { m_textureManager.GetSRVHeap().GetHeap() };
@@ -613,7 +762,7 @@ void Renderer3D::Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
     // シャドウマップSRVバインド（Root Param 5: t8-t11）
     if (m_shadowEnabled)
     {
-        m_cmdList->SetGraphicsRootDescriptorTable(5, m_csm.GetSRVGPUHandle());
+        m_cmdList->SetGraphicsRootDescriptorTable(10, m_csm.GetSRVGPUHandle());
     }
 
     // トポロジ
@@ -647,16 +796,25 @@ void Renderer3D::SetMaterial(const Material& material)
     m_materialCBOffset += 256;
 
     // テクスチャバインド（t0-t4）
-    if (material.albedoMapHandle >= 0)
+    auto bindTex = [this](uint32_t rootIndex, int handle, int fallback)
     {
-        Texture* tex = m_textureManager.GetTexture(material.albedoMapHandle);
+        int useHandle = (handle >= 0) ? handle : fallback;
+        if (useHandle < 0) return;
+        Texture* tex = m_textureManager.GetTexture(useHandle);
         if (tex)
-            m_cmdList->SetGraphicsRootDescriptorTable(4, tex->GetSRVGPUHandle());
-    }
+            m_cmdList->SetGraphicsRootDescriptorTable(rootIndex, tex->GetSRVGPUHandle());
+    };
+
+    bindTex(5, material.albedoMapHandle, m_defaultWhiteTex);
+    bindTex(6, material.normalMapHandle, m_defaultNormalTex);
+    bindTex(7, material.metRoughMapHandle, m_defaultWhiteTex);
+    bindTex(8, material.aoMapHandle, m_defaultWhiteTex);
+    bindTex(9, material.emissiveMapHandle, m_defaultBlackTex);
 }
 
 void Renderer3D::DrawMesh(const GPUMesh& mesh, const Transform3D& transform)
 {
+    BindPipeline(false, -1);
     // オブジェクト定数バッファ更新（リングバッファ方式）
     if (m_objectCBMapped)
     {
@@ -669,15 +827,54 @@ void Renderer3D::DrawMesh(const GPUMesh& mesh, const Transform3D& transform)
         0, m_objectCB.GetGPUVirtualAddress(m_frameIndex) + m_objectCBOffset);
     m_objectCBOffset += 256;
 
-    auto vbv = mesh.vertexBuffer.GetVertexBufferView();
-    auto ibv = mesh.indexBuffer.GetIndexBufferView();
-    m_cmdList->IASetVertexBuffers(0, 1, &vbv);
-    m_cmdList->IASetIndexBuffer(&ibv);
+    // VB/IB は前回と同じメッシュなら再バインドをスキップ
+    ID3D12Resource* vbRes = mesh.vertexBuffer.GetResource();
+    ID3D12Resource* ibRes = mesh.indexBuffer.GetResource();
+    if (m_lastBoundVB != vbRes || m_lastBoundIB != ibRes)
+    {
+        auto vbv = mesh.vertexBuffer.GetVertexBufferView();
+        auto ibv = mesh.indexBuffer.GetIndexBufferView();
+        m_cmdList->IASetVertexBuffers(0, 1, &vbv);
+        m_cmdList->IASetIndexBuffer(&ibv);
+        m_lastBoundVB = vbRes;
+        m_lastBoundIB = ibRes;
+    }
+    m_cmdList->DrawIndexedInstanced(mesh.indexCount, 1, 0, 0, 0);
+}
+
+void Renderer3D::DrawMesh(const GPUMesh& mesh, const XMMATRIX& worldMatrix)
+{
+    BindPipeline(false, -1);
+    if (m_objectCBMapped)
+    {
+        ObjectConstants oc;
+        XMStoreFloat4x4(&oc.world, XMMatrixTranspose(worldMatrix));
+        XMMATRIX invTranspose = XMMatrixTranspose(XMMatrixInverse(nullptr, worldMatrix));
+        XMStoreFloat4x4(&oc.worldInverseTranspose, XMMatrixTranspose(invTranspose));
+        memcpy(m_objectCBMapped + m_objectCBOffset, &oc, sizeof(ObjectConstants));
+    }
+    m_cmdList->SetGraphicsRootConstantBufferView(
+        0, m_objectCB.GetGPUVirtualAddress(m_frameIndex) + m_objectCBOffset);
+    m_objectCBOffset += 256;
+
+    // VB/IB は前回と同じメッシュなら再バインドをスキップ
+    ID3D12Resource* vbRes = mesh.vertexBuffer.GetResource();
+    ID3D12Resource* ibRes = mesh.indexBuffer.GetResource();
+    if (m_lastBoundVB != vbRes || m_lastBoundIB != ibRes)
+    {
+        auto vbv = mesh.vertexBuffer.GetVertexBufferView();
+        auto ibv = mesh.indexBuffer.GetIndexBufferView();
+        m_cmdList->IASetVertexBuffers(0, 1, &vbv);
+        m_cmdList->IASetIndexBuffer(&ibv);
+        m_lastBoundVB = vbRes;
+        m_lastBoundIB = ibRes;
+    }
     m_cmdList->DrawIndexedInstanced(mesh.indexCount, 1, 0, 0, 0);
 }
 
 void Renderer3D::DrawTerrain(const Terrain& terrain, const Transform3D& transform)
 {
+    BindPipeline(false, -1);
     // オブジェクト定数バッファ更新（リングバッファ方式）
     if (m_objectCBMapped)
     {
@@ -716,17 +913,23 @@ void Renderer3D::DrawModel(const Model& model, const Transform3D& transform)
     m_cmdList->IASetVertexBuffers(0, 1, &vbv);
     m_cmdList->IASetIndexBuffer(&ibv);
 
+    bool skinned = model.IsSkinned();
     for (const auto& sub : model.GetMesh().GetSubMeshes())
     {
+        int shaderHandle = sub.shaderHandle;
+        Material* mat = nullptr;
         if (!m_inShadowPass)
         {
             if (sub.materialHandle >= 0)
-            {
-                Material* mat = m_materialManager.GetMaterial(sub.materialHandle);
-                if (mat)
-                    SetMaterial(*mat);
-            }
+                mat = m_materialManager.GetMaterial(sub.materialHandle);
+            if (shaderHandle < 0 && mat && mat->shaderHandle >= 0)
+                shaderHandle = mat->shaderHandle;
         }
+
+        BindPipeline(skinned, shaderHandle);
+
+        if (!m_inShadowPass && mat)
+            SetMaterial(*mat);
 
         m_cmdList->DrawIndexedInstanced(sub.indexCount, 1, sub.indexOffset, 0, 0);
     }
@@ -741,6 +944,24 @@ void Renderer3D::DrawSkinnedModel(const Model& model, const Transform3D& transfo
         memcpy(cbData, &animPlayer.GetBoneConstants(), sizeof(BoneConstants));
         m_boneCB.Unmap(m_frameIndex);
     }
+    uint32_t boneRootIndex = m_inShadowPass ? 2 : 4;
+    m_cmdList->SetGraphicsRootConstantBufferView(
+        boneRootIndex, m_boneCB.GetGPUVirtualAddress(m_frameIndex));
+    DrawModel(model, transform);
+}
+
+void Renderer3D::DrawSkinnedModel(const Model& model, const Transform3D& transform,
+                                    const Animator& animator)
+{
+    void* cbData = m_boneCB.Map(m_frameIndex);
+    if (cbData)
+    {
+        memcpy(cbData, &animator.GetBoneConstants(), sizeof(BoneConstants));
+        m_boneCB.Unmap(m_frameIndex);
+    }
+    uint32_t boneRootIndex = m_inShadowPass ? 2 : 4;
+    m_cmdList->SetGraphicsRootConstantBufferView(
+        boneRootIndex, m_boneCB.GetGPUVirtualAddress(m_frameIndex));
     DrawModel(model, transform);
 }
 

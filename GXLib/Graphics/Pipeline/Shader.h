@@ -49,7 +49,17 @@ public:
                                const std::wstring& entryPoint,
                                const std::wstring& target);
 
+    /// HLSLファイルをコンパイル（#define付きバリアント）
+    ShaderBlob CompileFromFile(const std::wstring& filePath,
+                               const std::wstring& entryPoint,
+                               const std::wstring& target,
+                               const std::vector<std::pair<std::wstring, std::wstring>>& defines);
+
+    /// コンパイルエラーメッセージを取得（直前のCompileFromFileが失敗した場合）
+    const std::string& GetLastError() const { return m_lastError; }
+
 private:
+    std::string m_lastError;
     ComPtr<IDxcCompiler3> m_compiler;
     ComPtr<IDxcUtils>     m_utils;
 };

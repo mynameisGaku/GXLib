@@ -61,6 +61,8 @@ public:
     const XMFLOAT4& GetLineColor() const { return m_lineColor; }
 
 private:
+    bool CreatePipelines(ID3D12Device* device);
+
     bool m_enabled = false;
     float m_depthThreshold  = 0.5f;
     float m_normalThreshold = 0.3f;

@@ -7,6 +7,7 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    gap: 0;
 }
 
 /* メニューパネル（半透明背景 + 角丸 + 影） */
@@ -14,10 +15,10 @@
     width: 400;
     background: #1A1A26D9;
     border-radius: 16;
-    padding: 30;
+    padding: 24;
     flex-direction: column;
     align-items: center;
-    gap: 16;
+    gap: 12;
     shadow-offset-y: 4;
     shadow-blur: 20;
     shadow-color: #00000080;
@@ -29,14 +30,14 @@
 #title {
     color: #FFFFFF;
     text-align: center;
-    height: 60;
+    height: 50;
     width: 360;
 }
 
 /* 全ボタン共通スタイル */
 .menuButton {
     width: 300;
-    height: 50;
+    height: 44;
     border-radius: 8;
     color: #FFFFFF;
     background: #4A8FD9;
@@ -82,4 +83,196 @@
 /* 無効ボタン共通 */
 Button:disabled {
     background: #666666;
+}
+
+/* ==========================================================================
+   Options Panel
+   ========================================================================== */
+
+#optionsPanel {
+    width: 420;
+    background: #1A1A26D9;
+    border-radius: 12;
+    padding: 18;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8;
+    shadow-offset-y: 4;
+    shadow-blur: 16;
+    shadow-color: #00000060;
+    border-width: 1;
+    border-color: #4D4D66AA;
+}
+
+#optTitle {
+    color: #FFFFFF;
+    text-align: center;
+    height: 38;
+}
+
+.optionRow {
+    flex-direction: row;
+    align-items: center;
+    height: 30;
+    gap: 12;
+}
+
+.optLabel {
+    width: 100;
+    color: #CCCCDD;
+}
+
+/* --- スライダー（値調整用） --- */
+Slider {
+    flex-grow: 1;
+    height: 24;
+}
+
+/* --- チェックボックス（ON/OFF） --- */
+CheckBox {
+    flex-grow: 1;
+    height: 24;
+    color: #CCCCDD;
+}
+
+/* --- ラジオボタン（択一） --- */
+RadioButton {
+    height: 24;
+    color: #CCCCDD;
+}
+
+.radioGroup {
+    flex-direction: row;
+    gap: 16;
+    flex-grow: 1;
+    align-items: center;
+}
+
+/* --- プログレスバー（進行度表示） --- */
+ProgressBar {
+    flex-grow: 1;
+    height: 16;
+    background: #2A2A35;
+    border-radius: 8;
+}
+
+/* --- テキスト入力 --- */
+TextInput {
+    height: 30;
+    background: #1A1A26;
+    border-radius: 4;
+    border-width: 1;
+    border-color: #4D4D66AA;
+    color: #FFFFFF;
+    padding-left: 6;
+    padding-right: 6;
+    flex-grow: 1;
+}
+
+TextInput:hover {
+    border-color: #6D6D88;
+}
+
+TextInput:focused {
+    border-color: #4A90D9;
+    border-width: 2;
+}
+
+/* --- ドロップダウン（選択） --- */
+DropDown {
+    height: 30;
+    background: #2A2A35;
+    border-radius: 4;
+    border-width: 1;
+    border-color: #4D4D66AA;
+    color: #FFFFFF;
+    flex-grow: 1;
+}
+
+/* --- ScrollView --- */
+ScrollView {
+    overflow: scroll;
+    border-width: 1;
+    border-color: #4D4D6644;
+    border-radius: 4;
+}
+
+/* --- ListView --- */
+ListView {
+    background: #1A1A26;
+    border-radius: 4;
+    border-width: 1;
+    border-color: #4D4D66AA;
+    color: #CCCCDD;
+}
+
+/* ==========================================================================
+   TabView Demo
+   ========================================================================== */
+
+#tabDemo {
+    width: 420;
+    height: 190;
+    background: #1A1A26D9;
+    border-radius: 8;
+    padding-top: 36;
+    padding-left: 12;
+    padding-right: 12;
+    padding-bottom: 12;
+    border-width: 1;
+    border-color: #4D4D66AA;
+}
+
+.tabContent {
+    flex-direction: column;
+    gap: 8;
+    color: #CCCCDD;
+}
+
+#lvMaps {
+    height: 120;
+}
+
+#canvasDemo {
+    width: 380;
+    height: 100;
+    background: #0A0A14;
+    border-radius: 4;
+}
+
+/* ==========================================================================
+   Dialog
+   ========================================================================== */
+
+#confirmDialog {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    justify-content: center;
+    align-items: center;
+}
+
+#dialogContent {
+    width: 320;
+    background: #1A1A26F0;
+    border-radius: 12;
+    padding: 24;
+    flex-direction: column;
+    align-items: center;
+    gap: 16;
+    shadow-offset-y: 8;
+    shadow-blur: 32;
+    shadow-color: #000000AA;
+    border-width: 1;
+    border-color: #4D4D66CC;
+}
+
+.dialogButtons {
+    flex-direction: row;
+    gap: 16;
+}
+
+.dialogButtons .menuButton {
+    width: 120;
+    height: 40;
 }

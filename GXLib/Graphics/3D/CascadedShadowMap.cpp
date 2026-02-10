@@ -69,19 +69,19 @@ void CascadedShadowMap::ComputeCascadeLightVP(uint32_t cascade, const Camera3D& 
 
     XMVECTOR frustumCorners[8] =
     {
-        // Near plane (view space, LH: +Z forward)
+        // ニア面（ビュー空間、左手系: +Zが前方）
         XMVectorSet(-nW, -nH, nearZ, 1.0f),
         XMVectorSet( nW, -nH, nearZ, 1.0f),
         XMVectorSet( nW,  nH, nearZ, 1.0f),
         XMVectorSet(-nW,  nH, nearZ, 1.0f),
-        // Far plane
+        // ファー面
         XMVectorSet(-fW, -fH, farZ, 1.0f),
         XMVectorSet( fW, -fH, farZ, 1.0f),
         XMVectorSet( fW,  fH, farZ, 1.0f),
         XMVectorSet(-fW,  fH, farZ, 1.0f),
     };
 
-    // View space → World space
+    // ビュー空間 → ワールド空間
     XMVECTOR center = XMVectorZero();
     for (int i = 0; i < 8; ++i)
     {

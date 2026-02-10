@@ -8,6 +8,7 @@
 #include "pch.h"
 #include "Graphics/PostEffect/MotionBlur.h"
 #include "Graphics/Pipeline/RootSignature.h"
+#include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Core/Logger.h"
 
@@ -52,7 +53,21 @@ bool MotionBlur::Initialize(ID3D12Device* device, uint32_t width, uint32_t heigh
         if (!m_rootSignature) return false;
     }
 
-    // PSO
+    if (!CreatePipelines(device))
+        return false;
+
+    // ホットリロード用PSO Rebuilder登録
+    ShaderLibrary::Instance().RegisterPSORebuilder(
+        L"Shaders/MotionBlur.hlsl",
+        [this](ID3D12Device* dev) { return CreatePipelines(dev); }
+    );
+
+    GX_LOG_INFO("MotionBlur initialized (%dx%d)", width, height);
+    return true;
+}
+
+bool MotionBlur::CreatePipelines(ID3D12Device* device)
+{
     auto vs = m_shader.CompileFromFile(L"Shaders/MotionBlur.hlsl", L"FullscreenVS", L"vs_6_0");
     if (!vs.valid) return false;
 
@@ -69,7 +84,6 @@ bool MotionBlur::Initialize(ID3D12Device* device, uint32_t width, uint32_t heigh
         .Build(device);
     if (!m_pso) return false;
 
-    GX_LOG_INFO("MotionBlur initialized (%dx%d)", width, height);
     return true;
 }
 

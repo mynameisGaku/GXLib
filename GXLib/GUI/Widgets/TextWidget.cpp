@@ -19,11 +19,12 @@ float TextWidget::GetIntrinsicHeight() const
 void TextWidget::Render(UIRenderer& renderer)
 {
     if (m_text.empty() || m_fontHandle < 0) return;
+    const Style& drawStyle = GetRenderStyle();
 
     // 背景（設定されている場合）
-    if (!computedStyle.backgroundColor.IsTransparent())
+    if (!drawStyle.backgroundColor.IsTransparent())
     {
-        renderer.DrawRect(globalRect, computedStyle, opacity);
+        renderer.DrawRect(globalRect, drawStyle, opacity);
     }
 
     // テキスト位置計算（textAlign）
@@ -46,7 +47,7 @@ void TextWidget::Render(UIRenderer& renderer)
         break;
     }
 
-    // verticalAlign
+    // verticalAlign（縦方向の揃え）
     float contentH = globalRect.height - computedStyle.padding.VerticalTotal();
     switch (computedStyle.verticalAlign)
     {
@@ -60,7 +61,15 @@ void TextWidget::Render(UIRenderer& renderer)
         break;
     }
 
-    renderer.DrawText(textX, textY, m_fontHandle, m_text, computedStyle.color, opacity);
+    // 上側の余白を軽く詰める（ただし枠からはみ出さないように制限）
+    float capOffset = renderer.GetFontCapOffset(m_fontHandle);
+    textY -= capOffset;
+    float topLimit = globalRect.y + computedStyle.padding.top;
+    float bottomLimit = topLimit + contentH - textH;
+    if (textY < topLimit) textY = topLimit;
+    if (textY > bottomLimit) textY = bottomLimit;
+
+    renderer.DrawText(textX, textY, m_fontHandle, m_text, drawStyle.color, opacity);
 
     // 子は通常描画しない（TextWidgetは末端）
 }

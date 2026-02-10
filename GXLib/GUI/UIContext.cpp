@@ -65,6 +65,7 @@ void UIContext::Render()
 {
     if (!m_root || !m_renderer) return;
     m_root->Render(*m_renderer);
+    m_renderer->FlushDeferredDraws();
 }
 
 // ============================================================================
@@ -76,6 +77,20 @@ void UIContext::ProcessInputEvents(InputManager& input)
     auto& mouse = input.GetMouse();
     float mx = static_cast<float>(mouse.GetX());
     float my = static_cast<float>(mouse.GetY());
+
+    // スクリーン座標 → デザイン座標に変換
+    if (m_renderer && m_designWidth > 0 && m_designHeight > 0)
+    {
+        float scale = m_renderer->GetGuiScale();
+        float offsetX = m_renderer->GetGuiOffsetX();
+        float offsetY = m_renderer->GetGuiOffsetY();
+        if (scale > 0.0f)
+        {
+            mx = (mx - offsetX) / scale;
+            my = (my - offsetY) / scale;
+        }
+    }
+
     bool mouseDown = mouse.IsButtonDown(MouseButton::Left);
     bool mouseTriggered = mouse.IsButtonTriggered(MouseButton::Left);
     bool mouseReleased = mouse.IsButtonReleased(MouseButton::Left);
@@ -84,7 +99,7 @@ void UIContext::ProcessInputEvents(InputManager& input)
     // ヒットテスト
     Widget* hitWidget = m_root ? HitTest(m_root.get(), mx, my) : nullptr;
 
-    // --- MouseLeave / MouseEnter ---
+    // --- マウス離脱 / 進入 ---
     if (hitWidget != m_hoveredWidget)
     {
         if (m_hoveredWidget)
@@ -110,7 +125,7 @@ void UIContext::ProcessInputEvents(InputManager& input)
         m_hoveredWidget = hitWidget;
     }
 
-    // --- MouseMove ---
+    // --- マウス移動 ---
     if (mx != m_prevMouseX || my != m_prevMouseY)
     {
         if (hitWidget)
@@ -124,7 +139,7 @@ void UIContext::ProcessInputEvents(InputManager& input)
         }
     }
 
-    // --- MouseDown ---
+    // --- マウス押下 ---
     if (mouseTriggered)
     {
         if (hitWidget)
@@ -151,7 +166,7 @@ void UIContext::ProcessInputEvents(InputManager& input)
         }
     }
 
-    // --- MouseUp ---
+    // --- マウス解放 ---
     if (mouseReleased)
     {
         if (m_pressedWidget)
@@ -184,7 +199,7 @@ void UIContext::ProcessInputEvents(InputManager& input)
         }
     }
 
-    // --- MouseWheel ---
+    // --- マウスホイール ---
     if (wheelDelta != 0 && hitWidget)
     {
         UIEvent wheelEvent;
@@ -198,6 +213,25 @@ void UIContext::ProcessInputEvents(InputManager& input)
 
     // --- キーボード ---
     auto& kb = input.GetKeyboard();
+    if (m_focusedWidget)
+    {
+        static const int keys[] = {
+            VK_LEFT, VK_RIGHT, VK_HOME, VK_END,
+            VK_BACK, VK_DELETE, VK_RETURN, VK_ESCAPE,
+            'A', 'C', 'V', 'X'
+        };
+        for (int vk : keys)
+        {
+            if (kb.IsKeyTriggered(vk))
+            {
+                UIEvent keyEvent;
+                keyEvent.type = UIEventType::KeyDown;
+                keyEvent.keyCode = vk;
+                keyEvent.target = m_focusedWidget;
+                DispatchEvent(keyEvent);
+            }
+        }
+    }
     // Tab でフォーカス移動（将来拡張用に予約）
 
     m_prevMouseX = mx;
@@ -308,6 +342,15 @@ Widget* UIContext::HitTest(Widget* widget, float x, float y)
 {
     if (!widget->visible || !widget->enabled) return nullptr;
 
+    // overflow:hidden/scroll の場合、親矩形外の子をスキップ
+    bool clipChildren = (widget->computedStyle.overflow == OverflowMode::Hidden ||
+                         widget->computedStyle.overflow == OverflowMode::Scroll);
+    if (clipChildren && !widget->globalRect.Contains(x, y))
+    {
+        // 自身の矩形外 → 子もクリップされるため自身のみテスト
+        return nullptr;
+    }
+
     // 子を逆順（前面優先）で走査
     const auto& children = widget->GetChildren();
     for (int i = static_cast<int>(children.size()) - 1; i >= 0; --i)
@@ -335,8 +378,9 @@ void UIContext::ComputeLayout()
     if (m_styleSheet)
         m_styleSheet->ApplyToTree(m_root.get());
 
-    float sw = static_cast<float>(m_screenWidth);
-    float sh = static_cast<float>(m_screenHeight);
+    // デザイン解像度が設定されていればそれを使用（レイアウトはデザイン座標で行う）
+    float sw = static_cast<float>(m_designWidth > 0 ? m_designWidth : m_screenWidth);
+    float sh = static_cast<float>(m_designHeight > 0 ? m_designHeight : m_screenHeight);
     LayoutWidget(m_root.get(), 0.0f, 0.0f, sw, sh);
 }
 
@@ -353,7 +397,8 @@ UIContext::WidgetSize UIContext::MeasureWidget(Widget* widget, float maxWidth, f
     float w = style.width.IsAuto()  ? 0.0f : style.width.Resolve(maxWidth);
     float h = style.height.IsAuto() ? 0.0f : style.height.Resolve(maxHeight);
 
-    // リーフウィジェットの intrinsic size
+    // リーフウィジェットの内容サイズ（intrinsic size）
+    // 初学者向け: 文字サイズなど「中身の自然な大きさ」を使います。
     if (w <= 0.0f) w = widget->GetIntrinsicWidth();
     if (h <= 0.0f) h = widget->GetIntrinsicHeight();
 
@@ -563,6 +608,10 @@ void UIContext::LayoutWidget(Widget* widget, float posX, float posY,
     }
 
     // === Pass 3: 位置確定 ===
+    // スクロールオフセットを適用
+    float scrollX = widget->scrollOffsetX;
+    float scrollY = widget->scrollOffsetY;
+
     float cursor = mainStart;
     for (auto& info : infos)
     {
@@ -574,7 +623,8 @@ void UIContext::LayoutWidget(Widget* widget, float posX, float posY,
         float mcs = isColumn ? cs.margin.left    : cs.margin.top;    // cross-start
         float mce = isColumn ? cs.margin.right   : cs.margin.bottom; // cross-end
 
-        // main-axis margin を cursor に加算
+        // 主軸方向のマージンをカーソルに加算
+        // 初学者向け: 子の配置位置を「マージン込み」で進めます。
         cursor += mms;
 
         // align-items（Stretch は交差軸 Auto の場合のみ有効）
@@ -606,15 +656,15 @@ void UIContext::LayoutWidget(Widget* widget, float posX, float posY,
         float childX, childY, childW, childH;
         if (isColumn)
         {
-            childX = contentX + crossPos;
-            childY = contentY + cursor;
+            childX = contentX + crossPos - scrollX;
+            childY = contentY + cursor  - scrollY;
             childW = info.crossSize;
             childH = info.mainSize;
         }
         else
         {
-            childX = contentX + cursor;
-            childY = contentY + crossPos;
+            childX = contentX + cursor  - scrollX;
+            childY = contentY + crossPos - scrollY;
             childW = info.mainSize;
             childH = info.crossSize;
         }
@@ -653,6 +703,15 @@ void UIContext::OnResize(uint32_t width, uint32_t height)
 {
     m_screenWidth = width;
     m_screenHeight = height;
+    if (m_root) m_root->layoutDirty = true;
+}
+
+void UIContext::SetDesignResolution(uint32_t width, uint32_t height)
+{
+    m_designWidth = width;
+    m_designHeight = height;
+    if (m_renderer)
+        m_renderer->SetDesignResolution(width, height);
     if (m_root) m_root->layoutDirty = true;
 }
 

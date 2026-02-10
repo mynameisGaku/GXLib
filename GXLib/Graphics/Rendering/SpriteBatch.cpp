@@ -4,6 +4,7 @@
 #include "Graphics/Rendering/SpriteBatch.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
+#include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Core/Logger.h"
 #include <cmath>
 
@@ -41,6 +42,12 @@ bool SpriteBatch::Initialize(ID3D12Device* device, ID3D12CommandQueue* cmdQueue,
     // PSO群を作成
     if (!CreatePipelineStates(device))
         return false;
+
+    // ホットリロード用PSO Rebuilder登録
+    ShaderLibrary::Instance().RegisterPSORebuilder(
+        L"Shaders/Sprite.hlsl",
+        [this](ID3D12Device* dev) { return CreatePipelineStates(dev); }
+    );
 
     // 正射影行列を初期化
     UpdateProjectionMatrix();
@@ -192,6 +199,7 @@ void SpriteBatch::Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex)
     m_mappedVertices    = static_cast<SpriteVertex*>(m_vertexBuffer.Map(frameIndex));
     m_spriteCount       = 0;
     m_currentTexture    = -1;
+    m_lastBoundBlend    = BlendMode::Count;  // 新フレームでPSO再バインドを強制
 
     // フレームが変わった時だけオフセットをリセット（同一フレーム内の複数Begin/Endサイクルでは累積）
     if (m_lastFrameIndex != frameIndex)
@@ -261,9 +269,13 @@ void SpriteBatch::Flush()
         return;
     }
 
-    // パイプライン設定
-    m_cmdList->SetPipelineState(m_pipelineStates[static_cast<int>(m_blendMode)].Get());
-    m_cmdList->SetGraphicsRootSignature(m_rootSignature.Get());
+    // パイプライン設定（ブレンドモードが変わった場合のみ再バインド）
+    if (m_lastBoundBlend != m_blendMode)
+    {
+        m_cmdList->SetPipelineState(m_pipelineStates[static_cast<int>(m_blendMode)].Get());
+        m_cmdList->SetGraphicsRootSignature(m_rootSignature.Get());
+        m_lastBoundBlend = m_blendMode;
+    }
 
     // 定数バッファ（正射影行列）
     m_cmdList->SetGraphicsRootConstantBufferView(0, m_constantBuffer.GetGPUVirtualAddress(m_frameIndex));
@@ -389,6 +401,29 @@ void SpriteBatch::DrawRectGraph(float x, float y, int srcX, int srcY, int w, int
     AddQuad(sv0, sv1, sv2, sv3, handle);
 }
 
+void SpriteBatch::DrawRectExtendGraph(float dstX, float dstY, float dstW, float dstH,
+                                       int srcX, int srcY, int srcW, int srcH,
+                                       int handle, bool transFlag)
+{
+    Texture* tex = m_textureManager.GetTexture(handle);
+    if (!tex) return;
+
+    float texW = static_cast<float>(tex->GetWidth());
+    float texH = static_cast<float>(tex->GetHeight());
+
+    float u0 = srcX / texW;
+    float v0 = srcY / texH;
+    float u1 = (srcX + srcW) / texW;
+    float v1 = (srcY + srcH) / texH;
+
+    SpriteVertex sv0 = { { dstX,        dstY        }, { u0, v0 }, m_drawColor };
+    SpriteVertex sv1 = { { dstX + dstW, dstY        }, { u1, v0 }, m_drawColor };
+    SpriteVertex sv2 = { { dstX,        dstY + dstH }, { u0, v1 }, m_drawColor };
+    SpriteVertex sv3 = { { dstX + dstW, dstY + dstH }, { u1, v1 }, m_drawColor };
+
+    AddQuad(sv0, sv1, sv2, sv3, handle);
+}
+
 void SpriteBatch::DrawExtendGraph(float x1, float y1, float x2, float y2,
                                    int handle, bool transFlag)
 {
@@ -419,6 +454,32 @@ void SpriteBatch::DrawModiGraph(float x1, float y1, float x2, float y2,
     SpriteVertex v1 = { { x2, y2 }, { region.u1, region.v0 }, m_drawColor }; // 右上
     SpriteVertex v2 = { { x4, y4 }, { region.u0, region.v1 }, m_drawColor }; // 左下
     SpriteVertex v3 = { { x3, y3 }, { region.u1, region.v1 }, m_drawColor }; // 右下
+
+    AddQuad(v0, v1, v2, v3, handle);
+}
+
+void SpriteBatch::DrawRectModiGraph(float x1, float y1, float x2, float y2,
+                                     float x3, float y3, float x4, float y4,
+                                     float srcX, float srcY, float srcW, float srcH,
+                                     int handle, bool transFlag)
+{
+    Texture* tex = m_textureManager.GetTexture(handle);
+    if (!tex) return;
+
+    float texW = static_cast<float>(tex->GetWidth());
+    float texH = static_cast<float>(tex->GetHeight());
+    if (texW <= 0.0f || texH <= 0.0f) return;
+
+    float u0 = srcX / texW;
+    float v0 = srcY / texH;
+    float u1 = (srcX + srcW) / texW;
+    float v1 = (srcY + srcH) / texH;
+
+    // 左上・右上・右下・左下の順
+    SpriteVertex v0 = { { x1, y1 }, { u0, v0 }, m_drawColor };
+    SpriteVertex v1 = { { x2, y2 }, { u1, v0 }, m_drawColor };
+    SpriteVertex v2 = { { x4, y4 }, { u0, v1 }, m_drawColor };
+    SpriteVertex v3 = { { x3, y3 }, { u1, v1 }, m_drawColor };
 
     AddQuad(v0, v1, v2, v3, handle);
 }

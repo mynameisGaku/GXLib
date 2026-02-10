@@ -74,6 +74,7 @@ public:
 
 private:
     void GenerateKernel();
+    bool CreatePipelines(ID3D12Device* device);
 
     bool m_enabled = true;
     float m_radius = 0.5f;

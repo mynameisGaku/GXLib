@@ -4,6 +4,7 @@
 #include "Graphics/PostEffect/SSAO.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
+#include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Core/Logger.h"
 #include <random>
 
@@ -89,7 +90,21 @@ bool SSAO::Initialize(ID3D12Device* device, uint32_t width, uint32_t height)
         if (!m_blurRS) return false;
     }
 
-    // --- PSO ---
+    if (!CreatePipelines(device))
+        return false;
+
+    // ホットリロード用PSO Rebuilder登録
+    ShaderLibrary::Instance().RegisterPSORebuilder(
+        L"Shaders/SSAO.hlsl",
+        [this](ID3D12Device* dev) { return CreatePipelines(dev); }
+    );
+
+    GX_LOG_INFO("SSAO initialized (%dx%d, %d samples)", width, height, k_KernelSize);
+    return true;
+}
+
+bool SSAO::CreatePipelines(ID3D12Device* device)
+{
     auto vs = m_shader.CompileFromFile(L"Shaders/SSAO.hlsl", L"FullscreenVS", L"vs_6_0");
     if (!vs.valid) return false;
     auto vsBytecode = vs.GetBytecode();
@@ -155,7 +170,6 @@ bool SSAO::Initialize(ID3D12Device* device, uint32_t width, uint32_t height)
         if (!m_compositePSO) return false;
     }
 
-    GX_LOG_INFO("SSAO initialized (%dx%d, %d samples)", width, height, k_KernelSize);
     return true;
 }
 

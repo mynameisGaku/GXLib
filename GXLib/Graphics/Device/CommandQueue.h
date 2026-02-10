@@ -27,23 +27,31 @@ public:
     CommandQueue() = default;
     ~CommandQueue() = default;
 
-    /// コマンドキューを作成
+    /// @brief コマンドキューを作成する
+    /// @param device D3D12デバイスへのポインタ
+    /// @param type コマンドリストの種類（Direct/Compute/Copy）
+    /// @return 作成に成功した場合true
     bool Initialize(ID3D12Device* device,
                     D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-    /// コマンドリストを実行
+    /// @brief 複数のコマンドリストを実行する
+    /// @param lists コマンドリストの配列
+    /// @param count コマンドリストの数
     void ExecuteCommandLists(ID3D12CommandList* const* lists, uint32_t count);
 
-    /// 単一のコマンドリストを実行（便利関数）
+    /// @brief 単一のコマンドリストを実行する（便利関数）
+    /// @param list 実行するコマンドリスト
     void ExecuteCommandList(ID3D12CommandList* list);
 
-    /// GPUの処理完了を待機
+    /// @brief GPUの処理完了をCPU側で待機する
     void Flush();
 
-    /// D3D12コマンドキューを取得
+    /// @brief D3D12コマンドキューを取得する
+    /// @return ID3D12CommandQueueへのポインタ
     ID3D12CommandQueue* GetQueue() const { return m_queue.Get(); }
 
-    /// フェンスを取得
+    /// @brief フェンスオブジェクトを取得する
+    /// @return Fenceへの参照
     Fence& GetFence() { return m_fence; }
 
 private:

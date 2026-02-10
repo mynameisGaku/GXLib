@@ -1,0 +1,92 @@
+/// @file Compat_Sound.cpp
+/// @brief 簡易API サウンド関数の実装
+#include "pch.h"
+#include "Compat/GXLib.h"
+#include "Compat/CompatContext.h"
+
+using Ctx = GX_Internal::CompatContext;
+
+/// TCHAR文字列をstd::wstringに変換するヘルパー
+static std::wstring ToWString(const TCHAR* str)
+{
+#ifdef UNICODE
+    return std::wstring(str);
+#else
+    int len = MultiByteToWideChar(CP_ACP, 0, str, -1, nullptr, 0);
+    std::wstring result(len - 1, L'\0');
+    MultiByteToWideChar(CP_ACP, 0, str, -1, result.data(), len);
+    return result;
+#endif
+}
+
+// ============================================================================
+// SE (効果音)
+// ============================================================================
+int LoadSoundMem(const TCHAR* filePath)
+{
+    return Ctx::Instance().audioManager.LoadSound(ToWString(filePath));
+}
+
+int PlaySoundMem(int handle, int playType, int resumeFlag)
+{
+    (void)resumeFlag;
+    auto& ctx = Ctx::Instance();
+    if (playType == GX_PLAYTYPE_LOOP)
+    {
+        ctx.audioManager.PlayMusic(handle, true);
+    }
+    else
+    {
+        ctx.audioManager.PlaySound(handle);
+    }
+    return 0;
+}
+
+int StopSoundMem(int handle)
+{
+    (void)handle;
+    return 0;
+}
+
+int DeleteSoundMem(int handle)
+{
+    Ctx::Instance().audioManager.ReleaseSound(handle);
+    return 0;
+}
+
+int ChangeVolumeSoundMem(int volume, int handle)
+{
+    float vol = volume / 255.0f;
+    Ctx::Instance().audioManager.SetSoundVolume(handle, vol);
+    return 0;
+}
+
+int CheckSoundMem(int handle)
+{
+    (void)handle;
+    return 0;
+}
+
+// ============================================================================
+// BGM（背景音楽）
+// ============================================================================
+int PlayMusic(const TCHAR* filePath, int playType)
+{
+    auto& ctx = Ctx::Instance();
+    int handle = ctx.audioManager.LoadSound(ToWString(filePath));
+    if (handle < 0) return -1;
+    bool loop = (playType == GX_PLAYTYPE_LOOP);
+    ctx.audioManager.PlayMusic(handle, loop);
+    return 0;
+}
+
+int StopMusic()
+{
+    Ctx::Instance().audioManager.StopMusic();
+    return 0;
+}
+
+int CheckMusic()
+{
+    return Ctx::Instance().audioManager.IsMusicPlaying() ? 1 : 0;
+}

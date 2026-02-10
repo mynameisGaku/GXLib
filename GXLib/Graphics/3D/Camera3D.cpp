@@ -110,7 +110,8 @@ XMMATRIX Camera3D::GetJitteredProjectionMatrix() const
         return proj;
 
     // プロジェクション行列の _31, _32 にジッターオフセットを加算
-    // (row-major: proj.r[2].m128_f32[0] = _31, proj.r[2].m128_f32[1] = _32)
+    // 行列はrow-majorなので、_31/_32は proj.r[2].m128_f32[0/1] に対応
+    // 初学者向け: 行列の要素位置を直接いじると、ジッター（微小オフセット）を加えられます。
     XMFLOAT4X4 projF;
     XMStoreFloat4x4(&projF, proj);
     projF._31 += m_jitterOffset.x;
@@ -163,11 +164,13 @@ void Camera3D::UpdateVectors() const
     XMStoreFloat3(&m_forward, fwd);
 
     // right = normalize(cross(worldUp, forward))
+    // 初学者向け: 前方向と上方向の外積で、横方向（右）を作ります。
     XMVECTOR worldUp = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
     XMVECTOR right = XMVector3Normalize(XMVector3Cross(worldUp, fwd));
     XMStoreFloat3(&m_right, right);
 
     // up = cross(forward, right)
+    // 初学者向け: 前方向と右方向の外積で、正しい上方向を作ります。
     XMVECTOR up = XMVector3Cross(fwd, right);
     XMStoreFloat3(&m_up, up);
 

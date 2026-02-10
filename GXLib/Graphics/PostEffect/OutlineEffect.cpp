@@ -7,6 +7,7 @@
 #include "Graphics/PostEffect/OutlineEffect.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
+#include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Core/Logger.h"
 
 namespace GX
@@ -47,7 +48,21 @@ bool OutlineEffect::Initialize(ID3D12Device* device, uint32_t width, uint32_t he
         if (!m_rootSignature) return false;
     }
 
-    // PSO
+    if (!CreatePipelines(device))
+        return false;
+
+    // ホットリロード用PSO Rebuilder登録
+    ShaderLibrary::Instance().RegisterPSORebuilder(
+        L"Shaders/Outline.hlsl",
+        [this](ID3D12Device* dev) { return CreatePipelines(dev); }
+    );
+
+    GX_LOG_INFO("OutlineEffect initialized (%dx%d)", width, height);
+    return true;
+}
+
+bool OutlineEffect::CreatePipelines(ID3D12Device* device)
+{
     auto vs = m_shader.CompileFromFile(L"Shaders/Outline.hlsl", L"FullscreenVS", L"vs_6_0");
     if (!vs.valid) return false;
 
@@ -64,7 +79,6 @@ bool OutlineEffect::Initialize(ID3D12Device* device, uint32_t width, uint32_t he
         .Build(device);
     if (!m_pso) return false;
 
-    GX_LOG_INFO("OutlineEffect initialized (%dx%d)", width, height);
     return true;
 }
 

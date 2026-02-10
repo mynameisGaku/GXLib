@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Panel id="root">
+    <Panel id="menuPanel">
+        <Text id="title" font="large">GXLib GUI Demo</Text>
+        <Button id="btnStart" class="menuButton" font="default" onClick="onStartGame">Start Game</Button>
+        <Button id="btnOptions" class="menuButton" font="default" onClick="onOpenOptions">Options</Button>
+        <Button id="btnExit" class="menuButton" font="default" onClick="onExit">Exit</Button>
+    </Panel>
+
+    <Spacer height="12" />
+
+    <Panel id="optionsPanel">
+        <Text id="optTitle" font="large">Options</Text>
+
+        <Panel class="optionRow">
+            <Text class="optLabel" font="default">Volume</Text>
+            <Slider id="sliderVolume" min="0" max="100" value="50" step="1" onValueChanged="onVolumeChanged" />
+        </Panel>
+
+        <Panel class="optionRow">
+            <Text class="optLabel" font="default">Brightness</Text>
+            <Slider id="sliderBrightness" min="0" max="100" value="70" step="1" onValueChanged="onBrightnessChanged" />
+        </Panel>
+
+        <Panel class="optionRow">
+            <Text class="optLabel" font="default">Fullscreen</Text>
+            <CheckBox id="cbFullscreen" font="default" onValueChanged="onFullscreenChanged">Enabled</CheckBox>
+        </Panel>
+
+        <Panel class="optionRow">
+            <Text class="optLabel" font="default">V-Sync</Text>
+            <CheckBox id="cbVSync" font="default" checked="true" onValueChanged="onVSyncChanged">Enabled</CheckBox>
+        </Panel>
+
+        <Panel class="optionRow">
+            <Text class="optLabel" font="default">Difficulty</Text>
+            <Panel class="radioGroup" onValueChanged="onDifficultyChanged">
+                <RadioButton font="default" value="easy">Easy</RadioButton>
+                <RadioButton font="default" value="normal" selected="true">Normal</RadioButton>
+                <RadioButton font="default" value="hard">Hard</RadioButton>
+            </Panel>
+        </Panel>
+
+        <Panel class="optionRow">
+            <Text class="optLabel" font="default">Resolution</Text>
+            <DropDown id="ddResolution" font="default"
+                items="1280x720, 1920x1080, 2560x1440"
+                selectedIndex="0" onValueChanged="onResolutionChanged" />
+        </Panel>
+
+        <Panel class="optionRow">
+            <Text class="optLabel" font="default">Name</Text>
+            <TextInput id="playerNameInput" font="default" placeholder="Enter your name..."
+                       onValueChanged="onNameChanged" />
+        </Panel>
+
+        <Panel class="optionRow">
+            <Text class="optLabel" font="default">Loading</Text>
+            <ProgressBar id="progressLoading" value="0" barColor="#4AE04A" />
+        </Panel>
+    </Panel>
+
+    <Spacer height="8" />
+
+    <TabView id="tabDemo" font="default" tabs="Graphics, Audio, Controls">
+        <Panel class="tabContent">
+            <Text font="default">Graphics settings go here.</Text>
+            <ListView id="lvMaps" font="default"
+                items="Forest, Desert, Ocean, Mountain, City, Space"
+                onValueChanged="onMapSelected" />
+        </Panel>
+        <Panel class="tabContent">
+            <Text font="default">Audio settings go here.</Text>
+            <Canvas id="canvasDemo" onDraw="onCanvasDraw" />
+        </Panel>
+        <Panel class="tabContent">
+            <Text font="default">Key bindings go here.</Text>
+        </Panel>
+    </TabView>
+
+    <Spacer height="8" />
+
+    <Button id="btnShowDialog" class="menuButton" font="default" onClick="onShowDialog">Show Dialog</Button>
+
+    <Dialog id="confirmDialog" onClose="onDialogClose">
+        <Panel id="dialogContent">
+            <Text font="large">Confirm</Text>
+            <Text font="default">Are you sure?</Text>
+            <Panel class="dialogButtons">
+                <Button class="menuButton" font="default" onClick="onDialogYes">Yes</Button>
+                <Button class="menuButton" font="default" onClick="onDialogNo">No</Button>
+            </Panel>
+        </Panel>
+    </Dialog>
+</Panel>

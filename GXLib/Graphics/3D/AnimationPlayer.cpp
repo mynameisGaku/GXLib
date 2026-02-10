@@ -6,6 +6,32 @@
 namespace GX
 {
 
+void AnimationPlayer::SetSkeleton(Skeleton* skeleton)
+{
+    m_skeleton = skeleton;
+    EnsurePoseStorage();
+
+    if (!m_skeleton)
+        return;
+
+    const auto& joints = m_skeleton->GetJoints();
+    const uint32_t jointCount = static_cast<uint32_t>(joints.size());
+    m_bindPose.resize(jointCount);
+    for (uint32_t i = 0; i < jointCount; ++i)
+        m_bindPose[i] = DecomposeTRS(joints[i].localTransform);
+}
+
+void AnimationPlayer::EnsurePoseStorage()
+{
+    if (!m_skeleton)
+        return;
+
+    uint32_t jointCount = m_skeleton->GetJointCount();
+    m_localPose.resize(jointCount);
+    m_localTransforms.resize(jointCount);
+    m_globalTransforms.resize(jointCount);
+}
+
 void AnimationPlayer::Play(const AnimationClip* clip, bool loop)
 {
     m_currentClip = clip;
@@ -38,27 +64,34 @@ void AnimationPlayer::Update(float deltaTime)
         m_playing = false;
     }
 
+    EnsurePoseStorage();
     uint32_t jointCount = m_skeleton->GetJointCount();
     if (jointCount == 0)
         return;
 
-    // アニメーションサンプリング
-    std::vector<XMFLOAT4X4> localTransforms(jointCount);
+    // バインドポーズ上でクリップをサンプル
+    // 初学者向け: まず「基準姿勢」を用意し、アニメのキーでその上書きを行います。
+    if (!m_bindPose.empty())
+        m_currentClip->SampleTRS(m_currentTime, jointCount, m_localPose.data(), m_bindPose.data());
+    else
+        m_currentClip->SampleTRS(m_currentTime, jointCount, m_localPose.data(), nullptr);
 
-    // デフォルトローカルトランスフォームで初期化
+    // ローカル変換行列を作成
     for (uint32_t i = 0; i < jointCount; ++i)
-        localTransforms[i] = m_skeleton->GetJoints()[i].localTransform;
+    {
+        XMMATRIX S = XMMatrixScaling(m_localPose[i].scale.x, m_localPose[i].scale.y, m_localPose[i].scale.z);
+        XMMATRIX R = XMMatrixRotationQuaternion(XMLoadFloat4(&m_localPose[i].rotation));
+        XMMATRIX T = XMMatrixTranslation(m_localPose[i].translation.x, m_localPose[i].translation.y, m_localPose[i].translation.z);
+        XMStoreFloat4x4(&m_localTransforms[i], S * R * T);
+    }
 
-    // アニメーションを上書き
-    m_currentClip->Sample(m_currentTime, jointCount, localTransforms.data());
+    // グローバル変換に変換
+    m_skeleton->ComputeGlobalTransforms(m_localTransforms.data(), m_globalTransforms.data());
 
-    // グローバルトランスフォーム計算
-    std::vector<XMFLOAT4X4> globalTransforms(jointCount);
-    m_skeleton->ComputeGlobalTransforms(localTransforms.data(), globalTransforms.data());
-
-    // ボーン行列計算
+    // ボーン行列を作成
+    // 初学者向け: スキニング用に「現在のボーン姿勢」をまとめた配列です。
     uint32_t boneCount = (std::min)(jointCount, BoneConstants::k_MaxBones);
-    m_skeleton->ComputeBoneMatrices(globalTransforms.data(), m_boneConstants.boneMatrices);
+    m_skeleton->ComputeBoneMatrices(m_globalTransforms.data(), m_boneConstants.boneMatrices);
 }
 
 } // namespace GX

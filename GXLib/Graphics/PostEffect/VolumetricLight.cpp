@@ -7,6 +7,7 @@
 #include "Graphics/PostEffect/VolumetricLight.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
+#include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Core/Logger.h"
 
 namespace GX
@@ -47,7 +48,21 @@ bool VolumetricLight::Initialize(ID3D12Device* device, uint32_t width, uint32_t 
         if (!m_rootSignature) return false;
     }
 
-    // PSO
+    if (!CreatePipelines(device))
+        return false;
+
+    // ホットリロード用PSO Rebuilder登録
+    ShaderLibrary::Instance().RegisterPSORebuilder(
+        L"Shaders/VolumetricLight.hlsl",
+        [this](ID3D12Device* dev) { return CreatePipelines(dev); }
+    );
+
+    GX_LOG_INFO("VolumetricLight initialized (%dx%d)", width, height);
+    return true;
+}
+
+bool VolumetricLight::CreatePipelines(ID3D12Device* device)
+{
     auto vs = m_shader.CompileFromFile(L"Shaders/VolumetricLight.hlsl", L"FullscreenVS", L"vs_6_0");
     if (!vs.valid) return false;
 
@@ -64,7 +79,6 @@ bool VolumetricLight::Initialize(ID3D12Device* device, uint32_t width, uint32_t 
         .Build(device);
     if (!m_pso) return false;
 
-    GX_LOG_INFO("VolumetricLight initialized (%dx%d)", width, height);
     return true;
 }
 

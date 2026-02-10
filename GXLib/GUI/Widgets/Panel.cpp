@@ -6,12 +6,13 @@ namespace GX { namespace GUI {
 
 void Panel::Render(UIRenderer& renderer)
 {
+    const Style& drawStyle = GetRenderStyle();
     // 背景描画（色が設定されている場合のみ）
-    if (!computedStyle.backgroundColor.IsTransparent() ||
-        computedStyle.borderWidth > 0.0f ||
-        computedStyle.shadowBlur > 0.0f)
+    if (!drawStyle.backgroundColor.IsTransparent() ||
+        drawStyle.borderWidth > 0.0f ||
+        drawStyle.shadowBlur > 0.0f)
     {
-        renderer.DrawRect(globalRect, computedStyle, opacity);
+        renderer.DrawRect(globalRect, drawStyle, opacity);
     }
 
     // 子ウィジェットを描画

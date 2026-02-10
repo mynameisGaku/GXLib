@@ -7,6 +7,7 @@
 #include "Graphics/PostEffect/TAA.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
+#include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Core/Logger.h"
 
 namespace GX
@@ -82,7 +83,21 @@ bool TAA::Initialize(ID3D12Device* device, uint32_t width, uint32_t height)
         if (!m_rootSignature) return false;
     }
 
-    // PSO
+    if (!CreatePipelines(device))
+        return false;
+
+    // ホットリロード用PSO Rebuilder登録
+    ShaderLibrary::Instance().RegisterPSORebuilder(
+        L"Shaders/TAA.hlsl",
+        [this](ID3D12Device* dev) { return CreatePipelines(dev); }
+    );
+
+    GX_LOG_INFO("TAA initialized (%dx%d)", width, height);
+    return true;
+}
+
+bool TAA::CreatePipelines(ID3D12Device* device)
+{
     auto vs = m_shader.CompileFromFile(L"Shaders/TAA.hlsl", L"FullscreenVS", L"vs_6_0");
     if (!vs.valid) return false;
 
@@ -99,7 +114,6 @@ bool TAA::Initialize(ID3D12Device* device, uint32_t width, uint32_t height)
         .Build(device);
     if (!m_pso) return false;
 
-    GX_LOG_INFO("TAA initialized (%dx%d)", width, height);
     return true;
 }
 
@@ -107,7 +121,7 @@ void TAA::UpdateSRVHeap(RenderTarget& srcHDR, DepthBuffer& depth, uint32_t frame
 {
     uint32_t base = frameIndex * 3;
 
-    // [base+0] = current scene (HDR)
+    // [base+0] = 現フレームシーン (HDR)
     {
         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
         srvDesc.Format                    = srcHDR.GetFormat();
@@ -119,7 +133,7 @@ void TAA::UpdateSRVHeap(RenderTarget& srcHDR, DepthBuffer& depth, uint32_t frame
                                             m_srvHeap.GetCPUHandle(base + 0));
     }
 
-    // [base+1] = history
+    // [base+1] = 履歴 (前フレームの結果)
     {
         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
         srvDesc.Format                    = m_historyRT.GetFormat();
@@ -131,7 +145,7 @@ void TAA::UpdateSRVHeap(RenderTarget& srcHDR, DepthBuffer& depth, uint32_t frame
                                             m_srvHeap.GetCPUHandle(base + 1));
     }
 
-    // [base+2] = depth
+    // [base+2] = 深度
     {
         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
         srvDesc.Format                    = DXGI_FORMAT_R32_FLOAT;
@@ -197,7 +211,7 @@ void TAA::Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
     cmdList->SetDescriptorHeaps(1, heaps);
 
     // 定数バッファ (非ジッターのVP行列を使用)
-    XMMATRIX viewProj = camera.GetViewProjectionMatrix(); // non-jittered
+    XMMATRIX viewProj = camera.GetViewProjectionMatrix(); // 非ジッター
     XMMATRIX invVP = XMMatrixInverse(nullptr, viewProj);
 
     TAAConstants constants = {};

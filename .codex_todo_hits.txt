@@ -1,0 +1,27 @@
+﻿@{Path=C:\Users\g0190\Desktop\GXLib\GXLib\ThirdParty\stb_image.h; LineNumber=801; Line=//  stbi__context struct and start_xxx functions}
+@{Path=C:\Users\g0190\Desktop\GXLib\GXLib\ThirdParty\stb_image.h; LineNumber=1276; Line=   // @TODO: move stbi__convert_format to here}
+@{Path=C:\Users\g0190\Desktop\GXLib\GXLib\ThirdParty\stb_image.h; LineNumber=1302; Line=   // @TODO: move stbi__convert_format16 to here}
+@{Path=C:\Users\g0190\Desktop\GXLib\GXLib\ThirdParty\stb_image.h; LineNumber=1303; Line=   // @TODO: special case RGB-to-Y (and RGBA-to-YA) for 8-bit-to-16-bit case to keep more precision}
+@{Path=C:\Users\g0190\Desktop\GXLib\GXLib\ThirdParty\stb_image.h; LineNumber=1995; Line=   int restart_interval, todo;}
+@{Path=C:\Users\g0190\Desktop\GXLib\GXLib\ThirdParty\stb_image.h; LineNumber=2943; Line=   j->todo = j->restart_interval ? j->restart_interval : 0x7fffffff;}
+@{Path=C:\Users\g0190\Desktop\GXLib\GXLib\ThirdParty\stb_image.h; LineNumber=2969; Line=               if (--z->todo <= 0) {}
+@{Path=C:\Users\g0190\Desktop\GXLib\GXLib\ThirdParty\stb_image.h; LineNumber=3001; Line=               if (--z->todo <= 0) {}
+@{Path=C:\Users\g0190\Desktop\GXLib\GXLib\ThirdParty\stb_image.h; LineNumber=3032; Line=               if (--z->todo <= 0) {}
+@{Path=C:\Users\g0190\Desktop\GXLib\GXLib\ThirdParty\stb_image.h; LineNumber=3061; Line=               if (--z->todo <= 0) {}
+@{Path=C:\Users\g0190\Desktop\GXLib\GXLib\ThirdParty\stb_image.h; LineNumber=5247; Line=               static char invalid_chunk[] = "XXXX PNG chunk not known";}
+@{Path=C:\Users\g0190\Desktop\GXLib\GXLib\ThirdParty\stb_image.h; LineNumber=5898; Line=   STBI_NOTUSED(tga_x_origin); // @TODO}
+@{Path=C:\Users\g0190\Desktop\GXLib\GXLib\ThirdParty\stb_image.h; LineNumber=5899; Line=   STBI_NOTUSED(tga_y_origin); // @TODO}
+@{Path=C:\Users\g0190\Desktop\GXLib\GXLib\ThirdParty\json.hpp; LineNumber=7705; Line=                                // expect next \uxxxx entry}
+@{Path=C:\Users\g0190\Desktop\GXLib\GXLib\ThirdParty\json.hpp; LineNumber=7757; Line=                                // 1-byte characters: 0xxxxxxx (ASCII)}
+@{Path=C:\Users\g0190\Desktop\GXLib\GXLib\ThirdParty\json.hpp; LineNumber=7762; Line=                                // 2-byte characters: 110xxxxx 10xxxxxx}
+@{Path=C:\Users\g0190\Desktop\GXLib\GXLib\ThirdParty\json.hpp; LineNumber=7768; Line=                                // 3-byte characters: 1110xxxx 10xxxxxx 10xxxxxx}
+@{Path=C:\Users\g0190\Desktop\GXLib\GXLib\ThirdParty\json.hpp; LineNumber=7775; Line=                                // 4-byte characters: 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx}
+@{Path=C:\Users\g0190\Desktop\GXLib\GXLib\ThirdParty\json.hpp; LineNumber=10997; Line=            get();  // TODO(niels): may we ignore N here?}
+@{Path=C:\Users\g0190\Desktop\GXLib\GXLib\ThirdParty\json.hpp; LineNumber=18110; Line=    in the output are escaped with `\uXXXX` sequences, and the result consists}
+@{Path=C:\Users\g0190\Desktop\GXLib\GXLib\ThirdParty\json.hpp; LineNumber=18395; Line=                             \uXXXX sequences}
+@{Path=C:\Users\g0190\Desktop\GXLib\GXLib\ThirdParty\json.hpp; LineNumber=18502; Line=                    // written ("\uxxxx\uxxxx\0") for one code point}
+@{Path=C:\Users\g0190\Desktop\GXLib\GXLib\ThirdParty\json.hpp; LineNumber=18561; Line=                                // written ("\uxxxx\uxxxx\0") for one code point}
+@{Path=C:\Users\g0190\Desktop\GXLib\GXLib\ThirdParty\cgltf.h; LineNumber=1416; Line=			// UCS-2 codepoint \uXXXX to UTF-8}
+@{Path=C:\Users\g0190\Desktop\GXLib\GXLib\ThirdParty\cgltf.h; LineNumber=7021; Line=				/* Allows escaped symbol \uXXXX */}
+@{Path=C:\Users\g0190\Desktop\GXLib\GXLib\Physics\PhysicsShape.h; LineNumber=10; Line=/// PhysicsWorld3D::CreateXxxShape() で作成し、AddBody() で使用する。}
+@{Path=C:\Users\g0190\Desktop\GXLib\GXLib\GUI\StyleSheet.h; LineNumber=108; Line=        Hash,       // #xxx}

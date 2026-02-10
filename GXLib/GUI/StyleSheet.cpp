@@ -2,11 +2,12 @@
 #include "GUI/StyleSheet.h"
 #include "GUI/Widget.h"
 #include "GUI/Widgets/Button.h"
+#include "IO/FileSystem.h"
 
 namespace GX { namespace GUI {
 
 // ============================================================================
-// WidgetTypeToString
+// ウィジェット種別 → 文字列
 // ============================================================================
 
 const char* WidgetTypeToString(WidgetType type)
@@ -34,7 +35,7 @@ const char* WidgetTypeToString(WidgetType type)
 }
 
 // ============================================================================
-// StyleSelector
+// スタイルセレクタ
 // ============================================================================
 
 bool StyleSelector::Matches(const Widget* widget) const
@@ -116,7 +117,7 @@ StyleSelector StyleSelector::Parse(const std::string& str)
 }
 
 // ============================================================================
-// Tokenizer
+// トークナイザ
 // ============================================================================
 
 std::vector<StyleSheet::Token> StyleSheet::Tokenize(const std::string& source)
@@ -162,7 +163,7 @@ std::vector<StyleSheet::Token> StyleSheet::Tokenize(const std::string& source)
         if (c == '.')  { tokens.push_back({ TokenType::Dot, "." }); ++i; continue; }
         if (c == ':')  { tokens.push_back({ TokenType::Colon, ":" }); ++i; continue; }
 
-        // #hash (色値 or id)
+        // #hash（色値またはid）
         if (c == '#')
         {
             ++i;
@@ -228,7 +229,7 @@ std::vector<StyleSheet::Token> StyleSheet::Tokenize(const std::string& source)
 }
 
 // ============================================================================
-// Parser
+// パーサー
 // ============================================================================
 
 void StyleSheet::ParseTokens(const std::vector<Token>& tokens)
@@ -338,17 +339,22 @@ std::vector<StyleProperty> StyleSheet::ParsePropertyBlock(const std::vector<Toke
 }
 
 // ============================================================================
-// LoadFromFile / LoadFromString
+// LoadFromFile / LoadFromString（読み込み）
 // ============================================================================
 
 bool StyleSheet::LoadFromFile(const std::string& path)
 {
-    std::ifstream file(path);
-    if (!file.is_open()) return false;
-
-    std::string source((std::istreambuf_iterator<char>(file)),
-                        std::istreambuf_iterator<char>());
-    return LoadFromString(source);
+    auto fileData = GX::FileSystem::Instance().ReadFile(path);
+    if (!fileData.IsValid())
+    {
+        // 直接ファイルI/Oにフォールバック
+        std::ifstream file(path);
+        if (!file.is_open()) return false;
+        std::string source((std::istreambuf_iterator<char>(file)),
+                            std::istreambuf_iterator<char>());
+        return LoadFromString(source);
+    }
+    return LoadFromString(fileData.AsString());
 }
 
 bool StyleSheet::LoadFromString(const std::string& source)
@@ -359,8 +365,8 @@ bool StyleSheet::LoadFromString(const std::string& source)
 }
 
 // ============================================================================
-// kebab-case → camelCase 正規化
-// "flex-direction" → "flexDirection", "border-radius" → "borderRadius"
+// kebab-case → camelCase の正規化
+// 例: "flex-direction" → "flexDirection", "border-radius" → "borderRadius"
 // ============================================================================
 
 std::string StyleSheet::NormalizePropertyName(const std::string& name)
@@ -368,6 +374,7 @@ std::string StyleSheet::NormalizePropertyName(const std::string& name)
     // CSS標準エイリアス
     if (name == "border-radius") return "cornerRadius";
     if (name == "background-color") return "backgroundColor";
+    if (name == "transition-duration") return "transitionDuration";
 
     std::string result;
     result.reserve(name.size());
@@ -413,7 +420,15 @@ void StyleSheet::ApplyProperty(Style& style, const std::string& rawName, const s
 
     // --- ボックスモデル ---
     if (name == "margin")          { style.margin  = ParseEdges(value); return; }
+    if (name == "marginTop")       { style.margin.top    = std::stof(value); return; }
+    if (name == "marginRight")     { style.margin.right  = std::stof(value); return; }
+    if (name == "marginBottom")    { style.margin.bottom = std::stof(value); return; }
+    if (name == "marginLeft")      { style.margin.left   = std::stof(value); return; }
     if (name == "padding")         { style.padding = ParseEdges(value); return; }
+    if (name == "paddingTop")      { style.padding.top    = std::stof(value); return; }
+    if (name == "paddingRight")    { style.padding.right  = std::stof(value); return; }
+    if (name == "paddingBottom")   { style.padding.bottom = std::stof(value); return; }
+    if (name == "paddingLeft")     { style.padding.left   = std::stof(value); return; }
     if (name == "borderWidth")     { style.borderWidth = std::stof(value); return; }
     if (name == "borderColor")     { style.borderColor = ParseColor(value); return; }
 
@@ -625,36 +640,36 @@ void StyleSheet::ApplyTo(Widget* widget) const
                 ApplyProperty(baseStyle, prop.name, prop.value);
         }
     }
-    widget->computedStyle = baseStyle;
 
-    // Button の場合: hover/pressed/disabled スタイルを生成
-    if (widget->GetType() == WidgetType::Button)
+    // 擬似クラス（hover/pressed/disabled/focused）を現在状態に適用
+    Style currentStyle = baseStyle;
+    for (const auto& m : matched)
     {
-        auto* button = static_cast<Button*>(widget);
-
-        // ベーススタイルをコピー
-        button->hoverStyle    = baseStyle;
-        button->pressedStyle  = baseStyle;
-        button->disabledStyle = baseStyle;
-
-        // 擬似クラスの overrides を適用
-        for (const auto& m : matched)
+        bool apply = false;
+        switch (m.rule->selector.pseudo)
         {
-            Style* target = nullptr;
-            switch (m.rule->selector.pseudo)
-            {
-            case PseudoClass::Hover:    target = &button->hoverStyle;    break;
-            case PseudoClass::Pressed:  target = &button->pressedStyle;  break;
-            case PseudoClass::Disabled: target = &button->disabledStyle; break;
-            default: break;
-            }
-            if (target)
-            {
-                for (const auto& prop : m.rule->properties)
-                    ApplyProperty(*target, prop.name, prop.value);
-            }
+        case PseudoClass::Hover:
+            apply = widget->hovered;
+            break;
+        case PseudoClass::Pressed:
+            apply = widget->pressed;
+            break;
+        case PseudoClass::Disabled:
+            apply = !widget->enabled;
+            break;
+        case PseudoClass::Focused:
+            apply = widget->focused;
+            break;
+        default:
+            break;
+        }
+        if (apply)
+        {
+            for (const auto& prop : m.rule->properties)
+                ApplyProperty(currentStyle, prop.name, prop.value);
         }
     }
+    widget->computedStyle = currentStyle;
 }
 
 void StyleSheet::ApplyToTree(Widget* root) const

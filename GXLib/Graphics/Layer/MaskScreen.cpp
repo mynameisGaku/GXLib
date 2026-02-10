@@ -4,6 +4,7 @@
 #include "Graphics/Layer/MaskScreen.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
+#include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Core/Logger.h"
 
 namespace GX
@@ -40,7 +41,21 @@ bool MaskScreen::Create(ID3D12Device* device, uint32_t w, uint32_t h)
         if (!m_rootSignature) return false;
     }
 
-    // PSO
+    if (!CreatePipelines(device))
+        return false;
+
+    // ホットリロード用PSO Rebuilder登録
+    ShaderLibrary::Instance().RegisterPSORebuilder(
+        L"Shaders/MaskDraw.hlsl",
+        [this](ID3D12Device* dev) { return CreatePipelines(dev); }
+    );
+
+    GX_LOG_INFO("MaskScreen created (%dx%d)", w, h);
+    return true;
+}
+
+bool MaskScreen::CreatePipelines(ID3D12Device* device)
+{
     auto vs = m_shader.CompileFromFile(L"Shaders/MaskDraw.hlsl", L"VSMask", L"vs_6_0");
     if (!vs.valid) return false;
 
@@ -62,7 +77,6 @@ bool MaskScreen::Create(ID3D12Device* device, uint32_t w, uint32_t h)
         .Build(device);
     if (!m_fillPSO) return false;
 
-    GX_LOG_INFO("MaskScreen created (%dx%d)", w, h);
     return true;
 }
 

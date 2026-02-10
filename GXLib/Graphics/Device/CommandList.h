@@ -25,24 +25,35 @@ namespace GX
 class CommandList
 {
 public:
+    /// @brief ダブルバッファリング用のアロケータ数
     static constexpr uint32_t k_AllocatorCount = 2;
 
     CommandList() = default;
     ~CommandList() = default;
 
-    /// コマンドリストとアロケータを作成
+    /// @brief コマンドリストとアロケータを作成する
+    /// @param device D3D12デバイスへのポインタ
+    /// @param type コマンドリストの種類（Direct/Compute/Copy）
+    /// @return 作成に成功した場合true
     bool Initialize(ID3D12Device* device,
                     D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-    /// 指定フレームインデックスのアロケータでリセット（コマンド記録を開始）
+    /// @brief 指定フレームインデックスのアロケータでリセットしコマンド記録を開始する
+    /// @param frameIndex 現在のフレームインデックス（0または1）
+    /// @param initialPSO 初期パイプラインステート（省略可）
+    /// @return リセットに成功した場合true
     bool Reset(uint32_t frameIndex, ID3D12PipelineState* initialPSO = nullptr);
 
-    /// コマンド記録を終了
+    /// @brief コマンド記録を終了する
+    /// @return クローズに成功した場合true
     bool Close();
 
-    /// D3D12グラフィックスコマンドリストを取得
+    /// @brief D3D12グラフィックスコマンドリストを取得する
+    /// @return ID3D12GraphicsCommandListへのポインタ
     ID3D12GraphicsCommandList* Get() const { return m_commandList.Get(); }
 
+    /// @brief D3D12グラフィックスコマンドリストへのアクセス演算子
+    /// @return ID3D12GraphicsCommandListへのポインタ
     ID3D12GraphicsCommandList* operator->() const { return m_commandList.Get(); }
 
 private:

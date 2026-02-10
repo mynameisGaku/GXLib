@@ -54,6 +54,7 @@ public:
 
 private:
     void SetupPipeline(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex, float maskValue);
+    bool CreatePipelines(ID3D12Device* device);
 
     bool m_enabled = false;
     uint32_t m_width  = 0;

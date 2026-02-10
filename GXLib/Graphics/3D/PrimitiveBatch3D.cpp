@@ -4,6 +4,7 @@
 #include "Graphics/3D/PrimitiveBatch3D.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
+#include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Core/Logger.h"
 
 namespace GX
@@ -23,6 +24,12 @@ bool PrimitiveBatch3D::Initialize(ID3D12Device* device)
 
     if (!CreatePipelineState(device))
         return false;
+
+    // ホットリロード用PSO Rebuilder登録
+    ShaderLibrary::Instance().RegisterPSORebuilder(
+        L"Shaders/Primitive3D.hlsl",
+        [this](ID3D12Device* dev) { return CreatePipelineState(dev); }
+    );
 
     GX_LOG_INFO("PrimitiveBatch3D initialized (max %d vertices)", k_MaxVertices);
     return true;

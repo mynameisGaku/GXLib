@@ -11,6 +11,7 @@
 #include "Graphics/3D/Material.h"
 #include "Graphics/3D/Model.h"
 #include "Graphics/3D/AnimationPlayer.h"
+#include "Graphics/3D/Animator.h"
 #include "Graphics/3D/CascadedShadowMap.h"
 #include "Graphics/3D/PointShadowMap.h"
 #include "Graphics/3D/Fog.h"
@@ -26,17 +27,17 @@
 namespace GX
 {
 
-/// オブジェクト定数バッファ（b0）
+/// @brief オブジェクト定数バッファ（b0スロット）
 struct ObjectConstants
 {
-    XMFLOAT4X4 world;
-    XMFLOAT4X4 worldInverseTranspose;
+    XMFLOAT4X4 world;                  ///< ワールド変換行列
+    XMFLOAT4X4 worldInverseTranspose;  ///< ワールド逆転置行列（法線変換用）
 };
 
-/// 1フレームあたりの最大オブジェクト数
+/// @brief 1フレームあたりの最大オブジェクト数
 static constexpr uint32_t k_MaxObjectsPerFrame = 512;
 
-/// フレーム定数バッファ（b1）
+/// @brief フレーム定数バッファ（b1スロット）— カメラ・シャドウ・フォグ情報をGPUに送る
 struct FrameConstants
 {
     XMFLOAT4X4 view;
@@ -57,19 +58,19 @@ struct FrameConstants
     float      fogDensity;
     uint32_t   fogMode;
     uint32_t   shadowDebugMode;  // 0=OFF, 1=Factor, 2=Cascade
-    // --- offset 528 ---
+    // --- オフセット 528 ---
     // スポットシャドウ関連
     XMFLOAT4X4 spotLightVP;
     float      spotShadowMapSize;
     int32_t    spotShadowLightIndex;
     float      _spotPad[2];
-    // --- offset 608 ---
+    // --- オフセット 608 ---
     // ポイントシャドウ関連
     XMFLOAT4X4 pointLightVP[6];
     float      pointShadowMapSize;
     int32_t    pointShadowLightIndex;
     float      _pointPad[2];
-    // --- offset 1008 ---
+    // --- オフセット 1008 ---
 };
 
 static_assert(offsetof(FrameConstants, shadowEnabled) == 484, "shadowEnabled offset mismatch");
@@ -78,12 +79,23 @@ static_assert(offsetof(FrameConstants, spotLightVP) == 528, "spotLightVP offset 
 static_assert(offsetof(FrameConstants, pointLightVP) == 608, "pointLightVP offset mismatch");
 static_assert(sizeof(FrameConstants) == 1008, "FrameConstants size mismatch");
 
-/// GPU上のメッシュ（VB + IB）
+/// @brief GPU上のメッシュデータ（頂点バッファ + インデックスバッファ）
 struct GPUMesh
 {
-    Buffer   vertexBuffer;
-    Buffer   indexBuffer;
-    uint32_t indexCount = 0;
+    Buffer   vertexBuffer;   ///< 頂点バッファ
+    Buffer   indexBuffer;    ///< インデックスバッファ
+    uint32_t indexCount = 0; ///< インデックス数
+};
+
+/// @brief カスタムマテリアル用シェーダー設定
+/// 初学者向け: 既定のPBR以外のシェーダーを差し替える時に使います。
+struct ShaderProgramDesc
+{
+    std::wstring vsPath;
+    std::wstring psPath;
+    std::wstring vsEntry = L"VSMain";
+    std::wstring psEntry = L"PSMain";
+    std::vector<std::pair<std::wstring, std::wstring>> defines;
 };
 
 /// @brief 3Dレンダラークラス
@@ -93,90 +105,167 @@ public:
     Renderer3D() = default;
     ~Renderer3D() = default;
 
-    /// 初期化
+    /// @brief 3Dレンダラーを初期化する
+    /// @param device D3D12デバイスへのポインタ
+    /// @param cmdQueue コマンドキューへのポインタ
+    /// @param screenWidth スクリーン幅（ピクセル）
+    /// @param screenHeight スクリーン高さ（ピクセル）
+    /// @return 初期化に成功した場合true
     bool Initialize(ID3D12Device* device, ID3D12CommandQueue* cmdQueue,
                     uint32_t screenWidth, uint32_t screenHeight);
 
-    /// MeshDataからGPUメッシュを作成
+    /// @brief MeshDataからGPU上のメッシュリソースを作成する
+    /// @param meshData メッシュの頂点・インデックスデータ
+    /// @return 作成されたGPUMesh
     GPUMesh CreateGPUMesh(const MeshData& meshData);
 
-    /// シャドウパス：指定カスケードにシーンの深度を描画
+    /// @brief カスタムシェーダー (PBR互換ルートシグネチャ) を登録する
+    /// @param desc シェーダー記述
+    /// @return シェーダーハンドル (失敗時 -1)
+    int CreateMaterialShader(const ShaderProgramDesc& desc);
+
+    /// @brief CSMシャドウパスを開始する（指定カスケードにシーンの深度を描画）
+    /// @param cmdList グラフィックスコマンドリスト
+    /// @param frameIndex 現在のフレームインデックス
+    /// @param cascadeIndex カスケードインデックス（0〜k_NumCascades-1）
     void BeginShadowPass(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
                           uint32_t cascadeIndex);
+
+    /// @brief CSMシャドウパスを終了する
+    /// @param cascadeIndex カスケードインデックス
     void EndShadowPass(uint32_t cascadeIndex);
 
-    /// スポットライトシャドウパス
+    /// @brief スポットライトシャドウパスを開始する
+    /// @param cmdList グラフィックスコマンドリスト
+    /// @param frameIndex 現在のフレームインデックス
     void BeginSpotShadowPass(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex);
+
+    /// @brief スポットライトシャドウパスを終了する
     void EndSpotShadowPass();
 
-    /// ポイントライトシャドウパス（6面）
+    /// @brief ポイントライトシャドウパスを開始する（6面キューブマップの1面）
+    /// @param cmdList グラフィックスコマンドリスト
+    /// @param frameIndex 現在のフレームインデックス
+    /// @param face キューブマップの面インデックス（0〜5）
     void BeginPointShadowPass(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex, uint32_t face);
+
+    /// @brief ポイントライトシャドウパスを終了する
+    /// @param face キューブマップの面インデックス
     void EndPointShadowPass(uint32_t face);
 
-    /// フレーム開始（メインパス）
+    /// @brief メインレンダリングパスのフレームを開始する
+    /// @param cmdList グラフィックスコマンドリスト
+    /// @param frameIndex 現在のフレームインデックス
+    /// @param camera 3Dカメラ（TAAジッター適用のためnon-const）
+    /// @param time 経過時間（秒）
     void Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
                const Camera3D& camera, float time);
 
-    /// ライト設定
+    /// @brief シーン内のライトを設定する
+    /// @param lights ライトデータの配列
+    /// @param count ライトの数
+    /// @param ambient アンビエントライトの色
     void SetLights(const LightData* lights, uint32_t count, const XMFLOAT3& ambient);
 
-    /// マテリアル設定
+    /// @brief マテリアルを設定する
+    /// @param material 設定するマテリアル
     void SetMaterial(const Material& material);
 
-    /// メッシュ描画（シャドウパスでもメインパスでも使用可）
+    /// @brief メッシュを描画する（シャドウパスでもメインパスでも使用可）
+    /// @param mesh GPUメッシュ
+    /// @param transform ワールド変換
     void DrawMesh(const GPUMesh& mesh, const Transform3D& transform);
 
-    /// 地形描画
+    /// @brief メッシュを描画する（ワールド行列直接指定 -- 物理シミュレーション等で使用）
+    /// @param mesh GPUメッシュ
+    /// @param worldMatrix ワールド変換行列
+    void DrawMesh(const GPUMesh& mesh, const XMMATRIX& worldMatrix);
+
+    /// @brief 地形を描画する
+    /// @param terrain 地形オブジェクト
+    /// @param transform ワールド変換
     void DrawTerrain(const Terrain& terrain, const Transform3D& transform);
 
-    /// モデル描画（マテリアル自動バインド）
+    /// @brief モデルを描画する（マテリアル自動バインド）
+    /// @param model 描画するモデル
+    /// @param transform ワールド変換
     void DrawModel(const Model& model, const Transform3D& transform);
 
-    /// スキンドモデル描画
+    /// @brief スキニングアニメーション付きモデルを描画する
+    /// @param model 描画するモデル
+    /// @param transform ワールド変換
+    /// @param animPlayer アニメーションプレイヤー（ボーン行列計算済み）
     void DrawSkinnedModel(const Model& model, const Transform3D& transform,
                            const AnimationPlayer& animPlayer);
 
-    /// フレーム終了
+    /// @brief スキニングモデルを描画する (Animator)
+    void DrawSkinnedModel(const Model& model, const Transform3D& transform,
+                           const Animator& animator);
+
+    /// @brief フレームの描画を終了する
     void End();
 
-    /// シャドウの更新（BeginShadowPass前に呼ぶ）
+    /// @brief シャドウマップを更新する（BeginShadowPass前に呼ぶ）
+    /// @param camera シャドウ計算の基準となるカメラ
     void UpdateShadow(const Camera3D& camera);
 
-    /// シャドウ有効/無効
+    /// @brief シャドウの有効/無効を設定する
+    /// @param enabled trueでシャドウ有効
     void SetShadowEnabled(bool enabled) { m_shadowEnabled = enabled; }
+
+    /// @brief シャドウが有効かどうかを取得する
+    /// @return シャドウが有効な場合true
     bool IsShadowEnabled() const { return m_shadowEnabled; }
 
-    /// シャドウデバッグモード（0=OFF, 1=Factor, 2=Cascade）
+    /// @brief シャドウデバッグモードを設定する
+    /// @param mode デバッグモード（0=OFF, 1=Factor, 2=Cascade可視化）
     void SetShadowDebugMode(uint32_t mode) { m_shadowDebugMode = mode; }
+
+    /// @brief シャドウデバッグモードを取得する
+    /// @return 現在のデバッグモード
     uint32_t GetShadowDebugMode() const { return m_shadowDebugMode; }
 
-    /// フォグ設定
+    /// @brief フォグ（霧）効果を設定する
+    /// @param mode フォグモード（Linear/Exp/Exp2等）
+    /// @param color フォグの色
+    /// @param start フォグ開始距離（Linearモード用）
+    /// @param end フォグ終了距離（Linearモード用）
+    /// @param density フォグの密度（Exp/Exp2モード用）
     void SetFog(FogMode mode, const XMFLOAT3& color, float start, float end, float density = 0.01f);
 
-    /// スカイボックス取得
+    /// @brief スカイボックスを取得する
+    /// @return Skyboxへの参照
     Skybox& GetSkybox() { return m_skybox; }
 
-    /// PrimitiveBatch3D取得
+    /// @brief 3Dプリミティブバッチを取得する
+    /// @return PrimitiveBatch3Dへの参照
     PrimitiveBatch3D& GetPrimitiveBatch3D() { return m_primitiveBatch3D; }
 
-    /// 深度バッファ取得
+    /// @brief 深度バッファを取得する
+    /// @return DepthBufferへの参照
     DepthBuffer& GetDepthBuffer() { return m_depthBuffer; }
 
-    /// テクスチャマネージャー取得
+    /// @brief テクスチャマネージャーを取得する
+    /// @return TextureManagerへの参照
     TextureManager& GetTextureManager() { return m_textureManager; }
 
-    /// マテリアルマネージャー取得
+    /// @brief マテリアルマネージャーを取得する
+    /// @return MaterialManagerへの参照
     MaterialManager& GetMaterialManager() { return m_materialManager; }
 
-    /// CSM取得
+    /// @brief カスケードシャドウマップを取得する
+    /// @return CascadedShadowMapへの参照
     CascadedShadowMap& GetCSM() { return m_csm; }
 
-    /// 画面サイズ変更
+    /// @brief 画面サイズの変更を処理する
+    /// @param width 新しい幅（ピクセル）
+    /// @param height 新しい高さ（ピクセル）
     void OnResize(uint32_t width, uint32_t height);
 
 private:
     bool CreatePipelineState(ID3D12Device* device);
     bool CreateShadowPipelineState(ID3D12Device* device);
+    void BindPipeline(bool skinned, int shaderHandle);
 
     ID3D12Device*              m_device    = nullptr;
     ID3D12GraphicsCommandList* m_cmdList   = nullptr;
@@ -188,10 +277,12 @@ private:
     Shader                       m_shaderCompiler;
     ComPtr<ID3D12RootSignature>  m_rootSignature;
     ComPtr<ID3D12PipelineState>  m_pso;
+    ComPtr<ID3D12PipelineState>  m_psoSkinned;
 
     // シャドウパイプライン
     ComPtr<ID3D12RootSignature>  m_shadowRootSignature;
     ComPtr<ID3D12PipelineState>  m_shadowPso;
+    ComPtr<ID3D12PipelineState>  m_shadowPsoSkinned;
     DynamicBuffer                m_shadowPassCB;  // b1: lightVP for shadow pass
 
     // 深度バッファ
@@ -244,6 +335,27 @@ private:
 
     // デフォルトマテリアル
     Material m_defaultMaterial;
+
+    // カスタムシェーダー（PBR互換のルートシグネチャ）
+    struct ShaderPipeline
+    {
+        ShaderProgramDesc desc;
+        ComPtr<ID3D12PipelineState> pso;
+        ComPtr<ID3D12PipelineState> psoSkinned;
+    };
+    std::unordered_map<int, ShaderPipeline> m_customShaders;
+    int m_nextShaderHandle = 1;
+
+    // デフォルトテクスチャ
+    int m_defaultWhiteTex = -1;
+    int m_defaultNormalTex = -1;
+    int m_defaultBlackTex = -1;
+
+    ID3D12PipelineState* m_currentPso = nullptr;
+
+    // 冗長バインド防止用 — 前回バインドしたVB/IBリソース
+    ID3D12Resource* m_lastBoundVB = nullptr;
+    ID3D12Resource* m_lastBoundIB = nullptr;
 };
 
 } // namespace GX

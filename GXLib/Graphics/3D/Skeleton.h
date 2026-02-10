@@ -36,7 +36,8 @@ public:
     void ComputeGlobalTransforms(const XMFLOAT4X4* localTransforms,
                                   XMFLOAT4X4* globalTransforms) const;
 
-    /// ボーン行列を計算（globalTransform * inverseBindMatrix）
+    /// ボーン行列を計算（`globalTransform` × `inverseBindMatrix`）
+    /// 初学者向け: 逆バインド行列はバインドポーズ（初期姿勢）を打ち消すための行列です。
     void ComputeBoneMatrices(const XMFLOAT4X4* globalTransforms,
                               XMFLOAT4X4* boneMatrices) const;
 

@@ -11,6 +11,7 @@
 /// (D3D12はSetDescriptorHeaps時に1つのCBV_SRV_UAVヒープしかバインドできない)
 #include "pch.h"
 #include "Graphics/PostEffect/DepthOfField.h"
+#include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Core/Logger.h"
@@ -101,7 +102,21 @@ bool DepthOfField::Initialize(ID3D12Device* device, uint32_t width, uint32_t hei
         if (!m_compositeRS) return false;
     }
 
-    // === PSO ===
+    if (!CreatePipelines(device))
+        return false;
+
+    // ホットリロード用PSO Rebuilder登録
+    ShaderLibrary::Instance().RegisterPSORebuilder(
+        L"Shaders/DepthOfField.hlsl",
+        [this](ID3D12Device* dev) { return CreatePipelines(dev); }
+    );
+
+    GX_LOG_INFO("DepthOfField initialized (%dx%d, blur=%dx%d)", width, height, halfW, halfH);
+    return true;
+}
+
+bool DepthOfField::CreatePipelines(ID3D12Device* device)
+{
     auto vs = m_shader.CompileFromFile(L"Shaders/DepthOfField.hlsl", L"FullscreenVS", L"vs_6_0");
     if (!vs.valid) return false;
     auto vsBytecode = vs.GetBytecode();
@@ -166,7 +181,6 @@ bool DepthOfField::Initialize(ID3D12Device* device, uint32_t width, uint32_t hei
         if (!m_compositePSO) return false;
     }
 
-    GX_LOG_INFO("DepthOfField initialized (%dx%d, blur=%dx%d)", width, height, halfW, halfH);
     return true;
 }
 

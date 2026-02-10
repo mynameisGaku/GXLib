@@ -34,7 +34,7 @@ enum class PseudoClass
 /// @brief スタイルルールのセレクタ
 struct StyleSelector
 {
-    std::string type;       ///< ウィジェットタイプ名 ("Panel", "Button", etc.)
+    std::string type;       ///< ウィジェットタイプ名 ("Panel", "Button" など)
     std::string className;  ///< クラス名 (先頭の . は含まない)
     std::string id;         ///< ID名 (先頭の # は含まない)
     PseudoClass pseudo = PseudoClass::None;
@@ -96,8 +96,12 @@ public:
     /// ルール数を取得
     size_t GetRuleCount() const { return m_rules.size(); }
 
+    // --- Apply（GUILoaderのインラインスタイル用） ---
+    static std::string NormalizePropertyName(const std::string& name);
+    static void ApplyProperty(Style& style, const std::string& name, const std::string& value);
+
 private:
-    // --- Tokenizer ---
+    // --- トークナイザ ---
     enum class TokenType
     {
         Ident,      // 識別子
@@ -109,7 +113,7 @@ private:
         Semicolon,  // ;
         Number,     // 数値 (負数含む)
         Percent,    // %
-        String,     // "..." or '...'
+        String,     // "..." または '...'
         Eof
     };
 
@@ -121,14 +125,12 @@ private:
 
     static std::vector<Token> Tokenize(const std::string& source);
 
-    // --- Parser ---
+    // --- パーサー ---
     void ParseTokens(const std::vector<Token>& tokens);
     static StyleSelector ParseSelector(const std::vector<Token>& tokens, size_t& pos);
     static std::vector<StyleProperty> ParsePropertyBlock(const std::vector<Token>& tokens, size_t& pos);
 
-    // --- Apply ---
-    static std::string NormalizePropertyName(const std::string& name);
-    static void ApplyProperty(Style& style, const std::string& name, const std::string& value);
+    // --- Apply（内部用） ---
     static StyleLength ParseLength(const std::string& value);
     static StyleColor ParseColor(const std::string& value);
     static StyleEdges ParseEdges(const std::string& value);

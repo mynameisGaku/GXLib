@@ -47,6 +47,12 @@ public:
     /// SRVのGPUハンドルを取得
     D3D12_GPU_DESCRIPTOR_HANDLE GetSRVGPUHandle() const { return m_srvGPUHandle; }
 
+    /// 既存テクスチャのピクセルデータを更新（リソース・SRV維持）
+    bool UpdatePixels(ID3D12Device* device,
+                      ID3D12CommandQueue* cmdQueue,
+                      const void* pixels,
+                      uint32_t width, uint32_t height);
+
     uint32_t GetWidth() const { return m_width; }
     uint32_t GetHeight() const { return m_height; }
     DXGI_FORMAT GetFormat() const { return m_format; }

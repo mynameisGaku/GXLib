@@ -22,6 +22,7 @@
 #include <dxgi1_6.h>         // DXGI 1.6（アダプタ列挙、スワップチェーン等）
 #include <dxcapi.h>          // DXC シェーダーコンパイラAPI
 #include <d3d12sdklayers.h>  // デバッグレイヤー
+#include <crtdbg.h>          // CRTメモリリーク検出
 
 // ============================================================================
 // DirectXMath — 高速な数学ライブラリ
@@ -61,3 +62,9 @@ using Microsoft::WRL::ComPtr;
 #include <fstream>
 #include <unordered_map>
 #include <algorithm>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <atomic>
+#include <cmath>
+#include <random>

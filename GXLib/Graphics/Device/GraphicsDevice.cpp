@@ -3,17 +3,18 @@
 #include "pch.h"
 #include "Graphics/Device/GraphicsDevice.h"
 #include "Core/Logger.h"
+#include <dxgidebug.h>
 
 namespace GX
 {
 
-bool GraphicsDevice::Initialize(bool enableDebugLayer)
+bool GraphicsDevice::Initialize(bool enableDebugLayer, bool enableGPUValidation)
 {
     GX_LOG_INFO("Initializing Graphics Device...");
 
     if (enableDebugLayer)
     {
-        EnableDebugLayer();
+        EnableDebugLayer(enableGPUValidation);
     }
 
     UINT factoryFlags = enableDebugLayer ? DXGI_CREATE_FACTORY_DEBUG : 0;
@@ -44,30 +45,77 @@ bool GraphicsDevice::Initialize(bool enableDebugLayer)
 
     if (enableDebugLayer)
     {
-        ComPtr<ID3D12InfoQueue> infoQueue;
-        if (SUCCEEDED(m_device.As(&infoQueue)))
-        {
-            infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
-            infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
-            GX_LOG_INFO("D3D12 Debug info queue configured");
-        }
+        ConfigureInfoQueue();
     }
 
     GX_LOG_INFO("Graphics Device initialized successfully");
     return true;
 }
 
-void GraphicsDevice::EnableDebugLayer()
+void GraphicsDevice::EnableDebugLayer(bool gpuValidation)
 {
     ComPtr<ID3D12Debug> debugController;
     if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
     {
         debugController->EnableDebugLayer();
         GX_LOG_INFO("D3D12 Debug Layer enabled");
+
+        // GPU-based validation (非常に詳細だが低速)
+        if (gpuValidation)
+        {
+            ComPtr<ID3D12Debug1> debug1;
+            if (SUCCEEDED(debugController.As(&debug1)))
+            {
+                debug1->SetEnableGPUBasedValidation(TRUE);
+                GX_LOG_INFO("D3D12 GPU-Based Validation enabled (performance will be reduced)");
+            }
+        }
     }
     else
     {
         GX_LOG_WARN("Failed to enable D3D12 Debug Layer");
+    }
+}
+
+void GraphicsDevice::ConfigureInfoQueue()
+{
+    ComPtr<ID3D12InfoQueue> infoQueue;
+    if (SUCCEEDED(m_device.As(&infoQueue)))
+    {
+        // 重大エラーでブレーク
+        infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
+        infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
+
+        // 既知の無害メッセージを抑制
+        D3D12_MESSAGE_ID denyIds[] = {
+            D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
+            D3D12_MESSAGE_ID_CLEARDEPTHSTENCILVIEW_MISMATCHINGCLEARVALUE,
+        };
+
+        D3D12_MESSAGE_SEVERITY denySeverities[] = {
+            D3D12_MESSAGE_SEVERITY_INFO,
+        };
+
+        D3D12_INFO_QUEUE_FILTER filter = {};
+        filter.DenyList.NumIDs       = _countof(denyIds);
+        filter.DenyList.pIDList      = denyIds;
+        filter.DenyList.NumSeverities = _countof(denySeverities);
+        filter.DenyList.pSeverityList = denySeverities;
+        infoQueue->PushStorageFilter(&filter);
+
+        GX_LOG_INFO("D3D12 InfoQueue configured (break on error/corruption, suppress info)");
+    }
+}
+
+void GraphicsDevice::ReportLiveObjects()
+{
+    ComPtr<IDXGIDebug1> dxgiDebug;
+    if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiDebug))))
+    {
+        GX_LOG_INFO("=== DXGI Live Objects Report ===");
+        dxgiDebug->ReportLiveObjects(DXGI_DEBUG_ALL,
+            static_cast<DXGI_DEBUG_RLO_FLAGS>(DXGI_DEBUG_RLO_SUMMARY | DXGI_DEBUG_RLO_IGNORE_INTERNAL));
+        GX_LOG_INFO("=== End DXGI Report ===");
     }
 }
 

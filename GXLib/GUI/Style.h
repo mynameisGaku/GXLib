@@ -48,7 +48,8 @@ struct StyleLength
 // 色
 // ============================================================================
 
-/// @brief RGBA色
+/// @brief RGBA色（0.0〜1.0のfloat）
+/// 初学者向け: 0が暗く、1が最大の明るさ（アルファは透明度）です。
 struct StyleColor
 {
     float r = 0.0f, g = 0.0f, b = 0.0f, a = 1.0f;
@@ -56,7 +57,7 @@ struct StyleColor
     StyleColor() = default;
     StyleColor(float r, float g, float b, float a = 1.0f) : r(r), g(g), b(b), a(a) {}
 
-    /// "#RRGGBB" or "#RRGGBBAA" 形式からパース
+    /// "#RRGGBB" または "#RRGGBBAA" 形式を解析する
     static StyleColor FromHex(const std::string& hex)
     {
         StyleColor c;
@@ -94,10 +95,10 @@ struct StyleColor
 };
 
 // ============================================================================
-// エッジ（margin/padding）
+// エッジ（マージン/パディング）
 // ============================================================================
 
-/// @brief 四辺の値（margin, padding）
+/// @brief 四辺の値（マージン/パディング）
 struct StyleEdges
 {
     float top = 0.0f, right = 0.0f, bottom = 0.0f, left = 0.0f;
@@ -117,9 +118,11 @@ struct StyleEdges
 
 enum class TextAlign { Left, Center, Right };
 enum class VAlign { Top, Center, Bottom };
+enum class UIEffectType { None, Ripple };
 
 // ============================================================================
-// Flexbox
+// フレックスボックス
+// 初学者向け: 子要素を横/縦に並べるためのレイアウト設定です。
 // ============================================================================
 
 enum class FlexDirection { Row, Column };
@@ -181,8 +184,121 @@ struct Style
     float shadowBlur = 0.0f;
     StyleColor shadowColor;
 
+    // --- Opacity / Transform ---
+    float opacity = 1.0f;
+    float translateX = 0.0f;
+    float translateY = 0.0f;
+    float scaleX = 1.0f;
+    float scaleY = 1.0f;
+    float rotate = 0.0f; // degrees
+    float pivotX = 0.5f;
+    float pivotY = 0.5f;
+
+    // --- Effects ---
+    UIEffectType effectType = UIEffectType::None;
+    float effectStrength = 0.0f;
+    float effectWidth = 0.0f;
+    float effectDuration = 0.0f;
+
+    // --- Image UV ---
+    float imageUVScaleX = 1.0f;
+    float imageUVScaleY = 1.0f;
+    float imageUVSpeedX = 0.0f;
+    float imageUVSpeedY = 0.0f;
+
     // --- アニメーション ---
     float transitionDuration = 0.0f;
 };
+
+// ============================================================================
+// スタイル補助関数（アニメーション用）
+// ============================================================================
+
+inline bool NearlyEqual(float a, float b, float eps = 1e-4f)
+{
+    return std::fabs(a - b) <= eps;
+}
+
+inline StyleColor LerpColor(const StyleColor& a, const StyleColor& b, float t)
+{
+    return {
+        a.r + (b.r - a.r) * t,
+        a.g + (b.g - a.g) * t,
+        a.b + (b.b - a.b) * t,
+        a.a + (b.a - a.a) * t
+    };
+}
+
+inline bool VisualEquals(const Style& a, const Style& b)
+{
+    return NearlyEqual(a.backgroundColor.r, b.backgroundColor.r) &&
+           NearlyEqual(a.backgroundColor.g, b.backgroundColor.g) &&
+           NearlyEqual(a.backgroundColor.b, b.backgroundColor.b) &&
+           NearlyEqual(a.backgroundColor.a, b.backgroundColor.a) &&
+           NearlyEqual(a.borderColor.r, b.borderColor.r) &&
+           NearlyEqual(a.borderColor.g, b.borderColor.g) &&
+           NearlyEqual(a.borderColor.b, b.borderColor.b) &&
+           NearlyEqual(a.borderColor.a, b.borderColor.a) &&
+           NearlyEqual(a.color.r, b.color.r) &&
+           NearlyEqual(a.color.g, b.color.g) &&
+           NearlyEqual(a.color.b, b.color.b) &&
+           NearlyEqual(a.color.a, b.color.a) &&
+           NearlyEqual(a.shadowColor.r, b.shadowColor.r) &&
+           NearlyEqual(a.shadowColor.g, b.shadowColor.g) &&
+           NearlyEqual(a.shadowColor.b, b.shadowColor.b) &&
+           NearlyEqual(a.shadowColor.a, b.shadowColor.a) &&
+           NearlyEqual(a.cornerRadius, b.cornerRadius) &&
+           NearlyEqual(a.borderWidth, b.borderWidth) &&
+           NearlyEqual(a.shadowOffsetX, b.shadowOffsetX) &&
+           NearlyEqual(a.shadowOffsetY, b.shadowOffsetY) &&
+           NearlyEqual(a.shadowBlur, b.shadowBlur) &&
+           NearlyEqual(a.opacity, b.opacity) &&
+           NearlyEqual(a.translateX, b.translateX) &&
+           NearlyEqual(a.translateY, b.translateY) &&
+           NearlyEqual(a.scaleX, b.scaleX) &&
+           NearlyEqual(a.scaleY, b.scaleY) &&
+           NearlyEqual(a.rotate, b.rotate) &&
+           NearlyEqual(a.pivotX, b.pivotX) &&
+           NearlyEqual(a.pivotY, b.pivotY) &&
+           a.effectType == b.effectType &&
+           NearlyEqual(a.effectStrength, b.effectStrength) &&
+           NearlyEqual(a.effectWidth, b.effectWidth) &&
+           NearlyEqual(a.effectDuration, b.effectDuration) &&
+           NearlyEqual(a.imageUVScaleX, b.imageUVScaleX) &&
+           NearlyEqual(a.imageUVScaleY, b.imageUVScaleY) &&
+           NearlyEqual(a.imageUVSpeedX, b.imageUVSpeedX) &&
+           NearlyEqual(a.imageUVSpeedY, b.imageUVSpeedY);
+}
+
+inline Style LerpVisual(const Style& from, const Style& to, float t)
+{
+    Style out = to; // レイアウト系は target を採用
+    out.backgroundColor = LerpColor(from.backgroundColor, to.backgroundColor, t);
+    out.borderColor = LerpColor(from.borderColor, to.borderColor, t);
+    out.color = LerpColor(from.color, to.color, t);
+    out.shadowColor = LerpColor(from.shadowColor, to.shadowColor, t);
+    out.cornerRadius = from.cornerRadius + (to.cornerRadius - from.cornerRadius) * t;
+    out.borderWidth = from.borderWidth + (to.borderWidth - from.borderWidth) * t;
+    out.shadowOffsetX = from.shadowOffsetX + (to.shadowOffsetX - from.shadowOffsetX) * t;
+    out.shadowOffsetY = from.shadowOffsetY + (to.shadowOffsetY - from.shadowOffsetY) * t;
+    out.shadowBlur = from.shadowBlur + (to.shadowBlur - from.shadowBlur) * t;
+    out.opacity = from.opacity + (to.opacity - from.opacity) * t;
+    out.translateX = from.translateX + (to.translateX - from.translateX) * t;
+    out.translateY = from.translateY + (to.translateY - from.translateY) * t;
+    out.scaleX = from.scaleX + (to.scaleX - from.scaleX) * t;
+    out.scaleY = from.scaleY + (to.scaleY - from.scaleY) * t;
+    out.rotate = from.rotate + (to.rotate - from.rotate) * t;
+    out.pivotX = from.pivotX + (to.pivotX - from.pivotX) * t;
+    out.pivotY = from.pivotY + (to.pivotY - from.pivotY) * t;
+    out.effectType = to.effectType;
+    out.effectStrength = from.effectStrength + (to.effectStrength - from.effectStrength) * t;
+    out.effectWidth = from.effectWidth + (to.effectWidth - from.effectWidth) * t;
+    out.effectDuration = from.effectDuration + (to.effectDuration - from.effectDuration) * t;
+    out.imageUVScaleX = from.imageUVScaleX + (to.imageUVScaleX - from.imageUVScaleX) * t;
+    out.imageUVScaleY = from.imageUVScaleY + (to.imageUVScaleY - from.imageUVScaleY) * t;
+    out.imageUVSpeedX = from.imageUVSpeedX + (to.imageUVSpeedX - from.imageUVSpeedX) * t;
+    out.imageUVSpeedY = from.imageUVSpeedY + (to.imageUVSpeedY - from.imageUVSpeedY) * t;
+    return out;
+}
 
 }} // namespace GX::GUI

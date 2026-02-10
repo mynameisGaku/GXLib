@@ -7,7 +7,7 @@
 namespace GX
 {
 
-/// 基本3D頂点（位置+法線+UV）
+/// 基本3D頂点（位置+法線+`UV`）
 struct Vertex3D
 {
     XMFLOAT3 position;
@@ -15,13 +15,13 @@ struct Vertex3D
     XMFLOAT2 texcoord;
 };
 
-/// PBR用3D頂点（位置+法線+UV+タンジェント）
+/// PBR用3D頂点（位置+法線+`UV`+タンジェント）
 struct Vertex3D_PBR
 {
     XMFLOAT3 position;
     XMFLOAT3 normal;
     XMFLOAT2 texcoord;
-    XMFLOAT4 tangent;  // w = bitangent符号
+    XMFLOAT4 tangent;  // w = バイタンジェント符号
 };
 
 /// スキニング対応3D頂点
@@ -35,7 +35,7 @@ struct Vertex3D_Skinned
     XMFLOAT4 weights;  // ボーンウェイト
 };
 
-/// Vertex3D用InputLayout
+/// Vertex3D用入力レイアウト
 inline const D3D12_INPUT_ELEMENT_DESC k_Vertex3DLayout[] =
 {
     { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 0,  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -43,7 +43,7 @@ inline const D3D12_INPUT_ELEMENT_DESC k_Vertex3DLayout[] =
     { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 };
 
-/// Vertex3D_PBR用InputLayout
+/// Vertex3D_PBR用入力レイアウト
 inline const D3D12_INPUT_ELEMENT_DESC k_Vertex3DPBRLayout[] =
 {
     { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 0,  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -52,7 +52,7 @@ inline const D3D12_INPUT_ELEMENT_DESC k_Vertex3DPBRLayout[] =
     { "TANGENT",  0, DXGI_FORMAT_R32G32B32A32_FLOAT,  0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 };
 
-/// Vertex3D_Skinned用InputLayout
+/// Vertex3D_Skinned用入力レイアウト
 inline const D3D12_INPUT_ELEMENT_DESC k_Vertex3DSkinnedLayout[] =
 {
     { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 0,  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },

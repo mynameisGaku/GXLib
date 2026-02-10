@@ -16,37 +16,37 @@ MeshData MeshGenerator::CreateBox(float width, float height, float depth)
     float hd = depth  * 0.5f;
 
     // 各面に頂点4つ × 6面 = 24頂点
-    // Front face (+Z)
+    // 前面（+Z）
     mesh.vertices.push_back({ { -hw, -hh,  hd }, {  0,  0,  1 }, { 0, 1 }, { 1, 0, 0, 1 } });
     mesh.vertices.push_back({ { -hw,  hh,  hd }, {  0,  0,  1 }, { 0, 0 }, { 1, 0, 0, 1 } });
     mesh.vertices.push_back({ {  hw,  hh,  hd }, {  0,  0,  1 }, { 1, 0 }, { 1, 0, 0, 1 } });
     mesh.vertices.push_back({ {  hw, -hh,  hd }, {  0,  0,  1 }, { 1, 1 }, { 1, 0, 0, 1 } });
 
-    // Back face (-Z)
+    // 背面（-Z）
     mesh.vertices.push_back({ {  hw, -hh, -hd }, {  0,  0, -1 }, { 0, 1 }, { -1, 0, 0, 1 } });
     mesh.vertices.push_back({ {  hw,  hh, -hd }, {  0,  0, -1 }, { 0, 0 }, { -1, 0, 0, 1 } });
     mesh.vertices.push_back({ { -hw,  hh, -hd }, {  0,  0, -1 }, { 1, 0 }, { -1, 0, 0, 1 } });
     mesh.vertices.push_back({ { -hw, -hh, -hd }, {  0,  0, -1 }, { 1, 1 }, { -1, 0, 0, 1 } });
 
-    // Top face (+Y)
+    // 上面（+Y）
     mesh.vertices.push_back({ { -hw,  hh,  hd }, {  0,  1,  0 }, { 0, 1 }, { 1, 0, 0, 1 } });
     mesh.vertices.push_back({ { -hw,  hh, -hd }, {  0,  1,  0 }, { 0, 0 }, { 1, 0, 0, 1 } });
     mesh.vertices.push_back({ {  hw,  hh, -hd }, {  0,  1,  0 }, { 1, 0 }, { 1, 0, 0, 1 } });
     mesh.vertices.push_back({ {  hw,  hh,  hd }, {  0,  1,  0 }, { 1, 1 }, { 1, 0, 0, 1 } });
 
-    // Bottom face (-Y)
+    // 下面（-Y）
     mesh.vertices.push_back({ { -hw, -hh, -hd }, {  0, -1,  0 }, { 0, 1 }, { 1, 0, 0, 1 } });
     mesh.vertices.push_back({ { -hw, -hh,  hd }, {  0, -1,  0 }, { 0, 0 }, { 1, 0, 0, 1 } });
     mesh.vertices.push_back({ {  hw, -hh,  hd }, {  0, -1,  0 }, { 1, 0 }, { 1, 0, 0, 1 } });
     mesh.vertices.push_back({ {  hw, -hh, -hd }, {  0, -1,  0 }, { 1, 1 }, { 1, 0, 0, 1 } });
 
-    // Right face (+X)
+    // 右面（+X）
     mesh.vertices.push_back({ {  hw, -hh,  hd }, {  1,  0,  0 }, { 0, 1 }, { 0, 0, -1, 1 } });
     mesh.vertices.push_back({ {  hw,  hh,  hd }, {  1,  0,  0 }, { 0, 0 }, { 0, 0, -1, 1 } });
     mesh.vertices.push_back({ {  hw,  hh, -hd }, {  1,  0,  0 }, { 1, 0 }, { 0, 0, -1, 1 } });
     mesh.vertices.push_back({ {  hw, -hh, -hd }, {  1,  0,  0 }, { 1, 1 }, { 0, 0, -1, 1 } });
 
-    // Left face (-X)
+    // 左面（-X）
     mesh.vertices.push_back({ { -hw, -hh, -hd }, { -1,  0,  0 }, { 0, 1 }, { 0, 0, 1, 1 } });
     mesh.vertices.push_back({ { -hw,  hh, -hd }, { -1,  0,  0 }, { 0, 0 }, { 0, 0, 1, 1 } });
     mesh.vertices.push_back({ { -hw,  hh,  hd }, { -1,  0,  0 }, { 1, 0 }, { 0, 0, 1, 1 } });

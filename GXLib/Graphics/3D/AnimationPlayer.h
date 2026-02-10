@@ -1,6 +1,7 @@
 #pragma once
 /// @file AnimationPlayer.h
-/// @brief アニメーション再生制御
+/// @brief 単一クリップ再生用のアニメーションプレイヤー（姿勢キャッシュ付き）
+/// 初学者向け: 1つのアニメーションだけを再生する、シンプルな再生器です。
 
 #include "pch.h"
 #include "Graphics/3D/AnimationClip.h"
@@ -9,45 +10,35 @@
 namespace GX
 {
 
-/// @brief アニメーション再生プレイヤー
+/// @brief シンプルなアニメーションプレイヤー（1クリップ）
 class AnimationPlayer
 {
 public:
     AnimationPlayer() = default;
     ~AnimationPlayer() = default;
 
-    /// スケルトンを設定
-    void SetSkeleton(Skeleton* skeleton) { m_skeleton = skeleton; }
+    void SetSkeleton(Skeleton* skeleton);
 
-    /// アニメーションクリップを再生
     void Play(const AnimationClip* clip, bool loop = true);
-
-    /// 停止
     void Stop() { m_playing = false; }
-
-    /// 一時停止
     void Pause() { m_paused = true; }
-
-    /// 再開
     void Resume() { m_paused = false; }
 
-    /// 再生速度
     void SetSpeed(float speed) { m_speed = speed; }
     float GetSpeed() const { return m_speed; }
 
-    /// 更新（deltaTime秒進める）
     void Update(float deltaTime);
 
-    /// ボーン行列を取得
     const BoneConstants& GetBoneConstants() const { return m_boneConstants; }
+    const std::vector<XMFLOAT4X4>& GetGlobalTransforms() const { return m_globalTransforms; }
+    const std::vector<TransformTRS>& GetLocalPose() const { return m_localPose; }
 
-    /// 再生中か
     bool IsPlaying() const { return m_playing; }
-
-    /// 現在のアニメーション時刻
     float GetCurrentTime() const { return m_currentTime; }
 
 private:
+    void EnsurePoseStorage();
+
     Skeleton*            m_skeleton    = nullptr;
     const AnimationClip* m_currentClip = nullptr;
     bool  m_playing = false;
@@ -56,7 +47,11 @@ private:
     float m_speed   = 1.0f;
     float m_currentTime = 0.0f;
 
-    BoneConstants m_boneConstants;
+    std::vector<TransformTRS> m_bindPose;
+    std::vector<TransformTRS> m_localPose;
+    std::vector<XMFLOAT4X4>   m_localTransforms;
+    std::vector<XMFLOAT4X4>   m_globalTransforms;
+    BoneConstants             m_boneConstants;
 };
 
 } // namespace GX

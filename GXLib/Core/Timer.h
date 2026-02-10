@@ -25,21 +25,25 @@ namespace GX
 class Timer
 {
 public:
+    /// @brief コンストラクタ（パフォーマンスカウンタの周波数を取得する）
     Timer();
 
-    /// タイマーをリセット（ゲーム開始時に呼ぶ）
+    /// @brief タイマーをリセットする（ゲーム開始時に呼ぶ）
     void Reset();
 
-    /// フレームごとに呼び出してデルタタイムを更新
+    /// @brief フレームごとに呼び出してデルタタイムを更新する
     void Tick();
 
-    /// 前フレームからの経過時間（秒）を取得
+    /// @brief 前フレームからの経過時間を取得する
+    /// @return デルタタイム（秒）
     float GetDeltaTime() const { return m_deltaTime; }
 
-    /// ゲーム開始からの総経過時間（秒）を取得
+    /// @brief ゲーム開始からの総経過時間を取得する
+    /// @return 総経過時間（秒）
     double GetTotalTime() const { return m_totalTime; }
 
-    /// 現在のFPS（フレーム毎秒）を取得
+    /// @brief 現在のフレームレートを取得する
+    /// @return FPS（フレーム毎秒）
     float GetFPS() const { return m_fps; }
 
 private:

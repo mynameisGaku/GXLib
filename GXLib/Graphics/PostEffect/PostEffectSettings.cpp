@@ -43,7 +43,7 @@ bool PostEffectSettings::Load(const std::string& filePath, PostEffectPipeline& p
 
     auto& pe = root["postEffects"];
 
-    // Tonemapping
+    // トーンマッピング (HDR→LDRの変換)
     if (pe.contains("tonemapping"))
     {
         auto& tm = pe["tonemapping"];
@@ -57,7 +57,7 @@ bool PostEffectSettings::Load(const std::string& filePath, PostEffectPipeline& p
         if (tm.contains("exposure")) pipeline.SetExposure(tm["exposure"].get<float>());
     }
 
-    // Bloom
+    // ブルーム (明部のにじみ)
     if (pe.contains("bloom"))
     {
         auto& b = pe["bloom"];
@@ -66,14 +66,14 @@ bool PostEffectSettings::Load(const std::string& filePath, PostEffectPipeline& p
         if (b.contains("intensity")) pipeline.GetBloom().SetIntensity(b["intensity"].get<float>());
     }
 
-    // FXAA
+    // FXAA (簡易アンチエイリアス)
     if (pe.contains("fxaa"))
     {
         auto& f = pe["fxaa"];
         if (f.contains("enabled")) pipeline.SetFXAAEnabled(f["enabled"].get<bool>());
     }
 
-    // SSAO
+    // SSAO (スクリーン空間AO)
     if (pe.contains("ssao"))
     {
         auto& s = pe["ssao"];
@@ -83,7 +83,7 @@ bool PostEffectSettings::Load(const std::string& filePath, PostEffectPipeline& p
         if (s.contains("power"))   pipeline.GetSSAO().SetPower(s["power"].get<float>());
     }
 
-    // DoF
+    // DoF (被写界深度)
     if (pe.contains("dof"))
     {
         auto& d = pe["dof"];
@@ -93,7 +93,7 @@ bool PostEffectSettings::Load(const std::string& filePath, PostEffectPipeline& p
         if (d.contains("bokehRadius"))   pipeline.GetDoF().SetBokehRadius(d["bokehRadius"].get<float>());
     }
 
-    // Motion Blur
+    // モーションブラー (速度によるブラー)
     if (pe.contains("motionBlur"))
     {
         auto& m = pe["motionBlur"];
@@ -102,7 +102,7 @@ bool PostEffectSettings::Load(const std::string& filePath, PostEffectPipeline& p
         if (m.contains("sampleCount")) pipeline.GetMotionBlur().SetSampleCount(m["sampleCount"].get<int>());
     }
 
-    // SSR
+    // SSR (スクリーン空間反射)
     if (pe.contains("ssr"))
     {
         auto& s = pe["ssr"];
@@ -111,7 +111,7 @@ bool PostEffectSettings::Load(const std::string& filePath, PostEffectPipeline& p
         if (s.contains("intensity")) pipeline.GetSSR().SetIntensity(s["intensity"].get<float>());
     }
 
-    // Outline
+    // アウトライン (輪郭線)
     if (pe.contains("outline"))
     {
         auto& o = pe["outline"];
@@ -121,7 +121,7 @@ bool PostEffectSettings::Load(const std::string& filePath, PostEffectPipeline& p
         if (o.contains("intensity"))      pipeline.GetOutline().SetIntensity(o["intensity"].get<float>());
     }
 
-    // TAA
+    // TAA (時間的AA)
     if (pe.contains("taa"))
     {
         auto& t = pe["taa"];
@@ -129,7 +129,7 @@ bool PostEffectSettings::Load(const std::string& filePath, PostEffectPipeline& p
         if (t.contains("blendFactor")) pipeline.GetTAA().SetBlendFactor(t["blendFactor"].get<float>());
     }
 
-    // AutoExposure
+    // 自動露出 (明るさ適応)
     if (pe.contains("autoExposure"))
     {
         auto& ae = pe["autoExposure"];
@@ -140,7 +140,7 @@ bool PostEffectSettings::Load(const std::string& filePath, PostEffectPipeline& p
         if (ae.contains("keyValue"))pipeline.GetAutoExposure().SetKeyValue(ae["keyValue"].get<float>());
     }
 
-    // VolumetricLight
+    // ボリューメトリックライト (ゴッドレイ)
     if (pe.contains("volumetricLight"))
     {
         auto& vl = pe["volumetricLight"];
@@ -150,7 +150,7 @@ bool PostEffectSettings::Load(const std::string& filePath, PostEffectPipeline& p
         if (vl.contains("decay"))     pipeline.GetVolumetricLight().SetDecay(vl["decay"].get<float>());
     }
 
-    // Vignette
+    // ビネット (周辺減光)
     if (pe.contains("vignette"))
     {
         auto& v = pe["vignette"];
@@ -159,7 +159,7 @@ bool PostEffectSettings::Load(const std::string& filePath, PostEffectPipeline& p
         if (v.contains("chromaticAberration"))  pipeline.SetChromaticAberration(v["chromaticAberration"].get<float>());
     }
 
-    // Color Grading
+    // カラーグレーディング (色調補正)
     if (pe.contains("colorGrading"))
     {
         auto& cg = pe["colorGrading"];
@@ -178,7 +178,7 @@ bool PostEffectSettings::Save(const std::string& filePath, const PostEffectPipel
     json root;
     json pe;
 
-    // Tonemapping
+    // トーンマッピング (HDR→LDRの変換)
     {
         json tm;
         const char* modeNames[] = { "Reinhard", "ACES", "Uncharted2" };
@@ -187,7 +187,7 @@ bool PostEffectSettings::Save(const std::string& filePath, const PostEffectPipel
         pe["tonemapping"] = tm;
     }
 
-    // Bloom
+    // ブルーム (明部のにじみ)
     {
         json b;
         b["enabled"]   = pipeline.GetBloom().IsEnabled();
@@ -196,14 +196,14 @@ bool PostEffectSettings::Save(const std::string& filePath, const PostEffectPipel
         pe["bloom"] = b;
     }
 
-    // FXAA
+    // FXAA (簡易アンチエイリアス)
     {
         json f;
         f["enabled"] = pipeline.IsFXAAEnabled();
         pe["fxaa"] = f;
     }
 
-    // SSAO
+    // SSAO (スクリーン空間AO)
     {
         json s;
         s["enabled"] = pipeline.GetSSAO().IsEnabled();
@@ -213,7 +213,7 @@ bool PostEffectSettings::Save(const std::string& filePath, const PostEffectPipel
         pe["ssao"] = s;
     }
 
-    // DoF
+    // DoF (被写界深度)
     {
         json d;
         d["enabled"]       = pipeline.GetDoF().IsEnabled();
@@ -223,7 +223,7 @@ bool PostEffectSettings::Save(const std::string& filePath, const PostEffectPipel
         pe["dof"] = d;
     }
 
-    // Motion Blur
+    // モーションブラー (速度によるブラー)
     {
         json m;
         m["enabled"]     = pipeline.GetMotionBlur().IsEnabled();
@@ -232,7 +232,7 @@ bool PostEffectSettings::Save(const std::string& filePath, const PostEffectPipel
         pe["motionBlur"] = m;
     }
 
-    // SSR
+    // SSR (スクリーン空間反射)
     {
         json s;
         s["enabled"]   = pipeline.GetSSR().IsEnabled();
@@ -241,7 +241,7 @@ bool PostEffectSettings::Save(const std::string& filePath, const PostEffectPipel
         pe["ssr"] = s;
     }
 
-    // Outline
+    // アウトライン (輪郭線)
     {
         json o;
         o["enabled"]        = pipeline.GetOutline().IsEnabled();
@@ -251,7 +251,7 @@ bool PostEffectSettings::Save(const std::string& filePath, const PostEffectPipel
         pe["outline"] = o;
     }
 
-    // TAA
+    // TAA (時間的AA)
     {
         json t;
         t["enabled"]     = pipeline.GetTAA().IsEnabled();
@@ -259,7 +259,7 @@ bool PostEffectSettings::Save(const std::string& filePath, const PostEffectPipel
         pe["taa"] = t;
     }
 
-    // AutoExposure
+    // 自動露出 (明るさ適応)
     {
         json ae;
         ae["enabled"]  = pipeline.GetAutoExposure().IsEnabled();
@@ -270,7 +270,7 @@ bool PostEffectSettings::Save(const std::string& filePath, const PostEffectPipel
         pe["autoExposure"] = ae;
     }
 
-    // VolumetricLight
+    // ボリューメトリックライト (ゴッドレイ)
     {
         json vl;
         vl["enabled"]   = pipeline.GetVolumetricLight().IsEnabled();
@@ -280,7 +280,7 @@ bool PostEffectSettings::Save(const std::string& filePath, const PostEffectPipel
         pe["volumetricLight"] = vl;
     }
 
-    // Vignette
+    // ビネット (周辺減光)
     {
         json v;
         v["enabled"]              = pipeline.IsVignetteEnabled();
@@ -289,7 +289,7 @@ bool PostEffectSettings::Save(const std::string& filePath, const PostEffectPipel
         pe["vignette"] = v;
     }
 
-    // Color Grading
+    // カラーグレーディング (色調補正)
     {
         json cg;
         cg["enabled"]     = pipeline.IsColorGradingEnabled();

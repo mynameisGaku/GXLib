@@ -19,6 +19,10 @@ cbuffer UIRectCB : register(b0)
     float    cb_shadowAlpha;
     float    cb_opacity;
     float3   cb_pad;
+    float4   cb_gradientColor;
+    float2   cb_gradientDir;
+    float    cb_gradientEnabled;
+    float    cb_pad2;
 };
 
 struct VSInput
@@ -106,9 +110,26 @@ float4 PSMain(VSOutput input) : SV_Target
     // 影レイヤー
     color = float4(0, 0, 0, shadowMask);
 
+    // グラデーション対応の塗り色
+    float4 fillColor = cb_fillColor;
+    if (cb_gradientEnabled > 0.5)
+    {
+        float2 dir = cb_gradientDir;
+        float len = length(dir);
+        if (len < 0.0001f)
+            dir = float2(0.0, 1.0);
+        else
+            dir /= len;
+
+        float2 uv = input.localUV / cb_rectSize;
+        uv = saturate(uv);
+        float t = saturate(dot(uv - 0.5, dir) + 0.5);
+        fillColor = lerp(cb_fillColor, cb_gradientColor, t);
+    }
+
     // 塗りレイヤー（影の上に重ねる）
-    float fillAlpha = (fillMask - borderMask) * cb_fillColor.a;
-    color.rgb = color.rgb * (1.0 - fillAlpha) + cb_fillColor.rgb * fillAlpha;
+    float fillAlpha = (fillMask - borderMask) * fillColor.a;
+    color.rgb = color.rgb * (1.0 - fillAlpha) + fillColor.rgb * fillAlpha;
     color.a = color.a * (1.0 - fillAlpha) + fillAlpha;
 
     // 枠線レイヤー

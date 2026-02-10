@@ -9,6 +9,8 @@
 #include "Graphics/PostEffect/PostEffectSettings.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
+#include "Graphics/Pipeline/ShaderLibrary.h"
+#include "Graphics/Device/BarrierBatch.h"
 #include "Core/Logger.h"
 
 namespace GX
@@ -20,11 +22,11 @@ bool PostEffectPipeline::Initialize(ID3D12Device* device, uint32_t width, uint32
     m_width  = width;
     m_height = height;
 
-    // HDR RTs
+    // HDR用RT (高ダイナミックレンジ)
     if (!m_hdrRT.Create(device, width, height, k_HDRFormat)) return false;
     if (!m_hdrPingPongRT.Create(device, width, height, k_HDRFormat)) return false;
 
-    // LDR RTs
+    // LDR用RT (低ダイナミックレンジ)
     if (!m_ldrRT[0].Create(device, width, height, k_LDRFormat)) return false;
     if (!m_ldrRT[1].Create(device, width, height, k_LDRFormat)) return false;
 
@@ -40,6 +42,24 @@ bool PostEffectPipeline::Initialize(ID3D12Device* device, uint32_t width, uint32
     // パイプライン
     if (!CreatePipelines(device)) return false;
 
+    // ホットリロード用PSO Rebuilder登録
+    ShaderLibrary::Instance().RegisterPSORebuilder(
+        L"Shaders/Tonemapping.hlsl",
+        [this](ID3D12Device* dev) { return CreatePipelines(dev); }
+    );
+    ShaderLibrary::Instance().RegisterPSORebuilder(
+        L"Shaders/FXAA.hlsl",
+        [this](ID3D12Device* dev) { return CreatePipelines(dev); }
+    );
+    ShaderLibrary::Instance().RegisterPSORebuilder(
+        L"Shaders/Vignette.hlsl",
+        [this](ID3D12Device* dev) { return CreatePipelines(dev); }
+    );
+    ShaderLibrary::Instance().RegisterPSORebuilder(
+        L"Shaders/ColorGrading.hlsl",
+        [this](ID3D12Device* dev) { return CreatePipelines(dev); }
+    );
+
     // SSAO
     if (!m_ssao.Initialize(device, width, height))
     {
@@ -54,49 +74,49 @@ bool PostEffectPipeline::Initialize(ID3D12Device* device, uint32_t width, uint32
         return false;
     }
 
-    // DoF
+    // DoF (被写界深度)
     if (!m_dof.Initialize(device, width, height))
     {
         GX_LOG_ERROR("PostEffectPipeline: Failed to initialize DoF");
         return false;
     }
 
-    // Motion Blur
+    // モーションブラー
     if (!m_motionBlur.Initialize(device, width, height))
     {
         GX_LOG_ERROR("PostEffectPipeline: Failed to initialize MotionBlur");
         return false;
     }
 
-    // SSR
+    // SSR (スクリーン空間反射)
     if (!m_ssr.Initialize(device, width, height))
     {
         GX_LOG_ERROR("PostEffectPipeline: Failed to initialize SSR");
         return false;
     }
 
-    // Outline
+    // アウトライン
     if (!m_outline.Initialize(device, width, height))
     {
         GX_LOG_ERROR("PostEffectPipeline: Failed to initialize OutlineEffect");
         return false;
     }
 
-    // VolumetricLight
+    // ボリューメトリックライト
     if (!m_volumetricLight.Initialize(device, width, height))
     {
         GX_LOG_ERROR("PostEffectPipeline: Failed to initialize VolumetricLight");
         return false;
     }
 
-    // TAA
+    // TAA (時間的AA)
     if (!m_taa.Initialize(device, width, height))
     {
         GX_LOG_ERROR("PostEffectPipeline: Failed to initialize TAA");
         return false;
     }
 
-    // AutoExposure
+    // 自動露出
     if (!m_autoExposure.Initialize(device, width, height))
     {
         GX_LOG_ERROR("PostEffectPipeline: Failed to initialize AutoExposure");
@@ -163,8 +183,19 @@ void PostEffectPipeline::DrawFullscreen(ID3D12PipelineState* pso, ID3D12RootSign
                                          RenderTarget& dest, RenderTarget& src,
                                          DynamicBuffer& cb, const void* cbData, uint32_t cbSize)
 {
-    dest.TransitionTo(m_cmdList, D3D12_RESOURCE_STATE_RENDER_TARGET);
-    src.TransitionTo(m_cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    // バリアバッチング: dest→RT と src→SRV を1回の API 呼び出しでまとめて発行
+    BarrierBatch<2> barriers(m_cmdList);
+    if (dest.GetCurrentState() != D3D12_RESOURCE_STATE_RENDER_TARGET)
+    {
+        barriers.Transition(dest.GetResource(), dest.GetCurrentState(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+        dest.SetCurrentState(D3D12_RESOURCE_STATE_RENDER_TARGET);
+    }
+    if (src.GetCurrentState() != D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
+    {
+        barriers.Transition(src.GetResource(), src.GetCurrentState(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        src.SetCurrentState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    }
+    barriers.Flush();
 
     auto rtv = dest.GetRTVHandle();
     m_cmdList->OMSetRenderTargets(1, &rtv, FALSE, nullptr);
@@ -289,7 +320,8 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
     m_volumetricLight.UpdateSunInfo(camera);
 
     // ========================================
-    // HDR chain: hdrRT → [SSAO] → [Bloom] → [DoF] → [MotionBlur] → [ColorGrading] → currentHDR
+    // HDRチェーン: hdrRT → [SSAO] → [Bloom] → [DoF] → [MotionBlur] → [ColorGrading] → currentHDR
+    // 初心者向け: ping-pongで入力/出力RTを交互に切り替え、上書きを避ける
     // ========================================
     RenderTarget* currentHDR = &m_hdrRT;
 
@@ -302,7 +334,7 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
         currentHDR->TransitionTo(m_cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     }
 
-    // SSR (HDR space, after SSAO)
+    // SSR (HDR空間, SSAOの後)
     if (m_ssr.IsEnabled())
     {
         RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
@@ -310,7 +342,7 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
         currentHDR = dest;
     }
 
-    // VolumetricLight (HDR space, after SSR, before Bloom)
+    // ボリューメトリックライト (HDR空間, SSRの後・Bloomの前)
     if (m_volumetricLight.IsEnabled())
     {
         RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
@@ -318,7 +350,7 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
         currentHDR = dest;
     }
 
-    // Bloom
+    // ブルーム
     if (m_bloom.IsEnabled())
     {
         RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
@@ -327,7 +359,7 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
         currentHDR = dest;
     }
 
-    // DoF (HDR space, after Bloom)
+    // DoF (HDR空間, Bloomの後)
     if (m_dof.IsEnabled())
     {
         RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
@@ -335,7 +367,7 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
         currentHDR = dest;
     }
 
-    // Motion Blur (HDR space, after DoF)
+    // モーションブラー (HDR空間, DoFの後)
     if (m_motionBlur.IsEnabled())
     {
         RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
@@ -346,7 +378,7 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
     // Execute の後に呼ぶ（先に呼ぶと今フレームのVPで上書きされ速度=0になる）
     m_motionBlur.UpdatePreviousVP(camera);
 
-    // Outline (HDR space, after MotionBlur)
+    // アウトライン (HDR空間, MotionBlurの後)
     if (m_outline.IsEnabled())
     {
         RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
@@ -354,7 +386,7 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
         currentHDR = dest;
     }
 
-    // TAA (HDR space, after Outline, before ColorGrading)
+    // TAA (HDR空間, Outlineの後・ColorGradingの前)
     if (m_taa.IsEnabled())
     {
         RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
@@ -365,7 +397,7 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
     m_taa.UpdatePreviousVP(camera);
     m_taa.AdvanceFrame();
 
-    // Color Grading (HDR space)
+    // カラーグレーディング (HDR空間)
     if (m_colorGradingEnabled)
     {
         RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
@@ -387,13 +419,13 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
         exposure = m_autoExposure.ComputeExposure(m_cmdList, m_frameIndex, *currentHDR, deltaTime);
 
     // ========================================
-    // Tonemapping + LDR chain
+    // トーンマッピング + LDRチェーン
     // ========================================
     bool hasLDREffects = m_fxaaEnabled || m_vignetteEnabled;
 
     if (!hasLDREffects)
     {
-        // No LDR effects: tonemap directly to backbuffer
+        // LDRエフェクトなし: バックバッファに直接トーンマップ
         TonemapConstants tc = {};
         tc.mode     = static_cast<uint32_t>(m_tonemapMode);
         tc.exposure = exposure;
@@ -402,7 +434,7 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
         return;
     }
 
-    // Tonemap → ldrRT[0]
+    // トーンマップ → ldrRT[0]
     TonemapConstants tc = {};
     tc.mode     = static_cast<uint32_t>(m_tonemapMode);
     tc.exposure = exposure;
@@ -412,7 +444,7 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
     int ldrIdx = 0;
 
     // ========================================
-    // LDR chain: [FXAA] → [Vignette]
+    // LDRチェーン: [FXAA] → [Vignette]
     // 最後のエフェクトは直接バックバッファに描画する
     // ========================================
     bool vignetteIsLast = m_vignetteEnabled;
@@ -429,20 +461,20 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
 
         if (fxaaIsLast)
         {
-            // FXAA is the last effect → draw directly to backbuffer
+            // FXAAが最後のエフェクト → 直接バックバッファに描画
             DrawFullscreenToRTV(m_fxaaPSO.Get(), m_commonRS.Get(),
                                 backBufferRTV, m_ldrRT[ldrIdx], m_fxaaCB, &fc, sizeof(fc));
             return;
         }
 
-        // FXAA → ldrRT[next]
+        // FXAA → ldrRT[次]
         int dstIdx = 1 - ldrIdx;
         DrawFullscreen(m_fxaaPSO.Get(), m_commonRS.Get(),
                        m_ldrRT[dstIdx], m_ldrRT[ldrIdx], m_fxaaCB, &fc, sizeof(fc));
         ldrIdx = dstIdx;
     }
 
-    // Vignette + Chromatic Aberration
+    // ビネット + 色収差
     if (m_vignetteEnabled)
     {
         VignetteConstants vc = {};
@@ -450,7 +482,7 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
         vc.radius           = 0.8f;
         vc.chromaticStrength = m_chromaticStrength;
 
-        // Vignette is always the last LDR effect → draw directly to backbuffer
+        // ビネットはLDRの最終エフェクト → 直接バックバッファに描画
         DrawFullscreenToRTV(m_vignettePSO.Get(), m_commonRS.Get(),
                             backBufferRTV, m_ldrRT[ldrIdx], m_vignetteCB, &vc, sizeof(vc));
     }

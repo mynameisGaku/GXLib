@@ -26,17 +26,10 @@ bool Button::OnEvent(const UIEvent& event)
 
 void Button::Render(UIRenderer& renderer)
 {
-    // 状態に応じたスタイルを選択
-    const Style* activeStyle = &computedStyle;
-    if (!enabled)
-        activeStyle = &disabledStyle;
-    else if (pressed)
-        activeStyle = &pressedStyle;
-    else if (hovered)
-        activeStyle = &hoverStyle;
+    const Style& drawStyle = GetRenderStyle();
 
     // 背景を描画
-    renderer.DrawRect(globalRect, *activeStyle, opacity);
+    renderer.DrawRect(globalRect, drawStyle, opacity);
 
     // テキスト描画
     if (!m_text.empty() && m_fontHandle >= 0)
@@ -47,7 +40,7 @@ void Button::Render(UIRenderer& renderer)
         float textX = globalRect.x + (globalRect.width - textW) * 0.5f;
         float textY = globalRect.y + (globalRect.height - textH) * 0.5f;
 
-        renderer.DrawText(textX, textY, m_fontHandle, m_text, activeStyle->color, opacity);
+        renderer.DrawText(textX, textY, m_fontHandle, m_text, drawStyle.color, opacity);
     }
 
     // ボタンは子を持たないのが一般的

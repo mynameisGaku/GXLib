@@ -1,0 +1,24 @@
+# Doxyfile — GXLib API Documentation
+# doxygen Doxyfile で docs/api/ に HTML を生成
+
+PROJECT_NAME           = "GXLib"
+PROJECT_NUMBER         = "0.1.0"
+PROJECT_BRIEF          = "DirectX 12 2D/3D Game Engine"
+OUTPUT_DIRECTORY       = docs/api
+INPUT                  = GXLib
+RECURSIVE              = YES
+FILE_PATTERNS          = *.h *.cpp
+EXCLUDE_PATTERNS       = */ThirdParty/*
+INPUT_ENCODING         = UTF-8
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+HTML_OUTPUT            = html
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = YES
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = NO
+HAVE_DOT               = NO
+QUIET                  = YES
+WARN_IF_UNDOCUMENTED   = NO
+BUILTIN_STL_SUPPORT    = YES

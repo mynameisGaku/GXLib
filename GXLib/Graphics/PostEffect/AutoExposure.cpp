@@ -7,6 +7,7 @@
 #include "Graphics/PostEffect/AutoExposure.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
+#include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Core/Logger.h"
 
 namespace GX
@@ -42,6 +43,43 @@ bool AutoExposure::Initialize(ID3D12Device* device, uint32_t width, uint32_t hei
         if (!m_commonRS) return false;
     }
 
+    if (!CreatePipelines(device))
+        return false;
+
+    // ホットリロード用PSO Rebuilder登録
+    ShaderLibrary::Instance().RegisterPSORebuilder(
+        L"Shaders/AutoExposure.hlsl",
+        [this](ID3D12Device* dev) { return CreatePipelines(dev); }
+    );
+
+    // リードバックバッファ (2フレーム分、各1ピクセル=2バイト=R16_FLOAT)
+    for (int i = 0; i < 2; ++i)
+    {
+        D3D12_HEAP_PROPERTIES heapProps = {};
+        heapProps.Type = D3D12_HEAP_TYPE_READBACK;
+
+        D3D12_RESOURCE_DESC resDesc = {};
+        resDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+        resDesc.Width = 256; // R16_FLOATの1ピクセルは2バイト、余裕を持って256
+        resDesc.Height = 1;
+        resDesc.DepthOrArraySize = 1;
+        resDesc.MipLevels = 1;
+        resDesc.SampleDesc.Count = 1;
+        resDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+        HRESULT hr = device->CreateCommittedResource(
+            &heapProps, D3D12_HEAP_FLAG_NONE, &resDesc,
+            D3D12_RESOURCE_STATE_COPY_DEST, nullptr,
+            IID_PPV_ARGS(&m_readbackBuffer[i]));
+        if (FAILED(hr)) return false;
+    }
+
+    GX_LOG_INFO("AutoExposure initialized");
+    return true;
+}
+
+bool AutoExposure::CreatePipelines(ID3D12Device* device)
+{
     auto vs = m_shader.CompileFromFile(L"Shaders/AutoExposure.hlsl", L"FullscreenVS", L"vs_6_0");
     if (!vs.valid) return false;
     auto vsBytecode = vs.GetBytecode();
@@ -78,29 +116,6 @@ bool AutoExposure::Initialize(ID3D12Device* device, uint32_t width, uint32_t hei
         if (!m_downsamplePSO) return false;
     }
 
-    // リードバックバッファ (2フレーム分、各1ピクセル=2バイト=R16_FLOAT)
-    for (int i = 0; i < 2; ++i)
-    {
-        D3D12_HEAP_PROPERTIES heapProps = {};
-        heapProps.Type = D3D12_HEAP_TYPE_READBACK;
-
-        D3D12_RESOURCE_DESC resDesc = {};
-        resDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-        resDesc.Width = 256; // R16_FLOATの1ピクセルは2バイト、余裕を持って256
-        resDesc.Height = 1;
-        resDesc.DepthOrArraySize = 1;
-        resDesc.MipLevels = 1;
-        resDesc.SampleDesc.Count = 1;
-        resDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-
-        HRESULT hr = device->CreateCommittedResource(
-            &heapProps, D3D12_HEAP_FLAG_NONE, &resDesc,
-            D3D12_RESOURCE_STATE_COPY_DEST, nullptr,
-            IID_PPV_ARGS(&m_readbackBuffer[i]));
-        if (FAILED(hr)) return false;
-    }
-
-    GX_LOG_INFO("AutoExposure initialized");
     return true;
 }
 

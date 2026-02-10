@@ -25,21 +25,33 @@ public:
     GraphicsDevice() = default;
     ~GraphicsDevice() = default;
 
-    /// デバイスを初期化
-    bool Initialize(bool enableDebugLayer = true);
+    /// @brief D3D12デバイスを初期化する
+    /// @param enableDebugLayer デバッグレイヤーを有効化するかどうか
+    /// @param enableGPUValidation GPU-based validationを有効化するかどうか（非常に遅いが詳細なエラー検出が可能）
+    /// @return 初期化に成功した場合true
+    bool Initialize(bool enableDebugLayer = true, bool enableGPUValidation = false);
 
-    /// D3D12デバイスを取得
+    /// @brief D3D12デバイスを取得する
+    /// @return ID3D12Deviceへのポインタ
     ID3D12Device* GetDevice() const { return m_device.Get(); }
 
-    /// DXGIファクトリを取得
+    /// @brief DXGIファクトリを取得する
+    /// @return IDXGIFactory6へのポインタ
     IDXGIFactory6* GetFactory() const { return m_factory.Get(); }
 
-    /// DXGIアダプタを取得
+    /// @brief DXGIアダプタ（GPU）を取得する
+    /// @return IDXGIAdapter1へのポインタ
     IDXGIAdapter1* GetAdapter() const { return m_adapter.Get(); }
+
+    /// @brief DXGI生存オブジェクトをレポートする（シャットダウン後に呼ぶ）
+    static void ReportLiveObjects();
 
 private:
     /// デバッグレイヤーを有効化
-    void EnableDebugLayer();
+    void EnableDebugLayer(bool gpuValidation);
+
+    /// InfoQueue メッセージフィルタ設定
+    void ConfigureInfoQueue();
 
     /// 最適なGPUアダプタを選択
     bool SelectAdapter();

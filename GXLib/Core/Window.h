@@ -30,32 +30,43 @@ struct WindowDesc
 class Window
 {
 public:
+    /// @brief デフォルトコンストラクタ
     Window() = default;
+
+    /// @brief デストラクタ（ウィンドウを破棄する）
     ~Window();
 
-    /// ウィンドウを作成して表示する
+    /// @brief ウィンドウを作成して表示する
+    /// @param desc ウィンドウの作成設定（タイトル、幅、高さ）
+    /// @return 作成に成功した場合true、失敗した場合false
     bool Initialize(const WindowDesc& desc);
 
-    /// ウィンドウメッセージを処理する（falseを返したらアプリ終了）
+    /// @brief ウィンドウメッセージを処理する
+    /// @return ウィンドウが有効な場合true、閉じられた場合false（アプリ終了）
     bool ProcessMessages();
 
-    /// ウィンドウハンドルを取得
+    /// @brief ウィンドウハンドル（HWND）を取得する
+    /// @return Win32ウィンドウハンドル
     HWND GetHWND() const { return m_hwnd; }
 
-    /// クライアント領域の幅を取得
+    /// @brief クライアント領域の幅を取得する
+    /// @return クライアント領域の幅（ピクセル）
     uint32_t GetWidth() const { return m_width; }
 
-    /// クライアント領域の高さを取得
+    /// @brief クライアント領域の高さを取得する
+    /// @return クライアント領域の高さ（ピクセル）
     uint32_t GetHeight() const { return m_height; }
 
-    /// リサイズ時のコールバックを設定
+    /// @brief リサイズ時のコールバックを設定する
+    /// @param callback ウィンドウリサイズ時に呼び出される関数（引数は新しい幅と高さ）
     void SetResizeCallback(std::function<void(uint32_t, uint32_t)> callback);
 
-    /// メッセージコールバックを追加（Input等が使用）
-    /// コールバックがtrueを返したら、そのメッセージは処理済みとみなす
+    /// @brief メッセージコールバックを追加する（Input等が使用）
+    /// @param callback Windowsメッセージを受け取るコールバック関数。trueを返すとメッセージは処理済みとみなされる
     void AddMessageCallback(std::function<bool(HWND, UINT, WPARAM, LPARAM)> callback);
 
-    /// ウィンドウタイトルを設定
+    /// @brief ウィンドウタイトルを設定する
+    /// @param title 新しいウィンドウタイトル文字列
     void SetTitle(const std::wstring& title);
 
 private:

@@ -4,6 +4,7 @@
 #include "Graphics/Rendering/PrimitiveBatch.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
+#include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Core/Logger.h"
 #include <cmath>
 
@@ -52,6 +53,12 @@ bool PrimitiveBatch::Initialize(ID3D12Device* device, uint32_t screenWidth, uint
 
     if (!CreatePipelineStates(device))
         return false;
+
+    // ホットリロード用PSO Rebuilder登録
+    ShaderLibrary::Instance().RegisterPSORebuilder(
+        L"Shaders/Primitive.hlsl",
+        [this](ID3D12Device* dev) { return CreatePipelineStates(dev); }
+    );
 
     GX_LOG_INFO("PrimitiveBatch initialized (%dx%d)", screenWidth, screenHeight);
     return true;

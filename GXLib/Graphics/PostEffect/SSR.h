@@ -67,6 +67,8 @@ public:
     float GetIntensity() const { return m_intensity; }
 
 private:
+    bool CreatePipelines(ID3D12Device* device);
+
     bool m_enabled = false;
     float m_maxDistance = 30.0f;
     float m_stepSize = 0.15f;

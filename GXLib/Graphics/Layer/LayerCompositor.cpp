@@ -4,6 +4,7 @@
 #include "Graphics/Layer/LayerCompositor.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
+#include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Core/Logger.h"
 
 namespace GX
@@ -27,6 +28,12 @@ bool LayerCompositor::Initialize(ID3D12Device* device, uint32_t w, uint32_t h)
 
     if (!CreatePipelines(device))
         return false;
+
+    // ホットリロード用PSO Rebuilder登録
+    ShaderLibrary::Instance().RegisterPSORebuilder(
+        L"Shaders/LayerComposite.hlsl",
+        [this](ID3D12Device* dev) { return CreatePipelines(dev); }
+    );
 
     GX_LOG_INFO("LayerCompositor initialized (%dx%d)", w, h);
     return true;
@@ -113,8 +120,8 @@ bool LayerCompositor::CreatePipelines(ID3D12Device* device)
     m_psoMul = buildNoMaskPSO([](PipelineStateBuilder& b) { b.SetMultiplyBlend(); });
     if (!m_psoMul) return false;
 
-    // Screen blend: 1 - (1-Src) * (1-Dest) = Src + Dest - Src*Dest
-    // Approximation: SrcBlend=ONE, DestBlend=INV_SRC_COLOR
+    // スクリーン合成: 1 - (1-Src) * (1-Dest) = Src + Dest - Src*Dest
+    // 近似式: SrcBlend=ONE, DestBlend=INV_SRC_COLOR
     m_psoScreen = buildNoMaskPSO([](PipelineStateBuilder& b)
     {
         D3D12_BLEND_DESC bd = {};
@@ -130,7 +137,7 @@ bool LayerCompositor::CreatePipelines(ID3D12Device* device)
     });
     if (!m_psoScreen) return false;
 
-    // None (opaque, no blending)
+    // None（不透明、ブレンドなし）
     m_psoNone = buildNoMaskPSO([](PipelineStateBuilder&) { /* default = no blend */ });
     if (!m_psoNone) return false;
 
@@ -155,7 +162,7 @@ void LayerCompositor::Composite(ID3D12GraphicsCommandList* cmdList, uint32_t fra
     const float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
     cmdList->ClearRenderTargetView(backBufferRTV, clearColor, 0, nullptr);
 
-    // RTV + Viewport/Scissor 設定
+    // RTV + ビューポート/シザー設定
     cmdList->OMSetRenderTargets(1, &backBufferRTV, FALSE, nullptr);
 
     D3D12_VIEWPORT vp = {};
@@ -169,7 +176,7 @@ void LayerCompositor::Composite(ID3D12GraphicsCommandList* cmdList, uint32_t fra
     sc.bottom = static_cast<LONG>(m_height);
     cmdList->RSSetScissorRects(1, &sc);
 
-    // Z-order 昇順で各レイヤーを合成
+    // Zオーダー昇順で各レイヤーを合成
     const auto& layers = layerStack.GetSortedLayers();
     for (auto* layer : layers)
     {

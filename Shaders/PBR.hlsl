@@ -68,6 +68,11 @@ cbuffer MaterialConstants : register(b3)
     uint   gMaterialFlags;
 };
 
+cbuffer BoneConstants : register(b4)
+{
+    float4x4 gBones[128];
+};
+
 // ============================================================================
 // テクスチャ
 // ============================================================================
@@ -98,6 +103,10 @@ struct VSInput
     float3 normal   : NORMAL;
     float2 texcoord : TEXCOORD;
     float4 tangent  : TANGENT;
+#if defined(SKINNED)
+    uint4  joints   : JOINTS;
+    float4 weights  : WEIGHTS;
+#endif
 };
 
 struct PSInput
@@ -119,13 +128,41 @@ PSInput VSMain(VSInput input)
 {
     PSInput output;
 
-    float4 posW = mul(float4(input.position, 1.0f), world);
+    float4 posL = float4(input.position, 1.0f);
+    float3 normalL = input.normal;
+    float3 tangentL = input.tangent.xyz;
+
+#if defined(SKINNED)
+    float4 skinnedPos = float4(0, 0, 0, 0);
+    float3 skinnedNormal = float3(0, 0, 0);
+    float3 skinnedTangent = float3(0, 0, 0);
+
+    float4 w = input.weights;
+    float wSum = w.x + w.y + w.z + w.w;
+    if (wSum > 0.0001f) w /= wSum;
+    else w = float4(1, 0, 0, 0);
+
+    uint4 j = input.joints;
+    [unroll]
+    for (int i = 0; i < 4; ++i)
+    {
+        float4x4 bone = gBones[j[i]];
+        skinnedPos += mul(posL, bone) * w[i];
+        skinnedNormal += mul(float4(normalL, 0.0f), bone).xyz * w[i];
+        skinnedTangent += mul(float4(tangentL, 0.0f), bone).xyz * w[i];
+    }
+    posL = skinnedPos;
+    normalL = skinnedNormal;
+    tangentL = skinnedTangent;
+#endif
+
+    float4 posW = mul(posL, world);
     output.posW = posW.xyz;
     output.posH = mul(posW, gViewProjection);
 
     float3x3 wit = (float3x3)worldInverseTranspose;
-    output.normalW = normalize(mul(input.normal, wit));
-    output.tangentW = normalize(mul(input.tangent.xyz, (float3x3)world));
+    output.normalW = normalize(mul(normalL, wit));
+    output.tangentW = normalize(mul(tangentL, (float3x3)world));
     output.bitangentSign = input.tangent.w;
 
     output.texcoord = input.texcoord;

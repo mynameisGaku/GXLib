@@ -74,6 +74,8 @@ public:
     float GetBokehRadius() const { return m_bokehRadius; }
 
 private:
+    bool CreatePipelines(ID3D12Device* device);
+
     bool m_enabled = false;
     float m_focalDistance = 10.0f;
     float m_focalRange   = 5.0f;

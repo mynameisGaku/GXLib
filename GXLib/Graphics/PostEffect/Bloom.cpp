@@ -9,6 +9,7 @@
 /// 5. Composite: destRTにhdrRTをコピーし、mipRT[0]をアディティブ合成
 #include "pch.h"
 #include "Graphics/PostEffect/Bloom.h"
+#include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Core/Logger.h"
@@ -28,6 +29,12 @@ bool Bloom::Initialize(ID3D12Device* device, uint32_t width, uint32_t height)
 
     if (!CreatePipelines(device))
         return false;
+
+    // ホットリロード用PSO Rebuilder登録
+    ShaderLibrary::Instance().RegisterPSORebuilder(
+        L"Shaders/Bloom.hlsl",
+        [this](ID3D12Device* dev) { return CreatePipelines(dev); }
+    );
 
     CreateMipRenderTargets(device, width, height);
 

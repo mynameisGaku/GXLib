@@ -9,7 +9,8 @@ namespace GX
 
 bool PointShadowMap::Create(ID3D12Device* device, DescriptorHeap* srvHeap, uint32_t srvIndex)
 {
-    // Texture2DArray (6 slices) for cubemap shadow
+    // Texture2DArray（6スライス）でキューブシャドウを表現
+    // 初学者向け: キューブマップは6面のテクスチャ配列として扱います。
     D3D12_RESOURCE_DESC desc = {};
     desc.Dimension          = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
     desc.Width              = k_Size;
@@ -39,7 +40,7 @@ bool PointShadowMap::Create(ID3D12Device* device, DescriptorHeap* srvHeap, uint3
         return false;
     }
 
-    // DSV heap (6 DSVs, one per face)
+    // DSVヒープ（6面分、面ごとに1つ）
     if (!m_dsvHeap.Initialize(device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, k_NumFaces, false))
     {
         GX_LOG_ERROR("PointShadowMap: Failed to create DSV heap");
@@ -59,7 +60,7 @@ bool PointShadowMap::Create(ID3D12Device* device, DescriptorHeap* srvHeap, uint3
                                        m_dsvHeap.GetCPUHandle(face));
     }
 
-    // SRV (Texture2DArray, all 6 faces) on external heap
+    // SRV（Texture2DArray, 6面まとめて）を外部ヒープに作成
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.Format                        = DXGI_FORMAT_R32_FLOAT;
     srvDesc.ViewDimension                 = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
@@ -81,7 +82,7 @@ void PointShadowMap::Update(const XMFLOAT3& lightPos, float range)
 {
     XMVECTOR pos = XMLoadFloat3(&lightPos);
 
-    // 6 face directions: +X, -X, +Y, -Y, +Z, -Z
+    // 6面の向き: +X, -X, +Y, -Y, +Z, -Z
     struct FaceInfo
     {
         XMVECTOR target;

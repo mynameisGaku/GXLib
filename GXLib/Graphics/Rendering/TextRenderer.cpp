@@ -76,6 +76,78 @@ void TextRenderer::DrawString(int fontHandle, float x, float y, const std::wstri
     m_spriteBatch->SetDrawColor(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
+void TextRenderer::DrawStringTransformed(int fontHandle, float x, float y,
+                                         const std::wstring& text, uint32_t color,
+                                         const Transform2D& transform)
+{
+    if (!m_spriteBatch || !m_fontManager)
+        return;
+
+    int atlasHandle = m_fontManager->GetAtlasTextureHandle(fontHandle);
+    if (atlasHandle < 0)
+        return;
+
+    float a = static_cast<float>((color >> 24) & 0xFF) / 255.0f;
+    float r = static_cast<float>((color >> 16) & 0xFF) / 255.0f;
+    float g = static_cast<float>((color >> 8) & 0xFF) / 255.0f;
+    float b = static_cast<float>((color) & 0xFF) / 255.0f;
+    m_spriteBatch->SetDrawColor(r, g, b, a);
+
+    float cursorX = x;
+    float cursorY = y;
+
+    for (wchar_t ch : text)
+    {
+        if (ch == L'\\n')
+        {
+            cursorX = x;
+            cursorY += static_cast<float>(m_fontManager->GetLineHeight(fontHandle));
+            continue;
+        }
+
+        const GlyphInfo* glyph = m_fontManager->GetGlyphInfo(fontHandle, ch);
+        if (!glyph)
+            continue;
+
+        if (ch == L' ')
+        {
+            cursorX += glyph->advance;
+            continue;
+        }
+
+        float drawX = cursorX + glyph->offsetX;
+        float drawY = cursorY + glyph->offsetY;
+
+        float x1 = drawX;
+        float y1 = drawY;
+        float x2 = drawX + glyph->width;
+        float y2 = drawY;
+        float x3 = drawX + glyph->width;
+        float y3 = drawY + glyph->height;
+        float x4 = drawX;
+        float y4 = drawY + glyph->height;
+
+        XMFLOAT2 p1 = TransformPoint(transform, x1, y1);
+        XMFLOAT2 p2 = TransformPoint(transform, x2, y2);
+        XMFLOAT2 p3 = TransformPoint(transform, x3, y3);
+        XMFLOAT2 p4 = TransformPoint(transform, x4, y4);
+
+        float srcX = glyph->u0 * FontManager::k_AtlasSize;
+        float srcY = glyph->v0 * FontManager::k_AtlasSize;
+        float srcW = static_cast<float>(glyph->width);
+        float srcH = static_cast<float>(glyph->height);
+
+        m_spriteBatch->DrawRectModiGraph(p1.x, p1.y, p2.x, p2.y,
+                                         p3.x, p3.y, p4.x, p4.y,
+                                         srcX, srcY, srcW, srcH,
+                                         atlasHandle, true);
+
+        cursorX += glyph->advance;
+    }
+
+    m_spriteBatch->SetDrawColor(1.0f, 1.0f, 1.0f, 1.0f);
+}
+
 void TextRenderer::DrawFormatString(int fontHandle, float x, float y, uint32_t color, const wchar_t* format, ...)
 {
     wchar_t buffer[1024];

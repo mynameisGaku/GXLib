@@ -38,6 +38,16 @@ add_custom_command(TARGET Sandbox POST_BUILD
     COMMENT "Copying assets to output directory..."
 )
 
+# FBX SDK runtime (optional)
+if (FBX_SDK_FOUND)
+    add_custom_command(TARGET Sandbox POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<IF:$<CONFIG:Debug>,${FBX_SDK_DLL_DEBUG},${FBX_SDK_DLL_RELEASE}>"
+            "$<TARGET_FILE_DIR:Sandbox>"
+        COMMENT "Copying FBX SDK runtime to output directory..."
+    )
+endif()
+
 # Visual Studioデバッガの作業ディレクトリをexeの場所に設定
 # これにより、相対パス（Shaders/...）が正しく解決される
 set_target_properties(Sandbox PROPERTIES
