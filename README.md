@@ -2,6 +2,9 @@
 
 DirectX 12 ベースの 2D/3D ゲームエンジン。DXLib 互換 API を備え、C++20 / Windows 環境で動作します。
 
+## 公開ページ (GitHub Pages)
+https://mynameisgaku.github.io/GXLib/
+
 ## 特徴
 
 - **DirectX 12 ネイティブ** — D3D12 によるローレベル GPU 制御
@@ -106,6 +109,17 @@ GXLib/
 │   └── APIReference.md     # API リファレンス
 └── Doxyfile                # Doxygen 設定ファイル
 ```
+
+## Samples
+
+各サンプルの概要・操作・ビルド/実行は各 README を参照してください。
+
+- [EasyHello](Samples/EasyHello/README.md) — 最小構成の 2D 入門
+- [Shooting2D](Samples/Shooting2D/README.md) — 2D シューティング
+- [Platformer2D](Samples/Platformer2D/README.md) — 2D プラットフォーマー
+- [Walkthrough3D](Samples/Walkthrough3D/README.md) — 3D ウォークスルー
+- [GUIMenuDemo](Samples/GUIMenuDemo/README.md) — XML/CSS GUI デモ
+- [PostEffectShowcase](Samples/PostEffectShowcase/README.md) — ポストエフェクト一覧
 
 ## クイックスタート
 

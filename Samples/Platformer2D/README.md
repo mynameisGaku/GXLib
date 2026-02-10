@@ -1,0 +1,13 @@
+# Platformer2D
+
+2D プラットフォーマーのサンプル。ジャンプと簡易コリジョン、コイン収集の流れを確認できます。
+
+## 操作
+- 矢印キー: 移動
+- Space: ジャンプ
+- ESC: 終了
+
+## ビルド/実行
+- ルートで `cmake -B build -S .`
+- `cmake --build build --config Debug --target Platformer2D`
+- `build/` 配下に生成される `Platformer2D.exe` を実行
