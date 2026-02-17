@@ -86,7 +86,7 @@ bool MoviePlayer::Open(const std::string& filePath, GraphicsDevice& device, Text
     IMFMediaType* pOutputType = nullptr;
     hr = m_reader->GetCurrentMediaType(
         static_cast<DWORD>(MF_SOURCE_READER_FIRST_VIDEO_STREAM), &pOutputType);
-    if (SUCCEEDED(hr))
+    if (SUCCEEDED(hr) && pOutputType)
     {
         UINT32 w = 0, h = 0;
         MFGetAttributeSize(pOutputType, MF_MT_FRAME_SIZE, &w, &h);
@@ -102,6 +102,11 @@ bool MoviePlayer::Open(const std::string& filePath, GraphicsDevice& device, Text
             m_frameInterval = 1.0 / 30.0; // default 30fps
 
         pOutputType->Release();
+    }
+    else if (SUCCEEDED(hr) && !pOutputType)
+    {
+        GX_LOG_ERROR("MoviePlayer: GetCurrentMediaType returned null output type");
+        return false;
     }
 
     // 再生時間を取得
@@ -285,6 +290,9 @@ bool MoviePlayer::DecodeNextFrame(GraphicsDevice& device)
     pSample->Release();
 
     // テクスチャを作成/更新
+    if (!m_texManager)
+        return false;
+
     if (m_textureHandle < 0)
     {
         m_textureHandle = m_texManager->CreateTextureFromMemory(

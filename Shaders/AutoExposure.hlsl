@@ -8,7 +8,7 @@
 
 cbuffer AutoExposureCB : register(b0)
 {
-    float4 params; // unused placeholder
+    float4 params; // Reserved: C++側CBレイアウト維持のため削除不可
 };
 
 Texture2D<float4> gInput : register(t0);

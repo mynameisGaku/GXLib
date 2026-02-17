@@ -54,6 +54,7 @@ int LoadModel(const TCHAR* filePath)
     if (!model) return -1;
 
     int handle = ctx.AllocateModelHandle();
+    if (handle < 0) return -1;
     if (handle >= static_cast<int>(ctx.models.size()))
         ctx.models.resize(handle + 1);
 

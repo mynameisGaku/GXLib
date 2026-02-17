@@ -48,6 +48,23 @@ bool GraphicsDevice::Initialize(bool enableDebugLayer, bool enableGPUValidation)
         ConfigureInfoQueue();
     }
 
+    // DXR (DirectX Raytracing) 対応チェック
+    D3D12_FEATURE_DATA_D3D12_OPTIONS5 options5 = {};
+    hr = m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &options5, sizeof(options5));
+    if (SUCCEEDED(hr) && options5.RaytracingTier >= D3D12_RAYTRACING_TIER_1_0)
+    {
+        hr = m_device.As(&m_device5);
+        if (SUCCEEDED(hr))
+        {
+            m_supportsRaytracing = true;
+            GX_LOG_INFO("DXR Raytracing Tier 1.0+ supported (ID3D12Device5 acquired)");
+        }
+    }
+    else
+    {
+        GX_LOG_INFO("DXR Raytracing not supported on this GPU — SSR fallback will be used");
+    }
+
     GX_LOG_INFO("Graphics Device initialized successfully");
     return true;
 }
@@ -80,31 +97,34 @@ void GraphicsDevice::EnableDebugLayer(bool gpuValidation)
 void GraphicsDevice::ConfigureInfoQueue()
 {
     ComPtr<ID3D12InfoQueue> infoQueue;
-    if (SUCCEEDED(m_device.As(&infoQueue)))
+    if (FAILED(m_device.As(&infoQueue)))
     {
-        // 重大エラーでブレーク
-        infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
-        infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
-
-        // 既知の無害メッセージを抑制
-        D3D12_MESSAGE_ID denyIds[] = {
-            D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
-            D3D12_MESSAGE_ID_CLEARDEPTHSTENCILVIEW_MISMATCHINGCLEARVALUE,
-        };
-
-        D3D12_MESSAGE_SEVERITY denySeverities[] = {
-            D3D12_MESSAGE_SEVERITY_INFO,
-        };
-
-        D3D12_INFO_QUEUE_FILTER filter = {};
-        filter.DenyList.NumIDs       = _countof(denyIds);
-        filter.DenyList.pIDList      = denyIds;
-        filter.DenyList.NumSeverities = _countof(denySeverities);
-        filter.DenyList.pSeverityList = denySeverities;
-        infoQueue->PushStorageFilter(&filter);
-
-        GX_LOG_INFO("D3D12 InfoQueue configured (break on error/corruption, suppress info)");
+        GX_LOG_WARN("ID3D12InfoQueue not available (Debug Layer may be disabled)");
+        return;
     }
+
+    // 重大エラーでブレーク
+    infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
+    infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
+
+    // 既知の無害メッセージを抑制
+    D3D12_MESSAGE_ID denyIds[] = {
+        D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
+        D3D12_MESSAGE_ID_CLEARDEPTHSTENCILVIEW_MISMATCHINGCLEARVALUE,
+    };
+
+    D3D12_MESSAGE_SEVERITY denySeverities[] = {
+        D3D12_MESSAGE_SEVERITY_INFO,
+    };
+
+    D3D12_INFO_QUEUE_FILTER filter = {};
+    filter.DenyList.NumIDs       = _countof(denyIds);
+    filter.DenyList.pIDList      = denyIds;
+    filter.DenyList.NumSeverities = _countof(denySeverities);
+    filter.DenyList.pSeverityList = denySeverities;
+    infoQueue->PushStorageFilter(&filter);
+
+    GX_LOG_INFO("D3D12 InfoQueue configured (break on error/corruption, suppress info)");
 }
 
 void GraphicsDevice::ReportLiveObjects()
@@ -116,6 +136,10 @@ void GraphicsDevice::ReportLiveObjects()
         dxgiDebug->ReportLiveObjects(DXGI_DEBUG_ALL,
             static_cast<DXGI_DEBUG_RLO_FLAGS>(DXGI_DEBUG_RLO_SUMMARY | DXGI_DEBUG_RLO_IGNORE_INTERNAL));
         GX_LOG_INFO("=== End DXGI Report ===");
+    }
+    else
+    {
+        GX_LOG_WARN("DXGIGetDebugInterface1 failed — debug interface not available");
     }
 }
 

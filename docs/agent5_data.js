@@ -7,7 +7,7 @@
 // ============================================================
 'InputManager-Initialize': [
   'void Initialize(Window& window)',
-  'InputManagerを初期化し、指定ウィンドウにメッセージコールバックを登録します。Keyboard、Mouse、Gamepadの各デバイスの初期化も同時に行います。アプリケーション起動時に一度だけ呼び出してください。Windowのメッセージループに入力処理を紐付けます。',
+  'InputManagerを初期化し、指定ウィンドウにメッセージコールバックを登録します。Keyboard、Mouse、Gamepadの各デバイスの初期化も同時に行います。アプリケーション起動時に一度だけ呼び出してください。Windowのメッセージループに入力処理を紐付けます。\\n\\n【用語】入力マネージャはキーボード・マウス・ゲームパッドを一括管理します。毎フレーム Update() を呼ぶだけで全デバイスの状態が更新されます。',
   '// InputManager初期化\nGX::InputManager inputManager;\nGX::Window window;\nwindow.Initialize(1280, 720, L"My Game");\ninputManager.Initialize(window);',
   '* Window初期化後に呼び出すこと\n* 内部でWindow::AddMessageCallback()を使用してWin32メッセージを受信する\n* 初期化は1度だけ行う（再初期化は非対応）'
 ],
@@ -80,7 +80,7 @@
 // ============================================================
 'Keyboard-Initialize': [
   'void Initialize()',
-  'キーボード状態を初期化し、全256キーの状態をリセットします。InputManager::Initialize()から内部的に呼ばれます。全キーを非押下状態にクリアします。',
+  'キーボード状態を初期化し、全256キーの状態をリセットします。InputManager::Initialize()から内部的に呼ばれます。全キーを非押下状態にクリアします。\\n\\n【用語】VK_* は Windows の仮想キーコード (Virtual Key codes) です。VK_SPACE, VK_RETURN, VK_ESCAPE 等でキーを指定します。',
   '// 通常はInputManager経由で初期化\nGX::Keyboard keyboard;\nkeyboard.Initialize();',
   '* 通常はInputManager経由で呼ばれるため直接呼ぶ必要はない\n* 256キー分のbool配列を全てfalseに初期化する\n* 再初期化すると入力状態が全てリセットされる'
 ],
@@ -376,7 +376,7 @@
 // ============================================================
 'AudioManager-Initialize': [
   'bool Initialize()',
-  'オーディオシステム全体を初期化します。内部でXAudio2エンジンの作成、マスタリングボイスの設定、SoundPlayerとMusicPlayerの初期化を行います。失敗時はfalseを返します。アプリケーション起動時に一度呼び出してください。',
+  'オーディオシステム全体を初期化します。内部でXAudio2エンジンの作成、マスタリングボイスの設定、SoundPlayerとMusicPlayerの初期化を行います。失敗時はfalseを返します。アプリケーション起動時に一度呼び出してください。\\n\\n【用語】XAudio2 は Windows の低遅延オーディオ API です。効果音 (SE) の同時再生や BGM のストリーミングに使用します。',
   '// オーディオ初期化\nGX::AudioManager audioManager;\nif (!audioManager.Initialize()) {\n    GX::Logger::Error(L"Audio init failed!");\n    return false;\n}',
   '* 内部でAudioDevice::Initialize()を呼び出す\n* XAudio2のCOM初期化も行う\n* 失敗時はオーディオ機能が使用不可（ゲーム自体は続行可能）'
 ],

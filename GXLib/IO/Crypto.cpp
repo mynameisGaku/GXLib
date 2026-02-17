@@ -82,12 +82,16 @@ std::vector<uint8_t> Crypto::Decrypt(const void* data, size_t size,
 
     NTSTATUS status = BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_AES_ALGORITHM, nullptr, 0);
     if (!BCRYPT_SUCCESS(status))
+    {
+        GX_LOG_ERROR("Crypto::Decrypt: BCryptOpenAlgorithmProvider failed: 0x%08X", status);
         return result;
+    }
 
     status = BCryptSetProperty(hAlg, BCRYPT_CHAINING_MODE,
         (PUCHAR)BCRYPT_CHAIN_MODE_CBC, sizeof(BCRYPT_CHAIN_MODE_CBC), 0);
     if (!BCRYPT_SUCCESS(status))
     {
+        GX_LOG_ERROR("Crypto::Decrypt: BCryptSetProperty failed: 0x%08X", status);
         BCryptCloseAlgorithmProvider(hAlg, 0);
         return result;
     }
@@ -96,6 +100,7 @@ std::vector<uint8_t> Crypto::Decrypt(const void* data, size_t size,
         (PUCHAR)key, 32, 0);
     if (!BCRYPT_SUCCESS(status))
     {
+        GX_LOG_ERROR("Crypto::Decrypt: BCryptGenerateSymmetricKey failed: 0x%08X", status);
         BCryptCloseAlgorithmProvider(hAlg, 0);
         return result;
     }
@@ -108,6 +113,7 @@ std::vector<uint8_t> Crypto::Decrypt(const void* data, size_t size,
         ivCopy, 16, nullptr, 0, &cbOutput, BCRYPT_BLOCK_PADDING);
     if (!BCRYPT_SUCCESS(status))
     {
+        GX_LOG_ERROR("Crypto::Decrypt: BCryptDecrypt (size query) failed: 0x%08X", status);
         BCryptDestroyKey(hKey);
         BCryptCloseAlgorithmProvider(hAlg, 0);
         return result;
@@ -120,6 +126,7 @@ std::vector<uint8_t> Crypto::Decrypt(const void* data, size_t size,
         ivCopy, 16, result.data(), cbOutput, &cbOutput, BCRYPT_BLOCK_PADDING);
     if (!BCRYPT_SUCCESS(status))
     {
+        GX_LOG_ERROR("Crypto::Decrypt: BCryptDecrypt failed: 0x%08X", status);
         result.clear();
     }
     else

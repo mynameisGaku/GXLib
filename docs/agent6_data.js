@@ -8,14 +8,14 @@
 
 'Widget-WidgetType': [
   'enum class WidgetType { Panel, Text, Button, Image, TextInput, Slider, CheckBox, RadioButton, DropDown, ListView, ScrollView, ProgressBar, TabView, Dialog, Canvas, Spacer }',
-  'ウィジェットの種類を表す列挙型。GetType() の戻り値として使用される。Panel はコンテナ、Text はテキスト表示、Button はクリック可能なボタンなど、GUIシステムで利用可能なすべてのウィジェットタイプを定義する。ウィジェットの種類に応じた処理分岐やスタイルシートのタイプセレクタに使用される。',
+  'ウィジェットの種類を表す列挙型。GetType() の戻り値として使用される。Panel はコンテナ、Text はテキスト表示、Button はクリック可能なボタンなど、GUIシステムで利用可能なすべてのウィジェットタイプを定義する。ウィジェットの種類に応じた処理分岐やスタイルシートのタイプセレクタに使用される。\n\n【用語】ウィジェット（Widget）: GUI部品の総称。ボタン、テキスト、スライダーなど画面上のインタラクティブ要素を表すオブジェクト。GXLibではWidget基底クラスを継承した16種類のウィジェットが用意されている。',
   '// ウィジェット種類による分岐\nauto* w = ctx.FindById("myWidget");\nif (w->GetType() == GX::GUI::WidgetType::Button) {\n    auto* btn = static_cast<GX::GUI::Button*>(w);\n    btn->SetText(L"Clicked!");\n}',
   '• 全16種類のウィジェットタイプが定義されている\n• StyleSheet のタイプセレクタ（例: Button { ... }）で使用される\n• GetType() は純粋仮想関数であり、各サブクラスで必ずオーバーライドされる'
 ],
 
 'Widget-UIEventType': [
   'enum class UIEventType { MouseDown, MouseUp, MouseMove, MouseWheel, MouseEnter, MouseLeave, KeyDown, KeyUp, CharInput, FocusGained, FocusLost, Click, ValueChanged, Submit }',
-  'UIイベントの種類を表す列挙型。マウス操作（Down/Up/Move/Wheel/Enter/Leave）、キーボード操作（KeyDown/KeyUp/CharInput）、フォーカス（Gained/Lost）、および高レベルイベント（Click/ValueChanged/Submit）を定義する。UIContext のイベントディスパッチシステムで使用される。',
+  'UIイベントの種類を表す列挙型。マウス操作（Down/Up/Move/Wheel/Enter/Leave）、キーボード操作（KeyDown/KeyUp/CharInput）、フォーカス（Gained/Lost）、および高レベルイベント（Click/ValueChanged/Submit）を定義する。UIContext のイベントディスパッチシステムで使用される。\n\n【用語】イベントディスパッチ: UIイベントをウィジェットツリーに配送する仕組み。GXLibではDOM Level 3準拠のCapture→Target→Bubbleの3フェーズでイベントを伝搬する。',
   '// イベントハンドラ内で種類をチェック\nwidget->onEvent = [](const GX::GUI::UIEvent& e) {\n    if (e.type == GX::GUI::UIEventType::Click) {\n        // クリック処理\n    }\n    if (e.type == GX::GUI::UIEventType::KeyDown) {\n        // キー入力処理 (e.keyCode)\n    }\n};',
   '• MouseEnter/MouseLeave はホバー状態の管理に使用される\n• CharInput は WM_CHAR メッセージから生成され、TextInput で文字入力に使用\n• Click は MouseDown + MouseUp の組み合わせで自動生成される\n• Submit は TextInput で Enter キー押下時に発生する'
 ],
@@ -44,7 +44,7 @@
 'Widget-AddChild': [
   'void AddChild(std::unique_ptr<Widget> child)',
   '子ウィジェットを追加する。所有権は親ウィジェットに移動する（unique_ptr の move）。追加された子の m_parent は自動的にこのウィジェットに設定される。ウィジェットツリーの構築に使用する基本操作。',
-  '// パネルに子ウィジェットを追加\nauto panel = std::make_unique<GX::GUI::Panel>();\nauto text = std::make_unique<GX::GUI::TextWidget>();\ntext->SetText(L"Hello");\npanel->AddChild(std::move(text));\nctx.SetRoot(std::move(panel));',
+  '// パネルに子ウィジェットを追加\nauto panel = std::make_unique<GX::GUI::Panel>();\nauto text = std::make_unique<GX::GUI::TextWidget>();\ntext->SetText(L"Hello");\npanel->AddChild(std::move(text)); // 所有権がpanelに移動\nctx.SetRoot(std::move(panel));     // 所有権がUIContextに移動',
   '• unique_ptr による所有権移動のため、std::move() が必要\n• 追加後は子の m_parent が自動設定される\n• 追加順序がレンダリング順序に影響する（後から追加したものが前面）\n• layoutDirty は自動的に true にはならないため、必要に応じて手動設定する'
 ],
 
@@ -72,7 +72,7 @@
 'Widget-OnEvent': [
   'virtual bool OnEvent(const UIEvent& event)',
   'イベントハンドラ。UIContext のイベントディスパッチシステムから呼ばれる。サブクラスでオーバーライドしてウィジェット固有のイベント処理を実装する。true を返すとイベントが処理済みであることを示す。基底クラスの実装は onClick コールバックの呼び出しを行う。',
-  '// カスタムウィジェットでイベント処理\nbool MyWidget::OnEvent(const GX::GUI::UIEvent& event) {\n    if (event.type == GX::GUI::UIEventType::Click) {\n        // クリック処理\n        return true;\n    }\n    return Widget::OnEvent(event);\n}',
+  '// カスタムウィジェットでイベント処理\nbool MyWidget::OnEvent(const GX::GUI::UIEvent& event) {\n    if (event.type == GX::GUI::UIEventType::Click) {\n        // クリック処理\n        return true; // trueでイベント処理済みを通知\n    }\n    return Widget::OnEvent(event); // 基底クラスのデフォルト処理に委譲\n}',
   '• 基底クラスの OnEvent は onClick / onEvent コールバックを呼び出す\n• Button, TextInput, Slider 等は独自の OnEvent 実装を持つ\n• 3フェーズディスパッチの Target フェーズで呼ばれる\n• false を返すとバブリングが継続する'
 ],
 
@@ -85,7 +85,7 @@
 
 'Widget-GetIntrinsicWidth': [
   'virtual float GetIntrinsicWidth() const / virtual float GetIntrinsicHeight() const',
-  'ウィジェット固有の内在サイズを返す仮想関数。テキストウィジェットではテキスト幅、ボタンではテキスト幅+パディングなどを返す。Flexbox レイアウト計算の MeasureWidget フェーズでスタイルの width/height が Auto の場合にフォールバック値として使用される。',
+  'ウィジェット固有の内在サイズを返す仮想関数。テキストウィジェットではテキスト幅、ボタンではテキスト幅+パディングなどを返す。Flexbox レイアウト計算の MeasureWidget フェーズでスタイルの width/height が Auto の場合にフォールバック値として使用される。\n\n【用語】Flexbox: CSSの柔軟なレイアウトモデル。主軸（flex-direction）に沿って子要素を配置し、justifyContent/alignItemsで整列を制御する。GXLibのGUIレイアウトエンジンはFlexboxの主要機能を実装している。',
   '// カスタムウィジェットで固有サイズを定義\nfloat MyWidget::GetIntrinsicWidth() const {\n    return 120.0f; // 最低幅120px\n}\nfloat MyWidget::GetIntrinsicHeight() const {\n    return 40.0f;  // 最低高さ40px\n}',
   '• 基底クラスのデフォルトは 0.0f を返す\n• Style の width/height が指定されている場合はそちらが優先される\n• TextWidget は UIRenderer を使ってテキスト幅を実測する\n• Spacer は SetSize() で設定した値を返す'
 ],
@@ -147,7 +147,7 @@
   'bool Initialize(UIRenderer* renderer, uint32_t screenWidth, uint32_t screenHeight)',
   'UIContext を初期化する。UIRenderer のポインタ、スクリーンサイズを設定する。アプリケーション起動時に一度だけ呼び出す。UIRenderer は事前に Initialize 済みである必要がある。失敗時は false を返す。',
   '// UIContext の初期化\nGX::GUI::UIContext uiCtx;\nGX::GUI::UIRenderer uiRenderer;\nuiRenderer.Initialize(device, cmdQueue, 1280, 720,\n                      &spriteBatch, &textRenderer, &fontManager);\nuiCtx.Initialize(&uiRenderer, 1280, 720);',
-  '• UIRenderer の Initialize を先に呼ぶ必要がある\n• screenWidth/Height は実際のウィンドウサイズを指定する\n• デザイン解像度は別途 SetDesignResolution() で設定する'
+  '• renderer: 初期化済みのUIRendererポインタ（非所有）\n• screenWidth/screenHeight: ウィンドウの実サイズ（ピクセル）\n• UIRenderer の Initialize を先に呼ぶ必要がある\n• デザイン解像度は別途 SetDesignResolution() で設定する'
 ],
 
 'UIContext-SetRoot': [
@@ -174,7 +174,7 @@
 'UIContext-Update': [
   'void Update(float deltaTime, InputManager& input)',
   '毎フレームのGUI更新を行う。入力イベントの生成・ディスパッチ、スタイルシートの適用、Flexbox レイアウト計算、ウィジェットの Update() 呼び出しを順に実行する。メインループで毎フレーム呼び出す必要がある。',
-  '// メインループでの更新\nwhile (running) {\n    float dt = timer.GetDeltaTime();\n    inputManager.Update();\n    uiCtx.Update(dt, inputManager);\n    // ... 描画 ...\n}',
+  '// メインループでの更新\nwhile (running) {\n    float dt = timer.GetDeltaTime();\n    inputManager.Update();           // 入力状態を更新\n    uiCtx.Update(dt, inputManager); // GUI更新（イベント→スタイル→レイアウト）\n    // ... 描画 ...\n}',
   '• InputManager からマウス・キーボード状態を取得してイベントを生成する\n• StyleSheet が設定されている場合、毎フレーム ApplyToTree が呼ばれる\n• レイアウトは layoutDirty フラグに基づいて再計算される\n• 3フェーズイベントディスパッチ（Capture→Target→Bubble）がここで実行される'
 ],
 
@@ -209,8 +209,8 @@
 'UIContext-SetDesignResolution': [
   'void SetDesignResolution(uint32_t width, uint32_t height)',
   'デザイン解像度を設定する。GUI座標空間の基準解像度を指定し、実際のウィンドウサイズに対して自動スケーリングを行う。アスペクト比が異なる場合はレターボックス（均一スケーリング）で対応する。0を指定するとスケーリングを無効化する。',
-  '// デザイン解像度を設定\nuiCtx.SetDesignResolution(1280, 960);\n// 1920x1080 画面でも 1280x960 座標系でレイアウトされる\n// uniform scale = min(1920/1280, 1080/960) = 1.125',
-  '• uniform scale = min(screenW/designW, screenH/designH) で計算される\n• レターボックスのオフセットが自動的に計算される\n• マウス座標もスクリーン→デザイン座標に自動変換される\n• UIRenderer にも同じデザイン解像度が設定される'
+  '// デザイン解像度を設定（異なるウィンドウサイズでも統一座標系）\nuiCtx.SetDesignResolution(1280, 960);\n// 1920x1080 画面でも 1280x960 座標系でレイアウトされる\n// uniform scale = min(1920/1280, 1080/960) = 1.125\n// 0を指定するとスケーリング無効',
+  '• width/height: デザイン座標空間のサイズ（ピクセル）。0を指定するとスケーリング無効\n• uniform scale = min(screenW/designW, screenH/designH) で計算される\n• レターボックスのオフセットが自動的に計算される\n• マウス座標もスクリーン→デザイン座標に自動変換される\n• UIRenderer にも同じデザイン解像度が設定される'
 ],
 
 'UIContext-OnResize': [
@@ -226,7 +226,7 @@
 
 'UIRenderer-Initialize': [
   'bool Initialize(ID3D12Device* device, ID3D12CommandQueue* cmdQueue, uint32_t screenWidth, uint32_t screenHeight, SpriteBatch* spriteBatch, TextRenderer* textRenderer, FontManager* fontManager)',
-  'UIRenderer を初期化する。D3D12 デバイス、コマンドキュー、スクリーンサイズ、および描画に必要な SpriteBatch / TextRenderer / FontManager の参照を設定する。UIRectBatch 用のパイプライン（SDF丸角矩形シェーダー）もここで作成される。',
+  'UIRenderer を初期化する。D3D12 デバイス、コマンドキュー、スクリーンサイズ、および描画に必要な SpriteBatch / TextRenderer / FontManager の参照を設定する。UIRectBatch 用のパイプライン（SDF丸角矩形シェーダー）もここで作成される。\n\n【用語】SDF（Signed Distance Field）: 各ピクセルから図形境界までの符号付き距離を格納する手法。GXLibのUIRendererでは角丸矩形・枠線・影をSDF シェーダーで1ドローコールに描画し、解像度非依存の滑らかなレンダリングを実現する。',
   '// UIRenderer の初期化\nGX::GUI::UIRenderer renderer;\nrenderer.Initialize(device, cmdQueue, 1280, 720,\n                    &spriteBatch, &textRenderer, &fontManager);',
   '• SpriteBatch, TextRenderer, FontManager は事前に初期化済みである必要がある\n• UIRect.hlsl シェーダーが内部で読み込まれる\n• DynamicBuffer（VB/CB）と IndexBuffer がここで作成される'
 ],
@@ -248,7 +248,7 @@
 'UIRenderer-DrawRect': [
   'void DrawRect(const LayoutRect& rect, const Style& style, float opacity = 1.0f)',
   'スタイル付き矩形を描画する。SDF（Signed Distance Field）シェーダーによる角丸矩形レンダリングを使用し、背景色、枠線、影、角丸をすべて1ドローコールで描画する。opacity は全体の透明度の乗算係数。',
-  '// スタイル付き矩形を描画\nGX::GUI::Style style;\nstyle.backgroundColor = {0.2f, 0.3f, 0.5f, 1.0f};\nstyle.cornerRadius = 8.0f;\nstyle.borderWidth = 1.0f;\nstyle.borderColor = {0.5f, 0.5f, 0.5f, 1.0f};\nuiRenderer.DrawRect(widget->globalRect, style, 1.0f);',
+  '// スタイル付き矩形を描画\nGX::GUI::Style style;\nstyle.backgroundColor = {0.2f, 0.3f, 0.5f, 1.0f}; // RGBA (0.0〜1.0)\nstyle.cornerRadius = 8.0f;  // 角丸半径（ピクセル）\nstyle.borderWidth = 1.0f;   // 枠線の太さ\nstyle.borderColor = {0.5f, 0.5f, 0.5f, 1.0f};\nuiRenderer.DrawRect(widget->globalRect, style, 1.0f);',
   '• UIRect.hlsl の SDF シェーダーで描画される\n• SpriteBatch がアクティブな場合は内部で自動フラッシュされる\n• 1矩形あたり定数バッファ144バイト + 頂点4つを消費する\n• shadowBlur, shadowOffset が Style に設定されていれば影も描画される'
 ],
 
@@ -287,7 +287,7 @@
 'Style-FlexDirection': [
   'enum class FlexDirection { Row, Column }',
   'Flexbox の主軸方向を定義する列挙型。Row は水平方向（左→右）、Column は垂直方向（上→下）に子ウィジェットを配置する。デフォルトは Column。CSS の flex-direction プロパティに対応する。',
-  '// 水平レイアウト\nauto panel = std::make_unique<GX::GUI::Panel>();\npanel->computedStyle.flexDirection = GX::GUI::FlexDirection::Row;\npanel->computedStyle.gap = 10.0f;\n// CSS: .row { flex-direction: row; gap: 10px; }',
+  '// 水平レイアウト（子を横並びに配置）\nauto panel = std::make_unique<GX::GUI::Panel>();\npanel->computedStyle.flexDirection = GX::GUI::FlexDirection::Row; // 横方向配置\npanel->computedStyle.gap = 10.0f; // 子ウィジェット間の間隔（px）\n// CSS: .row { flex-direction: row; gap: 10px; }',
   '• デフォルトは Column（縦方向配置）\n• CSS では flex-direction: row / column で指定\n• gap プロパティで子ウィジェット間の間隔を設定できる'
 ],
 
@@ -308,7 +308,7 @@
 'Style-PositionType': [
   'enum class PositionType { Relative, Absolute }',
   '位置指定方法を定義する列挙型。Relative は通常のフローレイアウト、Absolute は親ウィジェットの左上を基準とした絶対位置配置。Absolute の場合は posLeft / posTop で座標を指定する。',
-  '// 絶対位置配置\nauto overlay = std::make_unique<GX::GUI::Panel>();\noverlay->computedStyle.position = GX::GUI::PositionType::Absolute;\noverlay->computedStyle.posLeft = GX::GUI::StyleLength::Px(50.0f);\noverlay->computedStyle.posTop = GX::GUI::StyleLength::Px(100.0f);\n// CSS: .abs { position: absolute; left: 50px; top: 100px; }',
+  '// 絶対位置配置（Flexboxフローから除外される）\nauto overlay = std::make_unique<GX::GUI::Panel>();\noverlay->computedStyle.position = GX::GUI::PositionType::Absolute;\noverlay->computedStyle.posLeft = GX::GUI::StyleLength::Px(50.0f);  // 親の左から50px\noverlay->computedStyle.posTop = GX::GUI::StyleLength::Px(100.0f); // 親の上から100px\n// CSS: .abs { position: absolute; left: 50px; top: 100px; }',
   '• Absolute ウィジェットは Flexbox レイアウトのフローから除外される\n• posLeft / posTop で親基準の座標を指定する\n• CSS では position: absolute; left: 50px; top: 100px; で指定'
 ],
 
@@ -357,7 +357,7 @@
 'Style-widthheight': [
   'StyleLength width, height, minWidth, minHeight, maxWidth, maxHeight',
   'ウィジェットのサイズ制約。width/height は Auto（固有サイズ使用）、Px（ピクセル）、Percent（親サイズの割合）を指定できる。minWidth/maxWidth/minHeight/maxHeight でサイズ範囲を制約する。CSS の width/height/min-width/max-width に対応する。',
-  '// 幅を親の50%、高さを100pxに設定\nwidget->computedStyle.width = GX::GUI::StyleLength::Pct(50.0f);\nwidget->computedStyle.height = GX::GUI::StyleLength::Px(100.0f);\n// CSS: .half { width: 50%; height: 100px; min-width: 80px; }',
+  '// 幅を親の50%、高さを100pxに設定\nwidget->computedStyle.width = GX::GUI::StyleLength::Pct(50.0f);  // 親幅の50%\nwidget->computedStyle.height = GX::GUI::StyleLength::Px(100.0f); // 固定100px\n// CSS: .half { width: 50%; height: 100px; min-width: 80px; }',
   '• Auto の場合は GetIntrinsicWidth/Height() の値がフォールバックとして使用される\n• Percent は親ウィジェットのサイズに対する割合\n• min/max 制約は最終的なサイズに適用される\n• maxWidth/maxHeight のデフォルトは 100000px（事実上無制限）'
 ],
 
@@ -388,7 +388,7 @@
 
 'StyleSheet-Load': [
   'bool LoadFromFile(const std::string& path)',
-  'CSS ファイルからスタイルルールを読み込む。ファイルをテキストとして読み込み、Tokenize→Parse のパイプラインで処理する。成功時は true を返す。ファイルが見つからない場合やパースエラー時は false を返す。',
+  'CSS ファイルからスタイルルールを読み込む。ファイルをテキストとして読み込み、Tokenize→Parse のパイプラインで処理する。成功時は true を返す。ファイルが見つからない場合やパースエラー時は false を返す。\n\n【用語】CSS（Cascading Style Sheets）: ウェブ標準のスタイル定義言語。GXLibではCSSのサブセットをGUIスタイリングに採用しており、セレクタ（Type/.class/#id/:pseudo）、プロパティ、詳細度ルールをサポートする。',
   '// CSSファイルの読み込み\nGX::GUI::StyleSheet sheet;\nif (sheet.LoadFromFile("Assets/ui/menu.css")) {\n    uiCtx.SetStyleSheet(&sheet);\n}',
   '• ファイルパスは実行ファイルからの相対パスまたは絶対パス\n• UTF-8 エンコーディングのファイルを想定\n• 読み込み後に UIContext::SetStyleSheet() で設定する\n• 複数回呼び出すと前のルールは上書きされる'
 ],
@@ -404,7 +404,7 @@
   'void ApplyToTree(Widget* root) const',
   'ウィジェットツリー全体にスタイルルールを再帰的に適用する。各ウィジェットに対してマッチするルールを詳細度順に適用し、computedStyle を更新する。UIContext::Update() 内で毎フレーム自動的に呼ばれる。',
   '// ツリーにスタイルを手動適用\nGX::GUI::StyleSheet sheet;\nsheet.LoadFromFile("Assets/ui/style.css");\nsheet.ApplyToTree(uiCtx.GetRoot());',
-  '• 詳細度順（id=100 > class=10 > type=1）でルールが適用される\n• 同一詳細度ではソース順序が後のルールが優先される\n• Button の :hover / :pressed / :disabled は hoverStyle / pressedStyle / disabledStyle に自動適用される\n• 毎フレーム呼ばれるため、C++ で設定した computedStyle は上書きされる'
+  '• root: ルートウィジェットへのポインタ（nullptrの場合は何もしない）\n• 詳細度順（id=100 > class=10 > type=1）でルールが適用される\n• 同一詳細度ではソース順序が後のルールが優先される\n• Button の :hover / :pressed / :disabled は hoverStyle / pressedStyle / disabledStyle に自動適用される\n• 毎フレーム呼ばれるため、C++ で設定した computedStyle は上書きされる'
 ],
 
 'StyleSheet-ApplyProperty': [
@@ -442,7 +442,7 @@
 'GUILoader-RegisterEvent': [
   'void RegisterEvent(const std::string& name, std::function<void()> handler)',
   'イベント名とハンドラ関数の対応を登録する。XML の onClick 属性で指定されたイベント名をハンドラに解決する。ボタンクリック等の UI アクションを C++ 側の関数に接続する。',
-  '// イベントハンドラの登録\nloader.RegisterEvent("onStart", [&]() {\n    gameState = GameState::Playing;\n});\nloader.RegisterEvent("onQuit", [&]() {\n    running = false;\n});\n// XML: <Button onClick="onStart">Start</Button>',
+  '// イベントハンドラの登録（名前→コールバック対応）\nloader.RegisterEvent("onStart", [&]() {\n    gameState = GameState::Playing; // ゲーム開始\n});\nloader.RegisterEvent("onQuit", [&]() {\n    running = false; // アプリ終了\n});\n// XML: <Button onClick="onStart">Start</Button>',
   '• XML の onClick 属性でイベント名を指定する\n• ハンドラは引数なしの void() 関数\n• 未登録のイベント名は無視される（エラーにはならない）'
 ],
 
@@ -470,7 +470,7 @@
 'GUILoader-BuildFromFile': [
   'std::unique_ptr<Widget> BuildFromFile(const std::string& xmlPath)',
   'XML ファイルからウィジェットツリーを構築して返す。内部で XMLDocument::LoadFromFile() を呼び、各 XML タグを対応するウィジェットに変換する。フォント・イベント・テクスチャの登録は事前に行う必要がある。',
-  '// XMLからウィジェットツリーを構築\nGX::GUI::GUILoader loader;\nloader.SetRenderer(&uiRenderer);\nloader.RegisterFont("default", fontHandle);\nloader.RegisterEvent("onStart", [&]() { Start(); });\nauto tree = loader.BuildFromFile("Assets/ui/menu.xml");\nuiCtx.SetRoot(std::move(tree));',
+  '// XMLからウィジェットツリーを構築\nGX::GUI::GUILoader loader;\nloader.SetRenderer(&uiRenderer);                        // 必須: テキスト幅計測に使用\nloader.RegisterFont("default", fontHandle);              // XMLのfont属性で参照\nloader.RegisterEvent("onStart", [&]() { Start(); });    // XMLのonClick属性で参照\nauto tree = loader.BuildFromFile("Assets/ui/menu.xml"); // XML→ウィジェットツリー\nuiCtx.SetRoot(std::move(tree));                          // UIContextに設定',
   '• SetRenderer / RegisterFont / RegisterEvent 等を事前に呼ぶ\n• 戻り値は unique_ptr<Widget> で、UIContext::SetRoot() に渡す\n• XML タグ名がウィジェットタイプに対応する（Panel, Button, Text, etc.）\n• インライン style 属性は StyleSheet::ApplyProperty で適用される'
 ],
 
@@ -647,14 +647,14 @@
 'Slider-SetValue': [
   'void SetValue(float v) / float GetValue() const',
   'スライダーの値を設定・取得する。値は SetRange で設定した min〜max の範囲にクランプされる。SetStep が設定されている場合はステップ値にスナップされる。値変更時は onValueChanged が呼ばれる。',
-  '// スライダーの値を設定\nauto slider = std::make_unique<GX::GUI::Slider>();\nslider->SetRange(0.0f, 100.0f);\nslider->SetValue(50.0f);\n\n// 値の取得\nauto* s = static_cast<GX::GUI::Slider*>(ctx.FindById("volume"));\nfloat vol = s->GetValue();',
+  '// スライダーの値を設定\nauto slider = std::make_unique<GX::GUI::Slider>();\nslider->SetRange(0.0f, 100.0f); // 最小0、最大100\nslider->SetValue(50.0f);         // 初期値50（範囲内にクランプ）\n\n// 値の取得\nauto* s = static_cast<GX::GUI::Slider*>(ctx.FindById("volume"));\nfloat vol = s->GetValue(); // 現在のスライダー値',
   '• 値は min〜max の範囲に自動クランプされる\n• SetStep(0) はステップなし（連続値）\n• ドラッグ操作中も値が連続的に更新される\n• デフォルト範囲は 0.0〜1.0'
 ],
 
 'Slider-SetTrackColor': [
   'void SetRange(float minVal, float maxVal) / void SetStep(float step)',
   'スライダーの値範囲とステップを設定する。SetRange で最小値と最大値を指定する。SetStep でステップ値を設定すると、値がステップの倍数にスナップされる。0 はステップなし。',
-  '// 範囲とステップの設定\nauto slider = std::make_unique<GX::GUI::Slider>();\nslider->SetRange(0.0f, 10.0f);\nslider->SetStep(0.5f); // 0, 0.5, 1.0, ... 10.0\n\n// CSS でトラック色を指定\n// Slider { background-color: #333; }',
+  '// 範囲とステップの設定\nauto slider = std::make_unique<GX::GUI::Slider>();\nslider->SetRange(0.0f, 10.0f);  // 最小0.0、最大10.0\nslider->SetStep(0.5f);           // 0.5刻み: 0, 0.5, 1.0, ... 10.0\n\n// CSS でトラック色を指定\n// Slider { background-color: #333; }',
   '• デフォルト範囲は 0.0〜1.0、ステップは 0（連続）\n• トラック色は computedStyle.backgroundColor、フィル色は別途描画\n• ステップ値は (value - min) を step で丸めて適用される\n• intrinsic size はデフォルトで 200x24px'
 ],
 
@@ -776,7 +776,7 @@
 'ProgressBar-SetValue': [
   'void SetValue(float v) / float GetValue() const',
   '進捗値を設定・取得する。値は 0.0〜1.0 の範囲に自動クランプされる。0.0 で空、1.0 で完全に満たされたバーが表示される。ロード進捗やHP表示などに使用する。',
-  '// プログレスバーの更新\nauto pb = std::make_unique<GX::GUI::ProgressBar>();\npb->SetValue(0.0f);\n\n// ロード進捗の更新\nauto* bar = static_cast<GX::GUI::ProgressBar*>(ctx.FindById("loadBar"));\nbar->SetValue(loadProgress); // 0.0 ~ 1.0',
+  '// プログレスバーの更新\nauto pb = std::make_unique<GX::GUI::ProgressBar>();\npb->SetValue(0.0f); // 0.0=空、1.0=満タン\n\n// ロード進捗の更新\nauto* bar = static_cast<GX::GUI::ProgressBar*>(ctx.FindById("loadBar"));\nbar->SetValue(loadProgress); // 0.0〜1.0（自動クランプ）',
   '• 値は自動的に 0.0〜1.0 にクランプされる\n• 表示専用ウィジェット（ユーザー操作不可）\n• intrinsic size はデフォルトで 200x20px\n• バー色は SetBarColor() でカスタマイズ可能'
 ],
 
@@ -834,7 +834,7 @@
   'void SetOverlayColor(float r, float g, float b, float a)',
   'オーバーレイ（背景）の色を設定する。デフォルトは半透明黒（0, 0, 0, 0.5）。モーダル感を強調するためにアルファ値を調整する。',
   '// オーバーレイ色の設定\nauto dlg = std::make_unique<GX::GUI::Dialog>();\ndlg->SetOverlayColor(0.0f, 0.0f, 0.0f, 0.7f); // より暗いオーバーレイ',
-  '• デフォルトは黒の半透明（alpha=0.5）\n• 画面全体を覆うオーバーレイとして描画される\n• オーバーレイクリックで onClose が呼ばれる'
+  '• r, g, b: 各色成分（0.0〜1.0）\n• a: 透明度（0.0=透明, 1.0=不透明）デフォルト0.5\n• 画面全体を覆うオーバーレイとして描画される\n• オーバーレイクリックで onClose が呼ばれる'
 ],
 
 'Dialog-onClose': [
@@ -862,7 +862,7 @@
 'Spacer-SetSize': [
   'void SetSize(float w, float h)',
   '空白スペーサーのサイズを設定する。指定した幅と高さが GetIntrinsicWidth/Height で返される。レイアウト内でウィジェット間にスペースを確保するために使用する。描画は行われない（Render は空実装）。',
-  '// スペーサーでレイアウト調整\nauto spacer = std::make_unique<GX::GUI::Spacer>();\nspacer->SetSize(0.0f, 20.0f); // 高さ20pxの空白\npanel->AddChild(std::move(spacer));\n\n// flexGrow で余白を埋めるスペーサー\nauto filler = std::make_unique<GX::GUI::Spacer>();\nfiller->computedStyle.flexGrow = 1.0f;\npanel->AddChild(std::move(filler));',
+  '// スペーサーでレイアウト調整\nauto spacer = std::make_unique<GX::GUI::Spacer>();\nspacer->SetSize(0.0f, 20.0f); // 幅0px、高さ20pxの空白\npanel->AddChild(std::move(spacer));\n\n// flexGrow で余白を埋めるスペーサー（ツールバーの左右分割等）\nauto filler = std::make_unique<GX::GUI::Spacer>();\nfiller->computedStyle.flexGrow = 1.0f; // 余剰スペースを全て占有\npanel->AddChild(std::move(filler));',
   '• Render は何も描画しない（空実装）\n• flexGrow = 1.0f と組み合わせて余白を埋めるスペーサーとして使用可能\n• GUILoader では XML の width / height 属性でサイズを指定する\n• 見えないウィジェットのため、デバッグ時はレイアウト境界表示が有用'
 ]
 

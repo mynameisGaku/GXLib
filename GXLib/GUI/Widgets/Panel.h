@@ -19,7 +19,8 @@ public:
 
     WidgetType GetType() const override { return WidgetType::Panel; }
 
-    void Render(UIRenderer& renderer) override;
+    void RenderSelf(UIRenderer& renderer) override;
+    void RenderChildren(UIRenderer& renderer) override;
 };
 
 }} // namespace GX::GUI

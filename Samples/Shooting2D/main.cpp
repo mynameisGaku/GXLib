@@ -1,50 +1,72 @@
-/// @file Samples/Shooting2D/main.cpp
-/// @brief GXFrameworkを使った2Dシューティング例。入力・更新・描画の基本が分かる。
-
-#include "FrameworkApp.h"
-#include "GameScene.h"
+﻿/// @file Samples/Shooting2D/main.cpp
+/// @brief 2Dシューティング。左右移動と射撃を体験するサンプル。
+#include "GXEasy.h"
 
 #include <format>
+#include <string>
+#include <random>
 
-namespace
+#ifdef UNICODE
+using TChar = wchar_t;
+#else
+using TChar = char;
+#endif
+
+using TString = std::basic_string<TChar>;
+
+template <class... Args>
+TString FormatT(const TChar* fmt, Args&&... args)
 {
+#ifdef UNICODE
+    return std::vformat(fmt, std::make_wformat_args(std::forward<Args>(args)...));
+#else
+    return std::vformat(fmt, std::make_format_args(std::forward<Args>(args)...));
+#endif
+}
 
-class ShootingScene : public GXFW::GameScene
+class ShootingApp : public GXEasy::App
 {
 public:
-    const char* GetName() const override { return "Shooting2D"; }
-
-protected:
-    void OnSceneEnter(GXFW::SceneContext& ctx) override
+    GXEasy::AppConfig GetConfig() const override
     {
-        (void)ctx;
+        GXEasy::AppConfig config;
+        config.title = L"GXLib Sample: Shooting2D";
+        config.width = 1280;
+        config.height = 720;
+        config.bgR = 8;
+        config.bgG = 8;
+        config.bgB = 20;
+        return config;
+    }
+
+    void Start() override
+    {
         ResetGame();
     }
 
-    void OnSceneUpdate(GXFW::SceneContext& ctx, float dt) override
+    void Update(float dt) override
     {
-        if (dt > 0.1f)
-            dt = 0.1f;
+        if (dt > 0.1f) dt = 0.1f;
 
         if (m_gameOver)
         {
-            if (ctx.input->CheckHitKey(VK_RETURN))
+            if (CheckHitKey(KEY_INPUT_RETURN))
                 ResetGame();
             return;
         }
 
         m_totalTime += dt;
 
-        // プレイヤー移動。キー入力で左右に動かす。
+        // プレイヤー移動（左右）
         float speed = 400.0f * dt;
-        if (ctx.input->CheckHitKey(VK_LEFT))  m_playerX -= speed;
-        if (ctx.input->CheckHitKey(VK_RIGHT)) m_playerX += speed;
+        if (CheckHitKey(KEY_INPUT_LEFT))  m_playerX -= speed;
+        if (CheckHitKey(KEY_INPUT_RIGHT)) m_playerX += speed;
         if (m_playerX < m_playerSize) m_playerX = m_playerSize;
         if (m_playerX > k_ScreenW - m_playerSize) m_playerX = k_ScreenW - m_playerSize;
 
-        // 発射処理。クールダウンと弾数上限で連射を制御する。
+        // 射撃クールダウン更新
         m_shootCooldown -= dt;
-        if (ctx.input->CheckHitKey(VK_SPACE) && m_shootCooldown <= 0.0f
+        if (CheckHitKey(KEY_INPUT_SPACE) && m_shootCooldown <= 0.0f
             && m_bulletCount < k_MaxBullets)
         {
             Bullet& b = m_bullets[m_bulletCount++];
@@ -54,7 +76,7 @@ protected:
             m_shootCooldown = 0.12f;
         }
 
-        // 弾の更新。上に進め、画面外なら非表示にする。
+        // 弾の更新
         for (int i = 0; i < m_bulletCount; ++i)
         {
             if (!m_bullets[i].alive) continue;
@@ -63,7 +85,7 @@ protected:
                 m_bullets[i].alive = false;
         }
 
-        // 敵の出現。時間経過で少しずつ難しくする。
+        // 敵の出現
         m_spawnTimer -= dt;
         if (m_spawnTimer <= 0.0f)
         {
@@ -80,7 +102,7 @@ protected:
             if (m_spawnInterval > 0.3f) m_spawnInterval -= 0.02f;
         }
 
-        // 敵の更新。画面外に出たらゲームオーバーにする。
+        // 敵の更新
         for (int i = 0; i < m_enemyCount; ++i)
         {
             if (!m_enemies[i].alive) continue;
@@ -92,7 +114,7 @@ protected:
             }
         }
 
-        // 当たり判定（弾 vs 敵）。当たれば両方消してスコア加算。
+        // 当たり判定（弾 vs 敵）
         for (int i = 0; i < m_bulletCount; ++i)
         {
             if (!m_bullets[i].alive) continue;
@@ -111,47 +133,47 @@ protected:
         }
     }
 
-    void OnSceneRenderUI(GXFW::SceneContext& ctx) override
+    void Draw() override
     {
-        // 背景。まず画面全体を塗りつぶす。
-        ctx.DrawBox(0, 0, k_ScreenW, k_ScreenH, GXFW::SceneContext::Color(10, 10, 30), true);
+        DrawBox(0, 0, static_cast<int>(k_ScreenW), static_cast<int>(k_ScreenH),
+                GetColor(10, 10, 30), TRUE);
 
-        // プレイヤー表示。四角で簡易的に描く。
-        ctx.DrawBox(m_playerX - m_playerSize, m_playerY - m_playerSize,
-                    m_playerX + m_playerSize, m_playerY + m_playerSize,
-                    GXFW::SceneContext::Color(80, 200, 255), true);
+        // プレイヤー描画
+        DrawBox(static_cast<int>(m_playerX - m_playerSize), static_cast<int>(m_playerY - m_playerSize),
+                static_cast<int>(m_playerX + m_playerSize), static_cast<int>(m_playerY + m_playerSize),
+                GetColor(80, 200, 255), TRUE);
 
-        // 弾の表示。小さい四角を描く。
+        // 弾
         for (int i = 0; i < m_bulletCount; ++i)
         {
             if (!m_bullets[i].alive) continue;
-            ctx.DrawBox(m_bullets[i].x - 3.0f, m_bullets[i].y - 6.0f,
-                        m_bullets[i].x + 3.0f, m_bullets[i].y + 6.0f,
-                        GXFW::SceneContext::Color(255, 255, 68), true);
+            DrawBox(static_cast<int>(m_bullets[i].x - 3.0f), static_cast<int>(m_bullets[i].y - 6.0f),
+                    static_cast<int>(m_bullets[i].x + 3.0f), static_cast<int>(m_bullets[i].y + 6.0f),
+                    GetColor(255, 255, 68), TRUE);
         }
 
-        // 敵の表示。円で描く。
+        // 敵
         for (int i = 0; i < m_enemyCount; ++i)
         {
             if (!m_enemies[i].alive) continue;
-            ctx.DrawCircle(m_enemies[i].x, m_enemies[i].y, m_enemies[i].radius,
-                           GXFW::SceneContext::Color(255, 120, 80), true);
+            DrawCircle(static_cast<int>(m_enemies[i].x), static_cast<int>(m_enemies[i].y),
+                       static_cast<int>(m_enemies[i].radius), GetColor(255, 120, 80), TRUE);
         }
 
-        // スコア表示。数字を文字列として描画する。
-        ctx.DrawString(10.0f, 10.0f, std::format(L"Score: {}", m_score),
-                       GXFW::SceneContext::Color(255, 255, 255));
+        // スコア
+        const TString scoreText = FormatT(TEXT("Score: {}"), m_score);
+        DrawString(10, 10, scoreText.c_str(), GetColor(255, 255, 255));
 
         if (m_gameOver)
         {
-            ctx.DrawString(k_ScreenW / 2.0f - 80.0f, k_ScreenH / 2.0f - 20.0f,
-                           L"GAME OVER", GXFW::SceneContext::Color(255, 200, 200));
-            ctx.DrawString(k_ScreenW / 2.0f - 130.0f, k_ScreenH / 2.0f + 15.0f,
-                           L"Press Enter to Restart", GXFW::SceneContext::Color(200, 200, 255));
+            DrawString(static_cast<int>(k_ScreenW / 2 - 80), static_cast<int>(k_ScreenH / 2 - 20),
+                       TEXT("GAME OVER"), GetColor(255, 200, 200));
+            DrawString(static_cast<int>(k_ScreenW / 2 - 130), static_cast<int>(k_ScreenH / 2 + 15),
+                       TEXT("Press Enter to Restart"), GetColor(200, 200, 255));
         }
 
-        ctx.DrawString(10.0f, k_ScreenH - 30.0f,
-                       L"Arrow: Move  Space: Shoot", GXFW::SceneContext::Color(150, 150, 150));
+        DrawString(10, static_cast<int>(k_ScreenH - 30),
+                   TEXT("Arrow: Move  Space: Shoot"), GetColor(150, 150, 150));
     }
 
 private:
@@ -190,10 +212,7 @@ private:
     float m_shootCooldown = 0.0f;
     float m_totalTime = 0.0f;
 
-    unsigned int m_rngState = 12345;
-
-    // 円と矩形の簡易当たり判定。
-    // 円中心から矩形までの最短距離が半径より小さいかで判定する。
+    // 円と矩形の当たり判定（弾 vs 敵）
     static bool HitCircleRect(float cx, float cy, float cr,
                               float rx, float ry, float rw, float rh)
     {
@@ -208,14 +227,12 @@ private:
         return (dx * dx + dy * dy) < (cr * cr);
     }
 
-    // 乱数（Xorshift）。高速な簡易乱数で敵の位置や速度に使う。
+    std::mt19937 m_rng{ std::random_device{}() };
+
     float RandFloat(float minVal, float maxVal)
     {
-        m_rngState ^= m_rngState << 13;
-        m_rngState ^= m_rngState >> 17;
-        m_rngState ^= m_rngState << 5;
-        float t = (m_rngState & 0x7FFFFFFF) / (float)0x7FFFFFFF;
-        return minVal + t * (maxVal - minVal);
+        std::uniform_real_distribution<float> dist(minVal, maxVal);
+        return dist(m_rng);
     }
 
     void ResetGame()
@@ -232,22 +249,5 @@ private:
     }
 };
 
-} // namespace
+GX_EASY_APP(ShootingApp)
 
-int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
-{
-    GXFW::FrameworkApp app;
-    GXFW::AppConfig config;
-    config.title = L"GXLib Sample: Shooting2D";
-    config.width = 1280;
-    config.height = 720;
-    config.enableDebug = true;
-
-    if (!app.Initialize(config))
-        return -1;
-
-    app.SetScene(std::make_unique<ShootingScene>());
-    app.Run();
-    app.Shutdown();
-    return 0;
-}

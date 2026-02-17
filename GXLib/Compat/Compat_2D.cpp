@@ -61,6 +61,9 @@ int DeleteGraph(int handle)
 int LoadDivGraph(const TCHAR* filePath, int allNum, int xNum, int yNum,
                  int xSize, int ySize, int* handleBuf)
 {
+    if (!handleBuf) return -1;
+    if (allNum <= 0) return -1;
+
     auto& ctx = Ctx::Instance();
     int baseHandle = LoadGraph(filePath);
     if (baseHandle < 0) return -1;

@@ -6,7 +6,7 @@
 
 'Collision2D-AABB2D': [
   'struct AABB2D { Vector2 min, max; AABB2D(); AABB2D(const Vector2& min, const Vector2& max); AABB2D(float x, float y, float w, float h); Vector2 Center() const; Vector2 Size() const; Vector2 HalfSize() const; bool Contains(const Vector2& point) const; AABB2D Expand(float margin) const; AABB2D Merged(const AABB2D& other) const; float Area() const; };',
-  '2D軸整列バウンディングボックス（AABB）を表す構造体。min/maxの2点で矩形領域を定義する。コンストラクタは2点指定と(x,y,w,h)指定の2種類がある。Center(), Size(), HalfSize()で幾何情報を取得でき、Contains()で点の包含判定、Expand()でマージン拡張、Merged()で他のAABBとの統合、Area()で面積計算が可能。',
+  '2D軸整列バウンディングボックス（AABB）を表す構造体。min/maxの2点で矩形領域を定義する。コンストラクタは2点指定と(x,y,w,h)指定の2種類がある。Center(), Size(), HalfSize()で幾何情報を取得でき、Contains()で点の包含判定、Expand()でマージン拡張、Merged()で他のAABBとの統合、Area()で面積計算が可能。\n\n【用語】AABB（Axis-Aligned Bounding Box）: 軸整列バウンディングボックス。各辺が座標軸に平行な矩形（2D）または直方体（3D）。回転を持たないため衝突判定が非常に高速で、ブロードフェーズの空間分割や粗い衝突チェックに広く使用される。',
   `// 2点指定で作成
 GX::AABB2D box(GX::Vector2(0, 0), GX::Vector2(100, 80));
 
@@ -56,7 +56,7 @@ GX::Vector2 cp = line.ClosestPoint(GX::Vector2(50, 30)); // (50, 0)`,
 
 'Collision2D-Polygon2D': [
   'struct Polygon2D { std::vector<Vector2> vertices; bool Contains(const Vector2& point) const; AABB2D GetBounds() const; };',
-  '2D多角形を表す構造体。頂点配列で形状を定義する。Contains()はWinding Number法で点が多角形内部にあるかを判定する。GetBounds()は多角形を包含する最小のAABBを返す。凹多角形にも対応している。',
+  '2D多角形を表す構造体。頂点配列で形状を定義する。Contains()はWinding Number法で点が多角形内部にあるかを判定する。GetBounds()は多角形を包含する最小のAABBを返す。凹多角形にも対応している。\n\n【用語】Winding Number（巻き数）: 多角形の辺が点の周りを何回巻くかを数える手法。点が内部にあれば巻き数が0以外になる。Ray Casting法と異なり、自己交差する多角形や凹多角形でも正確に内外判定できる。',
   `GX::Polygon2D poly;
 poly.vertices = {
     GX::Vector2(0, 0),
@@ -97,7 +97,7 @@ GX::AABB2D b(GX::Vector2(40,40), GX::Vector2(90,90));
 if (GX::Collision2D::TestAABBvsAABB(a, b)) {
     // 衝突している
 }`,
-  '• 分離軸テスト（SAT）の最も単純な形式\n• ブロードフェーズの衝突判定に最適\n• 詳細な衝突情報が必要な場合はIntersectAABBvsAABBを使用する'
+  '• 分離軸テスト（SAT）の最も単純な形式（X軸・Y軸の2軸のみ）\n• ブロードフェーズの衝突判定に最適\n• 詳細な衝突情報が必要な場合はIntersectAABBvsAABBを使用する\n\n【用語】SAT（Separating Axis Theorem / 分離軸定理）: 2つの凸形状が衝突しないなら、両者を分離する軸が必ず存在するという定理。全候補軸で射影の重なりをチェックし、1つでも分離軸が見つかれば非衝突と判定する。'
 ],
 
 'Collision2D-CirclevsCircle': [
@@ -279,7 +279,7 @@ if (GX::Collision2D::Raycast2D(origin, dir, target, t)) {
 
 'Collision2D-SweepCirclevsCircle': [
   'bool Collision2D::SweepCirclevsCircle(const Circle& a, const Vector2& velA, const Circle& b, const Vector2& velB, float& outT)',
-  '2つの移動する円のスイープ判定を行う。相対速度でレイキャストに帰着させ、最初に接触する時刻tを[0,1]範囲で返す。高速移動する弾丸と敵の衝突を漏れなく検出する連続衝突判定（CCD）に使用する。',
+  '2つの移動する円のスイープ判定を行う。相対速度でレイキャストに帰着させ、最初に接触する時刻tを[0,1]範囲で返す。高速移動する弾丸と敵の衝突を漏れなく検出する連続衝突判定（CCD）に使用する。\n\n【用語】CCD（Continuous Collision Detection / 連続衝突判定）: フレーム間の移動軌跡全体で衝突を検出する手法。通常の離散判定では高速オブジェクトが障害物をすり抜ける「トンネリング」が発生するが、CCDはこれを防止する。',
   `GX::Circle bullet(0.0f, 100.0f, 5.0f);
 GX::Vector2 bulletVel(500.0f, 0.0f);
 
@@ -334,7 +334,7 @@ GX::Vector3 p = ray.GetPoint(5.0f); // (0, 5, 0)`,
 
 'Collision3D-OBB': [
   'struct OBB { Vector3 center; Vector3 halfExtents; Vector3 axes[3]; OBB(); OBB(const Vector3& center, const Vector3& halfExtents, const Matrix4x4& rotation); };',
-  '有向バウンディングボックス（OBB）を表す構造体。中心、各軸の半サイズ、3つの正規直交軸で定義する。回転行列からコンストラクタで軸を抽出できる。AABBでは対応できない回転したオブジェクトのタイトなバウンディングに使用する。',
+  '有向バウンディングボックス（OBB）を表す構造体。中心、各軸の半サイズ、3つの正規直交軸で定義する。回転行列からコンストラクタで軸を抽出できる。AABBでは対応できない回転したオブジェクトのタイトなバウンディングに使用する。\n\n【用語】OBB（Oriented Bounding Box）: 有向バウンディングボックス。AABBと異なり任意の回転を持つ直方体。回転したオブジェクトをより密に囲めるが、衝突判定コストはAABBより高い（15軸のSATが必要）。',
   `GX::Matrix4x4 rot;
 // 45度Y軸回転行列を設定...
 GX::OBB obb(GX::Vector3(0, 0, 0), GX::Vector3(2, 1, 3), rot);
@@ -519,7 +519,7 @@ if (GX::Collision3D::RaycastAABB(ray, box, t)) {
 
 'Collision3D-Raycast_Triangle': [
   'bool Collision3D::RaycastTriangle(const Ray& ray, const Triangle& tri, float& outT, float& outU, float& outV)',
-  'レイと三角形のレイキャスト判定を行う。Moller-Trumboreアルゴリズムで高速に計算する。outU, outVには重心座標を出力し、テクスチャ座標の補間等に利用できる。メッシュのピッキングやレイトレースに使用する。',
+  'レイと三角形のレイキャスト判定を行う。Moller-Trumboreアルゴリズムで高速に計算する。outU, outVには重心座標を出力し、テクスチャ座標の補間等に利用できる。メッシュのピッキングやレイトレースに使用する。\n\n【用語】Moller-Trumboreアルゴリズム: レイと三角形の交差判定の高速アルゴリズム。クラメルの公式を利用して交差点のパラメータt（レイ上の距離）と重心座標(u,v)を同時に求める。前計算不要で三角形メッシュとのレイキャストに広く使われる。',
   `GX::Triangle tri(
     GX::Vector3(0, 0, 0),
     GX::Vector3(2, 0, 0),
@@ -593,7 +593,7 @@ GX::Vector3 closest = GX::Collision3D::ClosestPointOnLine(p, lineStart, lineEnd)
 
 'Quadtree-constructor': [
   'template<typename T> Quadtree<T>::Quadtree(const AABB2D& bounds, int maxDepth = 8, int maxObjects = 8)',
-  '2D空間を再帰的に4分割するクワッドツリーを構築する。boundsにルートノードの範囲、maxDepthに最大分割深度、maxObjectsにノード内の最大オブジェクト数を指定する。ノード内のオブジェクト数がmaxObjectsを超えるとNW/NE/SW/SEの4象限に自動分割される。2Dゲームのブロードフェーズ衝突判定に使用する。',
+  '2D空間を再帰的に4分割するクワッドツリーを構築する。boundsにルートノードの範囲、maxDepthに最大分割深度、maxObjectsにノード内の最大オブジェクト数を指定する。ノード内のオブジェクト数がmaxObjectsを超えるとNW/NE/SW/SEの4象限に自動分割される。2Dゲームのブロードフェーズ衝突判定に使用する。\n\n【用語】Quadtree（四分木）: 2D空間を再帰的に4分割するツリー構造。広い空間で近傍オブジェクトだけを効率的に検索でき、衝突判定の候補ペアを大幅に削減する。N個のオブジェクトで全ペア判定O(N^2)を平均O(N log N)に改善。',
   `// ゲーム画面全体をカバーするクワッドツリー
 GX::AABB2D worldBounds(GX::Vector2(0, 0), GX::Vector2(1280, 960));
 GX::Quadtree<int> tree(worldBounds, 6, 4);`,
@@ -736,7 +736,7 @@ octree.Query(frustum, visible);`,
 
 'BVH-Build': [
   'void BVH<T>::Build(const std::vector<std::pair<T, AABB3D>>& objects)',
-  'BVH（バウンディングボリューム階層）を構築する。オブジェクトとそのAABBのペア配列を受け取り、SAH（Surface Area Heuristic）に基づいて最適な分割を再帰的に行う。静的なシーンの高速レイキャストやAABBクエリに使用する。',
+  'BVH（バウンディングボリューム階層）を構築する。オブジェクトとそのAABBのペア配列を受け取り、SAH（Surface Area Heuristic）に基づいて最適な分割を再帰的に行う。静的なシーンの高速レイキャストやAABBクエリに使用する。\n\n【用語】BVH（Bounding Volume Hierarchy）: バウンディングボリューム階層。オブジェクトのAABBを二分木構造で階層化し、レイキャストや範囲クエリで不要な部分を早期に枝刈りして高速検索を実現する。\n\n【用語】SAH（Surface Area Heuristic）: BVH構築時の分割最適化手法。子ノードの表面積比率でレイが通過する確率を推定し、期待コストが最小になる分割軸・位置を選択する。',
   `// オブジェクトリスト作成
 std::vector<std::pair<int, GX::AABB3D>> objects;
 for (int i = 0; i < meshCount; ++i) {
@@ -833,10 +833,10 @@ sprite.SetPosition(ball->position.x, ball->position.y);`,
 'PhysicsWorld2D-SetGravity': [
   'void PhysicsWorld2D::SetGravity(const Vector2& gravity)',
   '物理ワールドの重力ベクトルを設定する。画面座標系（Y軸下向き）で使用する場合、Yを正の値にする必要がある。デフォルトは(0, -9.81)。',
-  `// 画面座標系（Y-down）の場合
-world.SetGravity(GX::Vector2(0, 500.0f));
+  `// 画面座標系（Y-down）の場合、下方向が正
+world.SetGravity(GX::Vector2(0, 500.0f)); // ピクセル単位の重力
 
-// 無重力
+// 無重力（宇宙空間など）
 world.SetGravity(GX::Vector2(0, 0));
 
 // 横方向の重力（風の効果）
@@ -926,7 +926,7 @@ for (auto* body : affected) {
 
 'PhysicsWorld3D-Initialize': [
   'bool PhysicsWorld3D::Initialize(uint32_t maxBodies = 10240)',
-  '3D物理ワールドを初期化する。Jolt PhysicsエンジンのTempAllocator、JobSystem、PhysicsSystem等を内部で構築する。maxBodiesで最大ボディ数を指定する。使用前に必ず呼び出すこと。',
+  '3D物理ワールドを初期化する。Jolt PhysicsエンジンのTempAllocator、JobSystem、PhysicsSystem等を内部で構築する。maxBodiesで最大ボディ数を指定する。使用前に必ず呼び出すこと。\n\n【用語】Jolt Physics: C++製のオープンソース3D物理エンジン。剛体シミュレーション、多様な衝突形状、ブロードフェーズ/ナローフェーズの衝突検出を提供する。GXLibではPIMPLパターンでラップし、Joltのヘッダー依存を隠蔽している。',
   `GX::PhysicsWorld3D physics;
 if (!physics.Initialize(4096)) {
     // 初期化失敗
@@ -1188,16 +1188,16 @@ settings.motionType = GX::MotionType3D::Dynamic;`,
   'struct PhysicsBodySettings { Vector3 position; Quaternion rotation; MotionType3D motionType; float mass; float friction; float restitution; float linearDamping; float angularDamping; uint16_t layer; void* userData; };',
   '3D物理ボディの作成時設定をまとめた構造体。位置・回転・モーションタイプ・質量・摩擦・反発係数・減衰・衝突レイヤー・ユーザーデータを指定する。AddBody()の引数として渡す。',
   `GX::PhysicsBodySettings settings;
-settings.position = GX::Vector3(5, 15, -3);
-settings.rotation = GX::Quaternion::Identity();
-settings.motionType = GX::MotionType3D::Dynamic;
-settings.mass = 2.5f;
-settings.friction = 0.6f;
-settings.restitution = 0.4f;
-settings.linearDamping = 0.05f;
-settings.angularDamping = 0.05f;
-settings.layer = 1;
-settings.userData = static_cast<void*>(gameObject);
+settings.position = GX::Vector3(5, 15, -3);            // 初期位置
+settings.rotation = GX::Quaternion::Identity();          // 初期回転（なし）
+settings.motionType = GX::MotionType3D::Dynamic;         // 力・衝突で動く
+settings.mass = 2.5f;                                    // 質量（kg）
+settings.friction = 0.6f;                                // 摩擦係数（0〜1）
+settings.restitution = 0.4f;                             // 反発係数（0〜1）
+settings.linearDamping = 0.05f;                          // 線形減衰
+settings.angularDamping = 0.05f;                         // 角度減衰
+settings.layer = 1;                                      // 衝突レイヤー（Moving）
+settings.userData = static_cast<void*>(gameObject);       // ゲームオブジェクト参照
 
 GX::PhysicsBodyID id = physics.AddBody(shape, settings);`,
   '• mass: Dynamic時の質量（kg）、Static/Kinematicでは無視される\n• friction: 摩擦係数（0=滑る, 1=強い摩擦）\n• restitution: 反発係数（0=非弾性, 1=完全弾性）\n• layer: 衝突フィルタリング（0=Static, 1=Moving）\n• userData: ゲームオブジェクトへのポインタ等を格納可能'
@@ -1294,16 +1294,16 @@ if (invMass > 0.0f) {
 
 'PhysicsShape-struct': [
   'struct PhysicsShape { void* internal; };',
-  'Jolt Physicsの内部シェイプ参照を保持するラッパー構造体。PhysicsWorld3D::CreateXxxShape()で作成し、AddBody()でボディに紐づける。使用後はDestroyShape()で解放する。internalにはJPH::ShapeRefC*が格納されるが、直接操作する必要はない。',
+  'Jolt Physicsの内部シェイプ参照を保持するラッパー構造体。PhysicsWorld3D::CreateXxxShape()で作成し、AddBody()でボディに紐づける。使用後はDestroyShape()で解放する。internalにはJPH::ShapeRefC*が格納されるが、直接操作する必要はない。\n\n【用語】PIMPLパターン（Pointer to Implementation）: 実装詳細をvoid*やforward宣言で隠蔽するC++設計パターン。GXLibではJolt Physicsのヘッダー依存をPhysicsShapeのvoid* internalで隠し、コンパイル時間の短縮とAPI安定性を実現している。',
   `// シェイプの作成と使用
-GX::PhysicsShape* box = physics.CreateBoxShape(GX::Vector3(1, 1, 1));
-GX::PhysicsShape* sphere = physics.CreateSphereShape(0.5f);
-GX::PhysicsShape* capsule = physics.CreateCapsuleShape(0.8f, 0.3f);
+GX::PhysicsShape* box = physics.CreateBoxShape(GX::Vector3(1, 1, 1));   // 各辺2mの箱
+GX::PhysicsShape* sphere = physics.CreateSphereShape(0.5f);              // 半径0.5mの球
+GX::PhysicsShape* capsule = physics.CreateCapsuleShape(0.8f, 0.3f);     // 高さ0.8m, 半径0.3m
 
 // ボディに紐づけ
 GX::PhysicsBodyID id = physics.AddBody(box, settings);
 
-// 使用後に解放
+// 使用後に解放（順序: ボディ→シェイプ）
 physics.RemoveBody(id);
 physics.DestroyShape(box);`,
   '• internalはJolt Physicsのシェイプ参照ポインタ（JPH::ShapeRefC*）\n• 直接操作せず、PhysicsWorld3DのAPI経由で使用すること\n• 1つのシェイプを複数ボディで共有可能\n• DestroyShape()で解放する（全ボディ削除後に呼ぶこと）'

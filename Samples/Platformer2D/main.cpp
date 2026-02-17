@@ -1,44 +1,63 @@
-/// @file Samples/Platformer2D/main.cpp
-/// @brief GXFrameworkを使った2Dプラットフォーマー例。重力や当たり判定の基本が学べる。
-
-#include "FrameworkApp.h"
-#include "GameScene.h"
+﻿/// @file Samples/Platformer2D/main.cpp
+/// @brief 2Dプラットフォーマー。ジャンプでコインを集めるサンプル。
+#include "GXEasy.h"
 
 #include <format>
+#include <string>
 
-namespace
+#ifdef UNICODE
+using TChar = wchar_t;
+#else
+using TChar = char;
+#endif
+
+using TString = std::basic_string<TChar>;
+
+template <class... Args>
+TString FormatT(const TChar* fmt, Args&&... args)
 {
+#ifdef UNICODE
+    return std::vformat(fmt, std::make_wformat_args(std::forward<Args>(args)...));
+#else
+    return std::vformat(fmt, std::make_format_args(std::forward<Args>(args)...));
+#endif
+}
 
-class PlatformerScene : public GXFW::GameScene
+class PlatformerApp : public GXEasy::App
 {
 public:
-    const char* GetName() const override { return "Platformer2D"; }
-
-protected:
-    void OnSceneEnter(GXFW::SceneContext& ctx) override
+    GXEasy::AppConfig GetConfig() const override
     {
-        (void)ctx;
+        GXEasy::AppConfig config;
+        config.title = L"GXLib Sample: Platformer2D";
+        config.width = 1280;
+        config.height = 720;
+        config.bgR = 18;
+        config.bgG = 22;
+        config.bgB = 32;
+        return config;
+    }
+
+    void Start() override
+    {
         BuildLevel();
     }
 
-    void OnSceneUpdate(GXFW::SceneContext& ctx, float dt) override
+    void Update(float dt) override
     {
-        if (dt > 0.1f)
-            dt = 0.1f;
+        if (dt > 0.1f) dt = 0.1f;
 
-        // 左右移動。速度は定数で、dtでフレーム依存をなくす。
+        // 左右移動
         float move = 0.0f;
-        if (ctx.input->CheckHitKey(VK_LEFT))  move -= k_PlayerSpeed;
-        if (ctx.input->CheckHitKey(VK_RIGHT)) move += k_PlayerSpeed;
-
+        if (CheckHitKey(KEY_INPUT_LEFT))  move -= k_PlayerSpeed;
+        if (CheckHitKey(KEY_INPUT_RIGHT)) move += k_PlayerSpeed;
         m_playerX += move * dt;
 
-        // 重力の適用。速度→位置の順で更新する。
+        // 重力
         m_playerVY += k_Gravity * dt;
         m_playerY += m_playerVY * dt;
 
-        // 地面判定。足元が足場の上なら着地させる。
-        // ここは初心者がつまずきやすいので、判定順と条件を丁寧に追う。
+        // 床との当たり判定（接地）
         m_onGround = false;
         for (int i = 0; i < m_platformCount; ++i)
         {
@@ -55,14 +74,14 @@ protected:
             }
         }
 
-        // ジャンプ。地面にいるときだけ上向き速度を与える。
-        if (m_onGround && ctx.input->CheckHitKey(VK_SPACE))
+        // ジャンプ
+        if (m_onGround && CheckHitKey(KEY_INPUT_SPACE))
         {
             m_playerVY = k_JumpVel;
             m_onGround = false;
         }
 
-        // コイン取得判定。プレイヤーとコインの距離で判定する。
+        // コイン取得
         for (int i = 0; i < m_coinCount; ++i)
         {
             if (!m_coins[i].alive) continue;
@@ -75,61 +94,70 @@ protected:
             }
         }
 
-        // カメラ追従。プレイヤー中心に画面をずらす。
+        // カメラ追従（スクロール）
         m_camX = m_playerX - k_ScreenW * 0.5f;
         if (m_camX < 0.0f) m_camX = 0.0f;
     }
 
-    void OnSceneRenderUI(GXFW::SceneContext& ctx) override
+    void Draw() override
     {
-        ctx.DrawBox(0, 0, k_ScreenW, k_ScreenH, GXFW::SceneContext::Color(30, 40, 60), true);
+        DrawBox(0, 0, static_cast<int>(k_ScreenW), static_cast<int>(k_ScreenH),
+                GetColor(30, 40, 60), TRUE);
 
-        // 足場描画。カメラ分だけ座標をずらして描く。
+        // 地形
         for (int i = 0; i < m_platformCount; ++i)
         {
             const Platform& p = m_platforms[i];
             float sx = p.x - m_camX;
             float sy = p.y - m_camY;
-            ctx.DrawBox(sx, sy, sx + p.w, sy + p.h, p.color, true);
+            DrawBox(static_cast<int>(sx), static_cast<int>(sy),
+                    static_cast<int>(sx + p.w), static_cast<int>(sy + p.h),
+                    p.color, TRUE);
         }
 
-        // コイン描画。小さな円を描いて表現する。
+        // コイン
         for (int i = 0; i < m_coinCount; ++i)
         {
             if (!m_coins[i].alive) continue;
             int cx = static_cast<int>(m_coins[i].x - m_camX);
             int cy = static_cast<int>(m_coins[i].y - m_camY);
-            uint32_t coinColor = GXFW::SceneContext::Color(255, 220, 80);
-            uint32_t coinEdge = GXFW::SceneContext::Color(200, 160, 50);
-            ctx.DrawCircle((float)cx, (float)cy, 10.0f, coinColor, true);
-            ctx.DrawCircle((float)cx, (float)cy, 10.0f, coinEdge, false);
+            unsigned int coinColor = GetColor(255, 220, 80);
+            unsigned int coinEdge  = GetColor(200, 160, 50);
+            DrawCircle(cx, cy, 10, coinColor, TRUE);
+            DrawCircle(cx, cy, 10, coinEdge, FALSE);
         }
 
-        // プレイヤー描画。四角と目で簡易的に表現する。
+        // プレイヤー描画
         float px = m_playerX - m_camX;
         float py = m_playerY - m_camY;
         float hw = k_PlayerW * 0.5f;
         float h = k_PlayerH;
-        ctx.DrawBox(px - hw, py - h, px + hw, py, GXFW::SceneContext::Color(68, 136, 255), true);
-        ctx.DrawBox(px - 6, py - h + 8, px - 2, py - h + 14, GXFW::SceneContext::Color(255, 255, 255), true);
-        ctx.DrawBox(px + 2, py - h + 8, px + 6, py - h + 14, GXFW::SceneContext::Color(255, 255, 255), true);
+        DrawBox(static_cast<int>(px - hw), static_cast<int>(py - h),
+                static_cast<int>(px + hw), static_cast<int>(py),
+                GetColor(68, 136, 255), TRUE);
+        DrawBox(static_cast<int>(px - 6), static_cast<int>(py - h + 8),
+                static_cast<int>(px - 2), static_cast<int>(py - h + 14),
+                GetColor(255, 255, 255), TRUE);
+        DrawBox(static_cast<int>(px + 2), static_cast<int>(py - h + 8),
+                static_cast<int>(px + 6), static_cast<int>(py - h + 14),
+                GetColor(255, 255, 255), TRUE);
 
         if (m_collected >= m_totalCoins)
         {
-            ctx.DrawString(k_ScreenW / 2.0f - 120.0f, k_ScreenH / 2.0f - 10.0f,
-                           L"ALL COINS COLLECTED!", GXFW::SceneContext::Color(255, 240, 180));
+            DrawString(static_cast<int>(k_ScreenW / 2 - 120), static_cast<int>(k_ScreenH / 2 - 10),
+                       TEXT("ALL COINS COLLECTED!"), GetColor(255, 240, 180));
         }
 
-        ctx.DrawString(10.0f, k_ScreenH - 30.0f,
-                       std::format(L"Coins: {}/{}", m_collected, m_totalCoins),
-                       GXFW::SceneContext::Color(220, 220, 220));
+        const TString coinText = FormatT(TEXT("Coins: {}/{}"), m_collected, m_totalCoins);
+        DrawString(10, static_cast<int>(k_ScreenH - 30),
+                   coinText.c_str(), GetColor(220, 220, 220));
     }
 
 private:
     struct Platform
     {
         float x, y, w, h;
-        uint32_t color;
+        unsigned int color;
     };
 
     struct Coin
@@ -163,7 +191,7 @@ private:
     Coin m_coins[k_MaxCoins];
     int m_coinCount = 0;
 
-    void AddPlatform(float x, float y, float w, float h, uint32_t color)
+    void AddPlatform(float x, float y, float w, float h, unsigned int color)
     {
         if (m_platformCount >= k_MaxPlatforms) return;
         Platform& p = m_platforms[m_platformCount++];
@@ -183,8 +211,8 @@ private:
         m_coinCount = 0;
         m_collected = 0;
 
-        uint32_t ground = GXFW::SceneContext::Color(60, 90, 60);
-        uint32_t plat = GXFW::SceneContext::Color(80, 80, 120);
+        unsigned int ground = GetColor(60, 90, 60);
+        unsigned int plat = GetColor(80, 80, 120);
 
         AddPlatform(-200.0f, 500.0f, 3000.0f, 40.0f, ground);
         AddPlatform(200.0f, 380.0f, 180.0f, 20.0f, plat);
@@ -216,22 +244,6 @@ private:
     }
 };
 
-} // namespace
+GX_EASY_APP(PlatformerApp)
 
-int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
-{
-    GXFW::FrameworkApp app;
-    GXFW::AppConfig config;
-    config.title = L"GXLib Sample: Platformer2D";
-    config.width = 1280;
-    config.height = 720;
-    config.enableDebug = true;
 
-    if (!app.Initialize(config))
-        return -1;
-
-    app.SetScene(std::make_unique<PlatformerScene>());
-    app.Run();
-    app.Shutdown();
-    return 0;
-}

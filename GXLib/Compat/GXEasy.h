@@ -18,6 +18,8 @@ struct AppConfig
     bool autoClear = true;
     bool autoPresent = true;
     bool allowEscapeExit = true;
+    bool vsync = false;          // 垂直同期を有効にするか
+    int targetFps = 0;           // 0=無制限、>0でFPS上限
     int bgR = 0;
     int bgG = 0;
     int bgB = 0;
@@ -54,7 +56,11 @@ int Run(App& app, const AppConfig& config);
 
 // エントリーポイント用ヘルパー（ACSと同じ書き味）
 #define GX_EASY_APP(AppClass) \
-int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) \
+int WINAPI WinMain( \
+    _In_ HINSTANCE hInstance, \
+    _In_ HINSTANCE hPrevInstance, \
+    _In_ LPSTR lpCmdLine, \
+    _In_ int nCmdShow) \
 { \
     AppClass app; \
     return GXEasy::Run(app, app.GetConfig()); \

@@ -114,8 +114,14 @@ bool WebSocket::Connect(const std::string& url)
 
 void WebSocket::Close()
 {
+    // Set m_running=false FIRST so ReceiveLoop exits its while loop
     m_running.store(false);
 
+    // Join the receive thread BEFORE closing handles to avoid use-after-free
+    if (m_receiveThread.joinable())
+        m_receiveThread.join();
+
+    // Now safe to close handles since the receive thread has stopped
     if (m_hWebSocket)
     {
         WinHttpWebSocketClose(static_cast<HINTERNET>(m_hWebSocket),
@@ -123,9 +129,6 @@ void WebSocket::Close()
         WinHttpCloseHandle(static_cast<HINTERNET>(m_hWebSocket));
         m_hWebSocket = nullptr;
     }
-
-    if (m_receiveThread.joinable())
-        m_receiveThread.join();
 
     if (m_hConnect)
     {

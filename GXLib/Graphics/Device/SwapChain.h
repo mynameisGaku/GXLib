@@ -19,6 +19,8 @@
 namespace GX
 {
 
+class Fence;
+
 /// @brief スワップチェーンの設定構造体
 struct SwapChainDesc
 {
@@ -57,8 +59,11 @@ public:
     /// @param device D3D12デバイスへのポインタ
     /// @param width 新しい幅（ピクセル）
     /// @param height 新しい高さ（ピクセル）
+    /// @param queue コマンドキュー（GPU同期用、nullptrの場合は呼び出し元が同期済みと想定）
+    /// @param fence フェンス（GPU同期用、nullptrの場合は呼び出し元が同期済みと想定）
     /// @return リサイズに成功した場合true
-    bool Resize(ID3D12Device* device, uint32_t width, uint32_t height);
+    bool Resize(ID3D12Device* device, uint32_t width, uint32_t height,
+                ID3D12CommandQueue* queue = nullptr, Fence* fence = nullptr);
 
     /// @brief 現在のバックバッファリソースを取得する
     /// @return ID3D12Resourceへのポインタ

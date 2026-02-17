@@ -36,7 +36,7 @@ public:
     float GetIntrinsicHeight() const override;
 
     bool OnEvent(const UIEvent& event) override;
-    void Render(UIRenderer& renderer) override;
+    void RenderSelf(UIRenderer& renderer) override;
 
 private:
     void DeselectSiblings();

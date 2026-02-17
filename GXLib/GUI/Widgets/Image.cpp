@@ -4,14 +4,32 @@
 
 namespace GX { namespace GUI {
 
-void Image::Render(UIRenderer& renderer)
+void Image::Update(float deltaTime)
+{
+    Widget::Update(deltaTime);
+    const Style& style = GetRenderStyle();
+    if (style.imageUVSpeedX != 0.0f || style.imageUVSpeedY != 0.0f)
+    {
+        m_uvOffsetX += style.imageUVSpeedX * deltaTime;
+        m_uvOffsetY += style.imageUVSpeedY * deltaTime;
+
+        m_uvOffsetX = std::fmod(m_uvOffsetX, 1.0f);
+        m_uvOffsetY = std::fmod(m_uvOffsetY, 1.0f);
+    }
+}
+
+void Image::RenderSelf(UIRenderer& renderer)
 {
     if (m_textureHandle < 0) return;
     const Style& drawStyle = GetRenderStyle();
 
     // 背景
     if (!drawStyle.backgroundColor.IsTransparent())
-        renderer.DrawRect(globalRect, drawStyle, opacity);
+    {
+        UIRectEffect effect;
+        const UIRectEffect* eff = GetActiveEffect(drawStyle, effect);
+        renderer.DrawRect(globalRect, drawStyle, 1.0f, eff);
+    }
 
     float rectW = globalRect.width;
     float rectH = globalRect.height;
@@ -40,13 +58,22 @@ void Image::Render(UIRenderer& renderer)
         drawY += (rectH - drawH) * 0.5f;
 
         // クリップ
+        float u0 = m_uvOffsetX;
+        float v0 = m_uvOffsetY;
+        float u1 = u0 + drawStyle.imageUVScaleX;
+        float v1 = v0 + drawStyle.imageUVScaleY;
         renderer.PushScissor(globalRect);
-        renderer.DrawImage(drawX, drawY, drawW, drawH, m_textureHandle, opacity);
+        renderer.DrawImageUV(drawX, drawY, drawW, drawH, m_textureHandle, u0, v0, u1, v1, 1.0f);
         renderer.PopScissor();
         return;
     }
-
-    renderer.DrawImage(drawX, drawY, drawW, drawH, m_textureHandle, opacity);
+    {
+        float u0 = m_uvOffsetX;
+        float v0 = m_uvOffsetY;
+        float u1 = u0 + drawStyle.imageUVScaleX;
+        float v1 = v0 + drawStyle.imageUVScaleY;
+        renderer.DrawImageUV(drawX, drawY, drawW, drawH, m_textureHandle, u0, v0, u1, v1, 1.0f);
+    }
 }
 
 }} // namespace GX::GUI

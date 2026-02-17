@@ -18,6 +18,8 @@
 #include "Graphics/3D/Skybox.h"
 #include "Graphics/3D/PrimitiveBatch3D.h"
 #include "Graphics/3D/Terrain.h"
+#include "Graphics/3D/ShaderRegistry.h"
+#include "Graphics/3D/ShaderModelConstants.h"
 #include "Graphics/Resource/Buffer.h"
 #include "Graphics/Resource/DynamicBuffer.h"
 #include "Graphics/Resource/DepthBuffer.h"
@@ -266,6 +268,7 @@ private:
     bool CreatePipelineState(ID3D12Device* device);
     bool CreateShadowPipelineState(ID3D12Device* device);
     void BindPipeline(bool skinned, int shaderHandle);
+    void BindPipelineForModel(bool skinned, int shaderHandle, gxfmt::ShaderModel model);
 
     ID3D12Device*              m_device    = nullptr;
     ID3D12GraphicsCommandList* m_cmdList   = nullptr;
@@ -278,6 +281,9 @@ private:
     ComPtr<ID3D12RootSignature>  m_rootSignature;
     ComPtr<ID3D12PipelineState>  m_pso;
     ComPtr<ID3D12PipelineState>  m_psoSkinned;
+
+    // シェーダーモデルPSOレジストリ
+    ShaderRegistry               m_shaderRegistry;
 
     // シャドウパイプライン
     ComPtr<ID3D12RootSignature>  m_shadowRootSignature;

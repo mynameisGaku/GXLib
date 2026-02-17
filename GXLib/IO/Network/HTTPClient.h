@@ -71,6 +71,9 @@ private:
     std::mutex m_mutex;
     std::vector<std::pair<HTTPResponse, std::function<void(HTTPResponse)>>> m_completedQueue;
 
+    std::vector<std::thread> m_threads;
+    std::atomic<bool> m_running{ true };
+
     HTTPResponse SendRequest(const std::string& method, const std::string& url,
                               const std::string& body,
                               const std::unordered_map<std::string, std::string>& headers);

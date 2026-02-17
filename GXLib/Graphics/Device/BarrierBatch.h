@@ -75,7 +75,7 @@ public:
 
 private:
     ID3D12GraphicsCommandList* m_cmdList;
-    D3D12_RESOURCE_BARRIER     m_barriers[N];
+    D3D12_RESOURCE_BARRIER     m_barriers[N]{};
     uint32_t                   m_count;
 };
 

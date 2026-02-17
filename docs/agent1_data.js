@@ -312,7 +312,7 @@ const AGENT1_DATA = {
 // ============================================================
 'GraphicsDevice-Initialize': [
   'bool Initialize(HWND hwnd, uint32_t w, uint32_t h)',
-  'DirectX 12グラフィックスデバイスを初期化します。D3D12デバイス、DXGIファクトリ、アダプタ、コマンドキュー、コマンドリスト、スワップチェーン、ディスクリプタヒープを作成します。\nすべてのGPUリソース作成のメインエントリーポイントです。いずれかのステップが失敗するとfalseを返します。',
+  'DirectX 12グラフィックスデバイスを初期化します。D3D12デバイス、DXGIファクトリ、アダプタ、コマンドキュー、コマンドリスト、スワップチェーン、ディスクリプタヒープを作成します。\nすべてのGPUリソース作成のメインエントリーポイントです。いずれかのステップが失敗するとfalseを返します。\n\n【用語】D3D12 デバイスは GPU (グラフィックスカード) との通信窓口です。コマンドキュー、コマンドリスト、スワップチェーン、ディスクリプタヒープなどの下位システムをまとめて初期化します。',
   '// D3D12の初期化\nGX::GraphicsDevice device;\nif (!device.Initialize(hwnd, 1280, 720)) {\n    GX_LOG_ERROR("D3D12 init failed");\n    return -1;\n}',
   '• Debugビルドでは自動的にデバッグレイヤーを有効化\n• 最もパフォーマンスの高いGPUアダプタを選択\n• CBV_SRV_UAV、RTV、DSVディスクリプタヒープを作成\n• ウィンドウ作成後に呼び出す必要がある（有効なHWNDが必要）'
 ],
@@ -320,28 +320,28 @@ const AGENT1_DATA = {
 'GraphicsDevice-Shutdown': [
   'void Shutdown()',
   'デバイス、スワップチェーン、コマンドオブジェクト、ディスクリプタヒープを含むすべてのD3D12リソースを解放します。\n処理中のオブジェクトの使用を防ぐため、リソース解放前にGPUをフラッシュします。',
-  '// クリーンシャットダウン\ndevice.WaitForGPU();\ndevice.Shutdown();',
+  '// クリーンシャットダウン\ndevice.WaitForGPU();  // GPU処理の完了を待機\ndevice.Shutdown();    // 全D3D12リソースを解放',
   '• Shutdown() の前にWaitForGPU() を呼び、すべてのGPU処理の完了を確認すること\n• Shutdown() 後、すべてのD3D12オブジェクト参照は無効になる\n• 複数回呼び出しても安全'
 ],
 
 'GraphicsDevice-BeginFrame': [
   'void BeginFrame()',
-  '現在のフレームインデックス用のコマンドアロケータとコマンドリストをリセットして新しいフレームを開始します。\nバックバッファをレンダーターゲット状態に遷移させます。EndFrame() と対で使用する必要があります。',
+  '現在のフレームインデックス用のコマンドアロケータとコマンドリストをリセットして新しいフレームを開始します。\nバックバッファをレンダーターゲット状態に遷移させます。EndFrame() と対で使用する必要があります。\n\n【用語】フレーム開始時にコマンドアロケータをリセットし、新しい描画命令を記録する準備をします。',
   '// フレームレンダリング\ndevice.BeginFrame();\nauto* cmdList = device.GetCommandList().Get();\n// ... 描画コマンドの記録 ...\ndevice.EndFrame();',
   '• 現在のフレームインデックスのコマンドアロケータをリセット（ダブルバッファ）\n• バックバッファをPRESENTからRENDER_TARGETに遷移\n• 各フレームの描画コマンド前に呼び出す必要がある\n• EndFrame() と対になり、遷移の復帰とPresent() を行う'
 ],
 
 'GraphicsDevice-EndFrame': [
   'void EndFrame()',
-  'コマンドリストを閉じて実行し、スワップチェーンをプレゼントして現在のフレームを終了します。\nバックバッファをプレゼント状態に遷移させ、同期用のフェンスをシグナルします。',
+  'コマンドリストを閉じて実行し、スワップチェーンをプレゼントして現在のフレームを終了します。\nバックバッファをプレゼント状態に遷移させ、同期用のフェンスをシグナルします。\n\n【用語】Present はスワップチェーンの裏画面と表画面を入れ替える操作です。フェンスで GPU の描画完了を待ってから入れ替えます。',
   '// フレーム終了\ndevice.EndFrame();\n// バックバッファがディスプレイに表示される',
   '• バックバッファをRENDER_TARGETからPRESENTに遷移\n• コマンドリストを閉じてコマンドキューで実行\n• SwapChain::Present() を呼び出し、フェンスをシグナル\n• 前のフレームがGPUで未完了の場合はブロックする（ダブルバッファ同期）'
 ],
 
 'GraphicsDevice-WaitForGPU': [
   'void WaitForGPU()',
-  '以前にサブミットされたすべてのGPU処理が完了するまでCPUをブロックします。\nリソース破棄、シャットダウン、リサイズ操作の前にアクセス違反を防ぐために使用します。',
-  '// リサイズ前の待機\ndevice.WaitForGPU();\ndevice.OnResize(newWidth, newHeight);',
+  '以前にサブミットされたすべてのGPU処理が完了するまでCPUをブロックします。\nリソース破棄、シャットダウン、リサイズ操作の前にアクセス違反を防ぐために使用します。\n\n【用語】GPU は CPU と非同期に動作するため、リソース破棄前に GPU が使い終わるまで待つ必要があります。この関数は内部でフェンスを使い、GPU の完了を待機します。',
+  '// リサイズ前の待機\ndevice.WaitForGPU();  // GPUが全コマンドを処理するまでCPUを停止\ndevice.OnResize(newWidth, newHeight);',
   '• CPUストールが発生する。通常のレンダリングでは毎フレーム呼び出さないこと\n• GPUが使用中の可能性があるリソースの破棄前に必須\n• Shutdown() やOnResize() の前に呼び出すこと\n• 内部的にコマンドキューのフェンスをシグナルして待機'
 ],
 
@@ -354,58 +354,58 @@ const AGENT1_DATA = {
 
 'GraphicsDevice-GetCommandQueue': [
   'CommandQueue& GetCommandQueue()',
-  'GPU処理の投入に使用する内部CommandQueueへの参照を返します。\nフェンス同期やコマンドリストの直接実行に必要です。',
-  '// 追加のコマンドリストを実行\nGX::CommandQueue& queue = device.GetCommandQueue();\nqueue.ExecuteCommandList(cmdList.Get());',
+  'GPU処理の投入に使用する内部CommandQueueへの参照を返します。\nフェンス同期やコマンドリストの直接実行に必要です。\n\n【用語】コマンドキュー (Command Queue) は GPU への命令送信窓口です。記録済みのコマンドリストをここに投入すると GPU が実行します。',
+  '// 追加のコマンドリストを実行\nGX::CommandQueue& queue = device.GetCommandQueue();\nqueue.ExecuteCommandList(cmdList.Get());  // コマンドをGPUに投入',
   '• 単一のDirectコマンドキュー（D3D12_COMMAND_LIST_TYPE_DIRECT）\n• 返される参照はGraphicsDeviceの生存期間中有効\n• BeginFrame/EndFrame で内部的に使用される'
 ],
 
 'GraphicsDevice-GetCommandList': [
   'CommandList& GetCommandList()',
-  '描画コマンドの記録用に、現在のフレームのCommandListへの参照を返します。\nコマンドリストはBeginFrame() でリセットされ、EndFrame() で閉じられます。',
-  '// 描画コマンドの記録\nauto* cmdList = device.GetCommandList().Get();\ncmdList->SetPipelineState(pso.Get());\ncmdList->DrawInstanced(3, 1, 0, 0);',
+  '描画コマンドの記録用に、現在のフレームのCommandListへの参照を返します。\nコマンドリストはBeginFrame() でリセットされ、EndFrame() で閉じられます。\n\n【用語】コマンドリスト (Command List) は GPU への命令書です。「この三角形を描け」「このテクスチャを使え」といった描画命令をまとめて GPU に送ります。',
+  '// 描画コマンドの記録\nauto* cmdList = device.GetCommandList().Get();\ncmdList->SetPipelineState(pso.Get());  // 描画パイプラインを設定\ncmdList->DrawInstanced(3, 1, 0, 0);   // 3頂点を1インスタンス描画',
   '• BeginFrame() とEndFrame() の間でのみ有効\n• ダブルバッファのコマンドアロケータを使用（k_AllocatorCount = 2）\n• ->演算子がオーバーロードされており、ID3D12GraphicsCommandListに直接アクセス可能'
 ],
 
 'GraphicsDevice-GetSwapChain': [
   'SwapChain& GetSwapChain()',
-  'バックバッファを管理するスワップチェーンへの参照を返します。\nバックバッファリソース、RTVハンドル、サイズ、フォーマットのアクセスに使用します。',
-  '// バックバッファ情報の取得\nauto& swapChain = device.GetSwapChain();\nDXGI_FORMAT fmt = swapChain.GetFormat();\nuint32_t idx = swapChain.GetCurrentBackBufferIndex();',
+  'バックバッファを管理するスワップチェーンへの参照を返します。\nバックバッファリソース、RTVハンドル、サイズ、フォーマットのアクセスに使用します。\n\n【用語】スワップチェーン (Swap Chain) はダブルバッファリングの仕組みです。裏画面に描画してから表画面と入れ替えることで、ちらつきのない表示を実現します。',
+  '// バックバッファ情報の取得\nauto& swapChain = device.GetSwapChain();\nDXGI_FORMAT fmt = swapChain.GetFormat();  // バックバッファのピクセルフォーマット\nuint32_t idx = swapChain.GetCurrentBackBufferIndex();  // 現在の描画先 (0 or 1)',
   '• k_BufferCount = 2 のダブルバッファ\n• デフォルトフォーマットはDXGI_FORMAT_R8G8B8A8_UNORM\n• バックバッファインデックスは0と1の間で交互に切り替わる'
 ],
 
 'GraphicsDevice-GetSRVHeap': [
   'DescriptorHeap& GetSRVHeap()',
-  'シェーダー可視のCBV/SRV/UAVディスクリプタヒープを返します。\nレンダリング中にテクスチャやコンスタントバッファをシェーダーにバインドするために使用します。',
-  '// レンダリング用にSRVヒープをバインド\nauto& srvHeap = device.GetSRVHeap();\nID3D12DescriptorHeap* heaps[] = { srvHeap.GetHeap() };\ncmdList->SetDescriptorHeaps(1, heaps);',
+  'シェーダー可視のCBV/SRV/UAVディスクリプタヒープを返します。\nレンダリング中にテクスチャやコンスタントバッファをシェーダーにバインドするために使用します。\n\n【用語】SRV (Shader Resource View) はシェーダからテクスチャやバッファを読み取るためのビューです。このヒープはGPUがアクセスできる「シェーダー可視」なリソース住所録です。',
+  '// レンダリング用にSRVヒープをバインド\nauto& srvHeap = device.GetSRVHeap();\nID3D12DescriptorHeap* heaps[] = { srvHeap.GetHeap() };\ncmdList->SetDescriptorHeaps(1, heaps);  // GPUにヒープの場所を伝える',
   '• シェーダー可視ヒープ。SetDescriptorHeaps() でバインド可能\n• D3D12では同時にバインドできるCBV_SRV_UAVヒープは1つのみ\n• ディスクリプタ解放時のインデックス再利用にフリーリストを使用\n• TextureManager、FontManager、その他のシステムがこのヒープから確保'
 ],
 
 'GraphicsDevice-GetRTVHeap': [
   'DescriptorHeap& GetRTVHeap()',
-  'レンダーターゲットビュー（RTV）ディスクリプタヒープを返します。\nオフスクリーンレンダリング、ポストエフェクト、レイヤーシステム用のレンダーターゲットビュー作成に使用します。',
-  '// オフスクリーンレンダーターゲット用RTVの作成\nauto& rtvHeap = device.GetRTVHeap();\nuint32_t idx = rtvHeap.AllocateIndex();\ndevice.GetDevice()->CreateRenderTargetView(resource, nullptr, rtvHeap.GetCPUHandle(idx));',
+  'レンダーターゲットビュー（RTV）ディスクリプタヒープを返します。\nオフスクリーンレンダリング、ポストエフェクト、レイヤーシステム用のレンダーターゲットビュー作成に使用します。\n\n【用語】RTV (Render Target View) は描画先テクスチャの「書き込み口」です。画面に直接描くか、オフスクリーンのテクスチャに描くかを指定します。',
+  '// オフスクリーンレンダーターゲット用RTVの作成\nauto& rtvHeap = device.GetRTVHeap();\nuint32_t idx = rtvHeap.AllocateIndex();  // 空きスロットを確保\ndevice.GetDevice()->CreateRenderTargetView(\n    resource, nullptr, rtvHeap.GetCPUHandle(idx));  // RTVを作成',
   '• シェーダー非可視（CPUのみのヒープ）\n• SwapChain、RenderTarget、RenderLayerが使用\n• レンダーターゲット破棄時にインデックスのFree() を忘れないこと'
 ],
 
 'GraphicsDevice-GetDSVHeap': [
   'DescriptorHeap& GetDSVHeap()',
-  'デプスステンシルビュー（DSV）ディスクリプタヒープを返します。\n深度テストやシャドウマップ用のデプスバッファビュー作成に使用します。',
-  '// DSVの作成\nauto& dsvHeap = device.GetDSVHeap();\nuint32_t idx = dsvHeap.AllocateIndex();\ndevice.GetDevice()->CreateDepthStencilView(depthResource, &dsvDesc, dsvHeap.GetCPUHandle(idx));',
+  'デプスステンシルビュー（DSV）ディスクリプタヒープを返します。\n深度テストやシャドウマップ用のデプスバッファビュー作成に使用します。\n\n【用語】DSV (Depth Stencil View) は深度バッファの「書き込み口」です。深度バッファはカメラからの距離を記録し、奥のオブジェクトが手前に描かれないようにします。',
+  '// DSVの作成\nauto& dsvHeap = device.GetDSVHeap();\nuint32_t idx = dsvHeap.AllocateIndex();  // 空きスロットを確保\ndevice.GetDevice()->CreateDepthStencilView(\n    depthResource, &dsvDesc, dsvHeap.GetCPUHandle(idx));',
   '• シェーダー非可視（CPUのみのヒープ）\n• DepthBufferとシャドウマップシステムが使用\n• PointShadowMapは6面レンダリング用に独自のDSVヒープを使用'
 ],
 
 'GraphicsDevice-GetFrameIndex': [
   'uint32_t GetFrameIndex() const',
-  'ダブルバッファリソース管理用の現在のバックバッファインデックス（0または1）を返します。\n正しいコマンドアロケータ、動的バッファ領域、フェンス値の選択に使用します。',
-  '// ダブルバッファリソースにフレームインデックスを使用\nuint32_t fi = device.GetFrameIndex();\ndynamicBuffer.Update(fi, data, size);',
+  'ダブルバッファリソース管理用の現在のバックバッファインデックス（0または1）を返します。\n正しいコマンドアロケータ、動的バッファ領域、フェンス値の選択に使用します。\n\n【用語】ダブルバッファリングでは GPU が描画中のバッファと CPU が書き込むバッファを分離します。フレームインデックス (0 or 1) でどちらのバッファを使うか識別します。',
+  '// ダブルバッファリソースにフレームインデックスを使用\nuint32_t fi = device.GetFrameIndex();  // 0 or 1\ndynamicBuffer.Update(fi, data, size);  // 対応するバッファ領域に書き込み',
   '• 各フレームで0と1の間を交互に切り替わる\n• ダブルバッファのDynamicBuffer更新に必須\n• SwapChain::GetCurrentBackBufferIndex() と一致する'
 ],
 
 'GraphicsDevice-OnResize': [
   'void OnResize(uint32_t w, uint32_t h)',
   'GPUをフラッシュし、新しいサイズでスワップチェーンバッファを再作成してウィンドウリサイズを処理します。\nバックバッファの同期を維持するため、ウィンドウサイズ変更時に呼び出す必要があります。',
-  '// コールバックでリサイズを処理\nwindow.SetResizeCallback([&device](uint32_t w, uint32_t h) {\n    if (w > 0 && h > 0)\n        device.OnResize(w, h);\n});',
-  '• リサイズ前に内部的にWaitForGPU() を呼び出す\n• widthまたはheightが0の場合はスキップ（ウィンドウ最小化時）\n• レンダーターゲット、デプスバッファ、ポストエフェクトパイプラインもリサイズすること\n• スワップチェーンRTVは自動的に再作成される'
+  '// コールバックでリサイズを処理\nwindow.SetResizeCallback([&device](uint32_t w, uint32_t h) {\n    if (w > 0 && h > 0)  // 最小化時は0になるためスキップ\n        device.OnResize(w, h);\n});',
+  '• w, h: 新しいクライアント領域のサイズ（ピクセル単位）\n• リサイズ前に内部的にWaitForGPU() を呼び出す\n• widthまたはheightが0の場合はスキップ（ウィンドウ最小化時）\n• レンダーターゲット、デプスバッファ、ポストエフェクトパイプラインもリサイズすること\n• スワップチェーンRTVは自動的に再作成される'
 ],
 
 // ============================================================
@@ -413,7 +413,7 @@ const AGENT1_DATA = {
 // ============================================================
 'CommandQueue-Initialize': [
   'bool Initialize(ID3D12Device* device)',
-  'Directコマンドキューと関連するフェンスをGPU同期用に作成します。\nコマンドキューはすべてのグラフィックスコマンドリストの投入ポイントです。',
+  'Directコマンドキューと関連するフェンスをGPU同期用に作成します。\nコマンドキューはすべてのグラフィックスコマンドリストの投入ポイントです。\n\n【用語】コマンドキューは GPU への命令 (コマンドリスト) を送信する「送信窓口」です。',
   '// コマンドキューの作成\nGX::CommandQueue queue;\nif (!queue.Initialize(device.GetDevice())) {\n    GX_LOG_ERROR("CommandQueue init failed");\n}',
   '• デフォルトでD3D12_COMMAND_LIST_TYPE_DIRECTキューを作成\n• 内部Fenceオブジェクトも初期化する\n• 通常はGraphicsDeviceにより内部的に管理される'
 ],
@@ -451,7 +451,7 @@ const AGENT1_DATA = {
 // ============================================================
 'CommandList-Initialize': [
   'bool Initialize(ID3D12Device* device)',
-  'グラフィックスコマンドリストとダブルバッファリング用の2つのコマンドアロケータを作成します。\n各アロケータはバックバッファの1フレームに対応し、GPU使用中の競合を防ぎます。',
+  'グラフィックスコマンドリストとダブルバッファリング用の2つのコマンドアロケータを作成します。\n各アロケータはバックバッファの1フレームに対応し、GPU使用中の競合を防ぎます。\n\n【用語】コマンドリストは GPU への「命令書」で、描画コマンドを記録します。アロケータ×2 はダブルバッファリング用で、前フレームの命令を GPU が実行中に次フレームの命令を記録できます。',
   '// コマンドリストの作成\nGX::CommandList cmdList;\nif (!cmdList.Initialize(device.GetDevice())) {\n    GX_LOG_ERROR("CommandList init failed");\n}',
   '• ダブルバッファリング用にk_AllocatorCount（2）個のコマンドアロケータを作成\n• コマンドリストの型はD3D12_COMMAND_LIST_TYPE_DIRECT\n• 作成後、コマンドリストは閉じた状態で開始される\n• 通常はGraphicsDeviceにより内部的に管理される'
 ],
@@ -479,7 +479,7 @@ const AGENT1_DATA = {
 
 'CommandList-ResourceBarrier': [
   'void ResourceBarrier(ID3D12Resource* resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after)',
-  'コマンドリストにリソース状態遷移バリアを記録します。\n異なるパイプラインステージ間でリソース使用を同期するためにD3D12が要求します。',
+  'コマンドリストにリソース状態遷移バリアを記録します。\n異なるパイプラインステージ間でリソース使用を同期するためにD3D12が要求します。\n\n【用語】リソースバリアは GPU リソースの「状態変更宣言」です。例えば「描画先 → 読み取り用」に変更する際、GPU が正しい順序で処理できるよう通知します。',
   '// レンダリング用にレンダーターゲットを遷移\ncmdList.ResourceBarrier(renderTarget,\n    D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,\n    D3D12_RESOURCE_STATE_RENDER_TARGET);',
   '• D3D12はリソース状態変更に明示的なバリアを要求する\n• 一般的な遷移: PRESENT ↔ RENDER_TARGET、PIXEL_SHADER_RESOURCE ↔ RENDER_TARGET\n• 複数バリアにはBarrierBatchを使用するとGPU効率が向上\n• バリアの欠落はGPUバリデーションエラーと未定義動作を引き起こす'
 ],
@@ -489,7 +489,7 @@ const AGENT1_DATA = {
 // ============================================================
 'SwapChain-Initialize': [
   'bool Initialize(ID3D12Device* device, ID3D12CommandQueue* queue, HWND hwnd, uint32_t w, uint32_t h)',
-  'ダブルバッファのバックバッファと関連RTVを持つDXGIスワップチェーンを作成します。\nスワップチェーンはティアリングのないディスプレイ出力のためのフロント/バックバッファの切り替えを管理します。',
+  'ダブルバッファのバックバッファと関連RTVを持つDXGIスワップチェーンを作成します。\nスワップチェーンはティアリングのないディスプレイ出力のためのフロント/バックバッファの切り替えを管理します。\n\n【用語】スワップチェーンはダブルバッファリング（裏画面に描画→表画面と入れ替え）を実現する仕組みです。',
   '// スワップチェーンの作成\nGX::SwapChain swapChain;\nswapChain.Initialize(device, queue.GetQueue(), hwnd, 1280, 720);',
   '• ダブルバッファリング用にk_BufferCount（2）個のバックバッファを作成\n• フォーマットはDXGI_FORMAT_R8G8B8A8_UNORM（LDR出力）\n• 最高パフォーマンスのためDXGI_SWAP_EFFECT_FLIP_DISCARDを使用\n• バックバッファディスクリプタ用のプライベートRTVヒープを作成'
 ],
@@ -555,7 +555,7 @@ const AGENT1_DATA = {
 // ============================================================
 'DescriptorHeap-Initialize': [
   'bool Initialize(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t count, bool shaderVisible)',
-  '指定された型とサイズのD3D12ディスクリプタヒープを作成します。\nシェーダー可視ヒープはパイプラインにバインドしてGPUアクセスが可能です。',
+  '指定された型とサイズのD3D12ディスクリプタヒープを作成します。\nシェーダー可視ヒープはパイプラインにバインドしてGPUアクセスが可能です。\n\n【用語】ディスクリプタヒープは GPU リソース (テクスチャ、バッファ等) の「住所録」です。GPU がリソースの場所を知るための管理テーブルです。',
   '// シェーダー可視SRVヒープの作成\nGX::DescriptorHeap srvHeap;\nsrvHeap.Initialize(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1024, true);',
   '• レンダリングで使用するCBV_SRV_UAVヒープはshaderVisibleをtrueにする必要がある\n• RTVとDSVヒープはシェーダー可視にしない\n• D3D12では同時にバインドできるシェーダー可視CBV_SRV_UAVヒープは1つのみ\n• countがディスクリプタの最大数を決定する'
 ],
@@ -600,7 +600,7 @@ const AGENT1_DATA = {
 // ============================================================
 'Fence-Initialize': [
   'bool Initialize(ID3D12Device* device)',
-  'D3D12フェンスオブジェクトとCPU待機用のWin32イベントを作成します。\nフェンスは初期値0で開始されます。',
+  'D3D12フェンスオブジェクトとCPU待機用のWin32イベントを作成します。\nフェンスは初期値0で開始されます。\n\n【用語】フェンスは CPU と GPU の「完了通知」の仕組みです。GPU は非同期で動作するため、フェンスで GPU 処理の完了を CPU 側が待機できます。',
   '// フェンスの作成\nGX::Fence fence;\nfence.Initialize(device.GetDevice());',
   '• 初期値0のID3D12Fenceを作成\n• WaitForSingleObject用のWin32イベントハンドルも作成\n• 通常はCommandQueueにより内部的に管理される\n• イベントハンドルはデストラクタで閉じられる'
 ],
@@ -728,7 +728,7 @@ const AGENT1_DATA = {
 // ============================================================
 'RootSignature-AddCBV': [
   'RootSignatureBuilder& AddCBV(uint32_t reg, uint32_t space = 0)',
-  'ルートシグネチャにルートCBV（定数バッファビュー）パラメータを追加します。\n指定されたレジスタとスペースのHLSL cbufferに対応します。',
+  'ルートシグネチャにルートCBV（定数バッファビュー）パラメータを追加します。\n指定されたレジスタとスペースのHLSL cbufferに対応します。\n\n【用語】ルートシグネチャは GPU シェーダがアクセスできるリソース（テクスチャ、定数バッファ等）の「目次」です。CBV (Constant Buffer View) は定数バッファの読み取りビューです。',
   '// CBV付きルートシグネチャの構築\nGX::RootSignatureBuilder builder;\nbuilder.AddCBV(0)    // b0: フレーム定数\n       .AddCBV(1);   // b1: オブジェクト定数\nauto rootSig = builder.Build(device);',
   '• ルートCBVは64ビットGPU仮想アドレス（ルートシグネチャ内で8バイト）\n• 頻繁に変更されるバッファにはディスクリプタテーブルより効率的\n• デフォルトspaceは0\n• メソッドチェーン用に*thisを返す（ビルダーパターン）'
 ],
@@ -780,7 +780,7 @@ const AGENT1_DATA = {
 // ============================================================
 'PipelineState-SetRootSignature': [
   'PipelineStateBuilder& SetRootSignature(ID3D12RootSignature* rootSig)',
-  'このPSOのリソースバインディングレイアウトを定義するルートシグネチャを設定します。\n描画時にバインドされるルートシグネチャと一致する必要があります。',
+  'このPSOのリソースバインディングレイアウトを定義するルートシグネチャを設定します。\n描画時にバインドされるルートシグネチャと一致する必要があります。\n\n【用語】PSO (Pipeline State Object) は GPU の描画設定一式（シェーダ、ブレンドモード、深度テスト等）をまとめたオブジェクトです。',
   '// PSOビルダーにルートシグネチャを設定\nGX::PipelineStateBuilder psoBuilder;\npsoBuilder.SetRootSignature(rootSig.Get());',
   '• Build() の前に設定する必要がある\n• ルートシグネチャはシェーダーが期待するリソースを定義する\n• ルートシグネチャの不一致はD3D12バリデーションエラーを引き起こす'
 ],
@@ -860,7 +860,7 @@ const AGENT1_DATA = {
 // ============================================================
 'Shader-CompileFromFile': [
   'ShaderBlob CompileFromFile(const std::wstring& path, const std::wstring& entry, const std::wstring& target)',
-  'DXC（DirectXシェーダーコンパイラ）を使用してHLSLシェーダーファイルをコンパイルします。\nコンパイル済みバイトコードを含むShaderBlobを返します。結果のIsValid() を確認してください。',
+  'DXC（DirectXシェーダーコンパイラ）を使用してHLSLシェーダーファイルをコンパイルします。\nコンパイル済みバイトコードを含むShaderBlobを返します。結果のIsValid() を確認してください。\n\n【用語】シェーダは GPU 上で実行されるプログラムです。HLSL (High Level Shading Language) で記述し、DXC コンパイラで GPU が実行できるバイトコードに変換します。',
   '// 頂点・ピクセルシェーダーのコンパイル\nGX::Shader compiler;\ncompiler.Initialize();\nauto vs = compiler.CompileFromFile(L"Shaders/PBR.hlsl", L"VSMain", L"vs_6_0");\nauto ps = compiler.CompileFromFile(L"Shaders/PBR.hlsl", L"PSMain", L"ps_6_0");',
   '• ターゲット文字列: "vs_6_0"（頂点）、"ps_6_0"（ピクセル）、"cs_6_0"（コンピュート）\n• コンパイル失敗時はvalid=falseのShaderBlobを返す\n• 失敗時のエラーメッセージ取得にGetLastError() を使用\n• CompileFromFile呼び出し前にInitialize() を1回呼ぶ必要がある'
 ],

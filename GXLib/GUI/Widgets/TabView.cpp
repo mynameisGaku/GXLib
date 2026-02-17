@@ -28,6 +28,8 @@ void TabView::SetTabNames(const std::vector<std::string>& names)
 void TabView::SetActiveTab(int index)
 {
     if (index < 0) index = 0;
+    if (index >= (int)m_wideTabNames.size() && !m_wideTabNames.empty())
+        index = (int)m_wideTabNames.size() - 1;
     m_activeTab = index;
 }
 
@@ -53,14 +55,14 @@ bool TabView::OnEvent(const UIEvent& event)
     {
         // タブヘッダー領域のクリック判定
         float headerBottom = globalRect.y + k_TabHeaderHeight;
-        if (event.mouseY < headerBottom && event.mouseY >= globalRect.y)
+        if (event.localY < headerBottom && event.localY >= globalRect.y)
         {
             // どのタブがクリックされたか判定
             int numTabs = static_cast<int>(m_tabNames.size());
             if (numTabs > 0)
             {
                 float tabWidth = globalRect.width / static_cast<float>(numTabs);
-                int clickedTab = static_cast<int>((event.mouseX - globalRect.x) / tabWidth);
+                int clickedTab = static_cast<int>((event.localX - globalRect.x) / tabWidth);
                 if (clickedTab >= 0 && clickedTab < numTabs)
                 {
                     SetActiveTab(clickedTab);
@@ -73,13 +75,13 @@ bool TabView::OnEvent(const UIEvent& event)
     if (event.type == UIEventType::MouseMove)
     {
         float headerBottom = globalRect.y + k_TabHeaderHeight;
-        if (event.mouseY < headerBottom && event.mouseY >= globalRect.y)
+        if (event.localY < headerBottom && event.localY >= globalRect.y)
         {
             int numTabs = static_cast<int>(m_tabNames.size());
             if (numTabs > 0)
             {
                 float tabWidth = globalRect.width / static_cast<float>(numTabs);
-                int hovTab = static_cast<int>((event.mouseX - globalRect.x) / tabWidth);
+                int hovTab = static_cast<int>((event.localX - globalRect.x) / tabWidth);
                 m_hoveredTab = (hovTab >= 0 && hovTab < numTabs) ? hovTab : -1;
             }
         }
@@ -97,14 +99,16 @@ bool TabView::OnEvent(const UIEvent& event)
     return false;
 }
 
-void TabView::Render(UIRenderer& renderer)
+void TabView::RenderSelf(UIRenderer& renderer)
 {
     const Style& drawStyle = GetRenderStyle();
     // 背景
     if (!drawStyle.backgroundColor.IsTransparent() ||
         drawStyle.borderWidth > 0.0f)
     {
-        renderer.DrawRect(globalRect, drawStyle, opacity);
+        UIRectEffect effect;
+        const UIRectEffect* eff = GetActiveEffect(drawStyle, effect);
+        renderer.DrawRect(globalRect, drawStyle, 1.0f, eff);
     }
 
     // タブヘッダー描画
@@ -146,12 +150,16 @@ void TabView::Render(UIRenderer& renderer)
                 StyleColor textColor = (i == m_activeTab)
                     ? StyleColor(1.0f, 1.0f, 1.0f, 1.0f)
                     : StyleColor(0.7f, 0.7f, 0.8f, 1.0f);
-                renderer.DrawText(textX, textY, m_fontHandle, m_wideTabNames[i], textColor, opacity);
+                renderer.DrawText(textX, textY, m_fontHandle, m_wideTabNames[i], textColor, 1.0f);
             }
         }
     }
 
     // アクティブタブの子コンテンツのみ描画
+}
+
+void TabView::RenderChildren(UIRenderer& renderer)
+{
     auto& children = GetChildren();
     if (m_activeTab >= 0 && m_activeTab < static_cast<int>(children.size()))
     {

@@ -58,7 +58,7 @@ bool ListView::OnEvent(const UIEvent& event)
 
     if (event.type == UIEventType::Click)
     {
-        float relY = event.mouseY - globalRect.y + scrollOffsetY;
+        float relY = event.localY - globalRect.y + scrollOffsetY;
         int idx = static_cast<int>(relY / k_ItemHeight);
         if (idx >= 0 && idx < static_cast<int>(m_items.size()))
         {
@@ -71,7 +71,7 @@ bool ListView::OnEvent(const UIEvent& event)
 
     if (event.type == UIEventType::MouseMove)
     {
-        float relY = event.mouseY - globalRect.y + scrollOffsetY;
+        float relY = event.localY - globalRect.y + scrollOffsetY;
         int idx = static_cast<int>(relY / k_ItemHeight);
         if (idx >= 0 && idx < static_cast<int>(m_items.size()))
             m_hoveredItem = idx;
@@ -88,14 +88,16 @@ bool ListView::OnEvent(const UIEvent& event)
     return false;
 }
 
-void ListView::Render(UIRenderer& renderer)
+void ListView::RenderSelf(UIRenderer& renderer)
 {
     const Style& drawStyle = GetRenderStyle();
     // 背景
     if (!drawStyle.backgroundColor.IsTransparent() ||
         drawStyle.borderWidth > 0.0f)
     {
-        renderer.DrawRect(globalRect, drawStyle, opacity);
+        UIRectEffect effect;
+        const UIRectEffect* eff = GetActiveEffect(drawStyle, effect);
+        renderer.DrawRect(globalRect, drawStyle, 1.0f, eff);
     }
 
     if (m_items.empty() || m_fontHandle < 0) return;
@@ -126,10 +128,13 @@ void ListView::Render(UIRenderer& renderer)
         }
 
         // テキスト
-        float textH = static_cast<float>(renderer.GetLineHeight(m_fontHandle));
-        float textY = itemY + (k_ItemHeight - textH) * 0.5f;
-        renderer.DrawText(globalRect.x + 8.0f, textY, m_fontHandle,
-                          m_wideItems[i], drawStyle.color, opacity);
+        if (i < static_cast<int>(m_wideItems.size()))
+        {
+            float textH = static_cast<float>(renderer.GetLineHeight(m_fontHandle));
+            float textY = itemY + (k_ItemHeight - textH) * 0.5f;
+            renderer.DrawText(globalRect.x + 8.0f, textY, m_fontHandle,
+                              m_wideItems[i], drawStyle.color, 1.0f);
+        }
     }
 
     // スクロールバー

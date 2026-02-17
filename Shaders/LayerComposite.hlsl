@@ -9,7 +9,7 @@
 cbuffer CompositeConstants : register(b0)
 {
     float gOpacity;
-    float gHasMask;
+    float gHasMask; // PSO分岐のためシェーダー内では未使用（CBレイアウト維持用）
     float2 gPadding;
 };
 

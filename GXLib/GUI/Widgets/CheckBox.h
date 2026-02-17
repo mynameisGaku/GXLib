@@ -20,6 +20,7 @@ public:
 
     void SetChecked(bool checked);
     bool IsChecked() const { return m_checked; }
+    bool GetValue() const { return IsChecked(); }
 
     void SetText(const std::wstring& text) { m_text = text; layoutDirty = true; }
     const std::wstring& GetText() const { return m_text; }
@@ -33,7 +34,7 @@ public:
     float GetIntrinsicHeight() const override;
 
     bool OnEvent(const UIEvent& event) override;
-    void Render(UIRenderer& renderer) override;
+    void RenderSelf(UIRenderer& renderer) override;
 
 private:
     static constexpr float k_BoxSize = 18.0f;

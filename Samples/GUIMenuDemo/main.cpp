@@ -1,8 +1,7 @@
-/// @file Samples/GUIMenuDemo/main.cpp
-/// @brief GXFrameworkでGUIメニューを作るデモ。UIの組み立て手順が分かる。
-
-#include "FrameworkApp.h"
-#include "GameScene.h"
+﻿/// @file Samples/GUIMenuDemo/main.cpp
+/// @brief GUIメニューのデモ。XML/CSSのホットリロード対応。
+#include "GXEasy.h"
+#include "Compat/CompatContext.h"
 
 #include "Core/Logger.h"
 #include "GUI/GUILoader.h"
@@ -15,32 +14,57 @@
 #include "GUI/Widgets/RadioButton.h"
 
 #include <filesystem>
+#include <format>
+#include <string>
 
-namespace
+#ifdef UNICODE
+using TChar = wchar_t;
+#else
+using TChar = char;
+#endif
+
+using TString = std::basic_string<TChar>;
+
+template <class... Args>
+TString FormatT(const TChar* fmt, Args&&... args)
 {
+#ifdef UNICODE
+    return std::vformat(fmt, std::make_wformat_args(std::forward<Args>(args)...));
+#else
+    return std::vformat(fmt, std::make_format_args(std::forward<Args>(args)...));
+#endif
+}
 
-class GUIMenuScene : public GXFW::GameScene
+class GUIMenuApp : public GXEasy::App
 {
 public:
-    const char* GetName() const override { return "GUIMenuDemo"; }
-
-protected:
-    void OnSceneEnter(GXFW::SceneContext& ctx) override
+    GXEasy::AppConfig GetConfig() const override
     {
-        m_screenW = ctx.swapChain->GetWidth();
-        m_screenH = ctx.swapChain->GetHeight();
+        GXEasy::AppConfig config;
+        config.title = L"GXLib Sample: GUI Menu Demo";
+        config.width = 1280;
+        config.height = 720;
+        config.bgR = 8;
+        config.bgG = 10;
+        config.bgB = 20;
+        return config;
+    }
+
+    void Start() override
+    {
+        auto& ctx = GX_Internal::CompatContext::Instance();
+
+        m_screenW = ctx.swapChain.GetWidth();
+        m_screenH = ctx.swapChain.GetHeight();
         m_lastW = m_screenW;
         m_lastH = m_screenH;
-        if (ctx.app)
-        {
-            m_designW = ctx.app->GetWindow().GetWidth();
-            m_designH = ctx.app->GetWindow().GetHeight();
-        }
+        m_designW = ctx.app.GetWindow().GetWidth();
+        m_designH = ctx.app.GetWindow().GetHeight();
 
-        if (!m_uiRenderer.Initialize(ctx.graphics->GetDevice(),
-                                     ctx.commandQueue->GetQueue(),
+        if (!m_uiRenderer.Initialize(ctx.graphicsDevice.GetDevice(),
+                                     ctx.commandQueue.GetQueue(),
                                      m_screenW, m_screenH,
-                                     ctx.spriteBatch, ctx.textRenderer, ctx.fontManager))
+                                     &ctx.spriteBatch, &ctx.textRenderer, &ctx.fontManager))
         {
             GX_LOG_ERROR("UIRenderer initialization failed");
         }
@@ -51,35 +75,39 @@ protected:
         }
         m_uiContext.SetDesignResolution(m_designW, m_designH);
 
-        m_fontHandle = ctx.fontManager->CreateFont(L"Segoe UI", 22);
-        if (m_fontHandle < 0) m_fontHandle = ctx.fontManager->CreateFont(L"MS Gothic", 22);
-        if (m_fontHandle < 0 && ctx.defaultFont >= 0) m_fontHandle = ctx.defaultFont;
-        m_fontLarge = ctx.fontManager->CreateFont(L"Segoe UI", 40);
+        m_fontHandle = ctx.fontManager.CreateFont(L"Segoe UI", 22);
+        if (m_fontHandle < 0) m_fontHandle = ctx.fontManager.CreateFont(L"MS Gothic", 22);
+        if (m_fontHandle < 0) m_fontHandle = ctx.defaultFontHandle;
+        m_fontLarge = ctx.fontManager.CreateFont(L"Segoe UI", 40);
         if (m_fontLarge < 0) m_fontLarge = m_fontHandle;
-        if (m_fontLarge < 0 && ctx.defaultFont >= 0) m_fontLarge = ctx.defaultFont;
+        if (m_fontLarge < 0) m_fontLarge = ctx.defaultFontHandle;
 
         SetupUILoader();
         ResolveUIPaths();
         ReloadUI(true);
 
-        ctx.app->GetWindow().AddMessageCallback([this](HWND, UINT msg, WPARAM wParam, LPARAM) -> bool {
+        // テキスト入力をUIに渡す
+        ctx.app.GetWindow().AddMessageCallback([this](HWND, UINT msg, WPARAM wParam, LPARAM) -> bool {
             if (msg == WM_CHAR)
                 return m_uiContext.ProcessCharMessage(static_cast<wchar_t>(wParam));
             return false;
         });
     }
 
-    void OnSceneUpdate(GXFW::SceneContext& ctx, float dt) override
+    void Update(float dt) override
     {
-        if (ctx.input->CheckHitKey(VK_F2))
+        auto& ctx = GX_Internal::CompatContext::Instance();
+        m_lastDt = dt;
+
+        if (CheckHitKey(KEY_INPUT_F2))
             m_debugLayout = !m_debugLayout;
 
-        if (ctx.input->CheckHitKey(VK_F5))
+        if (CheckHitKey(KEY_INPUT_F5))
             ReloadUI(true);
         else
             ReloadUI(false);
 
-        if (ctx.input->CheckHitKey(VK_ESCAPE))
+        if (CheckHitKey(KEY_INPUT_ESCAPE))
         {
             if (m_currentScreen == MenuScreen::Settings)
             {
@@ -93,7 +121,7 @@ protected:
             return;
         }
 
-        m_uiContext.Update(dt, *ctx.input);
+        m_uiContext.Update(dt, ctx.inputManager);
 
         if (m_debugLayout && !m_layoutLogged)
         {
@@ -107,15 +135,10 @@ protected:
             m_layoutLogged = true;
         }
 
-        uint32_t w = ctx.swapChain->GetWidth();
-        uint32_t h = ctx.swapChain->GetHeight();
-        uint32_t designW = m_designW;
-        uint32_t designH = m_designH;
-        if (ctx.app)
-        {
-            designW = ctx.app->GetWindow().GetWidth();
-            designH = ctx.app->GetWindow().GetHeight();
-        }
+        uint32_t w = ctx.swapChain.GetWidth();
+        uint32_t h = ctx.swapChain.GetHeight();
+        uint32_t designW = ctx.app.GetWindow().GetWidth();
+        uint32_t designH = ctx.app.GetWindow().GetHeight();
 
         if (designW != m_designW || designH != m_designH)
         {
@@ -135,33 +158,31 @@ protected:
         }
     }
 
-    void OnSceneRenderUI(GXFW::SceneContext& ctx) override
+    void Draw() override
     {
-        // UI描画（UIRendererがSpriteBatchを使う前にフラッシュ）。
-        // 2D描画の順序を保つため、途中でバッチを閉じるのがポイント。
-        ctx.Flush2D();
-        m_uiRenderer.Begin(ctx.cmd, ctx.frameIndex);
+        auto& ctx = GX_Internal::CompatContext::Instance();
+
+        // UI描画前に2Dバッチをフラッシュ
+        ctx.FlushAll();
+        m_uiRenderer.Begin(ctx.cmdList, ctx.frameIndex);
         m_uiContext.Render();
         m_uiRenderer.End();
 
         if (m_debugLayout)
         {
-            DrawWidgetRect(ctx, "btnStart", 0xFF00FF00);
-            DrawWidgetRect(ctx, "btnSettings", 0xFF00FF00);
-            DrawWidgetRect(ctx, "btnAbout", 0xFF00FF00);
-            DrawWidgetRect(ctx, "btnExit", 0xFF00FF00);
-            DrawWidgetRect(ctx, "btnBack", 0xFFFFAA00);
+            DrawWidgetRect("btnStart", 0xFF00FF00);
+            DrawWidgetRect("btnSettings", 0xFF00FF00);
+            DrawWidgetRect("btnAbout", 0xFF00FF00);
+            DrawWidgetRect("btnExit", 0xFF00FF00);
+            DrawWidgetRect("btnBack", 0xFFFFAA00);
         }
 
-        // HUD表示。FPSなどの補助情報を描く。
-        if (ctx.app)
-        {
-            ctx.DrawString((float)10, 10.0f,
-                           std::format(L"FPS: {:.0f}", ctx.app->GetTimer().GetFPS()),
-                           0xFF888888);
-            ctx.DrawString(10.0f, (float)m_screenH - 30.0f,
-                           L"ESC: Back/Quit", 0xFF666666);
-        }
+        // HUD
+        const float fps = (m_lastDt > 0.0f) ? (1.0f / m_lastDt) : 0.0f;
+        const TString fpsText = FormatT(TEXT("FPS: {:.0f}"), fps);
+        DrawString(10, 10, fpsText.c_str(), 0xFF888888);
+        DrawString(10, (int)m_screenH - 30,
+                   TEXT("ESC: Back/Quit"), 0xFF666666);
     }
 
 private:
@@ -190,6 +211,8 @@ private:
     uint32_t m_screenH = 720;
     uint32_t m_lastW = 1280;
     uint32_t m_lastH = 720;
+    float m_lastDt = 0.0f;
+
     GX::GUI::GUILoader m_uiLoader;
     std::string m_uiXmlPath = "Assets/ui/guimenu_demo.xml";
     std::string m_uiCssPath = "Assets/ui/guimenu_demo.css";
@@ -415,7 +438,7 @@ private:
                     label, r.x, r.y, r.width, r.height, s.backgroundColor.a, s.color.a);
     }
 
-    void DrawWidgetRect(GXFW::SceneContext& ctx, const char* id, uint32_t color)
+    void DrawWidgetRect(const char* id, uint32_t color)
     {
         auto* w = m_uiContext.FindById(id);
         if (!w) return;
@@ -427,12 +450,7 @@ private:
         float y1 = r.y * scale + oy;
         float x2 = (r.x + r.width) * scale + ox;
         float y2 = (r.y + r.height) * scale + oy;
-        ctx.DrawBox(x1, y1, x2, y2, color, false);
-    }
-
-    static uint32_t RGBA(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
-    {
-        return (uint32_t(a) << 24) | (uint32_t(r) << 16) | (uint32_t(g) << 8) | uint32_t(b);
+        DrawBox((int)x1, (int)y1, (int)x2, (int)y2, color, FALSE);
     }
 
     void DrawBackground(GX::GUI::UIRenderer& renderer, const GX::GUI::LayoutRect& rect)
@@ -465,22 +483,6 @@ private:
     }
 };
 
-} // namespace
+GX_EASY_APP(GUIMenuApp)
 
-int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
-{
-    GXFW::FrameworkApp app;
-    GXFW::AppConfig config;
-    config.title = L"GXLib Sample: GUI Menu Demo";
-    config.width = 1280;
-    config.height = 720;
-    config.enableDebug = true;
 
-    if (!app.Initialize(config))
-        return -1;
-
-    app.SetScene(std::make_unique<GUIMenuScene>());
-    app.Run();
-    app.Shutdown();
-    return 0;
-}

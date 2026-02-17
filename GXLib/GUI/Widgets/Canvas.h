@@ -19,7 +19,7 @@ public:
     float GetIntrinsicWidth() const override { return 100.0f; }
     float GetIntrinsicHeight() const override { return 100.0f; }
 
-    void Render(UIRenderer& renderer) override;
+    void RenderSelf(UIRenderer& renderer) override;
 
     /// カスタム描画コールバック
     std::function<void(UIRenderer&, const LayoutRect&)> onDraw;

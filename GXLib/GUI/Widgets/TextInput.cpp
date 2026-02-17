@@ -90,6 +90,8 @@ void TextInput::DeleteSelection()
 
     int s = (std::min)(m_selStart, m_selEnd);
     int e = (std::max)(m_selStart, m_selEnd);
+    s = std::clamp(s, 0, (int)m_text.size());
+    e = std::clamp(e, 0, (int)m_text.size());
     m_text.erase(s, e - s);
     m_cursorPos = s;
     ClearSelection();
@@ -414,7 +416,7 @@ bool TextInput::OnEvent(const UIEvent& event)
 
     case UIEventType::MouseDown:
     {
-        float localX = event.mouseX - globalRect.x;
+        float localX = event.localX - globalRect.x;
         int pos = HitTestCursor(localX);
 
         if (shiftHeld)
@@ -441,7 +443,7 @@ bool TextInput::OnEvent(const UIEvent& event)
     {
         if (m_selecting)
         {
-            float localX = event.mouseX - globalRect.x;
+            float localX = event.localX - globalRect.x;
             int pos = HitTestCursor(localX);
             m_cursorPos = pos;
             m_selEnd = pos;
@@ -508,11 +510,13 @@ void TextInput::Update(float deltaTime)
 // 描画
 // ============================================================================
 
-void TextInput::Render(UIRenderer& renderer)
+void TextInput::RenderSelf(UIRenderer& renderer)
 {
     const Style& drawStyle = GetRenderStyle();
     // 背景 + 枠線
-    renderer.DrawRect(globalRect, drawStyle, opacity);
+    UIRectEffect effect;
+    const UIRectEffect* eff = GetActiveEffect(drawStyle, effect);
+    renderer.DrawRect(globalRect, drawStyle, 1.0f, eff);
 
     // クリッピング
     renderer.PushScissor(globalRect);
@@ -531,7 +535,7 @@ void TextInput::Render(UIRenderer& renderer)
         if (!m_placeholder.empty() && m_fontHandle >= 0)
         {
             StyleColor placeholderColor = { 0.5f, 0.5f, 0.55f, 0.6f };
-        renderer.DrawText(textX, textY, m_fontHandle, m_placeholder, placeholderColor, opacity);
+        renderer.DrawText(textX, textY, m_fontHandle, m_placeholder, placeholderColor, 1.0f);
         }
     }
     else
@@ -559,7 +563,7 @@ void TextInput::Render(UIRenderer& renderer)
         if (!display.empty() && m_fontHandle >= 0)
         {
             StyleColor textColor = drawStyle.color;
-            renderer.DrawText(textX, textY, m_fontHandle, display, textColor, opacity);
+            renderer.DrawText(textX, textY, m_fontHandle, display, textColor, 1.0f);
         }
     }
 

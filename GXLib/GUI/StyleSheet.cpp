@@ -469,6 +469,68 @@ void StyleSheet::ApplyProperty(Style& style, const std::string& rawName, const s
     if (name == "shadowBlur")      { style.shadowBlur    = std::stof(value); return; }
     if (name == "shadowColor")     { style.shadowColor   = ParseColor(value); return; }
 
+    // --- Opacity / Transform ---
+    if (name == "opacity")         { style.opacity = std::stof(value); return; }
+    if (name == "translateX")      { style.translateX = std::stof(value); return; }
+    if (name == "translateY")      { style.translateY = std::stof(value); return; }
+    if (name == "translate")
+    {
+        float x = 0.0f, y = 0.0f;
+        int n = ParseVec2(value, x, y);
+        style.translateX = x;
+        style.translateY = (n >= 2) ? y : 0.0f;
+        return;
+    }
+    if (name == "scaleX")          { style.scaleX = std::stof(value); return; }
+    if (name == "scaleY")          { style.scaleY = std::stof(value); return; }
+    if (name == "scale")
+    {
+        float x = 1.0f, y = 1.0f;
+        int n = ParseVec2(value, x, y);
+        style.scaleX = x;
+        style.scaleY = (n >= 2) ? y : x;
+        return;
+    }
+    if (name == "rotate")          { style.rotate = ParseAngleDeg(value); return; }
+    if (name == "pivotX")          { style.pivotX = ParseRatio(value); return; }
+    if (name == "pivotY")          { style.pivotY = ParseRatio(value); return; }
+    if (name == "pivot")
+    {
+        float x = 0.5f, y = 0.5f;
+        int n = ParseVec2(value, x, y);
+        style.pivotX = (n >= 1) ? x : 0.5f;
+        style.pivotY = (n >= 2) ? y : style.pivotX;
+        return;
+    }
+
+    // --- Effects ---
+    if (name == "effect")          { style.effectType = ParseEffectType(value); return; }
+    if (name == "effectStrength")  { style.effectStrength = std::stof(value); return; }
+    if (name == "effectWidth")     { style.effectWidth = std::stof(value); return; }
+    if (name == "effectDuration")  { style.effectDuration = std::stof(value); return; }
+
+    // --- Image UV ---
+    if (name == "imageUvScaleX")   { style.imageUVScaleX = std::stof(value); return; }
+    if (name == "imageUvScaleY")   { style.imageUVScaleY = std::stof(value); return; }
+    if (name == "imageUvScale")
+    {
+        float x = 1.0f, y = 1.0f;
+        int n = ParseVec2(value, x, y);
+        style.imageUVScaleX = x;
+        style.imageUVScaleY = (n >= 2) ? y : x;
+        return;
+    }
+    if (name == "imageUvSpeedX")   { style.imageUVSpeedX = std::stof(value); return; }
+    if (name == "imageUvSpeedY")   { style.imageUVSpeedY = std::stof(value); return; }
+    if (name == "imageUvSpeed")
+    {
+        float x = 0.0f, y = 0.0f;
+        int n = ParseVec2(value, x, y);
+        style.imageUVSpeedX = x;
+        style.imageUVSpeedY = (n >= 2) ? y : x;
+        return;
+    }
+
     // --- アニメーション ---
     if (name == "transitionDuration") { style.transitionDuration = std::stof(value); return; }
 }
@@ -484,8 +546,8 @@ StyleLength StyleSheet::ParseLength(const std::string& value)
     // パーセント
     if (!value.empty() && value.back() == '%')
     {
-        float v = std::stof(value.substr(0, value.size() - 1));
-        return StyleLength::Pct(v);
+        try { return StyleLength::Pct(std::stof(value.substr(0, value.size() - 1))); }
+        catch (...) { return StyleLength::Pct(0.0f); }
     }
 
     // px (数値のみ = px扱い)
@@ -494,7 +556,7 @@ StyleLength StyleSheet::ParseLength(const std::string& value)
     if (numPart.size() > 2 && numPart.substr(numPart.size() - 2) == "px")
         numPart = numPart.substr(0, numPart.size() - 2);
 
-    return StyleLength::Px(std::stof(numPart));
+    try { return StyleLength::Px(std::stof(numPart)); } catch (...) { return StyleLength::Px(0.0f); }
 }
 
 StyleColor StyleSheet::ParseColor(const std::string& value)
@@ -542,6 +604,58 @@ StyleEdges StyleSheet::ParseEdges(const std::string& value)
         return StyleEdges(values[0], values[1], values[2], values[3]);
 
     return {};
+}
+
+int StyleSheet::ParseVec2(const std::string& value, float& outX, float& outY)
+{
+    outX = 0.0f;
+    outY = 0.0f;
+    std::vector<float> values;
+    size_t i = 0;
+    size_t len = value.size();
+    while (i < len)
+    {
+        while (i < len && std::isspace(static_cast<unsigned char>(value[i]))) ++i;
+        if (i >= len) break;
+
+        size_t start = i;
+        if (value[i] == '-') ++i;
+        while (i < len && (std::isdigit(static_cast<unsigned char>(value[i])) || value[i] == '.'))
+            ++i;
+        if (i > start)
+            values.push_back(std::stof(value.substr(start, i - start)));
+        else
+            ++i;
+    }
+
+    if (values.size() >= 1) outX = values[0];
+    if (values.size() >= 2) outY = values[1];
+    return static_cast<int>(values.size());
+}
+
+float StyleSheet::ParseAngleDeg(const std::string& value)
+{
+    if (value.size() > 3 && value.substr(value.size() - 3) == "deg")
+        return std::stof(value.substr(0, value.size() - 3));
+    if (value.size() > 3 && value.substr(value.size() - 3) == "rad")
+        return std::stof(value.substr(0, value.size() - 3)) * (180.0f / 3.1415926535f);
+    return std::stof(value);
+}
+
+float StyleSheet::ParseRatio(const std::string& value)
+{
+    if (!value.empty() && value.back() == '%')
+    {
+        float v = std::stof(value.substr(0, value.size() - 1));
+        return v * 0.01f;
+    }
+    return std::stof(value);
+}
+
+UIEffectType StyleSheet::ParseEffectType(const std::string& value)
+{
+    if (value == "ripple") return UIEffectType::Ripple;
+    return UIEffectType::None;
 }
 
 // ============================================================================

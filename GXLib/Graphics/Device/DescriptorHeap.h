@@ -25,6 +25,8 @@ namespace GX
 class DescriptorHeap
 {
 public:
+    static constexpr uint32_t k_InvalidIndex = UINT32_MAX;
+
     DescriptorHeap() = default;
     ~DescriptorHeap() = default;
 

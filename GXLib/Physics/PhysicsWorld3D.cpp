@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "Physics/PhysicsWorld3D.h"
+#include "Core/Logger.h"
 
 // Jolt Physics ヘッダー（PIMPLのためここでのみインクルード）
 #include <Jolt/Jolt.h>
@@ -163,9 +164,9 @@ public:
 namespace GX {
 
 struct PhysicsWorld3D::Impl {
-    JPH::TempAllocatorImpl* tempAllocator = nullptr;
-    JPH::JobSystemThreadPool* jobSystem = nullptr;
-    JPH::PhysicsSystem* physicsSystem = nullptr;
+    std::unique_ptr<JPH::TempAllocatorImpl> tempAllocator;
+    std::unique_ptr<JPH::JobSystemThreadPool> jobSystem;
+    std::unique_ptr<JPH::PhysicsSystem> physicsSystem;
     BPLayerInterface bpLayerInterface;
     ObjectVsBroadPhaseFilter objectVsBPFilter;
     ObjectLayerPairFilter objectPairFilter;
@@ -191,16 +192,26 @@ bool PhysicsWorld3D::Initialize(uint32_t maxBodies)
     JPH::Factory::sInstance = new JPH::Factory();
     JPH::RegisterTypes();
 
-    m_impl->tempAllocator = new JPH::TempAllocatorImpl(32 * 1024 * 1024); // 32MB
-    m_impl->jobSystem = new JPH::JobSystemThreadPool(
-        JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers,
-        std::max(1, static_cast<int>(std::thread::hardware_concurrency()) - 1)
-    );
+    try
+    {
+        m_impl->tempAllocator = std::make_unique<JPH::TempAllocatorImpl>(32 * 1024 * 1024); // 32MB
+        m_impl->jobSystem = std::make_unique<JPH::JobSystemThreadPool>(
+            JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers,
+            std::max(1, static_cast<int>(std::thread::hardware_concurrency()) - 1)
+        );
+    }
+    catch (const std::exception& e)
+    {
+        GX_LOG_ERROR("PhysicsWorld3D: failed to allocate Jolt subsystems: %s", e.what());
+        m_impl->tempAllocator.reset();
+        m_impl->jobSystem.reset();
+        return false;
+    }
 
     const uint32_t maxBodyPairs = std::min(maxBodies * 2, 65536u);
     const uint32_t maxContactConstraints = std::min(maxBodies * 2, 10240u);
 
-    m_impl->physicsSystem = new JPH::PhysicsSystem();
+    m_impl->physicsSystem = std::make_unique<JPH::PhysicsSystem>();
     m_impl->physicsSystem->Init(
         maxBodies,             // 最大ボディ数
         0,                     // ボディミューテックス数（0=既定）
@@ -236,17 +247,14 @@ void PhysicsWorld3D::Shutdown()
     }
     m_impl->ownedShapes.clear();
 
-    delete m_impl->physicsSystem;
-    delete m_impl->jobSystem;
-    delete m_impl->tempAllocator;
+    m_impl->physicsSystem.reset();
+    m_impl->jobSystem.reset();
+    m_impl->tempAllocator.reset();
 
     JPH::UnregisterTypes();
     delete JPH::Factory::sInstance;
     JPH::Factory::sInstance = nullptr;
 
-    m_impl->physicsSystem = nullptr;
-    m_impl->jobSystem = nullptr;
-    m_impl->tempAllocator = nullptr;
     m_impl->initialized = false;
 }
 
@@ -256,7 +264,7 @@ void PhysicsWorld3D::Step(float deltaTime)
 
     int collisionSteps = 1;
     m_impl->physicsSystem->Update(deltaTime, collisionSteps,
-        m_impl->tempAllocator, m_impl->jobSystem);
+        m_impl->tempAllocator.get(), m_impl->jobSystem.get());
 }
 
 void PhysicsWorld3D::SetGravity(const Vector3& gravity)
@@ -274,6 +282,11 @@ Vector3 PhysicsWorld3D::GetGravity() const
 
 PhysicsShape* PhysicsWorld3D::CreateBoxShape(const Vector3& halfExtents)
 {
+    if (halfExtents.x <= 0.0f || halfExtents.y <= 0.0f || halfExtents.z <= 0.0f)
+    {
+        GX_LOG_ERROR("PhysicsWorld3D: Invalid box half extents");
+        return nullptr;
+    }
     auto* shape = new PhysicsShape();
     auto jphShape = new JPH::ShapeRefC(new JPH::BoxShape(ToJolt(halfExtents)));
     shape->internal = jphShape;
@@ -283,6 +296,11 @@ PhysicsShape* PhysicsWorld3D::CreateBoxShape(const Vector3& halfExtents)
 
 PhysicsShape* PhysicsWorld3D::CreateSphereShape(float radius)
 {
+    if (radius <= 0.0f)
+    {
+        GX_LOG_ERROR("PhysicsWorld3D: Invalid sphere radius");
+        return nullptr;
+    }
     auto* shape = new PhysicsShape();
     auto jphShape = new JPH::ShapeRefC(new JPH::SphereShape(radius));
     shape->internal = jphShape;
@@ -292,6 +310,11 @@ PhysicsShape* PhysicsWorld3D::CreateSphereShape(float radius)
 
 PhysicsShape* PhysicsWorld3D::CreateCapsuleShape(float halfHeight, float radius)
 {
+    if (halfHeight <= 0.0f || radius <= 0.0f)
+    {
+        GX_LOG_ERROR("PhysicsWorld3D: Invalid capsule dimensions");
+        return nullptr;
+    }
     auto* shape = new PhysicsShape();
     auto jphShape = new JPH::ShapeRefC(new JPH::CapsuleShape(halfHeight, radius));
     shape->internal = jphShape;

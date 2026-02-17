@@ -197,6 +197,11 @@ void SpriteBatch::Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex)
     m_frameIndex = frameIndex;
 
     m_mappedVertices    = static_cast<SpriteVertex*>(m_vertexBuffer.Map(frameIndex));
+    if (!m_mappedVertices)
+    {
+        GX_LOG_ERROR("SpriteBatch: Failed to map vertex buffer");
+        return;
+    }
     m_spriteCount       = 0;
     m_currentTexture    = -1;
     m_lastBoundBlend    = BlendMode::Count;  // 新フレームでPSO再バインドを強制
@@ -245,6 +250,13 @@ void SpriteBatch::AddQuad(const SpriteVertex& v0, const SpriteVertex& v1,
 
     if (m_vertexWriteOffset + m_spriteCount >= k_MaxSprites)
         Flush();
+
+    // Flush後も容量不足（1フレーム内でk_MaxSprites超過）→ドロップ
+    if (m_vertexWriteOffset + m_spriteCount >= k_MaxSprites)
+    {
+        GX_LOG_WARN("SpriteBatch: exceeded %u sprites per frame, dropping draw call", k_MaxSprites);
+        return;
+    }
 
     m_currentTexture = actualTexHandle;
 
@@ -476,12 +488,12 @@ void SpriteBatch::DrawRectModiGraph(float x1, float y1, float x2, float y2,
     float v1 = (srcY + srcH) / texH;
 
     // 左上・右上・右下・左下の順
-    SpriteVertex v0 = { { x1, y1 }, { u0, v0 }, m_drawColor };
-    SpriteVertex v1 = { { x2, y2 }, { u1, v0 }, m_drawColor };
-    SpriteVertex v2 = { { x4, y4 }, { u0, v1 }, m_drawColor };
-    SpriteVertex v3 = { { x3, y3 }, { u1, v1 }, m_drawColor };
+    SpriteVertex b0 = { { x1, y1 }, { u0, v0 }, m_drawColor };
+    SpriteVertex b1 = { { x2, y2 }, { u1, v0 }, m_drawColor };
+    SpriteVertex b2 = { { x4, y4 }, { u0, v1 }, m_drawColor };
+    SpriteVertex b3 = { { x3, y3 }, { u1, v1 }, m_drawColor };
 
-    AddQuad(v0, v1, v2, v3, handle);
+    AddQuad(b0, b1, b2, b3, handle);
 }
 
 void SpriteBatch::SetBlendMode(BlendMode mode)

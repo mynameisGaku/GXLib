@@ -10,8 +10,8 @@
 
 'GXLib_System-GX_Init': [
   'int GX_Init()',
-  'GXLibエンジンを初期化し、ウィンドウ作成・DirectX 12デバイス・全サブシステムを起動する。ChangeWindowModeやSetGraphModeで事前に設定した内容が反映される。アプリケーション開始時に最初に呼び出す関数であり、成功時は0、失敗時は-1を返す。初期化前にウィンドウモードや解像度を設定しておくことを推奨する。',
-  '// GXLib初期化\nChangeWindowMode(TRUE);\nSetGraphMode(1280, 720, 32);\nif (GX_Init() == -1) return -1;\n\nSetDrawScreen(GX_SCREEN_BACK);\n\n// メインループ\nwhile (ProcessMessage() == 0) {\n    ClearDrawScreen();\n    // 描画処理\n    ScreenFlip();\n}\n\nGX_End();',
+  'GXLibエンジンを初期化し、ウィンドウ作成・DirectX 12デバイス・全サブシステムを起動する。ChangeWindowModeやSetGraphModeで事前に設定した内容が反映される。アプリケーション開始時に最初に呼び出す関数であり、成功時は0、失敗時は-1を返す。初期化前にウィンドウモードや解像度を設定しておくことを推奨する。\n\n【用語】DXLib互換API … DXLibはC++向けの国産2D/3Dゲームライブラリ。GXLibはDXLibと同じ関数名・引数で使えるラッパー関数群（互換レイヤー）を提供し、DXLib既存コードの移植を容易にする。内部実装はDirectX 12ベース。',
+  '// GXLib初期化\nChangeWindowMode(TRUE);           // ウィンドウモード\nSetGraphMode(1280, 720, 32);      // 解像度と色深度\nif (GX_Init() == -1) return -1;   // 失敗時は即終了\n\nSetDrawScreen(GX_SCREEN_BACK);    // ダブルバッファリング有効化\n\n// メインループ\nwhile (ProcessMessage() == 0) {\n    ClearDrawScreen();  // フレーム開始（背景色でクリア）\n    // 描画処理\n    ScreenFlip();       // フレーム終了（バッファ転送）\n}\n\nGX_End();  // 全リソース解放',
   '• ChangeWindowMode, SetGraphMode はGX_Init の前に呼ぶこと\n• 内部でCompatContextシングルトンの全サブシステムを初期化する\n• 失敗した場合はエラーログを出力してから -1 を返す\n• DXLibの DxLib_Init() に相当する関数'
 ],
 
@@ -47,7 +47,7 @@
   'int SetGraphMode(int width, int height, int colorBitNum)',
   '画面解像度と色深度を設定する。GX_Initの前に呼び出すことで、指定した解像度でウィンドウが作成される。colorBitNum は通常32を指定する。成功時は0を返す。',
   '// 1920x1080で起動\nChangeWindowMode(TRUE);\nSetGraphMode(1920, 1080, 32);\nGX_Init();',
-  '• GX_Init の前に呼ぶこと\n• デフォルト解像度は 1280x720\n• colorBitNum は現在32のみサポート\n• DXLibの SetGraphMode() に相当する関数'
+  '• GX_Init の前に呼ぶこと\n• デフォルト解像度は 1280x720\n• colorBitNum は現在32のみサポート\n• DXLibの SetGraphMode() に相当する関数\n• 【パラメータ目安】width/height: 一般的には1280x720(HD)〜1920x1080(FHD)。colorBitNumは32固定'
 ],
 
 'GXLib_System-GetColor': [
@@ -66,7 +66,7 @@
 
 'GXLib_System-SetDrawScreen': [
   'int SetDrawScreen(int screen)',
-  '描画先スクリーンを設定する。GX_SCREEN_BACKでバックバッファに描画（ダブルバッファリング）、GX_SCREEN_FRONTで表画面に直接描画する。通常はGX_SCREEN_BACKを指定する。成功時は0を返す。',
+  '描画先スクリーンを設定する。GX_SCREEN_BACKでバックバッファに描画（ダブルバッファリング）、GX_SCREEN_FRONTで表画面に直接描画する。通常はGX_SCREEN_BACKを指定する。成功時は0を返す。\n\n【用語】ダブルバッファリング … 画面表示用（フロント）と描画用（バック）の2つのバッファを用意し、バックバッファへの描画完了後にフロントと入れ替える技法。これにより描画途中の画面が表示されるちらつき（ティアリング）を防ぐ。',
   '// バックバッファへの描画を設定\nGX_Init();\nSetDrawScreen(GX_SCREEN_BACK);\n\nwhile (ProcessMessage() == 0) {\n    ClearDrawScreen();\n    DrawString(10, 10, "Back buffer", GetColor(255, 255, 255));\n    ScreenFlip();\n}',
   '• 通常は GX_SCREEN_BACK を指定してダブルバッファリングを行う\n• GX_SCREEN_FRONT は即座に画面に描画されるためちらつきが発生する\n• GX_Init の直後に1度呼ぶのが一般的な使い方\n• DXLibの SetDrawScreen() に相当する関数'
 ],
@@ -98,7 +98,7 @@
 
 'GXLib_Graphics-LoadGraph': [
   'int LoadGraph(const TCHAR* filePath)',
-  '画像ファイルを読み込み、グラフィックハンドルを返す。PNG, JPG, BMP, TGA等の主要画像形式に対応する。内部ではTextureManagerを使用してGPUテクスチャを作成する。成功時はグラフィックハンドル（0以上の整数）を返し、失敗時は-1を返す。',
+  '画像ファイルを読み込み、グラフィックハンドルを返す。PNG, JPG, BMP, TGA等の主要画像形式に対応する。内部ではTextureManagerを使用してGPUテクスチャを作成する。成功時はグラフィックハンドル（0以上の整数）を返し、失敗時は-1を返す。\n\n【用語】グラフィックハンドル … GPUテクスチャリソースを識別するための整数値。内部のTextureManagerがフリーリスト方式でハンドルを割り当て、ハンドル経由でリソースの描画や解放を行う。ポインタを直接扱わずにリソースを安全に管理する手法。',
   '// 画像の読み込みと描画\nint hImage = LoadGraph("Assets/player.png");\nif (hImage == -1) {\n    // エラー処理\n}\n\n// メインループで描画\nDrawGraph(100, 100, hImage, TRUE);\n\n// 不要になったら解放\nDeleteGraph(hImage);',
   '• 対応形式: PNG, JPG, BMP, TGA（STB_IMAGE経由）\n• 戻り値のハンドルはDeleteGraphで解放するまで有効\n• 同一ファイルを複数回読み込むと別ハンドルが割り当てられる\n• DXLibの LoadGraph() に相当する関数'
 ],
@@ -113,7 +113,7 @@
 'GXLib_Graphics-LoadDivGraph': [
   'int LoadDivGraph(const TCHAR* filePath, int allNum, int xNum, int yNum, int xSize, int ySize, int* handleBuf)',
   '画像を等間隔に分割して複数のグラフィックハンドルに読み込む。スプライトシートやアニメーションフレームの読み込みに使用する。handleBufにはallNum個以上の要素を持つ配列を渡す。成功時は0、失敗時は-1を返す。',
-  '// 4x4=16分割のスプライトシート読み込み\nint handles[16];\nLoadDivGraph("Assets/anim.png", 16, 4, 4, 64, 64, handles);\n\n// アニメーション描画\nint frame = (GetNowCount() / 100) % 16;\nDrawGraph(200, 200, handles[frame], TRUE);\n\n// 全ハンドルの解放\nfor (int i = 0; i < 16; i++) {\n    DeleteGraph(handles[i]);\n}',
+  '// 4x4=16分割のスプライトシート読み込み\nint handles[16];  // allNum個以上の配列が必要\nLoadDivGraph("Assets/anim.png",\n    16,   // allNum: 総分割数\n    4,    // xNum: 横方向の分割数\n    4,    // yNum: 縦方向の分割数\n    64,   // xSize: 1コマの幅(px)\n    64,   // ySize: 1コマの高さ(px)\n    handles);\n\n// 経過時間からフレーム番号を計算（100msごとに切替）\nint frame = (GetNowCount() / 100) % 16;\nDrawGraph(200, 200, handles[frame], TRUE);\n\n// 全ハンドルの解放\nfor (int i = 0; i < 16; i++) {\n    DeleteGraph(handles[i]);\n}',
   '• handleBuf配列は allNum 個以上の要素が必要\n• xNum * yNum == allNum でなければならない\n• 各分割画像のサイズは xSize x ySize ピクセル\n• DXLibの LoadDivGraph() に相当する関数'
 ],
 
@@ -134,7 +134,7 @@
 'GXLib_Graphics-DrawRotaGraph': [
   'int DrawRotaGraph(int cx, int cy, double extRate, double angle, int handle, int transFlag)',
   '画像を回転・拡大縮小して描画する。(cx, cy) は描画の中心座標、extRateは拡大率（1.0で等倍）、angleは回転角度（ラジアン単位、時計回りが正）。キャラクターの向き変更やエフェクト表現に使用する。成功時は0を返す。',
-  '// 回転・拡大描画\nint hImage = LoadGraph("Assets/arrow.png");\ndouble angle = 0.0;\n\nwhile (ProcessMessage() == 0) {\n    ClearDrawScreen();\n    angle += 0.02;  // 毎フレーム回転\n    DrawRotaGraph(640, 360, 2.0, angle, hImage, TRUE);\n    ScreenFlip();\n}',
+  '// 回転・拡大描画\nint hImage = LoadGraph("Assets/arrow.png");\ndouble angle = 0.0;\n\nwhile (ProcessMessage() == 0) {\n    ClearDrawScreen();\n    angle += 0.02;  // 毎フレーム約1.15度ずつ回転\n    DrawRotaGraph(\n        640, 360,   // 画像の中心を配置する座標\n        2.0,        // 拡大率（2倍）\n        angle,      // 回転角度（ラジアン）\n        hImage, TRUE);\n    ScreenFlip();\n}',
   '• (cx, cy) は画像の中心が配置される座標\n• extRate: 1.0=等倍, 2.0=2倍, 0.5=半分\n• angle: ラジアン単位（360度 = 2π ≈ 6.283）\n• DXLibの DrawRotaGraph() に相当する関数'
 ],
 
@@ -175,8 +175,8 @@
 
 'GXLib_Graphics-SetDrawBlendMode': [
   'int SetDrawBlendMode(int blendMode, int blendParam)',
-  '描画ブレンドモードとパラメータを設定する。以降の全ての描画関数に適用される。blendModeはGX_BLENDMODE_*定数、blendParamはブレンドの強さ（0〜255）を指定する。アルファブレンド時のblendParamは不透明度として機能する。成功時は0を返す。',
-  '// 半透明描画\nSetDrawBlendMode(GX_BLENDMODE_ALPHA, 128);\nDrawBox(100, 100, 300, 300, GetColor(255, 0, 0), TRUE);\n\n// 加算ブレンド（光のエフェクト）\nSetDrawBlendMode(GX_BLENDMODE_ADD, 255);\nDrawGraph(200, 200, hEffect, TRUE);\n\n// ブレンドモードを元に戻す\nSetDrawBlendMode(GX_BLENDMODE_NOBLEND, 0);',
+  '描画ブレンドモードとパラメータを設定する。以降の全ての描画関数に適用される。blendModeはGX_BLENDMODE_*定数、blendParamはブレンドの強さ（0〜255）を指定する。アルファブレンド時のblendParamは不透明度として機能する。成功時は0を返す。\n\n【用語】ブレンドモード … 描画元（ソース）と描画先（デスティネーション）のピクセルをどのように合成するかを決める方式。アルファ（半透明）、加算（発光）、減算（影）、乗算（暗部強調）、スクリーン（明部強調）などがある。GPUのOutput Merger段階で処理される。',
+  '// 半透明描画（不透明度128 = 約50%）\nSetDrawBlendMode(GX_BLENDMODE_ALPHA, 128);\nDrawBox(100, 100, 300, 300, GetColor(255, 0, 0), TRUE);\n\n// 加算ブレンド（光のエフェクト — 色が加算され明るくなる）\nSetDrawBlendMode(GX_BLENDMODE_ADD, 255);\nDrawGraph(200, 200, hEffect, TRUE);\n\n// ブレンドモードを元に戻す（必ずリセットすること）\nSetDrawBlendMode(GX_BLENDMODE_NOBLEND, 0);',
   '• GX_BLENDMODE_NOBLEND: ブレンド無し（不透明）\n• GX_BLENDMODE_ALPHA: アルファブレンド（blendParam=不透明度）\n• GX_BLENDMODE_ADD: 加算ブレンド\n• GX_BLENDMODE_SUB: 減算ブレンド\n• GX_BLENDMODE_MUL: 乗算ブレンド\n• 描画後はNOBLENDに戻すことを推奨'
 ],
 
@@ -209,7 +209,7 @@
   'int CreateFontToHandle(const TCHAR* fontName, int size, int thick, int fontType = -1)',
   'カスタムフォントハンドルを作成する。fontNameにはフォント名（例: "メイリオ", "MS ゴシック"）、sizeにフォントサイズ、thickに太さ（0〜9）を指定する。作成したハンドルはDrawStringToHandleで使用する。成功時はフォントハンドル、失敗時は-1を返す。',
   '// フォントの作成と使用\nint hLargeFont = CreateFontToHandle("メイリオ", 32, 5);\nint hSmallFont = CreateFontToHandle("MS ゴシック", 14, 2);\n\nDrawStringToHandle(10, 10, "タイトル",\n    GetColor(255, 255, 0), hLargeFont);\nDrawStringToHandle(10, 50, "説明テキスト",\n    GetColor(200, 200, 200), hSmallFont);\n\n// 不要になったら解放\nDeleteFontToHandle(hLargeFont);\nDeleteFontToHandle(hSmallFont);',
-  '• fontType: GX_FONTTYPE_NORMAL(0), GX_FONTTYPE_EDGE(1), GX_FONTTYPE_ANTIALIASING(2), -1でデフォルト\n• thick: 0（最細）〜9（最太）\n• 内部でDirectWriteによるフォントアトラスが生成される\n• DXLibの CreateFontToHandle() に相当する関数'
+  '• fontType: GX_FONTTYPE_NORMAL(0), GX_FONTTYPE_EDGE(1), GX_FONTTYPE_ANTIALIASING(2), -1でデフォルト\n• thick: 0（最細）〜9（最太）\n• 内部でDirectWriteによるフォントアトラスが生成される\n• DXLibの CreateFontToHandle() に相当する関数\n• 【パラメータ目安】size: UI本文12〜18, 見出し24〜36, タイトル48〜72。thick: 通常テキスト2〜4, 太字見出し5〜7'
 ],
 
 'GXLib_Text-DeleteFontToHandle': [
@@ -232,7 +232,7 @@
 
 'GXLib_Input-CheckHitKey': [
   'int CheckHitKey(int keyCode)',
-  '指定キーが現在押されているかどうかを確認する。keyCodeにはKEY_INPUT_*定数（DirectInput DIK_*互換コード）を指定する。押されている場合は1、押されていない場合は0を返す。毎フレーム押下状態をチェックする場合に使用する。',
+  '指定キーが現在押されているかどうかを確認する。keyCodeにはKEY_INPUT_*定数（DirectInput DIK_*互換コード）を指定する。押されている場合は1、押されていない場合は0を返す。毎フレーム押下状態をチェックする場合に使用する。\n\n【用語】DIK（DirectInput Key codes） … MicrosoftのDirectInputライブラリが定義するキーボードスキャンコード体系。DIK_ESCAPEが0x01、DIK_SPACEが0x39など、ハードウェアスキャンコードに基づいた固定値を持つ。DXLib・GXLibではDIK_*をKEY_INPUT_*にリネームして使用する。',
   '// キー入力の確認\nif (CheckHitKey(KEY_INPUT_ESCAPE)) {\n    break;  // ESCキーで終了\n}\n\nif (CheckHitKey(KEY_INPUT_LEFT)) {\n    playerX -= 5;  // 左移動\n}\nif (CheckHitKey(KEY_INPUT_RIGHT)) {\n    playerX += 5;  // 右移動\n}\nif (CheckHitKey(KEY_INPUT_SPACE)) {\n    Jump();  // ジャンプ\n}',
   '• KEY_INPUT_* 定数はDirectInputのDIK_*と同じコード体系\n• 押下中は毎フレーム1を返す（トリガー検出ではない）\n• トリガー検出が必要な場合は前フレームとの差分を自前で管理する\n• DXLibの CheckHitKey() に相当する関数'
 ],
@@ -307,8 +307,8 @@
 'GXLib_Audio-ChangeVolumeSoundMem': [
   'int ChangeVolumeSoundMem(int volume, int handle)',
   'サウンドの音量を変更する。volumeは0（無音）〜255（最大音量）で指定する。BGMの音量調整やフェードイン/フェードアウトに使用する。注意: 引数の順序はvolume, handleの順。成功時は0を返す。',
-  '// 音量の調整\n// BGMを半分の音量に\nChangeVolumeSoundMem(128, hBGM);\n\n// SEを最大音量で\nChangeVolumeSoundMem(255, hShot);\n\n// フェードアウト\nfor (int v = 255; v >= 0; v -= 5) {\n    ChangeVolumeSoundMem(v, hBGM);\n    // 少し待つ\n}',
-  '• volume: 0（無音）〜 255（最大音量）\n• 引数の順序に注意: volume が先、handle が後\n• 内部で 0-255 を 0.0-1.0 のリニアスケールに変換\n• DXLibの ChangeVolumeSoundMem() に相当する関数'
+  '// 音量の調整（第1引数が音量、第2引数がハンドル — 順序に注意）\nChangeVolumeSoundMem(128, hBGM);  // BGMを約50%音量に\nChangeVolumeSoundMem(255, hShot); // SEを最大音量に\n\n// フェードアウト（255→0へ段階的に下げる）\nfor (int v = 255; v >= 0; v -= 5) {\n    ChangeVolumeSoundMem(v, hBGM);\n    // 少し待つ\n}',
+  '• volume: 0（無音）〜 255（最大音量）\n• 引数の順序に注意: volume が先、handle が後\n• 内部で 0-255 を 0.0-1.0 のリニアスケールに変換\n• DXLibの ChangeVolumeSoundMem() に相当する関数\n• 【パラメータ目安】BGM: 128〜180（SE より控えめに）。SE: 200〜255。フェードは5〜10刻みで段階的に変更'
 ],
 
 'GXLib_Audio-CheckSoundMem': [
@@ -325,20 +325,20 @@
 'GXLib_3D-SetCameraPositionAndTarget': [
   'int SetCameraPositionAndTarget(VECTOR position, VECTOR target)',
   '3Dカメラの位置と注視点を設定する。positionはカメラのワールド座標での位置、targetはカメラが向く先の座標。3Dシーンのビュー行列を決定する基本的な関数。成功時は0を返す。',
-  '// カメラの設定\nVECTOR camPos = VGet(0.0f, 10.0f, -20.0f);\nVECTOR camTarget = VGet(0.0f, 0.0f, 0.0f);\nSetCameraPositionAndTarget(camPos, camTarget);\n\n// プレイヤー追従カメラ\nVECTOR playerPos = VGet(px, py, pz);\nVECTOR offset = VGet(0.0f, 5.0f, -10.0f);\nSetCameraPositionAndTarget(\n    VAdd(playerPos, offset), playerPos);',
+  '// カメラの設定\nVECTOR camPos = VGet(0.0f, 10.0f, -20.0f);   // カメラ位置（やや上方・手前）\nVECTOR camTarget = VGet(0.0f, 0.0f, 0.0f);   // 注視点（原点）\nSetCameraPositionAndTarget(camPos, camTarget);\n\n// プレイヤー追従カメラ（毎フレーム更新）\nVECTOR playerPos = VGet(px, py, pz);\nVECTOR offset = VGet(0.0f, 5.0f, -10.0f);  // プレイヤーの上方・後方\nSetCameraPositionAndTarget(\n    VAdd(playerPos, offset), playerPos);  // オフセット位置からプレイヤーを見る',
   '• 内部でCamera3DのSetPositionとSetTargetを呼び出す\n• Up方向はデフォルトで(0, 1, 0)\n• 毎フレーム呼び出すことでカメラを動的に制御できる\n• DXLibの SetCameraPositionAndTarget_UpVecY() に近い機能'
 ],
 
 'GXLib_3D-SetCameraNearFar': [
   'int SetCameraNearFar(float nearZ, float farZ)',
   '3Dカメラのニアクリップ面とファークリップ面の距離を設定する。この範囲外のオブジェクトは描画されない。デプスバッファの精度にも影響するため、適切な値を設定することが重要。成功時は0を返す。',
-  '// クリップ面の設定\nSetCameraNearFar(0.1f, 1000.0f);\n\n// 広大なシーンの場合\nSetCameraNearFar(1.0f, 10000.0f);',
-  '• nearZ: ニアクリップ距離（0より大きい値）\n• farZ: ファークリップ距離（nearZより大きい値）\n• nearZ を小さくしすぎるとZファイティングが発生する\n• デフォルト値は near=0.1, far=1000.0\n• DXLibの SetCameraNearFar() に相当する関数'
+  '// クリップ面の設定（標準的な値）\nSetCameraNearFar(0.1f, 1000.0f);  // near=10cm, far=1km\n\n// 広大なシーンの場合（nearを大きくしてZ精度を確保）\nSetCameraNearFar(1.0f, 10000.0f); // near=1m, far=10km',
+  '• nearZ: ニアクリップ距離（0より大きい値）\n• farZ: ファークリップ距離（nearZより大きい値）\n• nearZ を小さくしすぎるとZファイティングが発生する\n• デフォルト値は near=0.1, far=1000.0\n• DXLibの SetCameraNearFar() に相当する関数\n• 【パラメータ目安】nearZ: 0.1〜1.0（室内0.1, 屋外1.0推奨）。farZ: 100.0〜10000.0。far/near比が大きいほどZ精度が低下する'
 ],
 
 'GXLib_3D-LoadModel': [
   'int LoadModel(const TCHAR* filePath)',
-  '3DモデルファイルをGPUメモリに読み込み、モデルハンドルを返す。glTF(.gltf)およびGLB(.glb)形式に対応する。PBRマテリアルやスケルタルアニメーションを含むモデルも読み込み可能。成功時はモデルハンドル（0以上の整数）、失敗時は-1を返す。',
+  '3DモデルファイルをGPUメモリに読み込み、モデルハンドルを返す。glTF(.gltf)およびGLB(.glb)形式に対応する。PBRマテリアルやスケルタルアニメーションを含むモデルも読み込み可能。成功時はモデルハンドル（0以上の整数）、失敗時は-1を返す。\n\n【用語】glTF … Khronos Groupが策定した3Dモデルの標準フォーマット。JSON(.gltf)+バイナリ(.bin)、またはパックされたGLB形式がある。PBR（物理ベースレンダリング）マテリアルやスケルタルアニメーションを標準サポートする。',
   '// モデルの読み込み\nint hModel = LoadModel("Assets/character.glb");\nif (hModel == -1) {\n    // エラー処理\n}\n\n// 位置を設定して描画\nSetModelPosition(hModel, VGet(0.0f, 0.0f, 0.0f));\nDrawModel(hModel);\n\n// 不要になったら解放\nDeleteModel(hModel);',
   '• 対応形式: glTF 2.0 (.gltf + .bin), GLB (.glb)\n• PBRマテリアル（BaseColor, MetallicRoughness, Normal等）対応\n• cgltf ライブラリを使用してパースされる\n• DXLibの MV1LoadModel() に相当する関数'
 ],
@@ -353,7 +353,7 @@
 'GXLib_3D-DrawModel': [
   'int DrawModel(int handle)',
   '3Dモデルを現在の変換設定（位置・スケール・回転）で描画する。SetModelPosition, SetModelScale, SetModelRotationで事前に変換を設定してから呼び出す。成功時は0を返す。',
-  '// モデルの描画\nSetModelPosition(hModel, VGet(0.0f, 0.0f, 0.0f));\nSetModelScale(hModel, VGet(1.0f, 1.0f, 1.0f));\nSetModelRotation(hModel, VGet(0.0f, 3.14f, 0.0f));\nDrawModel(hModel);\n\n// 複数モデルの描画\nfor (int i = 0; i < enemyCount; i++) {\n    SetModelPosition(hEnemy, enemies[i].pos);\n    DrawModel(hEnemy);\n}',
+  '// モデルの描画（位置→スケール→回転を設定してからDraw）\nSetModelPosition(hModel, VGet(0.0f, 0.0f, 0.0f));    // 原点に配置\nSetModelScale(hModel, VGet(1.0f, 1.0f, 1.0f));       // 等倍\nSetModelRotation(hModel, VGet(0.0f, 3.14f, 0.0f));   // Y軸180度回転\nDrawModel(hModel);\n\n// 同一ハンドルを位置だけ変えて複数回描画\nfor (int i = 0; i < enemyCount; i++) {\n    SetModelPosition(hEnemy, enemies[i].pos);\n    DrawModel(hEnemy);  // 各敵の位置に描画\n}',
   '• 描画前にSetModelPosition等で変換を設定すること\n• 内部でRenderer3DのDrawMeshを呼び出す\n• PBRシェーダーで描画される（ライティング対応）\n• DXLibの MV1DrawModel() に相当する関数'
 ],
 
@@ -413,7 +413,7 @@
 'GXLib_Math-VDot': [
   'float VDot(VECTOR a, VECTOR b)',
   '2つのベクトルの内積（ドット積）を計算する。a.x*b.x + a.y*b.y + a.z*b.z の値を返す。ベクトル間の角度判定や射影計算に使用する。同じ方向のベクトルでは正、逆方向では負の値を返す。',
-  '// 内積の計算\nVECTOR forward = VGet(0.0f, 0.0f, 1.0f);\nVECTOR toEnemy = VNorm(VSub(enemyPos, playerPos));\nfloat dot = VDot(forward, toEnemy);\n\nif (dot > 0.0f) {\n    // 敵は前方にいる\n} else {\n    // 敵は後方にいる\n}',
+  '// 内積の計算（前方判定に使用）\nVECTOR forward = VGet(0.0f, 0.0f, 1.0f);  // プレイヤーの正面方向\nVECTOR toEnemy = VNorm(VSub(enemyPos, playerPos)); // 敵への単位ベクトル\nfloat dot = VDot(forward, toEnemy);  // cos(θ) — 正規化ベクトル同士\n\nif (dot > 0.0f) {\n    // cos(θ)>0 → 角度90度未満 → 敵は前方にいる\n} else {\n    // cos(θ)<0 → 角度90度超 → 敵は後方にいる\n}',
   '• 戻り値: a・b = |a||b|cos(θ)\n• 同方向: 正の値, 直交: 0, 逆方向: 負の値\n• 正規化ベクトル同士の内積は cos(θ)\n• DXLibの VDot() と同一の動作'
 ],
 
@@ -486,7 +486,7 @@
 
 'CompatContext-Instance': [
   'static CompatContext& Instance()',
-  'CompatContextのシングルトンインスタンスへの参照を返す。簡易API関数は全てこのインスタンスを通じて内部サブシステムにアクセスする。CompatContextはGXLibの全サブシステム（GraphicsDevice, SpriteBatch, InputManager等）を保持する。',
+  'CompatContextのシングルトンインスタンスへの参照を返す。簡易API関数は全てこのインスタンスを通じて内部サブシステムにアクセスする。CompatContextはGXLibの全サブシステム（GraphicsDevice, SpriteBatch, InputManager等）を保持する。\n\n【用語】シングルトンパターン … アプリケーション全体でインスタンスが1つだけ存在することを保証するデザインパターン。CompatContextはstatic変数で唯一のインスタンスを保持し、Instance()メソッドで取得する。グローバル関数群がこの1つのコンテキストを共有してサブシステムにアクセスする。',
   '// 内部的な使用例（通常ユーザーは直接使わない）\nauto& ctx = GX_Internal::CompatContext::Instance();\nctx.Initialize();\n\n// サブシステムへのアクセス\nauto& dev = ctx.graphicsDevice;\nauto& input = ctx.inputManager;',
   '• GX_Internal 名前空間内のクラス\n• 通常はGXLib.hの簡易API関数経由で間接的に使用する\n• スレッドセーフではない（メインスレッドからのみ使用すること）\n• 内部実装クラスのため、直接使用は推奨しない'
 ],

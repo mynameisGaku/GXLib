@@ -7,8 +7,8 @@ const AGENT4B_DATA = {
 // ============================================================
 'PostEffectPipeline-TonemapMode': [
   'enum class TonemapMode : uint32_t { Reinhard = 0, ACES = 1, Uncharted2 = 2 }',
-  'HDRからLDRへの変換に使用するトーンマッピングアルゴリズムを指定する列挙型です。Reinhardは最もシンプルで自然な明暗圧縮を行います。ACESは映画業界標準のフィルミックカーブで、コントラストと彩度のバランスに優れています。Uncharted2はゲーム「Uncharted 2」で使用されたフィルミックカーブで、暗部の詳細を保持しつつハイライトを圧縮します。デフォルトはACESです。',
-  '// トーンマップモードを切り替える\npipeline.SetTonemapMode(GX::TonemapMode::ACES);\n\n// 現在のモードを取得\nGX::TonemapMode mode = pipeline.GetTonemapMode();\nif (mode == GX::TonemapMode::Reinhard) {\n    // Reinhard モード\n}',
+  'HDRからLDRへの変換に使用するトーンマッピングアルゴリズムを指定する列挙型です。Reinhardは最もシンプルで自然な明暗圧縮を行います。ACESは映画業界標準のフィルミックカーブで、コントラストと彩度のバランスに優れています。Uncharted2はゲーム「Uncharted 2」で使用されたフィルミックカーブで、暗部の詳細を保持しつつハイライトを圧縮します。デフォルトはACESです。\n\n【用語】トーンマッピングとは、HDR（広い明暗範囲）の画像をモニターが表示可能な LDR（狭い明暗範囲）に変換する処理です。現実世界の明暗差を限られた画面輝度に圧縮します。',
+  '// トーンマップモードを切り替える\npipeline.SetTonemapMode(GX::TonemapMode::ACES);     // 映画的な仕上がり\npipeline.SetTonemapMode(GX::TonemapMode::Reinhard);  // 自然な明暗\npipeline.SetTonemapMode(GX::TonemapMode::Uncharted2);// ゲーム向けフィルミック',
   '• Reinhard: シンプルな輝度圧縮、自然な見た目\n• ACES: 映画業界標準、コントラストと彩度のバランスが良い（デフォルト）\n• Uncharted2: ゲーム向けフィルミックカーブ、暗部ディテール保持'
 ],
 
@@ -17,15 +17,15 @@ const AGENT4B_DATA = {
 // ============================================================
 'PostEffectPipeline-Initialize': [
   'bool Initialize(ID3D12Device* device, uint32_t width, uint32_t height)',
-  'ポストエフェクトパイプライン全体を初期化します。HDR/LDR用のレンダーターゲット(各2枚のping-pong構成)、シェーダーのコンパイル、各エフェクト(SSAO, Bloom, DoF, MotionBlur, SSR, Outline, VolumetricLight, TAA, AutoExposure)の初期化、およびPSO(パイプラインステートオブジェクト)の作成を行います。ShaderHotReload用のPSO Rebuilderも登録されます。失敗時はfalseを返します。',
+  'ポストエフェクトパイプライン全体を初期化します。HDR/LDR用のレンダーターゲット(各2枚のping-pong構成)、シェーダーのコンパイル、各エフェクト(SSAO, Bloom, DoF, MotionBlur, SSR, Outline, VolumetricLight, TAA, AutoExposure)の初期化、およびPSO(パイプラインステートオブジェクト)の作成を行います。ShaderHotReload用のPSO Rebuilderも登録されます。失敗時はfalseを返します。\n\n【用語】ポストエフェクトとは、3Dシーンの描画が終わった後の画像に対して適用する画面効果（ブルーム、ぼかし、色調補正など）の総称です。映像の仕上げ処理に相当します。',
   '// ポストエフェクトパイプラインの初期化\nGX::PostEffectPipeline pipeline;\nif (!pipeline.Initialize(device, 1280, 720)) {\n    GX_LOG_ERROR("PostEffectPipeline initialization failed");\n    return false;\n}',
-  '• GraphicsDevice初期化後に呼び出すこと\n• HDR RT (R16G16B16A16_FLOAT) x2 + LDR RT (R8G8B8A8_UNORM) x2 を内部で作成\n• 全サブエフェクト(SSAO, Bloom等)も連鎖的に初期化される\n• シェーダーホットリロード用のPSO Rebuilderが自動登録される'
+  '• GraphicsDevice初期化後に呼び出すこと\n• HDR RT (R16G16B16A16_FLOAT) x2 + LDR RT (R8G8B8A8_UNORM) x2 を内部で作成\n• 全サブエフェクト(SSAO, Bloom等)も連鎖的に初期化される\n• シェーダーホットリロード用のPSO Rebuilderが自動登録される\n• width/height: バックバッファの解像度に合わせること'
 ],
 
 'PostEffectPipeline-BeginScene': [
   'void BeginScene(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex, D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle, Camera3D& camera)',
   'ポストエフェクトパイプラインのシーン描画を開始します。HDRレンダーターゲットをクリアし、描画先として設定します。TAA有効時はカメラにジッターオフセットを適用し、無効時はジッターをクリアします。Camera3Dは非constで渡す必要があります（TAA用のジッター適用のため）。',
-  '// 毎フレームの描画開始\npipeline.BeginScene(cmdList, frameIndex, depthBuffer.GetDSVHandle(), camera);\n\n// 3Dシーンを描画\nrenderer3D.BeginScene(camera);\nrenderer3D.DrawMesh(mesh, transform);\nrenderer3D.EndScene();\n\npipeline.EndScene();',
+  '// 毎フレームの描画開始\npipeline.BeginScene(cmdList, frameIndex, depthBuffer.GetDSVHandle(), camera);\n\n// 3Dシーンを描画（HDR RTに出力される）\nrenderer3D.BeginScene(camera);\nrenderer3D.DrawMesh(mesh, transform);\nrenderer3D.EndScene();\n\npipeline.EndScene();  // BeginSceneと必ず対にする',
   '• Camera3Dは非const参照（TAA有効時にジッターを適用するため）\n• 内部でHDR RTのクリアとビューポート/シザー矩形の設定を行う\n• BeginScene〜EndScene間に3Dシーンの描画コマンドを発行する\n• 深度バッファもクリアされる（depth=1.0, stencil=0）'
 ],
 
@@ -38,16 +38,16 @@ const AGENT4B_DATA = {
 
 'PostEffectPipeline-Resolve': [
   'void Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV, DepthBuffer& depthBuffer, const Camera3D& camera, float deltaTime = 0.0f)',
-  'ポストエフェクトチェーン全体を実行し、最終結果を指定されたRTVに出力します。HDR空間で[SSAO]→[SSR]→[VolumetricLight]→[Bloom]→[DoF]→[MotionBlur]→[Outline]→[TAA]→[ColorGrading]→[AutoExposure]→[Tonemapping]を適用し、LDR変換後に[FXAA]→[Vignette]を適用します。各エフェクトは個別のEnabled設定に従ってスキップされます。',
-  '// ポストエフェクトを適用\nauto backBufferRTV = swapChain.GetCurrentRTV();\npipeline.Resolve(backBufferRTV, depthBuffer, camera, timer.GetDeltaTime());\n\n// レイヤーシステム使用時はレイヤーRTに出力\npipeline.Resolve(sceneLayer.GetRTVHandle(), depthBuffer, camera, dt);',
+  'ポストエフェクトチェーン全体を実行し、最終結果を指定されたRTVに出力します。HDR空間で[SSAO]→[SSR]→[VolumetricLight]→[Bloom]→[DoF]→[MotionBlur]→[Outline]→[TAA]→[ColorGrading]→[AutoExposure]→[Tonemapping]を適用し、LDR変換後に[FXAA]→[Vignette]を適用します。各エフェクトは個別のEnabled設定に従ってスキップされます。\n\n【用語】ping-pong 方式とは、2 枚のレンダーターゲットを交互に読み書きして複数のエフェクトを順番に適用する手法です。入力と出力を分離することでリソース競合を回避します。',
+  '// ポストエフェクトを適用（バックバッファに出力）\nauto backBufferRTV = swapChain.GetCurrentRTV();\npipeline.Resolve(backBufferRTV, depthBuffer, camera, timer.GetDeltaTime());\n\n// レイヤーシステム使用時はレイヤーRTに出力\npipeline.Resolve(sceneLayer.GetRTVHandle(), depthBuffer, camera, dt);',
   '• deltaTimeはAutoExposureの時間適応スムージングに使用（デフォルト0.0f）\n• 出力先はバックバッファRTVまたはレイヤーRTの任意のRTVハンドル\n• ping-pongバッファを使用してHDRエフェクトチェーンを順次適用\n• 最後のLDRエフェクトは直接出力先RTVに描画される（余分なコピーなし）\n• MotionBlur/TAAの前フレームVP行列はResolve内で自動更新される'
 ],
 
 'PostEffectPipeline-SetTonemapMode': [
   'void SetTonemapMode(TonemapMode mode)',
   'トーンマッピングアルゴリズムを設定します。HDRシーンをLDR（0〜1の輝度範囲）に変換する際のカーブを選択します。デフォルトはACESです。',
-  '// ACESトーンマッピングを使用\npipeline.SetTonemapMode(GX::TonemapMode::ACES);\n\n// Reinhardに切り替え\npipeline.SetTonemapMode(GX::TonemapMode::Reinhard);',
-  '• Reinhard / ACES / Uncharted2 の3種類から選択\n• ランタイムで切り替え可能（PSO再作成は不要）\n• SaveSettings/LoadSettingsで永続化される'
+  '// ACESトーンマッピングを使用（映画的な仕上がり）\npipeline.SetTonemapMode(GX::TonemapMode::ACES);\n\n// Reinhardに切り替え（自然な明暗）\npipeline.SetTonemapMode(GX::TonemapMode::Reinhard);',
+  '• Reinhard / ACES / Uncharted2 の3種類から選択\n• ランタイムで切り替え可能（PSO再作成は不要）\n• SaveSettings/LoadSettingsで永続化される\n• mode: TonemapMode列挙値'
 ],
 
 'PostEffectPipeline-GetTonemapMode': [
@@ -61,7 +61,7 @@ const AGENT4B_DATA = {
   'void SetExposure(float exposure)',
   'トーンマッピング時の露出値を設定します。値が大きいほどシーン全体が明るくなります。AutoExposure有効時はこの値は無視され、自動計算された露出が使用されます。デフォルトは1.0です。',
   '// 露出を調整\npipeline.SetExposure(1.5f);  // 少し明るめに\npipeline.SetExposure(0.5f);  // 暗めに',
-  '• デフォルト値は1.0\n• AutoExposure有効時は自動露出値が優先される\n• 0以下の値を設定すると画面が真っ暗になる\n• SaveSettings/LoadSettingsで永続化される'
+  '• デフォルト値は1.0\n• AutoExposure有効時は自動露出値が優先される\n• 0以下の値を設定すると画面が真っ暗になる\n• SaveSettings/LoadSettingsで永続化される\n• exposure: 0.0以上の値を推奨（1.0が標準）'
 ],
 
 'PostEffectPipeline-GetExposure': [
@@ -73,70 +73,70 @@ const AGENT4B_DATA = {
 
 'PostEffectPipeline-GetSSAO': [
   'SSAO& GetSSAO()\nconst SSAO& GetSSAO() const',
-  '内部のSSAOエフェクトオブジェクトへの参照を返します。SSAOのパラメータ（半径、バイアス、強度）の調整や有効/無効の切り替えに使用します。constオーバーロードも提供されています。',
-  '// SSAOのパラメータを調整\npipeline.GetSSAO().SetEnabled(true);\npipeline.GetSSAO().SetRadius(0.8f);\npipeline.GetSSAO().SetBias(0.03f);\npipeline.GetSSAO().SetPower(3.0f);',
+  '内部のSSAOエフェクトオブジェクトへの参照を返します。SSAOのパラメータ（半径、バイアス、強度）の調整や有効/無効の切り替えに使用します。constオーバーロードも提供されています。\n\n【用語】SSAO (Screen Space Ambient Occlusion, 画面空間環境遮蔽) は、物体の隅や隙間に自然な影を付ける技法です。角や溝が暗くなることでリアルな立体感が生まれます。',
+  '// SSAOのパラメータを調整\npipeline.GetSSAO().SetEnabled(true);\npipeline.GetSSAO().SetRadius(0.8f);   // サンプリング半径\npipeline.GetSSAO().SetBias(0.03f);    // 自己遮蔽防止オフセット\npipeline.GetSSAO().SetPower(3.0f);    // 遮蔽の強さ',
   '• SSAOはデフォルトで有効(enabled=true)\n• 返される参照はPostEffectPipelineの寿命と同じ'
 ],
 
 'PostEffectPipeline-GetBloom': [
   'Bloom& GetBloom()\nconst Bloom& GetBloom() const',
-  '内部のBloomエフェクトオブジェクトへの参照を返します。Bloomの閾値や強度の調整、有効/無効の切り替えに使用します。constオーバーロードも提供されています。',
-  '// Bloomのパラメータを調整\npipeline.GetBloom().SetEnabled(true);\npipeline.GetBloom().SetThreshold(0.8f);\npipeline.GetBloom().SetIntensity(0.6f);',
+  '内部のBloomエフェクトオブジェクトへの参照を返します。Bloomの閾値や強度の調整、有効/無効の切り替えに使用します。constオーバーロードも提供されています。\n\n【用語】ブルーム (Bloom) は、明るい部分から光がにじみ出す効果です。太陽や光源を見たときのまぶしさを表現します。',
+  '// Bloomのパラメータを調整\npipeline.GetBloom().SetEnabled(true);\npipeline.GetBloom().SetThreshold(0.8f);   // 輝度閾値\npipeline.GetBloom().SetIntensity(0.6f);   // にじみ強度',
   '• Bloomはデフォルトで有効(enabled=true)\n• 返される参照はPostEffectPipelineの寿命と同じ'
 ],
 
 'PostEffectPipeline-GetDoF': [
   'DepthOfField& GetDoF()\nconst DepthOfField& GetDoF() const',
-  '内部の被写界深度(DoF)エフェクトオブジェクトへの参照を返します。フォーカス距離やボケ量の調整、有効/無効の切り替えに使用します。',
-  '// DoFを有効化してフォーカス距離を設定\npipeline.GetDoF().SetEnabled(true);\npipeline.GetDoF().SetFocusDistance(10.0f);\npipeline.GetDoF().SetFocusRange(5.0f);',
+  '内部の被写界深度(DoF)エフェクトオブジェクトへの参照を返します。フォーカス距離やボケ量の調整、有効/無効の切り替えに使用します。\n\n【用語】DoF (Depth of Field, 被写界深度) は、カメラのピント機能を再現する効果です。注目する対象はくっきり、前後はぼやけて映ります。',
+  '// DoFを有効化してフォーカス距離を設定\npipeline.GetDoF().SetEnabled(true);\npipeline.GetDoF().SetFocusDistance(10.0f);  // ピントが合う距離\npipeline.GetDoF().SetFocusRange(5.0f);     // ピント鮮明範囲',
   '• DoFはデフォルトで無効(enabled=false)\n• HDR空間でBloomの後に適用される'
 ],
 
 'PostEffectPipeline-GetMotionBlur': [
   'MotionBlur& GetMotionBlur()\nconst MotionBlur& GetMotionBlur() const',
-  '内部のモーションブラーエフェクトオブジェクトへの参照を返します。カメラの動きに基づく深度リプロジェクション方式のモーションブラーの調整や有効/無効の切り替えに使用します。',
-  '// MotionBlurを有効化\npipeline.GetMotionBlur().SetEnabled(true);',
+  '内部のモーションブラーエフェクトオブジェクトへの参照を返します。カメラの動きに基づく深度リプロジェクション方式のモーションブラーの調整や有効/無効の切り替えに使用します。\n\n【用語】モーションブラー (Motion Blur) は、カメラやオブジェクトの動きに応じて映像をぼかすことで、速度感や臨場感を表現する効果です。',
+  '// MotionBlurを有効化\npipeline.GetMotionBlur().SetEnabled(true);\npipeline.GetMotionBlur().SetIntensity(0.8f);  // ブラーの強さ',
   '• デフォルトで無効(enabled=false)\n• HDR空間でDoFの後に適用される\n• 前フレームのVP行列はResolve内で自動更新される'
 ],
 
 'PostEffectPipeline-GetSSR': [
   'SSR& GetSSR()\nconst SSR& GetSSR() const',
-  '内部のスクリーンスペース反射(SSR)エフェクトオブジェクトへの参照を返します。画面空間のレイマーチングによるリアルタイム反射の調整や有効/無効の切り替えに使用します。',
-  '// SSRを有効化\npipeline.GetSSR().SetEnabled(true);',
+  '内部のスクリーンスペース反射(SSR)エフェクトオブジェクトへの参照を返します。画面空間のレイマーチングによるリアルタイム反射の調整や有効/無効の切り替えに使用します。\n\n【用語】SSR (Screen Space Reflections, 画面空間反射) は、画面に映っている情報だけを使って床や水面の映り込みを計算する技法です。',
+  '// SSRを有効化\npipeline.GetSSR().SetEnabled(true);\npipeline.GetSSR().SetIntensity(0.8f);  // 反射の強さ',
   '• デフォルトで無効(enabled=false)\n• HDR空間でSSAOの後に適用される\n• DDAレイマーチング + バイナリリファインメント方式'
 ],
 
 'PostEffectPipeline-GetOutline': [
   'OutlineEffect& GetOutline()\nconst OutlineEffect& GetOutline() const',
   '内部のアウトラインエフェクトオブジェクトへの参照を返します。Sobelフィルタによる深度/法線エッジ検出ベースのアウトライン描画の調整や有効/無効の切り替えに使用します。',
-  '// アウトラインを有効化\npipeline.GetOutline().SetEnabled(true);',
+  '// アウトラインを有効化\npipeline.GetOutline().SetEnabled(true);\npipeline.GetOutline().SetLineColor({ 0, 0, 0, 1 });  // 黒いアウトライン',
   '• デフォルトで無効(enabled=false)\n• HDR空間でMotionBlurの後に適用される\n• ビュー空間Zベースで距離に依存しないエッジ検出'
 ],
 
 'PostEffectPipeline-GetVolumetricLight': [
   'VolumetricLight& GetVolumetricLight()\nconst VolumetricLight& GetVolumetricLight() const',
-  '内部のボリュメトリックライト(ゴッドレイ)エフェクトオブジェクトへの参照を返します。GPU Gems 3のラジアルブラー方式による光芒エフェクトの調整や有効/無効の切り替えに使用します。',
-  '// ゴッドレイを有効化\npipeline.GetVolumetricLight().SetEnabled(true);',
+  '内部のボリュメトリックライト(ゴッドレイ)エフェクトオブジェクトへの参照を返します。GPU Gems 3のラジアルブラー方式による光芒エフェクトの調整や有効/無効の切り替えに使用します。\n\n【用語】ボリュメトリックライト (Volumetric Light / God Ray) は、霧や塵に差し込む光の筋を表現する効果です。森の木漏れ日や教会のステンドグラスからの光芒などに使います。',
+  '// ゴッドレイを有効化\npipeline.GetVolumetricLight().SetEnabled(true);\npipeline.GetVolumetricLight().SetIntensity(0.7f);  // 光の筋の強さ',
   '• デフォルトで無効(enabled=false)\n• HDR空間でSSRの後、Bloomの前に適用される\n• 太陽のスクリーン座標はカメラ情報から自動計算される'
 ],
 
 'PostEffectPipeline-GetTAA': [
   'TAA& GetTAA()\nconst TAA& GetTAA() const',
-  '内部のTemporal Anti-Aliasing(TAA)エフェクトオブジェクトへの参照を返します。Haltonシーケンスによるサブピクセルジッターと前フレーム合成によるアンチエイリアシングの調整や有効/無効の切り替えに使用します。',
-  '// TAAを有効化\npipeline.GetTAA().SetEnabled(true);',
-  '• デフォルトで無効(enabled=false)\n• HDR空間でOutlineの後、ColorGradingの前に適用される\n• Camera3DへのジッターはBeginScene内で自動適用される'
+  '内部のTemporal Anti-Aliasing(TAA)エフェクトオブジェクトへの参照を返します。Haltonシーケンスによるサブピクセルジッターと前フレーム合成によるアンチエイリアシングの調整や有効/無効の切り替えに使用します。\n\n【用語】TAA (Temporal Anti-Aliasing, 時間的アンチエイリアシング) は、複数フレームの情報を蓄積してギザギザ (ジャギー) を滑らかにする技法です。',
+  '// TAAを有効化\npipeline.GetTAA().SetEnabled(true);\npipeline.GetTAA().SetBlendFactor(0.9f);  // 履歴90% + 現フレーム10%',
+  '• デフォルトで無効(enabled=false)\n• HDR空間でOutlineの後、ColorGradingの前に適用される\n• Camera3Dへのジッターは BeginScene 内で自動適用される'
 ],
 
 'PostEffectPipeline-GetAutoExposure': [
   'AutoExposure& GetAutoExposure()\nconst AutoExposure& GetAutoExposure() const',
-  '内部の自動露出エフェクトオブジェクトへの参照を返します。シーン全体の平均輝度に基づく露出の自動調整の有効/無効や適応速度の調整に使用します。有効時はSetExposureの手動値は無視されます。',
-  '// 自動露出を有効化\npipeline.GetAutoExposure().SetEnabled(true);',
+  '内部の自動露出エフェクトオブジェクトへの参照を返します。シーン全体の平均輝度に基づく露出の自動調整の有効/無効や適応速度の調整に使用します。有効時はSetExposureの手動値は無視されます。\n\n【用語】自動露出 (Auto Exposure / Eye Adaptation) は、暗い場所から明るい場所に出たときの目の順応を再現する機能です。シーンの明るさに応じて露出を自動調整します。',
+  '// 自動露出を有効化\npipeline.GetAutoExposure().SetEnabled(true);\npipeline.GetAutoExposure().SetAdaptationSpeed(1.5f);  // 順応速度',
   '• デフォルトで無効(enabled=false)\n• 有効時はSetExposureの手動値より自動露出値が優先される\n• PS-basedログ輝度ダウンサンプル + リードバックリングバッファ方式\n• deltaTime引数(Resolve)で時間適応スムージングが行われる'
 ],
 
 'PostEffectPipeline-SetFXAAEnabled': [
   'void SetFXAAEnabled(bool enabled)',
-  'FXAAアンチエイリアシングの有効/無効を切り替えます。FXAA(Fast Approximate Anti-Aliasing)はLDR空間でトーンマッピング後に適用される軽量なポストプロセスAAです。デフォルトは有効です。',
+  'FXAAアンチエイリアシングの有効/無効を切り替えます。FXAA(Fast Approximate Anti-Aliasing)はLDR空間でトーンマッピング後に適用される軽量なポストプロセスAAです。デフォルトは有効です。\n\n【用語】FXAA (Fast Approximate Anti-Aliasing) は、画像のエッジを検出してぼかすことで、低コストでギザギザを軽減するアンチエイリアシング手法です。',
   '// FXAAを無効化（TAAを使う場合など）\npipeline.SetFXAAEnabled(false);\n\n// FXAAを有効化\npipeline.SetFXAAEnabled(true);',
   '• デフォルトで有効(enabled=true)\n• LDR空間でトーンマッピング後に適用される\n• TAAと併用可能だが、TAAのみで十分な場合はFXAAを無効にしてパフォーマンスを節約可能'
 ],
@@ -150,8 +150,8 @@ const AGENT4B_DATA = {
 
 'PostEffectPipeline-SetVignetteEnabled': [
   'void SetVignetteEnabled(bool enabled)',
-  'ビネットエフェクト（画面周辺の減光効果）の有効/無効を切り替えます。色収差(Chromatic Aberration)もこのエフェクトに含まれます。LDRチェーンの最後に適用されます。デフォルトは無効です。',
-  '// ビネットを有効化\npipeline.SetVignetteEnabled(true);\npipeline.SetVignetteIntensity(0.6f);',
+  'ビネットエフェクト（画面周辺の減光効果）の有効/無効を切り替えます。色収差(Chromatic Aberration)もこのエフェクトに含まれます。LDRチェーンの最後に適用されます。デフォルトは無効です。\n\n【用語】ビネット (Vignette) は、画面の四隅が暗くなる効果です。古いカメラレンズの特性を模倣し、視線を画面中央に誘導する演出に使います。',
+  '// ビネットを有効化\npipeline.SetVignetteEnabled(true);\npipeline.SetVignetteIntensity(0.6f);  // 周辺減光の強さ',
   '• デフォルトで無効(enabled=false)\n• LDRチェーンの最終段で適用される（FXAA後）\n• 色収差(Chromatic Aberration)エフェクトと連動'
 ],
 
@@ -159,7 +159,7 @@ const AGENT4B_DATA = {
   'void SetVignetteIntensity(float v)',
   'ビネットエフェクトの強度を設定します。値が大きいほど画面周辺が暗くなります。デフォルトは0.5です。',
   '// ビネット強度を設定\npipeline.SetVignetteIntensity(0.8f);  // 強めのビネット\npipeline.SetVignetteIntensity(0.2f);  // 弱めのビネット',
-  '• デフォルト値は0.5\n• SetVignetteEnabled(true)でビネットが有効でないと効果なし'
+  '• デフォルト値は0.5\n• SetVignetteEnabled(true)でビネットが有効でないと効果なし\n• v: 0.0（効果なし）〜1.0（最大減光）'
 ],
 
 'PostEffectPipeline-GetVignetteIntensity': [
@@ -171,16 +171,16 @@ const AGENT4B_DATA = {
 
 'PostEffectPipeline-SetColorGradingEnabled': [
   'void SetColorGradingEnabled(bool enabled)',
-  'カラーグレーディングの有効/無効を切り替えます。コントラスト、彩度、色温度の調整をHDR空間で行います。トーンマッピング前のHDR段階で適用されるため、より自然な色調補正が可能です。デフォルトは無効です。',
-  '// カラーグレーディングを有効化\npipeline.SetColorGradingEnabled(true);\npipeline.SetContrast(1.2f);\npipeline.SetSaturation(1.1f);\npipeline.SetTemperature(0.1f);  // 暖色方向',
+  'カラーグレーディングの有効/無効を切り替えます。コントラスト、彩度、色温度の調整をHDR空間で行います。トーンマッピング前のHDR段階で適用されるため、より自然な色調補正が可能です。デフォルトは無効です。\n\n【用語】カラーグレーディングとは、映像の色味を調整する仕上げ処理です。映画では寒色系で冷たい雰囲気、暖色系で温かい雰囲気を演出するなど、作品の世界観を色で表現します。',
+  '// カラーグレーディングを有効化\npipeline.SetColorGradingEnabled(true);\npipeline.SetContrast(1.2f);       // コントラスト上昇\npipeline.SetSaturation(1.1f);     // 彩度やや上昇\npipeline.SetTemperature(0.1f);    // 暖色方向にシフト',
   '• デフォルトで無効(enabled=false)\n• HDR空間で適用される（トーンマッピング前）\n• Contrast/Saturation/Temperatureの3パラメータを調整可能'
 ],
 
 'PostEffectPipeline-SetContrast': [
   'void SetContrast(float v)',
   'カラーグレーディングのコントラスト値を設定します。1.0がニュートラル、1.0より大きいとコントラスト増加、小さいと減少します。デフォルトは1.0です。',
-  '// コントラストを上げる\npipeline.SetContrast(1.3f);',
-  '• デフォルト値は1.0（変化なし）\n• ColorGradingが有効でないと効果なし'
+  '// コントラストを上げる\npipeline.SetContrast(1.3f);  // 明暗差を強調',
+  '• デフォルト値は1.0（変化なし）\n• ColorGradingが有効でないと効果なし\n• v: 1.0がニュートラル、1.0超=増加、1.0未満=減少'
 ],
 
 'PostEffectPipeline-GetContrast': [
@@ -193,8 +193,8 @@ const AGENT4B_DATA = {
 'PostEffectPipeline-SetSaturation': [
   'void SetSaturation(float v)',
   'カラーグレーディングの彩度を設定します。1.0がニュートラル、0.0でモノクロ、1.0以上で彩度増加です。デフォルトは1.0です。',
-  '// 彩度を上げる\npipeline.SetSaturation(1.2f);\n\n// モノクロにする\npipeline.SetSaturation(0.0f);',
-  '• デフォルト値は1.0（変化なし）\n• 0.0で完全なグレースケール\n• ColorGradingが有効でないと効果なし'
+  '// 彩度を上げる\npipeline.SetSaturation(1.2f);  // 色鮮やかに\n\n// モノクロにする\npipeline.SetSaturation(0.0f);  // 完全なグレースケール',
+  '• デフォルト値は1.0（変化なし）\n• 0.0で完全なグレースケール\n• ColorGradingが有効でないと効果なし\n• v: 0.0=モノクロ、1.0=ニュートラル、1.0超=彩度強調'
 ],
 
 'PostEffectPipeline-GetSaturation': [
@@ -208,7 +208,7 @@ const AGENT4B_DATA = {
   'void SetTemperature(float v)',
   'カラーグレーディングの色温度を設定します。0.0がニュートラル、正の値で暖色（黄〜赤方向）、負の値で寒色（青方向）にシフトします。デフォルトは0.0です。',
   '// 暖色方向にシフト（夕暮れ風）\npipeline.SetTemperature(0.3f);\n\n// 寒色方向にシフト（冷たい雰囲気）\npipeline.SetTemperature(-0.2f);',
-  '• デフォルト値は0.0（変化なし）\n• 正の値で暖色、負の値で寒色にシフト\n• ColorGradingが有効でないと効果なし'
+  '• デフォルト値は0.0（変化なし）\n• 正の値で暖色、負の値で寒色にシフト\n• ColorGradingが有効でないと効果なし\n• v: 正=暖色（黄〜赤）、負=寒色（青）、0.0=ニュートラル'
 ],
 
 'PostEffectPipeline-GetTemperature': [
@@ -222,14 +222,14 @@ const AGENT4B_DATA = {
   'bool LoadSettings(const std::string& filePath)',
   '指定されたJSONファイルからポストエフェクトの全設定を読み込みます。内部でPostEffectSettings::Loadに委譲し、トーンマッピングモード、露出、各エフェクトの有効/無効とパラメータを復元します。ファイルが存在しない場合やパース失敗時はfalseを返します。',
   '// 起動時に設定を読み込む\npipeline.LoadSettings("post_effects.json");\n\n// VFS経由のパスも使用可能\npipeline.LoadSettings("Assets/settings/post_effects.json");',
-  '• JSON形式（nlohmann/json使用）\n• 存在しないファイルの場合はfalseを返すがクラッシュしない\n• SaveSettingsで保存したファイルを読み込む\n• F12キーでの保存と起動時の自動読み込みパターンが一般的'
+  '• JSON形式（nlohmann/json使用）\n• 存在しないファイルの場合はfalseを返すがクラッシュしない\n• SaveSettingsで保存したファイルを読み込む\n• F12キーでの保存と起動時の自動読み込みパターンが一般的\n• filePath: JSONファイルのパス'
 ],
 
 'PostEffectPipeline-SaveSettings': [
   'bool SaveSettings(const std::string& filePath) const',
   '現在のポストエフェクト設定をJSON形式でファイルに保存します。トーンマッピングモード、露出、FXAA、ビネット、カラーグレーディング、各エフェクトの有効/無効とパラメータが全て保存されます。書き込み失敗時はfalseを返します。',
   '// 設定をファイルに保存\npipeline.SaveSettings("post_effects.json");\n\n// F12キーで保存するパターン\nif (keyboard.IsKeyTriggered(VK_F12)) {\n    pipeline.SaveSettings("post_effects.json");\n}',
-  '• JSON形式で人間が読める形式で保存される\n• 既存ファイルは上書きされる\n• LoadSettingsと対になるメソッド'
+  '• JSON形式で人間が読める形式で保存される\n• 既存ファイルは上書きされる\n• LoadSettingsと対になるメソッド\n• filePath: 保存先JSONファイルのパス'
 ],
 
 'PostEffectPipeline-GetHDRRTVHandle': [
@@ -242,7 +242,7 @@ const AGENT4B_DATA = {
 'PostEffectPipeline-OnResize': [
   'void OnResize(ID3D12Device* device, uint32_t width, uint32_t height)',
   'ウィンドウサイズ変更時にパイプライン内の全レンダーターゲットを再作成します。HDR/LDR RT、および全サブエフェクト(SSAO, Bloom, DoF, MotionBlur, SSR, Outline, VolumetricLight, TAA, AutoExposure)のOnResizeも連鎖的に呼び出します。',
-  '// ウィンドウリサイズ時\nvoid OnResize(uint32_t w, uint32_t h) {\n    // GPU完了を待ってから\n    graphicsDevice.WaitForGPU();\n    swapChain.Resize(device, w, h);\n    depthBuffer.Create(device, w, h);\n    pipeline.OnResize(device, w, h);\n}',
+  '// ウィンドウリサイズ時\nvoid OnResize(uint32_t w, uint32_t h) {\n    graphicsDevice.WaitForGPU();       // GPU完了を待ってから\n    swapChain.Resize(device, w, h);    // スワップチェーン\n    depthBuffer.Create(device, w, h);  // 深度バッファ\n    pipeline.OnResize(device, w, h);   // ポストエフェクト全体\n}',
   '• 呼び出し前にGPUの処理完了を待つこと\n• SwapChain, DepthBufferのリサイズと合わせて呼び出す\n• 内部で全サブエフェクトのOnResizeも呼ばれる'
 ],
 
@@ -253,14 +253,14 @@ const AGENT4B_DATA = {
   'static bool Load(const std::string& filePath, PostEffectPipeline& pipeline)',
   'JSONファイルからポストエフェクトの全設定を読み込み、PostEffectPipelineに適用するstaticメソッドです。nlohmann/jsonライブラリを使用してパースし、トーンマッピングモード、露出、各エフェクトの有効/無効とパラメータを設定します。ファイルが存在しないか、パース失敗時はfalseを返します。',
   '// 設定をJSONから読み込む\nGX::PostEffectPipeline pipeline;\npipeline.Initialize(device, width, height);\nGX::PostEffectSettings::Load("post_effects.json", pipeline);',
-  '• staticメソッド（インスタンス不要）\n• nlohmann/json (ThirdParty/json.hpp) を使用\n• 通常はPostEffectPipeline::LoadSettings経由で呼び出す\n• 各キーが存在しない場合はデフォルト値が維持される'
+  '• staticメソッド（インスタンス不要）\n• nlohmann/json (ThirdParty/json.hpp) を使用\n• 通常はPostEffectPipeline::LoadSettings経由で呼び出す\n• 各キーが存在しない場合はデフォルト値が維持される\n• filePath: JSONファイルのパス'
 ],
 
 'PostEffectSettings-Save': [
   'static bool Save(const std::string& filePath, const PostEffectPipeline& pipeline)',
   'PostEffectPipelineの現在の設定をJSON形式でファイルに保存するstaticメソッドです。全エフェクトの有効/無効フラグとパラメータ値を網羅的に出力します。書き込み失敗時はfalseを返します。',
   '// 設定をJSONに保存\nGX::PostEffectSettings::Save("post_effects.json", pipeline);',
-  '• staticメソッド（インスタンス不要）\n• 通常はPostEffectPipeline::SaveSettings経由で呼び出す\n• JSON出力は整形(pretty print)される'
+  '• staticメソッド（インスタンス不要）\n• 通常はPostEffectPipeline::SaveSettings経由で呼び出す\n• JSON出力は整形(pretty print)される\n• filePath: 保存先JSONファイルのパス'
 ],
 
 // ============================================================
@@ -268,8 +268,8 @@ const AGENT4B_DATA = {
 // ============================================================
 'Bloom-Initialize': [
   'bool Initialize(ID3D12Device* device, uint32_t width, uint32_t height)',
-  'Bloomエフェクトを初期化します。5段階のMIPレベルRTを作成し、閾値抽出・ダウンサンプル・Gaussianブラー(水平/垂直)・アディティブ合成用のシェーダーとPSOをコンパイルします。失敗時はfalseを返します。通常はPostEffectPipeline::Initializeから自動的に呼び出されます。',
-  '// 通常はPostEffectPipeline経由で初期化される\nGX::PostEffectPipeline pipeline;\npipeline.Initialize(device, 1280, 720);\n\n// 直接初期化する場合（特殊用途）\nGX::Bloom bloom;\nif (!bloom.Initialize(device, 1280, 720)) {\n    // エラー処理\n}',
+  'Bloomエフェクトを初期化します。5段階のMIPレベルRTを作成し、閾値抽出・ダウンサンプル・Gaussianブラー(水平/垂直)・アディティブ合成用のシェーダーとPSOをコンパイルします。失敗時はfalseを返します。通常はPostEffectPipeline::Initializeから自動的に呼び出されます。\n\n【用語】ブルーム (Bloom) は、明るい部分から光がにじみ出す効果です。太陽や光源を見たときのまぶしさを表現します。閾値を超える輝度のピクセルを抽出し、ぼかして元画像に加算合成します。',
+  '// 通常はPostEffectPipeline経由で初期化される\nGX::PostEffectPipeline pipeline;\npipeline.Initialize(device, 1280, 720);  // Bloomも内部で初期化\n\n// 直接初期化する場合（特殊用途）\nGX::Bloom bloom;\nif (!bloom.Initialize(device, 1280, 720)) {\n    // エラー処理\n}',
   '• PostEffectPipeline::Initialize内で自動的に呼ばれる\n• 5段階MIPレベル(1/2, 1/4, 1/8, 1/16, 1/32)のRTが作成される\n• HDRフォーマット(R16G16B16A16_FLOAT)のRTを使用\n• ShaderHotReload用のPSO Rebuilderも登録される'
 ],
 
@@ -283,8 +283,8 @@ const AGENT4B_DATA = {
 'Bloom-SetThreshold': [
   'void SetThreshold(float threshold)',
   'Bloom抽出の輝度閾値を設定します。この値を超える輝度のピクセルのみがBloom対象となります。値が低いほど多くのピクセルが光り、高いほど非常に明るい部分のみが光ります。デフォルトは1.0です。',
-  '// Bloom閾値を下げて広範囲に光らせる\npipeline.GetBloom().SetThreshold(0.5f);\n\n// 閾値を上げてハイライトのみ\npipeline.GetBloom().SetThreshold(2.0f);',
-  '• デフォルト値は1.0\n• HDR値が閾値を超えるピクセルが抽出される\n• 0に近いとほぼ全ピクセルが光り、性能に影響はないが見た目が白飛びする'
+  '// Bloom閾値を下げて広範囲に光らせる\npipeline.GetBloom().SetThreshold(0.5f);\n\n// 閾値を上げてハイライトのみBloom\npipeline.GetBloom().SetThreshold(2.0f);',
+  '• デフォルト値は1.0\n• HDR値が閾値を超えるピクセルが抽出される\n• 0に近いとほぼ全ピクセルが光り、性能に影響はないが見た目が白飛びする\n• threshold: 0.0以上のHDR輝度値'
 ],
 
 'Bloom-GetThreshold': [
@@ -297,8 +297,8 @@ const AGENT4B_DATA = {
 'Bloom-SetIntensity': [
   'void SetIntensity(float intensity)',
   'Bloom合成の強度を設定します。値が大きいほどBloom効果が強くなり、光の滲みが目立ちます。デフォルトは0.5です。',
-  '// Bloom強度を上げる\npipeline.GetBloom().SetIntensity(0.8f);\n\n// 控えめなBloom\npipeline.GetBloom().SetIntensity(0.2f);',
-  '• デフォルト値は0.5\n• 定数バッファで毎フレームGPUに送信される'
+  '// Bloom強度を上げる\npipeline.GetBloom().SetIntensity(0.8f);  // 強めのにじみ\n\n// 控えめなBloom\npipeline.GetBloom().SetIntensity(0.2f);  // ほのかなにじみ',
+  '• デフォルト値は0.5\n• 定数バッファで毎フレームGPUに送信される\n• intensity: 0.0（効果なし）〜1.0以上（強いにじみ）'
 ],
 
 'Bloom-GetIntensity': [
@@ -311,7 +311,7 @@ const AGENT4B_DATA = {
 'Bloom-SetEnabled': [
   'void SetEnabled(bool enabled)',
   'Bloomエフェクトの有効/無効を切り替えます。無効時はPostEffectPipeline::ResolveでBloom処理全体がスキップされ、パフォーマンスコストは発生しません。デフォルトは有効です。',
-  '// Bloomを無効化\npipeline.GetBloom().SetEnabled(false);\n\n// 有効化\npipeline.GetBloom().SetEnabled(true);',
+  '// Bloomを無効化（パフォーマンス向上）\npipeline.GetBloom().SetEnabled(false);\n\n// 有効化\npipeline.GetBloom().SetEnabled(true);',
   '• デフォルトで有効(enabled=true)\n• 無効時はExecuteが呼ばれないため、GPUコストなし'
 ],
 
@@ -334,8 +334,8 @@ const AGENT4B_DATA = {
 // ============================================================
 'SSAO-Initialize': [
   'bool Initialize(ID3D12Device* device, uint32_t width, uint32_t height)',
-  'SSAOエフェクトを初期化します。AO出力RT(R8_UNORM)とブラー中間RTの作成、64サンプルの半球カーネル生成、シェーダーのコンパイル、AO生成・バイラテラルブラー(水平/垂直)・乗算合成用PSOの作成を行います。失敗時はfalseを返します。',
-  '// 通常はPostEffectPipeline経由で初期化される\nGX::PostEffectPipeline pipeline;\npipeline.Initialize(device, 1280, 720);\n\n// 直接初期化する場合\nGX::SSAO ssao;\nif (!ssao.Initialize(device, 1280, 720)) {\n    // エラー処理\n}',
+  'SSAOエフェクトを初期化します。AO出力RT(R8_UNORM)とブラー中間RTの作成、64サンプルの半球カーネル生成、シェーダーのコンパイル、AO生成・バイラテラルブラー(水平/垂直)・乗算合成用PSOの作成を行います。失敗時はfalseを返します。\n\n【用語】SSAO (Screen Space Ambient Occlusion, 画面空間環境遮蔽) は、物体の隅や隙間に自然な影を付ける技法です。角や溝が暗くなることでリアルな立体感が生まれます。',
+  '// 通常はPostEffectPipeline経由で初期化される\nGX::PostEffectPipeline pipeline;\npipeline.Initialize(device, 1280, 720);  // SSAOも内部で初期化\n\n// 直接初期化する場合\nGX::SSAO ssao;\nif (!ssao.Initialize(device, 1280, 720)) {\n    // エラー処理\n}',
   '• PostEffectPipeline::Initialize内で自動的に呼ばれる\n• 64サンプルの半球カーネルが乱数で生成される（ノイズテクスチャは不使用、ハッシュベース回転）\n• AO出力はR8_UNORMフォーマット（1チャンネル）'
 ],
 
@@ -350,7 +350,7 @@ const AGENT4B_DATA = {
   'void SetRadius(float r)',
   'SSAOのサンプリング半径を設定します。半球カーネルのサンプル範囲を決定し、大きいほど広範囲の遮蔽を検出しますが、ディテールが減少します。デフォルトは0.5です。',
   '// SSAO半径を調整\npipeline.GetSSAO().SetRadius(0.8f);  // 広範囲の遮蔽\npipeline.GetSSAO().SetRadius(0.3f);  // 細かいディテール重視',
-  '• デフォルト値は0.5\n• ワールド空間の単位で指定\n• 大きすぎると不自然なハロー(光輪)が発生する'
+  '• デフォルト値は0.5\n• ワールド空間の単位で指定\n• 大きすぎると不自然なハロー(光輪)が発生する\n• r: ワールド空間での半径（0.1〜2.0程度を推奨）'
 ],
 
 'SSAO-GetRadius': [
@@ -364,7 +364,7 @@ const AGENT4B_DATA = {
   'void SetBias(float b)',
   'SSAOのバイアス値を設定します。深度の自己遮蔽(self-occlusion)アーティファクトを防ぐためのオフセットです。値が大きいほどアーティファクトは減りますが、細かい遮蔽が検出されにくくなります。デフォルトは0.025です。',
   '// バイアスを調整\npipeline.GetSSAO().SetBias(0.03f);\n\n// アーティファクトが多い場合は大きくする\npipeline.GetSSAO().SetBias(0.05f);',
-  '• デフォルト値は0.025\n• 平面でのアクネ(ちらつき)が発生する場合は値を大きくする\n• 大きすぎると遮蔽が弱くなる'
+  '• デフォルト値は0.025\n• 平面でのアクネ(ちらつき)が発生する場合は値を大きくする\n• 大きすぎると遮蔽が弱くなる\n• b: 0.01〜0.1程度を推奨'
 ],
 
 'SSAO-GetBias': [
@@ -377,8 +377,8 @@ const AGENT4B_DATA = {
 'SSAO-SetPower': [
   'void SetPower(float p)',
   'SSAOの強度(べき乗)を設定します。AO値にpow(ao, power)を適用し、遮蔽効果のコントラストを調整します。値が大きいほど遮蔽が暗くなり、はっきりとした陰影が出ます。デフォルトは2.0です。',
-  '// SSAO強度を上げる\npipeline.GetSSAO().SetPower(3.0f);\n\n// 控えめなSSAO\npipeline.GetSSAO().SetPower(1.0f);',
-  '• デフォルト値は2.0\n• pow(ao, power)として適用される\n• 1.0でリニア、2.0以上でコントラスト増加'
+  '// SSAO強度を上げる（はっきりした陰影）\npipeline.GetSSAO().SetPower(3.0f);\n\n// 控えめなSSAO（さりげない陰影）\npipeline.GetSSAO().SetPower(1.0f);',
+  '• デフォルト値は2.0\n• pow(ao, power)として適用される\n• 1.0でリニア、2.0以上でコントラスト増加\n• p: 1.0〜5.0程度を推奨'
 ],
 
 'SSAO-GetPower': [

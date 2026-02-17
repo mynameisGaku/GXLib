@@ -4,11 +4,13 @@
 
 namespace GX { namespace GUI {
 
-void ProgressBar::Render(UIRenderer& renderer)
+void ProgressBar::RenderSelf(UIRenderer& renderer)
 {
     const Style& drawStyle = GetRenderStyle();
     // トラック背景（描画用スタイル）
-    renderer.DrawRect(globalRect, drawStyle, opacity);
+    UIRectEffect effect;
+    const UIRectEffect* eff = GetActiveEffect(drawStyle, effect);
+    renderer.DrawRect(globalRect, drawStyle, 1.0f, eff);
 
     // フィルバー
     if (m_value > 0.0f)
@@ -30,7 +32,7 @@ void ProgressBar::Render(UIRenderer& renderer)
         Style fillStyle;
         fillStyle.backgroundColor = m_barColor;
         fillStyle.cornerRadius = fillRadius;
-        renderer.DrawRect(fillRect, fillStyle, opacity);
+        renderer.DrawRect(fillRect, fillStyle, 1.0f);
     }
 }
 

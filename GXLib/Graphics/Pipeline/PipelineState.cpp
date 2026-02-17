@@ -66,6 +66,7 @@ PipelineStateBuilder& PipelineStateBuilder::SetInputLayout(const D3D12_INPUT_ELE
 PipelineStateBuilder& PipelineStateBuilder::SetRenderTargetFormat(DXGI_FORMAT format, uint32_t index)
 {
     m_desc.RTVFormats[index] = format;
+    m_desc.BlendState.RenderTarget[index].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
     if (index + 1 > m_desc.NumRenderTargets)
         m_desc.NumRenderTargets = index + 1;
     return *this;

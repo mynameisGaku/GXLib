@@ -1,3 +1,3 @@
 #pragma once
-// 初学者向けAPIのための簡易インクルード。迷わず使える入口にする。
+// GXEasy の公開ヘッダ（互換レイヤーのヘッダを再公開）
 #include "Compat/GXEasy.h"

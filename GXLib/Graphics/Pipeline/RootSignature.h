@@ -35,11 +35,14 @@ public:
 
     /// ディスクリプタテーブルを追加（SRV/CBV/UAVのテーブル）
     /// テクスチャバインド等で使用。shaderRegisterから始まるnumDescriptors個のディスクリプタ範囲を定義
+    /// rangeFlags: D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE を指定すると
+    ///             フレーム間でディスクリプタを安全に上書き可能
     RootSignatureBuilder& AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE type,
                                               uint32_t shaderRegister,
                                               uint32_t numDescriptors = 1,
                                               uint32_t space = 0,
-                                              D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL);
+                                              D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL,
+                                              D3D12_DESCRIPTOR_RANGE_FLAGS rangeFlags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
 
     /// スタティックサンプラーを追加
     RootSignatureBuilder& AddStaticSampler(uint32_t shaderRegister, uint32_t space = 0,

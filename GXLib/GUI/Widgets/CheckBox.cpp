@@ -41,7 +41,7 @@ bool CheckBox::OnEvent(const UIEvent& event)
     return false;
 }
 
-void CheckBox::Render(UIRenderer& renderer)
+void CheckBox::RenderSelf(UIRenderer& renderer)
 {
     float boxX = globalRect.x;
     float boxY = globalRect.y + (globalRect.height - k_BoxSize) * 0.5f;
@@ -55,7 +55,7 @@ void CheckBox::Render(UIRenderer& renderer)
         ? StyleColor(0.5f, 0.6f, 0.9f, 1.0f)
         : StyleColor(0.4f, 0.4f, 0.55f, 1.0f);
     boxStyle.cornerRadius = 3.0f;
-    renderer.DrawRect(boxRect, boxStyle, opacity);
+    renderer.DrawRect(boxRect, boxStyle, 1.0f);
 
     // チェックマーク（塗りつぶし矩形）
     if (m_checked)
@@ -73,7 +73,7 @@ void CheckBox::Render(UIRenderer& renderer)
         float textH = static_cast<float>(renderer.GetLineHeight(m_fontHandle));
         float textY = globalRect.y + (globalRect.height - textH) * 0.5f;
         const Style& drawStyle = GetRenderStyle();
-        renderer.DrawText(textX, textY, m_fontHandle, m_text, drawStyle.color, opacity);
+        renderer.DrawText(textX, textY, m_fontHandle, m_text, drawStyle.color, 1.0f);
     }
 }
 

@@ -10,21 +10,21 @@ https://mynameisgaku.github.io/GXLib/
 
 - **DirectX 12 ネイティブ** — D3D12 によるローレベル GPU 制御
 - **2D 描画** — SpriteBatch / PrimitiveBatch / SpriteSheet / Animation2D / Camera2D
-- **3D レンダリング** — PBR シェーダー / glTF・FBX・OBJ モデル / スケルタルアニメーション / アニメーションブレンド / Terrain
-- **シャドウ** — Cascaded Shadow Maps (4 分割) / Spot Shadow / Point Shadow (6 面キューブ)
-- **ポストエフェクト** — HDR / Bloom / Tonemapping (Reinhard/ACES/Uncharted2) / FXAA / Vignette / ChromaticAberration / ColorGrading / SSAO / DoF / MotionBlur / SSR / Outline / VolumetricLight / TAA / AutoExposure
+- **3D レンダリング** — PBR (物理ベースレンダリング) シェーダー / glTF・FBX・OBJ モデル / スケルタルアニメーション / アニメーションブレンド / Terrain (地形)
+- **シャドウ** — CSM (Cascaded Shadow Maps, カスケードシャドウマップ, 4分割) / Spot Shadow / Point Shadow (6面キューブ)
+- **ポストエフェクト** — HDR (高ダイナミックレンジ) / Bloom (光のにじみ) / Tonemapping (Reinhard/ACES/Uncharted2) / FXAA (高速アンチエイリアシング) / Vignette (周辺減光) / ChromaticAberration (色収差) / ColorGrading (色調調整) / SSAO (環境遮蔽) / DoF (被写界深度) / MotionBlur (動きボケ) / SSR (スクリーン空間反射) / Outline (輪郭線) / VolumetricLight (光の筋) / TAA (テンポラルAA) / AutoExposure (自動露出)
 - **レイヤーシステム** — RenderLayer / LayerStack / LayerCompositor / MaskScreen
 - **GUI** — Flexbox レイアウト / CSS スタイルシート / XML 宣言的 UI / 17 種ウィジェット
 - **アニメーション** — Animator (クロスフェード) / Humanoid リターゲット
 - **テキスト** — DirectWrite ラスタライズ / Unicode フルサポート (日本語対応)
 - **入力** — Keyboard / Mouse / Gamepad (XInput)
 - **オーディオ** — XAudio2 (SE + BGM / フェード / ループ)
-- **ファイル I/O** — VFS / 暗号化アーカイブ (AES-256 + LZ4) / 非同期ロード / ファイル監視
+- **ファイル I/O** — VFS (仮想ファイルシステム) / 暗号化アーカイブ (AES-256 + LZ4) / 非同期ロード / ファイル監視
 - **ネットワーク** — TCP / UDP / HTTP (sync + async) / WebSocket
 - **動画** — Media Foundation による動画デコード / テクスチャ描画
-- **数学** — Vector2/3/4 / Matrix4x4 / Quaternion / Color (DirectXMath ラッパー)
+- **数学** — Vector2/3/4 / Matrix4x4 / Quaternion (四元数) / Color (DirectXMath ラッパー)
 - **衝突判定** — 2D (AABB / Circle / Polygon / SAT) / 3D (Sphere / AABB / OBB / Ray / Frustum)
-- **空間分割** — Quadtree / Octree / BVH (SAH)
+- **空間分割** — Quadtree (四分木) / Octree (八分木) / BVH (境界ボリューム階層)
 - **物理** — 2D カスタム物理エンジン / 3D Jolt Physics ラッパー / MeshCollider (Static・Convex・Skinned)
 - **マテリアル/シェーダー** — ランタイム差し替え (材質パラメータ・テクスチャ・シェーダー)
 - **DXLib 互換** — GXLib.h ヘッダー 1 つで DXLib 風の簡易 API を提供
@@ -45,12 +45,13 @@ https://mynameisgaku.github.io/GXLib/
 
 ```bash
 # 1. CMake プロジェクト生成
+#    -B build: build フォルダに出力, -S .: 現在のフォルダがソース
 cmake -B build -S .
 
 # 2. Debug ビルド
 cmake --build build --config Debug
 
-# 3. Release ビルド
+# 3. Release ビルド（最適化あり）
 cmake --build build --config Release
 
 # 4. テスト実行
@@ -107,7 +108,7 @@ GXLib/
 ├── docs/                   # ドキュメント
 │   ├── tutorials/          # チュートリアル
 │   ├── migration/          # DXLib 移行ガイド
-│   └── APIReference.md     # API リファレンス
+│   └── index.html          # API リファレンス
 └── Doxyfile                # Doxygen 設定ファイル
 ```
 
@@ -131,22 +132,22 @@ GXLib/
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 {
-    ChangeWindowMode(TRUE);
-    SetGraphMode(1280, 720, 32);
-    if (GX_Init() == -1) return -1;
-    SetDrawScreen(GX_SCREEN_BACK);
+    ChangeWindowMode(TRUE);                 // ウィンドウモードで起動
+    SetGraphMode(1280, 720, 32);            // 画面サイズ: 1280x720, 色深度32bit
+    if (GX_Init() == -1) return -1;         // エンジン初期化
+    SetDrawScreen(GX_SCREEN_BACK);          // 裏画面（ダブルバッファリング）に描画
 
-    while (ProcessMessage() == 0)
+    while (ProcessMessage() == 0)           // メインループ
     {
-        ClearDrawScreen();
+        ClearDrawScreen();                  // 画面クリア
 
         DrawString(100, 100, "Hello GXLib!", GetColor(255, 255, 255));
         DrawCircle(640, 360, 50, GetColor(255, 0, 0), TRUE);
 
-        ScreenFlip();
+        ScreenFlip();                       // 裏画面を表画面に切り替え
     }
 
-    GX_End();
+    GX_End();                               // 終了処理
     return 0;
 }
 ```
@@ -166,21 +167,40 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 int font = fontManager.CreateFont(L"Meiryo", 24);
 
 // フレームループ内:
-fontManager.FlushAtlasUpdates();  // フレーム境界でアトラス更新
+fontManager.FlushAtlasUpdates();            // フレーム境界でアトラス更新
 spriteBatch.Begin(cmdList, frameIndex);
-textRenderer.DrawString(font, 10, 10, L"こんにちは世界！", 0xFFFFFFFF);
+textRenderer.DrawString(
+    font,               // フォントハンドル
+    10, 10,             // 描画位置 (x, y)
+    L"こんにちは世界！",   // テキスト (Unicode 対応)
+    0xFFFFFFFF          // 色 (ARGB: 白)
+);
 spriteBatch.End();
 ```
 
 ## HDR レンダリングパイプライン
 
+3D シーンは以下の順序でポストエフェクトが適用されます。各エフェクトは独立して ON/OFF 可能です。
+
 ```
-Scene → HDR RT → [SSAO] → [SSR] → [VolumetricLight] → [Bloom] → [DoF]
-     → [MotionBlur] → [Outline] → [TAA] → [ColorGrading] → [AutoExposure]
-     → [Tonemap] → [FXAA] → [Vignette] → Backbuffer
+Scene → HDR RT (高ダイナミックレンジ レンダーターゲット)
+     → [SSAO (環境遮蔽)]
+     → [SSR (スクリーン空間反射)]
+     → [VolumetricLight (光の筋)]
+     → [Bloom (光のにじみ)]
+     → [DoF (被写界深度)]
+     → [MotionBlur (動きボケ)]
+     → [Outline (輪郭線)]
+     → [TAA (テンポラルAA)]
+     → [ColorGrading (色調調整)]
+     → [AutoExposure (自動露出)]
+     → [Tonemap (HDR→LDR変換)]
+     → [FXAA (高速AA)]
+     → [Vignette (周辺減光)]
+     → Backbuffer (画面表示)
 ```
 
-各エフェクトは独立して ON/OFF 可能。JSON 設定ファイルでパラメータを永続化できます。
+JSON 設定ファイル (`post_effects.json`) でパラメータを永続化できます（F12 で保存）。
 
 ## GUI システム
 
@@ -199,10 +219,10 @@ CSS + XML による宣言的 UI を提供します。
 ```css
 /* Assets/ui/menu.css */
 .mainMenu {
-  flex-direction: column;
-  align-items: center;
-  gap: 12;
-  padding: 40;
+  flex-direction: column;   /* 子要素を縦方向に並べる */
+  align-items: center;      /* 横方向の中央揃え */
+  gap: 12;                  /* 子要素間のスペース */
+  padding: 40;              /* 内側余白 */
   background-color: rgba(0, 0, 0, 0.8);
 }
 .menuBtn {
@@ -229,8 +249,10 @@ CSS + XML による宣言的 UI を提供します。
 
 ## ドキュメント
 
-- [API リファレンス](docs/APIReference.md) — 全公開 API の一覧
+- [API リファレンス](docs/index.html) — 全公開 API の一覧
+- [用語集 (Glossary)](docs/Glossary.md) — 専門用語の解説
 - [チュートリアル](docs/tutorials/) — ステップバイステップガイド
+  - [00: 前提知識](docs/tutorials/00_Prerequisites.md)
   - [01: はじめに](docs/tutorials/01_GettingStarted.md)
   - [02: 2D 描画](docs/tutorials/02_Drawing2D.md)
   - [03: 2D ゲーム](docs/tutorials/03_Game2D.md)

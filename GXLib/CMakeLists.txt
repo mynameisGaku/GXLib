@@ -8,6 +8,8 @@
 # =============================================================================
 
 # ソースファイルを収集（ThirdPartyのヘッダーオンリーライブラリは除外）
+# NOTE: *.h パターンは Visual Studio Solution Explorer でヘッダーを表示するために
+# 意図的に含めています。ビルドには .cpp のみが使用されます。
 file(GLOB_RECURSE GXLIB_SOURCES
     "Core/*.cpp"        "Core/*.h"
     "Graphics/*.cpp"    "Graphics/*.h"
@@ -93,3 +95,7 @@ endif()
 target_include_directories(GXLib PUBLIC
     ${joltphysics_SOURCE_DIR}/..
 )
+
+# gxformat headers + gxloader library (asset pipeline)
+target_include_directories(GXLib PUBLIC ${CMAKE_SOURCE_DIR}/gxformat)
+target_link_libraries(GXLib PUBLIC gxloader)

@@ -22,6 +22,7 @@ void ScrollView::ClampScroll()
 {
     float viewH = globalRect.height - computedStyle.padding.VerticalTotal() -
                   computedStyle.borderWidth * 2.0f;
+    if (viewH <= 0.0f) return;
     float maxScroll = m_contentHeight - viewH;
     if (maxScroll < 0.0f) maxScroll = 0.0f;
     scrollOffsetY = (std::max)(0.0f, (std::min)(scrollOffsetY, maxScroll));
@@ -47,7 +48,7 @@ void ScrollView::Update(float deltaTime)
     ClampScroll();
 }
 
-void ScrollView::Render(UIRenderer& renderer)
+void ScrollView::RenderSelf(UIRenderer& renderer)
 {
     const Style& drawStyle = GetRenderStyle();
     // 背景描画
@@ -55,12 +56,14 @@ void ScrollView::Render(UIRenderer& renderer)
         drawStyle.borderWidth > 0.0f ||
         drawStyle.shadowBlur > 0.0f)
     {
-        renderer.DrawRect(globalRect, drawStyle, opacity);
+        UIRectEffect effect;
+        const UIRectEffect* eff = GetActiveEffect(drawStyle, effect);
+        renderer.DrawRect(globalRect, drawStyle, 1.0f, eff);
     }
 
     // クリッピング + 子描画
     renderer.PushScissor(globalRect);
-    Widget::Render(renderer);
+    Widget::RenderChildren(renderer);
 
     // スクロールバー描画
     float viewH = globalRect.height - computedStyle.padding.VerticalTotal() -
@@ -77,6 +80,11 @@ void ScrollView::Render(UIRenderer& renderer)
     }
 
     renderer.PopScissor();
+}
+
+void ScrollView::RenderChildren(UIRenderer& /*renderer*/)
+{
+    // Children are rendered inside RenderSelf with clipping.
 }
 
 }} // namespace GX::GUI

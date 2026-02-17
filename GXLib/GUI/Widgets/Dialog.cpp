@@ -23,7 +23,7 @@ bool Dialog::OnEvent(const UIEvent& event)
     return false;
 }
 
-void Dialog::Render(UIRenderer& renderer)
+void Dialog::RenderSelf(UIRenderer& renderer)
 {
     // 全画面オーバーレイ
     renderer.DrawSolidRect(globalRect.x, globalRect.y,
@@ -31,7 +31,6 @@ void Dialog::Render(UIRenderer& renderer)
                            m_overlayColor);
 
     // 子ウィジェットを描画（CSSでcenter配置される想定）
-    Widget::Render(renderer);
 }
 
 }} // namespace GX::GUI

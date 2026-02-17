@@ -4,7 +4,7 @@
 
 namespace GX { namespace GUI {
 
-void Panel::Render(UIRenderer& renderer)
+void Panel::RenderSelf(UIRenderer& renderer)
 {
     const Style& drawStyle = GetRenderStyle();
     // 背景描画（色が設定されている場合のみ）
@@ -12,20 +12,26 @@ void Panel::Render(UIRenderer& renderer)
         drawStyle.borderWidth > 0.0f ||
         drawStyle.shadowBlur > 0.0f)
     {
-        renderer.DrawRect(globalRect, drawStyle, opacity);
+        UIRectEffect effect;
+        const UIRectEffect* eff = GetActiveEffect(drawStyle, effect);
+        renderer.DrawRect(globalRect, drawStyle, 1.0f, eff);
     }
 
     // 子ウィジェットを描画
+}
+
+void Panel::RenderChildren(UIRenderer& renderer)
+{
     if (computedStyle.overflow == OverflowMode::Hidden ||
         computedStyle.overflow == OverflowMode::Scroll)
     {
         renderer.PushScissor(globalRect);
-        Widget::Render(renderer);
+        Widget::RenderChildren(renderer);
         renderer.PopScissor();
     }
     else
     {
-        Widget::Render(renderer);
+        Widget::RenderChildren(renderer);
     }
 }
 

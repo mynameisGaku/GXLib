@@ -44,6 +44,12 @@ bool Archive::Open(const std::string& filePath, const std::string& password)
     file.read(reinterpret_cast<char*>(&flags), 4);
     file.read(reinterpret_cast<char*>(&reserved), 4);
 
+    if (tocSize > 256 * 1024 * 1024)
+    {
+        GX_LOG_ERROR("Archive: TOC too large (%u bytes)", tocSize);
+        return false;
+    }
+
     m_encrypted = (flags & k_FlagEncrypted) != 0;
 
     if (m_encrypted)

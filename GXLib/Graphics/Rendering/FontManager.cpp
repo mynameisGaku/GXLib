@@ -20,13 +20,15 @@ bool FontManager::Initialize(ID3D12Device* device, TextureManager* textureManage
     {
         m_comInitialized = true;
     }
-    else if (hr == S_FALSE || hr == RPC_E_CHANGED_MODE)
+    else if (hr == S_FALSE)
     {
         m_comInitialized = false;
-        if (hr == RPC_E_CHANGED_MODE)
-        {
-            GX_LOG_WARN("CoInitializeEx returned RPC_E_CHANGED_MODE (COM already initialized with different model).");
-        }
+        GX_LOG_INFO("COM already initialized on this thread (S_FALSE).");
+    }
+    else if (hr == RPC_E_CHANGED_MODE)
+    {
+        m_comInitialized = false;
+        GX_LOG_WARN("CoInitializeEx returned RPC_E_CHANGED_MODE (COM already initialized with different concurrency model).");
     }
     else
     {
@@ -76,6 +78,7 @@ int FontManager::AllocateHandle()
     {
         int handle = m_freeHandles.back();
         m_freeHandles.pop_back();
+        m_entries[handle] = FontEntry{};
         return handle;
     }
 
@@ -309,6 +312,8 @@ bool FontManager::RasterizeGlyph(FontEntry& entry, wchar_t ch)
     UINT bufferSize = 0;
     BYTE* pixelData = nullptr;
     lock->GetDataPointer(&bufferSize, &pixelData);
+    if (!pixelData)
+        return false;
 
     UINT stride = 0;
     lock->GetStride(&stride);

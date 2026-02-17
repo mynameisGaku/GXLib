@@ -64,6 +64,8 @@ void TextRenderer::DrawString(int fontHandle, float x, float y, const std::wstri
         // srcX, srcY, w, h はアトラス上のピクセル座標
         int srcX = static_cast<int>(glyph->u0 * FontManager::k_AtlasSize);
         int srcY = static_cast<int>(glyph->v0 * FontManager::k_AtlasSize);
+        srcX = (std::min)(srcX, static_cast<int>(FontManager::k_AtlasSize - 1));
+        srcY = (std::min)(srcY, static_cast<int>(FontManager::k_AtlasSize - 1));
 
         m_spriteBatch->DrawRectGraph(drawX, drawY, srcX, srcY,
                                      glyph->width, glyph->height,
@@ -98,7 +100,7 @@ void TextRenderer::DrawStringTransformed(int fontHandle, float x, float y,
 
     for (wchar_t ch : text)
     {
-        if (ch == L'\\n')
+        if (ch == L'\n')
         {
             cursorX = x;
             cursorY += static_cast<float>(m_fontManager->GetLineHeight(fontHandle));
@@ -154,7 +156,7 @@ void TextRenderer::DrawFormatString(int fontHandle, float x, float y, uint32_t c
 
     va_list args;
     va_start(args, format);
-    vswprintf_s(buffer, format, args);
+    vswprintf_s(buffer, 1024, format, args);
     va_end(args);
 
     DrawString(fontHandle, x, y, buffer, color);

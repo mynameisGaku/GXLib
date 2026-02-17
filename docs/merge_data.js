@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const docsDir = __dirname;
-const htmlFile = path.join(docsDir, 'APIReference.html');
+const htmlFile = path.join(docsDir, 'index.html');
 
 // Data files in order
 const dataFiles = [
@@ -112,5 +112,5 @@ const newHtml = html.substring(0, dStart) + mergedD + html.substring(dEnd);
 // Write output
 fs.writeFileSync(htmlFile, newHtml, 'utf-8');
 
-console.log(`\nMerged ${dataFiles.length} data files into APIReference.html`);
+console.log(`\nMerged ${dataFiles.length} data files into index.html`);
 console.log(`HTML size: ${(newHtml.length / 1024).toFixed(1)} KB`);

@@ -60,7 +60,7 @@ private:
     std::thread m_workerThread;
     mutable std::mutex m_mutex;
     std::condition_variable m_cv;
-    bool m_running = true;
+    std::atomic<bool> m_running{ true };
     uint32_t m_nextId = 1;
 
     std::vector<std::pair<uint32_t, std::shared_ptr<LoadRequest>>> m_pendingQueue;

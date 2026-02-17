@@ -7,6 +7,8 @@ namespace GX {
 FileWatcher::FileWatcher()
 {
     m_stopEvent = CreateEventA(nullptr, TRUE, FALSE, nullptr);
+    if (!m_stopEvent)
+        GX_LOG_ERROR("FileWatcher: Failed to create stop event");
 }
 
 FileWatcher::~FileWatcher()
@@ -40,6 +42,12 @@ void FileWatcher::Watch(const std::string& directory,
     }
 
     entry->overlapped.hEvent = CreateEventA(nullptr, TRUE, FALSE, nullptr);
+    if (!entry->overlapped.hEvent)
+    {
+        GX_LOG_ERROR("FileWatcher: Failed to create event for directory: %s", directory.c_str());
+        CloseHandle(entry->hDir);
+        return;
+    }
     m_watches.push_back(std::move(entry));
 
     // 未起動なら監視スレッドを開始する (二重起動を防ぐ)
@@ -53,8 +61,16 @@ void FileWatcher::Watch(const std::string& directory,
 
 void FileWatcher::StartRead(WatchEntry* entry)
 {
+    if (entry->overlapped.hEvent)
+        CloseHandle(entry->overlapped.hEvent);
     memset(&entry->overlapped, 0, sizeof(OVERLAPPED));
     entry->overlapped.hEvent = CreateEventA(nullptr, TRUE, FALSE, nullptr);
+    if (!entry->overlapped.hEvent)
+    {
+        GX_LOG_ERROR("FileWatcher: Failed to create event in StartRead");
+        entry->active = false;
+        return;
+    }
 
     BOOL result = ReadDirectoryChangesW(
         entry->hDir,

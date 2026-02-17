@@ -33,6 +33,12 @@ int TextureManager::AllocateHandle()
         return handle;
     }
 
+    if (m_nextHandle >= static_cast<int>(k_MaxTextures))
+    {
+        GX_LOG_ERROR("TextureManager: handle limit reached (max: %u)", k_MaxTextures);
+        return -1;
+    }
+
     int handle = m_nextHandle++;
     if (handle >= static_cast<int>(m_entries.size()))
     {
@@ -51,7 +57,14 @@ int TextureManager::LoadTexture(const std::wstring& filePath)
     }
 
     int handle = AllocateHandle();
+    if (handle < 0) return -1;
+
     uint32_t srvIndex = m_srvHeap.AllocateIndex();
+    if (srvIndex == DescriptorHeap::k_InvalidIndex)
+    {
+        m_freeHandles.push_back(handle);
+        return -1;
+    }
 
     auto& entry = m_entries[handle];
     entry.texture = std::make_unique<Texture>();
@@ -74,7 +87,14 @@ int TextureManager::LoadTexture(const std::wstring& filePath)
 int TextureManager::CreateTextureFromMemory(const void* pixels, uint32_t width, uint32_t height)
 {
     int handle = AllocateHandle();
+    if (handle < 0) return -1;
+
     uint32_t srvIndex = m_srvHeap.AllocateIndex();
+    if (srvIndex == DescriptorHeap::k_InvalidIndex)
+    {
+        m_freeHandles.push_back(handle);
+        return -1;
+    }
 
     auto& entry = m_entries[handle];
     entry.texture = std::make_unique<Texture>();
@@ -162,6 +182,11 @@ int TextureManager::CreateRegionHandles(int baseHandle, int allNum, int xNum, in
         int row = i / xNum;
 
         int handle = AllocateHandle();
+        if (handle < 0)
+        {
+            GX_LOG_ERROR("TextureManager: Failed to allocate region handle %d/%d", i, allNum);
+            return firstHandle; // return what we have so far (-1 if none)
+        }
         if (firstHandle == -1) firstHandle = handle;
 
         auto& entry = m_entries[handle];

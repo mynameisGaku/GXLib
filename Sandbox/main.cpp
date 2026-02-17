@@ -66,6 +66,9 @@
 // Phase 10: GPUプロファイラ
 #include "Graphics/Device/GPUProfiler.h"
 
+// Phase 11: DXR レイトレーシング反射
+#include "Graphics/RayTracing/RTReflections.h"
+
 // Phase 8: 数学/物理/当たり判定
 #include "Math/Vector2.h"
 #include "Math/Vector3.h"
@@ -208,6 +211,16 @@ static bool g_showHotReloadStatus = false;
 
 // Phase 10: GPUプロファイラ
 static bool g_showProfiler = false;
+
+// Phase 11: DXR レイトレーシング反射
+static std::unique_ptr<GX::RTReflections> g_rtReflections;
+static int g_blasSphere   = -1;
+static int g_blasPlane    = -1;
+static int g_blasCube     = -1;
+static int g_blasCylinder = -1;
+static int g_blasTallBox  = -1;
+static int g_blasWall     = -1;
+static int g_blasMirror   = -1;
 
 static uint64_t g_frameFenceValues[GX::SwapChain::k_BufferCount] = {};
 static uint32_t g_frameIndex = 0;
@@ -880,9 +893,23 @@ void UpdateInput(float deltaTime)
     if (kb.IsKeyTriggered('B'))
         g_postEffect.GetMotionBlur().SetEnabled(!g_postEffect.GetMotionBlur().IsEnabled());
 
-    // SSR のON/OFF
+    // SSR のON/OFF (RTと排他)
     if (kb.IsKeyTriggered('R'))
-        g_postEffect.GetSSR().SetEnabled(!g_postEffect.GetSSR().IsEnabled());
+    {
+        bool newSSR = !g_postEffect.GetSSR().IsEnabled();
+        g_postEffect.GetSSR().SetEnabled(newSSR);
+        if (newSSR && g_rtReflections)
+            g_rtReflections->SetEnabled(false); // SSR ON → RT OFF
+    }
+
+    // DXR RT反射のON/OFF (SSRと排他, Y キー)
+    if (kb.IsKeyTriggered('Y') && g_rtReflections)
+    {
+        bool newRT = !g_rtReflections->IsEnabled();
+        g_rtReflections->SetEnabled(newRT);
+        if (newRT)
+            g_postEffect.GetSSR().SetEnabled(false); // RT ON → SSR OFF
+    }
 
     // Outline のON/OFF
     if (kb.IsKeyTriggered('O'))
@@ -1114,6 +1141,48 @@ void RenderFrame(float deltaTime)
         prim.End();
     }
 
+    // === DXR RT反射: TLASインスタンス登録 ===
+    if (g_rtReflections && g_rtReflections->IsEnabled())
+    {
+        g_rtReflections->BeginFrame();
+
+        // 地面
+        g_rtReflections->AddInstance(g_blasPlane, g_planeTransform.GetWorldMatrix());
+
+        // 球体
+        for (int i = 0; i < k_NumSpheres; ++i)
+            g_rtReflections->AddInstance(g_blasSphere, g_sphereTransforms[i].GetWorldMatrix());
+
+        // 箱
+        for (int i = 0; i < k_NumBoxes; ++i)
+            g_rtReflections->AddInstance(g_blasCube, g_boxTransforms[i].GetWorldMatrix());
+
+        // 柱
+        for (int i = 0; i < k_NumPillars; ++i)
+            g_rtReflections->AddInstance(g_blasCylinder, g_pillarTransforms[i].GetWorldMatrix());
+
+        // 壁
+        for (int i = 0; i < k_NumWalls; ++i)
+            g_rtReflections->AddInstance(g_blasWall, g_wallTransforms[i].GetWorldMatrix());
+
+        // 段差
+        for (int i = 0; i < k_NumSteps; ++i)
+            g_rtReflections->AddInstance(g_blasCube, g_stepTransforms[i].GetWorldMatrix());
+
+        // 回転キューブ
+        g_rtReflections->AddInstance(g_blasCube, g_cubeTransform.GetWorldMatrix());
+
+        // ミラー
+        g_rtReflections->AddInstance(g_blasMirror, g_mirrorTransform.GetWorldMatrix());
+
+        // SSRデモオブジェクト
+        for (int i = 0; i < k_NumSSRDemoObjs; ++i)
+            g_rtReflections->AddInstance(g_blasSphere, g_ssrDemoTransforms[i].GetWorldMatrix());
+    }
+
+    // PostEffectPipelineにcmdList4を渡す
+    g_postEffect.SetCommandList4(g_commandList.Get4());
+
     // === ポストエフェクト: HDR → LDR (Sceneレイヤーに出力) ===
     GX::GPUProfiler::Instance().EndScope(cmdList);
     g_postEffect.EndScene();
@@ -1238,10 +1307,10 @@ void RenderFrame(float deltaTime)
                 g_postEffect.GetMotionBlur().GetSampleCount());
 
             g_textRenderer.DrawFormatString(g_fontHandle, 10, 235, 0xFF88FF88,
-                L"SSR: %s  Steps: %d  Intensity: %.2f",
+                L"SSR: %s  Steps: %d  RT-Reflect: %s",
                 g_postEffect.GetSSR().IsEnabled() ? L"ON" : L"OFF",
                 g_postEffect.GetSSR().GetMaxSteps(),
-                g_postEffect.GetSSR().GetIntensity());
+                (g_rtReflections && g_rtReflections->IsEnabled()) ? L"ON" : L"OFF");
 
             g_textRenderer.DrawFormatString(g_fontHandle, 10, 260, 0xFF88FF88,
                 L"Outline: %s  DepthTh: %.2f  NormalTh: %.2f",
@@ -1323,7 +1392,7 @@ void RenderFrame(float deltaTime)
             g_textRenderer.DrawString(g_fontHandle, 10, helpY + 25,
                 L"1/2/3: Tonemap  4: Bloom  5: FXAA  6: Vignette  7: ColorGrading  8: ShadowDbg  9: SSAO", 0xFFFFCC44);
             g_textRenderer.DrawString(g_fontHandle, 10, helpY + 50,
-                L"0:DoF B:MBlur R:SSR O:Outline V:GodRays T:TAA X:AutoExp P:Profile L:Mask U:GUI F7:2D F8:Add F9:Reload F12:Save", 0xFFFFCC44);
+                L"0:DoF B:MBlur R:SSR Y:RT-Reflect O:Outline V:GodRays T:TAA X:AutoExp P:Profile L:Mask U:GUI F12:Save", 0xFFFFCC44);
         }
     }
 
@@ -1575,13 +1644,83 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
     // Phase 10: GPUプロファイラ
     GX::GPUProfiler::Instance().Initialize(g_device.GetDevice(), g_commandQueue.GetQueue());
 
+    // Phase 11: DXR レイトレーシング反射
+    if (g_device.SupportsRaytracing())
+    {
+        auto* device5 = g_device.GetDevice5();
+        uint32_t w = g_app.GetWindow().GetWidth();
+        uint32_t h = g_app.GetWindow().GetHeight();
+
+        g_rtReflections = std::make_unique<GX::RTReflections>();
+        if (g_rtReflections->Initialize(device5, w, h))
+        {
+            // BLASビルド: コマンドリストを開いてBLASを構築し、GPU実行して待機
+            g_commandList.Reset(0, nullptr);
+            auto* cmdList4 = g_commandList.Get4();
+
+            auto buildBLAS = [&](GX::GPUMesh& mesh, uint32_t vertexCount, uint32_t stride) -> int {
+                return g_rtReflections->BuildBLAS(cmdList4,
+                    mesh.vertexBuffer.GetResource(), vertexCount, stride,
+                    mesh.indexBuffer.GetResource(), mesh.indexCount);
+            };
+
+            // Vertex3D_PBR stride = 48 bytes
+            constexpr uint32_t pbrStride = sizeof(GX::Vertex3D_PBR);
+
+            // 各メッシュのBLAS構築（頂点数はインデックス数/3の概算ではなく、VBサイズ/ストライドで算出）
+            auto getVertexCount = [&](GX::GPUMesh& mesh) -> uint32_t {
+                auto desc = mesh.vertexBuffer.GetResource()->GetDesc();
+                return static_cast<uint32_t>(desc.Width / pbrStride);
+            };
+
+            g_blasSphere   = buildBLAS(g_sphereMesh,   getVertexCount(g_sphereMesh),   pbrStride);
+            g_blasPlane    = buildBLAS(g_planeMesh,     getVertexCount(g_planeMesh),     pbrStride);
+            g_blasCube     = buildBLAS(g_cubeMesh,      getVertexCount(g_cubeMesh),      pbrStride);
+            g_blasCylinder = buildBLAS(g_cylinderMesh,  getVertexCount(g_cylinderMesh),  pbrStride);
+            g_blasTallBox  = buildBLAS(g_tallBoxMesh,   getVertexCount(g_tallBoxMesh),   pbrStride);
+            g_blasWall     = buildBLAS(g_wallMesh,      getVertexCount(g_wallMesh),      pbrStride);
+            g_blasMirror   = buildBLAS(g_mirrorMesh,    getVertexCount(g_mirrorMesh),    pbrStride);
+
+            g_commandList.Close();
+            ID3D12CommandList* cmdLists[] = { g_commandList.Get() };
+            g_commandQueue.ExecuteCommandLists(cmdLists, 1);
+            g_commandQueue.Flush();
+
+            // BLAS構築+GPUフラッシュ後にジオメトリSRVを作成
+            g_rtReflections->CreateGeometrySRVs();
+
+            // PostEffectPipeline に接続
+            g_postEffect.SetRTReflections(g_rtReflections.get());
+
+            // ライト設定 (メインレンダラーと同一のライト配列)
+            {
+                GX::LightData rtLights[3];
+                rtLights[0] = GX::Light::CreateDirectional({ 0.3f, -1.0f, 0.5f }, { 1.0f, 0.98f, 0.95f }, 3.0f);
+                rtLights[1] = GX::Light::CreatePoint({ -3.0f, 3.0f, -3.0f }, 15.0f, { 1.0f, 0.95f, 0.9f }, 3.0f);
+                rtLights[2] = GX::Light::CreateSpot({ 4.0f, 4.0f, -2.0f }, { -0.5f, -1.0f, 0.3f },
+                                                     20.0f, 30.0f, { 1.0f, 0.8f, 0.3f }, 15.0f);
+                g_rtReflections->SetLights(rtLights, 3, { 0.05f, 0.05f, 0.05f });
+            }
+            g_rtReflections->SetSkyColors({ 0.5f, 0.7f, 1.0f }, { 0.8f, 0.9f, 1.0f });
+
+            GX_LOG_INFO("DXR RTReflections: BLAS built for %d meshes", 7);
+        }
+        else
+        {
+            g_rtReflections.reset();
+            GX_LOG_WARN("DXR RTReflections: Initialize failed, falling back to SSR");
+        }
+    }
+
     g_app.GetWindow().SetResizeCallback(OnResize);
-    GX_LOG_INFO("=== GXLib Phase 10: GPUProfiler ===");
+    GX_LOG_INFO("=== GXLib Phase 11: DXR Reflections ===");
 
     g_app.Run(RenderFrame);
 
     g_physicsWorld3D.Shutdown();
     g_moviePlayer.Close();
+    g_postEffect.SetRTReflections(nullptr);
+    g_rtReflections.reset();
     GX::GPUProfiler::Instance().Shutdown();
     GX::ShaderHotReload::Instance().Shutdown();
     GX::ShaderLibrary::Instance().Shutdown();

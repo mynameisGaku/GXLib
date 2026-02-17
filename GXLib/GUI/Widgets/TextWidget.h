@@ -25,7 +25,7 @@ public:
     float GetIntrinsicWidth() const override;
     float GetIntrinsicHeight() const override;
 
-    void Render(UIRenderer& renderer) override;
+    void RenderSelf(UIRenderer& renderer) override;
 
     /// UIRendererを設定（intrinsic size 計算に必要）
     void SetRenderer(UIRenderer* renderer) { m_renderer = renderer; }

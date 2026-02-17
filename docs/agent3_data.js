@@ -9,7 +9,7 @@
 
 'Renderer3D-Initialize': [
   'bool Initialize(ID3D12Device*, DescriptorHeap* srvHeap, uint32_t w, uint32_t h)',
-  'PBR 3Dレンダラーを初期化する。D3D12デバイス、SRVヒープ、画面サイズを指定し、PBRパイプライン（ルートシグネチャ・PSO）、定数バッファ、シャドウマップ、深度バッファ等すべてのリソースを生成する。アプリケーション起動時に一度だけ呼び出す。',
+  'PBR 3Dレンダラーを初期化する。D3D12デバイス、SRVヒープ、画面サイズを指定し、PBRパイプライン（ルートシグネチャ・PSO）、定数バッファ、シャドウマップ、深度バッファ等すべてのリソースを生成する。アプリケーション起動時に一度だけ呼び出す。\\n\\n【用語】PBR (Physically Based Rendering, 物理ベースレンダリング) は光の物理法則に基づくリアルな描画方式です。Metallic (金属度) と Roughness (粗さ) の2パラメータで幅広い質感を表現します。',
   '// Renderer3D の初期化\nGX::Renderer3D renderer3D;\nbool ok = renderer3D.Initialize(device, &srvHeap, 1920, 1080);\nif (!ok) {\n    GX::Logger::Error("Renderer3D init failed");\n}',
   '• 内部で CSM (4096x4096x4)、SpotShadow (2048x2048)、PointShadow (1024x1024x6) をすべて作成する\n• SRVヒープには連続した十分なスロットが必要（CSM t8-t11, Spot t12, Point t13）\n• 初期化後 ShaderLibrary へ PSO リビルダーが自動登録される\n• k_MaxObjectsPerFrame=512 で 1フレームの描画上限が決まる'
 ],
@@ -97,7 +97,7 @@
 
 'Camera3D-SetPosition': [
   'void SetPosition(const XMFLOAT3& pos)',
-  'カメラのワールド位置を設定する。FPS/TPSモードではプレイヤー位置、Freeモードではエディタカメラ位置として使用される。位置変更後はビュー行列が自動的に再計算される。',
+  'カメラのワールド位置を設定する。FPS/TPSモードではプレイヤー位置、Freeモードではエディタカメラ位置として使用される。位置変更後はビュー行列が自動的に再計算される。\\n\\n【用語】ビュー行列はカメラの位置・向きを表し、射影行列は 3D 空間を 2D 画面に投影する設定（画角、アスペクト比等）を表します。',
   '// カメラを原点の上空に配置\nGX::Camera3D camera;\ncamera.SetPosition({ 0.0f, 10.0f, -20.0f });',
   '• FreeモードではSetPositionで直接配置、FPS/TPSではSetTargetと連動\n• SetPosition(float x, float y, float z) のオーバーロードも使用可能\n• 方向ベクトル（Forward/Right/Up）は遅延計算（dirty flag）される'
 ],
@@ -390,7 +390,7 @@
 
 'Material-albedo': [
   'XMFLOAT4 albedo',
-  'ベースカラー（アルベド）。RGB で基本色、A でアルファを指定する。テクスチャが設定されている場合はテクスチャ色と乗算される。PBR パイプラインの基本色パラメータ。',
+  'ベースカラー（アルベド）。RGB で基本色、A でアルファを指定する。テクスチャが設定されている場合はテクスチャ色と乗算される。PBR パイプラインの基本色パラメータ。\\n\\n【用語】マテリアルは 3D モデル表面の「質感」です。アルベド (基本色)、メタリック (金属感)、ラフネス (粗さ)、法線マップ (表面の凹凸) 等のテクスチャで構成されます。',
   '// 赤いマテリアル\nGX::Material mat;\nmat.constants.albedoFactor = { 1.0f, 0.2f, 0.2f, 1.0f };',
   '• デフォルトは白 (1,1,1,1)\n• アルベドテクスチャがある場合は albedoFactor * textureColor\n• A=0 で完全透明（アルファブレンド有効時）'
 ],
@@ -805,7 +805,7 @@
 
 'CascadedShadowMap-Initialize': [
   'bool Initialize(ID3D12Device*, DescriptorHeap* dsvHeap, DescriptorHeap* srvHeap, uint32_t resolution = 2048)',
-  'カスケードシャドウマップを初期化する。4つのカスケードそれぞれに resolution x resolution の深度テクスチャを作成し、DSV/SRV ディスクリプタを配置する。Renderer3D 内部で自動的に呼ばれる。',
+  'カスケードシャドウマップを初期化する。4つのカスケードそれぞれに resolution x resolution の深度テクスチャを作成し、DSV/SRV ディスクリプタを配置する。Renderer3D 内部で自動的に呼ばれる。\\n\\n【用語】CSM (Cascaded Shadow Maps) はカメラからの距離に応じて影の解像度を変える手法です。近くは高精細、遠くは粗い影にして品質と性能を両立します。',
   '// Renderer3D 経由で CSM にアクセス\nauto& csm = renderer3D.GetCSM();\ncsm.SetCascadeSplits(0.05f, 0.15f, 0.4f, 1.0f);',
   '• デフォルト解像度は k_ShadowMapSize=4096\n• 4カスケード x 4096x4096 = 約256MBの深度バッファ\n• SRV はシェーダーの t8-t11 にバインドされる\n• Renderer3D::Initialize() 内で自動的に初期化される'
 ],

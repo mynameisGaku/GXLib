@@ -32,13 +32,16 @@ public:
     float GetIntrinsicWidth() const override { return m_naturalWidth > 0 ? m_naturalWidth : 64.0f; }
     float GetIntrinsicHeight() const override { return m_naturalHeight > 0 ? m_naturalHeight : 64.0f; }
 
-    void Render(UIRenderer& renderer) override;
+    void Update(float deltaTime) override;
+    void RenderSelf(UIRenderer& renderer) override;
 
 private:
     int m_textureHandle = -1;
     ImageFit m_fit = ImageFit::Stretch;
     float m_naturalWidth = 0.0f;
     float m_naturalHeight = 0.0f;
+    float m_uvOffsetX = 0.0f;
+    float m_uvOffsetY = 0.0f;
 };
 
 }} // namespace GX::GUI

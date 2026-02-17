@@ -134,6 +134,10 @@ private:
     static StyleLength ParseLength(const std::string& value);
     static StyleColor ParseColor(const std::string& value);
     static StyleEdges ParseEdges(const std::string& value);
+    static int ParseVec2(const std::string& value, float& outX, float& outY);
+    static float ParseAngleDeg(const std::string& value);
+    static float ParseRatio(const std::string& value);
+    static UIEffectType ParseEffectType(const std::string& value);
 
     // enum パーサー
     static FlexDirection    ParseFlexDirection(const std::string& v);

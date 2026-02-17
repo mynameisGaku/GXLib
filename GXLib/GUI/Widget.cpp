@@ -1,8 +1,32 @@
 #include "pch.h"
 #include "GUI/Widget.h"
 #include "GUI/UIRenderer.h"
+#include "Math/Transform2D.h"
 
 namespace GX { namespace GUI {
+
+static Transform2D BuildLocalTransform(const Widget& widget, const Style& style)
+{
+    float tx = style.translateX;
+    float ty = style.translateY;
+    float sx = style.scaleX;
+    float sy = style.scaleY;
+    float rad = style.rotate * 0.0174532925f;
+
+    float pivotX = widget.globalRect.x + widget.globalRect.width * style.pivotX;
+    float pivotY = widget.globalRect.y + widget.globalRect.height * style.pivotY;
+
+    Transform2D t = Transform2D::Identity();
+    if (tx != 0.0f || ty != 0.0f)
+        t = Multiply(t, Transform2D::Translation(tx, ty));
+    t = Multiply(t, Transform2D::Translation(pivotX, pivotY));
+    if (rad != 0.0f)
+        t = Multiply(t, Transform2D::Rotation(rad));
+    if (sx != 1.0f || sy != 1.0f)
+        t = Multiply(t, Transform2D::Scale(sx, sy));
+    t = Multiply(t, Transform2D::Translation(-pivotX, -pivotY));
+    return t;
+}
 
 // ============================================================================
 // ツリー構造
@@ -75,6 +99,20 @@ bool Widget::OnEvent(const UIEvent& event)
     default:
         break;
     }
+    if (event.type == UIEventType::MouseDown)
+    {
+        const Style& style = GetRenderStyle();
+        if (style.effectType == UIEffectType::Ripple &&
+            globalRect.width > 0.0f && globalRect.height > 0.0f)
+        {
+            m_effectActive = true;
+            m_effectTime = 0.0f;
+            m_effectCenterX = (event.localX - globalRect.x) / globalRect.width;
+            m_effectCenterY = (event.localY - globalRect.y) / globalRect.height;
+            m_effectCenterX = (std::max)(0.0f, (std::min)(1.0f, m_effectCenterX));
+            m_effectCenterY = (std::max)(0.0f, (std::min)(1.0f, m_effectCenterY));
+        }
+    }
     return false;
 }
 
@@ -85,6 +123,19 @@ bool Widget::OnEvent(const UIEvent& event)
 void Widget::Update(float deltaTime)
 {
     UpdateStyleTransition(deltaTime, computedStyle);
+
+    const Style& style = GetRenderStyle();
+    if (style.effectType == UIEffectType::None)
+        m_effectActive = false;
+    if (m_effectActive)
+    {
+        float duration = style.effectDuration;
+        if (duration <= 0.0f) duration = 0.8f;
+        m_effectTime += deltaTime;
+        if (m_effectTime >= duration)
+            m_effectActive = false;
+    }
+
     for (auto& child : m_children)
     {
         if (child->visible)
@@ -94,11 +145,41 @@ void Widget::Update(float deltaTime)
 
 void Widget::Render(UIRenderer& renderer)
 {
+    const Style& drawStyle = GetRenderStyle();
+    Transform2D local = BuildLocalTransform(*this, drawStyle);
+
+    renderer.PushTransform(local);
+    renderer.PushOpacity(opacity * drawStyle.opacity);
+    RenderSelf(renderer);
+    RenderChildren(renderer);
+    renderer.PopOpacity();
+    renderer.PopTransform();
+}
+
+void Widget::RenderChildren(UIRenderer& renderer)
+{
     for (auto& child : m_children)
     {
         if (child->visible)
             child->Render(renderer);
     }
+}
+
+const UIRectEffect* Widget::GetActiveEffect(const Style& style, UIRectEffect& out) const
+{
+    if (style.effectType == UIEffectType::None || !m_effectActive)
+        return nullptr;
+
+    out.type = (style.effectType == UIEffectType::Ripple)
+        ? UIRectEffectType::Ripple
+        : UIRectEffectType::None;
+    out.centerX = m_effectCenterX;
+    out.centerY = m_effectCenterY;
+    out.time = m_effectTime;
+    out.duration = (style.effectDuration > 0.0f) ? style.effectDuration : 0.8f;
+    out.strength = (style.effectStrength > 0.0f) ? style.effectStrength : 0.4f;
+    out.width = (style.effectWidth > 0.0f) ? style.effectWidth : 0.08f;
+    return &out;
 }
 
 void Widget::UpdateStyleTransition(float deltaTime, const Style& targetStyle)

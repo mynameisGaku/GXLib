@@ -25,7 +25,7 @@ public:
     float GetIntrinsicWidth() const override { return 200.0f; }
     float GetIntrinsicHeight() const override { return 20.0f; }
 
-    void Render(UIRenderer& renderer) override;
+    void RenderSelf(UIRenderer& renderer) override;
 
 private:
     float m_value = 0.0f;

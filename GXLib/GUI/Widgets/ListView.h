@@ -31,7 +31,7 @@ public:
     float GetIntrinsicHeight() const override { return 150.0f; }
 
     bool OnEvent(const UIEvent& event) override;
-    void Render(UIRenderer& renderer) override;
+    void RenderSelf(UIRenderer& renderer) override;
 
 private:
     void ClampScroll();

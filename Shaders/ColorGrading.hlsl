@@ -29,17 +29,22 @@ float4 PSMain(FullscreenVSOutput input) : SV_Target
     // 露出補正
     color *= exp2(gCGExposure);
 
-    // コントラスト (0.5を基準にスケーリング)
-    color = (color - 0.5f) * gContrast + 0.5f;
+    // コントラスト (HDR対応: 輝度ベースのピボットを使用)
+    // log空間でコントラスト適用 → HDR値を正しく扱う
+    float lum = Luminance(color);
+    float logPivot = max(lum, 0.001f);
+    color = color * pow(logPivot, gContrast - 1.0f);
     color = max(color, 0.0f);
 
     // 彩度
-    float lum = Luminance(color);
+    lum = Luminance(color);
     color = lerp(float3(lum, lum, lum), color, gSaturation);
 
-    // 色温度 (簡易版: R/Bチャンネルのバランスを調整)
-    color.r *= 1.0f + gTemperature * 0.1f;
-    color.b *= 1.0f - gTemperature * 0.1f;
+    // 色温度 (Planckian locus近似: R/G/Bの3チャンネルを調整)
+    float t = gTemperature * 0.1f;
+    color.r *= 1.0f + t;
+    color.g *= 1.0f + t * 0.1f;   // グリーンも微調整（暖色でやや増、寒色でやや減）
+    color.b *= 1.0f - t;
 
     return float4(max(color, 0.0f), 1.0f);
 }

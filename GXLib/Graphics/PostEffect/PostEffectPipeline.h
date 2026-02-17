@@ -22,6 +22,10 @@
 namespace GX
 {
 
+// Forward declarations
+class RTReflections;
+class RTGI;
+
 enum class TonemapMode : uint32_t { Reinhard = 0, ACES = 1, Uncharted2 = 2 };
 
 struct TonemapConstants { uint32_t mode; float exposure; float padding[2]; };
@@ -87,6 +91,17 @@ public:
     AutoExposure& GetAutoExposure() { return m_autoExposure; }
     const AutoExposure& GetAutoExposure() const { return m_autoExposure; }
 
+    // --- DXR レイトレ反射 (外部所有) ---
+    void SetRTReflections(RTReflections* rt) { m_rtReflections = rt; }
+    RTReflections* GetRTReflections() const { return m_rtReflections; }
+
+    // --- DXR GI (外部所有) ---
+    void SetRTGI(RTGI* gi) { m_rtGI = gi; }
+    RTGI* GetRTGI() const { return m_rtGI; }
+
+    // --- Albedo RT (GI用) ---
+    RenderTarget& GetAlbedoRT() { return m_albedoRT; }
+
     // --- FXAA ---
     void SetFXAAEnabled(bool enabled) { m_fxaaEnabled = enabled; }
     bool IsFXAAEnabled() const { return m_fxaaEnabled; }
@@ -115,7 +130,11 @@ public:
 
     D3D12_CPU_DESCRIPTOR_HANDLE GetHDRRTVHandle() const;
     DXGI_FORMAT GetHDRFormat() const { return k_HDRFormat; }
+    RenderTarget& GetNormalRT() { return m_normalRT; }
     void OnResize(ID3D12Device* device, uint32_t width, uint32_t height);
+
+    /// DXR用にコマンドリスト4を設定
+    void SetCommandList4(ID3D12GraphicsCommandList4* cmdList4) { m_cmdList4 = cmdList4; }
 
 private:
     bool CreatePipelines(ID3D12Device* device);
@@ -136,6 +155,7 @@ private:
 
     ID3D12Device*              m_device    = nullptr;
     ID3D12GraphicsCommandList* m_cmdList   = nullptr;
+    ID3D12GraphicsCommandList4* m_cmdList4 = nullptr;
     uint32_t                   m_frameIndex = 0;
     uint32_t                   m_width  = 0;
     uint32_t                   m_height = 0;
@@ -143,6 +163,12 @@ private:
     // HDR用RT (高ダイナミックレンジ)
     RenderTarget m_hdrRT;
     RenderTarget m_hdrPingPongRT;
+
+    // GBuffer法線RT (DXR反射用)
+    RenderTarget m_normalRT;
+
+    // GBufferアルベドRT (GI用)
+    RenderTarget m_albedoRT;
 
     // LDR用RT (FXAA/Vignette用)
     RenderTarget m_ldrRT[2];
@@ -173,6 +199,12 @@ private:
 
     // 自動露出
     AutoExposure m_autoExposure;
+
+    // DXRレイトレ反射 (外部所有、nullptrの場合SSRのみ)
+    RTReflections* m_rtReflections = nullptr;
+
+    // DXR GI (外部所有)
+    RTGI* m_rtGI = nullptr;
 
     // シェーダー & パイプライン
     Shader m_shader;

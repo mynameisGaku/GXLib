@@ -24,12 +24,14 @@ bool Button::OnEvent(const UIEvent& event)
     return false;
 }
 
-void Button::Render(UIRenderer& renderer)
+void Button::RenderSelf(UIRenderer& renderer)
 {
     const Style& drawStyle = GetRenderStyle();
 
     // 背景を描画
-    renderer.DrawRect(globalRect, drawStyle, opacity);
+    UIRectEffect effect;
+    const UIRectEffect* eff = GetActiveEffect(drawStyle, effect);
+    renderer.DrawRect(globalRect, drawStyle, 1.0f, eff);
 
     // テキスト描画
     if (!m_text.empty() && m_fontHandle >= 0)
@@ -40,7 +42,7 @@ void Button::Render(UIRenderer& renderer)
         float textX = globalRect.x + (globalRect.width - textW) * 0.5f;
         float textY = globalRect.y + (globalRect.height - textH) * 0.5f;
 
-        renderer.DrawText(textX, textY, m_fontHandle, m_text, drawStyle.color, opacity);
+        renderer.DrawText(textX, textY, m_fontHandle, m_text, drawStyle.color, 1.0f);
     }
 
     // ボタンは子を持たないのが一般的

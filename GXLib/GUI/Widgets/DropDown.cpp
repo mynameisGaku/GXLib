@@ -23,7 +23,9 @@ void DropDown::SetItems(const std::vector<std::string>& items)
     m_wideItems.reserve(items.size());
     for (auto& item : items)
         m_wideItems.push_back(Utf8ToWide(item));
-    if (m_selectedIndex >= static_cast<int>(m_items.size()))
+    if (m_items.empty())
+        m_selectedIndex = -1;
+    else if (m_selectedIndex >= static_cast<int>(m_items.size()))
         m_selectedIndex = 0;
 }
 
@@ -49,7 +51,7 @@ bool DropDown::OnEvent(const UIEvent& event)
         {
             // ポップアップ内のクリック判定
             float popupTop = headerBottom;
-            float relY = event.mouseY - popupTop;
+            float relY = event.localY - popupTop;
             if (relY >= 0.0f)
             {
                 int idx = static_cast<int>(relY / k_ItemHeight);
@@ -57,7 +59,8 @@ bool DropDown::OnEvent(const UIEvent& event)
                 {
                     m_selectedIndex = idx;
                     m_open = false;
-                    if (onValueChanged)
+                    if (onValueChanged && !m_items.empty() &&
+                        m_selectedIndex >= 0 && m_selectedIndex < (int)m_items.size())
                         onValueChanged(m_items[m_selectedIndex]);
                     return true;
                 }
@@ -77,7 +80,7 @@ bool DropDown::OnEvent(const UIEvent& event)
     if (event.type == UIEventType::MouseMove && m_open)
     {
         float headerBottom = globalRect.y + globalRect.height;
-        float relY = event.mouseY - headerBottom;
+        float relY = event.localY - headerBottom;
         if (relY >= 0.0f)
         {
             int idx = static_cast<int>(relY / k_ItemHeight);
@@ -97,13 +100,15 @@ bool DropDown::OnEvent(const UIEvent& event)
     return false;
 }
 
-void DropDown::Render(UIRenderer& renderer)
+void DropDown::RenderSelf(UIRenderer& renderer)
 {
     float headerH = globalRect.height;
     const Style& drawStyle = GetRenderStyle();
 
     // ヘッダー背景
-    renderer.DrawRect(globalRect, drawStyle, opacity);
+    UIRectEffect effect;
+    const UIRectEffect* eff = GetActiveEffect(drawStyle, effect);
+    renderer.DrawRect(globalRect, drawStyle, 1.0f, eff);
 
     // 選択中テキスト
     if (m_fontHandle >= 0 && m_selectedIndex >= 0 &&
@@ -113,7 +118,7 @@ void DropDown::Render(UIRenderer& renderer)
         float textY = globalRect.y + (headerH - textH) * 0.5f;
         renderer.DrawText(globalRect.x + k_DropPadding + 4.0f, textY,
                           m_fontHandle, m_wideItems[m_selectedIndex],
-                          drawStyle.color, opacity);
+                          drawStyle.color, 1.0f);
     }
 
     // 矢印（DrawSolidRect で三角形を近似 — Unicode文字は動的ラスタライズを避ける）
@@ -137,14 +142,18 @@ void DropDown::Render(UIRenderer& renderer)
         int hoveredItem = m_hoveredItem;
         int selectedIndex = m_selectedIndex;
         int fontHandle = m_fontHandle;
-        float op = opacity;
+        Transform2D popupTransform = renderer.GetTransform();
+        float popupOpacity = renderer.GetOpacity();
         auto wideItems = m_wideItems;
 
         renderer.DeferDraw([&renderer, popupX, popupTop, popupW, popupH,
-                            hoveredItem, selectedIndex, fontHandle, op,
+                            hoveredItem, selectedIndex, fontHandle,
+                            popupTransform, popupOpacity,
                             wideItems = std::move(wideItems)]()
         {
             // ポップアップ背景
+            renderer.PushTransform(popupTransform);
+            renderer.PushOpacity(popupOpacity);
             StyleColor popupBg = { 0.12f, 0.12f, 0.18f, 0.95f };
             renderer.DrawSolidRect(popupX, popupTop, popupW, popupH, popupBg);
 
@@ -169,7 +178,7 @@ void DropDown::Render(UIRenderer& renderer)
                         ? StyleColor(0.4f, 0.7f, 1.0f, 1.0f)
                         : StyleColor(0.9f, 0.9f, 0.95f, 1.0f);
                     renderer.DrawText(popupX + k_DropPadding + 4.0f, textY,
-                                      fontHandle, wideItems[i], textCol, op);
+                                      fontHandle, wideItems[i], textCol, 1.0f);
                 }
             }
 
@@ -179,7 +188,9 @@ void DropDown::Render(UIRenderer& renderer)
             borderStyle.borderColor = { 0.3f, 0.3f, 0.45f, 0.8f };
             borderStyle.cornerRadius = 2.0f;
             LayoutRect popupRect = { popupX, popupTop, popupW, popupH };
-            renderer.DrawRect(popupRect, borderStyle, op);
+            renderer.DrawRect(popupRect, borderStyle, 1.0f);
+            renderer.PopOpacity();
+            renderer.PopTransform();
         });
     }
 }

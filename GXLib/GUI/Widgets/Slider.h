@@ -30,7 +30,7 @@ public:
     float GetIntrinsicHeight() const override { return 24.0f; }
 
     bool OnEvent(const UIEvent& event) override;
-    void Render(UIRenderer& renderer) override;
+    void RenderSelf(UIRenderer& renderer) override;
 
 private:
     float ScreenXToValue(float screenX) const;

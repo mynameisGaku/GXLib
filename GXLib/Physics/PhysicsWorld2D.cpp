@@ -62,7 +62,7 @@ void PhysicsWorld2D::IntegrateBodies(float dt)
         // たまった力を反映
         body->velocity += body->m_forceAccum * (body->InverseMass() * dt);
         if (!body->fixedRotation)
-            body->angularVelocity += body->m_torqueAccum * (body->InverseMass() * dt);
+            body->angularVelocity += body->m_torqueAccum * (body->InverseInertia() * dt);
 
         // 減衰（速度を少しずつ弱める）
         body->velocity *= (1.0f / (1.0f + body->linearDamping * dt));
@@ -89,9 +89,24 @@ AABB2D PhysicsWorld2D::GetBodyAABB(const RigidBody2D& body) const
     }
     else
     {
+        // 4隅をbody.rotationで回転してからAABBを算出
+        float c = std::cos(body.rotation);
+        float s = std::sin(body.rotation);
+        float hx = body.shape.halfExtents.x;
+        float hy = body.shape.halfExtents.y;
+
+        // ローカル4隅: (+hx,+hy), (-hx,+hy), (-hx,-hy), (+hx,-hy)
+        float cx0 =  hx * c - hy * s;
+        float cy0 =  hx * s + hy * c;
+        float cx1 = -hx * c - hy * s;
+        float cy1 = -hx * s + hy * c;
+
+        float maxX = (std::max)(std::abs(cx0), std::abs(cx1));
+        float maxY = (std::max)(std::abs(cy0), std::abs(cy1));
+
         return {
-            body.position - body.shape.halfExtents,
-            body.position + body.shape.halfExtents
+            { body.position.x - maxX, body.position.y - maxY },
+            { body.position.x + maxX, body.position.y + maxY }
         };
     }
 }
@@ -197,7 +212,22 @@ void PhysicsWorld2D::ResolveCollision(const ContactInfo2D& contact)
     a->velocity -= impulse * invMassA;
     b->velocity += impulse * invMassB;
 
+    // 角度インパルス適用
+    if (!a->fixedRotation)
+    {
+        Vector2 rA = contact.point - a->position;
+        a->angularVelocity -= rA.Cross(impulse) * a->InverseInertia();
+    }
+    if (!b->fixedRotation)
+    {
+        Vector2 rB = contact.point - b->position;
+        b->angularVelocity += rB.Cross(impulse) * b->InverseInertia();
+    }
+
     // 摩擦（接線方向の抵抗）
+    // TECH-03: インパルス適用後の速度で相対速度を再計算
+    relVel = b->velocity - a->velocity;
+    velAlongNormal = relVel.Dot(contact.normal);
     Vector2 tangent = relVel - contact.normal * velAlongNormal;
     float tangentLen = tangent.Length();
     if (tangentLen > MathUtil::EPSILON)

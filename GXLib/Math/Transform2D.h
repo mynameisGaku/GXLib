@@ -65,5 +65,22 @@ inline XMFLOAT2 TransformPoint(const Transform2D& t, float x, float y)
     return { x * t.a + y * t.c + t.tx, x * t.b + y * t.d + t.ty };
 }
 
-} // namespace GX
+/// @brief 逆変換 (非正則の場合は単位行列)
+inline Transform2D Inverse(const Transform2D& t)
+{
+    float det = t.a * t.d - t.b * t.c;
+    if (fabsf(det) <= 1.0e-6f)
+        return Transform2D::Identity();
 
+    float invDet = 1.0f / det;
+    Transform2D o;
+    o.a =  t.d * invDet;
+    o.b = -t.b * invDet;
+    o.c = -t.c * invDet;
+    o.d =  t.a * invDet;
+    o.tx = -(o.a * t.tx + o.c * t.ty);
+    o.ty = -(o.b * t.tx + o.d * t.ty);
+    return o;
+}
+
+} // namespace GX

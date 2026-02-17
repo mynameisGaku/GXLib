@@ -76,7 +76,7 @@
 // --- FileSystem class ---
 'FileSystem-Instance': [
   'static FileSystem& Instance()',
-  'FileSystemのシングルトンインスタンスを取得する。アプリケーション全体で1つのVFSインスタンスを共有するため、どこからでもこのメソッドでアクセスできる。初回呼び出し時にインスタンスが生成される。',
+  'FileSystemのシングルトンインスタンスを取得する。アプリケーション全体で1つのVFSインスタンスを共有するため、どこからでもこのメソッドでアクセスできる。初回呼び出し時にインスタンスが生成される。\n\n【用語】VFS（Virtual File System）: 仮想ファイルシステム。物理ディスク、アーカイブ、メモリなど複数のファイルソースを統一的なパス（マウントポイント/パス）でアクセスできる抽象化レイヤー。開発時はディスクから、リリース時はアーカイブから透過的に読み込む運用が可能。',
   '// シングルトンへのアクセス\nauto& fs = GX::FileSystem::Instance();\nfs.Mount("assets", provider);\nauto data = fs.ReadFile("assets/config.json");',
   '• スレッドセーフな static local 初期化 (C++11保証)\n• アプリケーション終了時に自動破棄される\n• Mount/Unmount は起動時に一度行うのが一般的'
 ],
@@ -84,7 +84,7 @@
 'FileSystem-Mount': [
   'void Mount(const std::string& mountPoint, std::shared_ptr<IFileProvider> provider)',
   'マウントポイントにファイルプロバイダーを登録する。登録後は "mountPoint/path" の形式でファイルアクセスが可能になる。同じマウントポイントに複数のプロバイダーを登録でき、Priority()順にファイルが検索される。内部的にPriority降順でソートされる。',
-  '// 物理ディレクトリとアーカイブを同じマウントポイントに登録\nauto disk = std::make_shared<GX::PhysicalFileProvider>("Assets");\nauto arc = std::make_shared<GX::ArchiveFileProvider>();\narc->Open("Assets.gxarc", "password");\n\nauto& fs = GX::FileSystem::Instance();\nfs.Mount("assets", disk);\nfs.Mount("assets", arc); // Priority=100 で優先',
+  '// 物理ディレクトリとアーカイブを同じマウントポイントに登録\nauto disk = std::make_shared<GX::PhysicalFileProvider>("Assets"); // ディスクからの読み込み\nauto arc = std::make_shared<GX::ArchiveFileProvider>();\narc->Open("Assets.gxarc", "password");  // 暗号化アーカイブを開く\n\nauto& fs = GX::FileSystem::Instance();\nfs.Mount("assets", disk);  // Priority=0（デフォルト）\nfs.Mount("assets", arc);   // Priority=100（アーカイブ優先）',
   '• マウントポイント名にスラッシュは不要 (例: "assets")\n• shared_ptr で所有権を共有するため、Unmountまでプロバイダーが生存する\n• 複数プロバイダーで同じパスにファイルがある場合は高優先度が返される'
 ],
 
@@ -198,7 +198,7 @@
 // --- Archive class ---
 'Archive-Open': [
   'bool Open(const std::string& filePath, const std::string& password = "")',
-  '.gxarcアーカイブファイルを開く。マジックナンバーの検証、TOC (目次) の読み込み、暗号化されている場合はパスワードからSHA-256で鍵を導出して復号する。成功するとContains()やRead()でアーカイブ内ファイルにアクセス可能になる。',
+  '.gxarcアーカイブファイルを開く。マジックナンバーの検証、TOC (目次) の読み込み、暗号化されている場合はパスワードからSHA-256で鍵を導出して復号する。成功するとContains()やRead()でアーカイブ内ファイルにアクセス可能になる。\n\n【用語】TOC（Table of Contents）: アーカイブファイルの目次。各エントリのパス、オフセット、サイズ、圧縮フラグなどのメタデータを保持し、ファイルアクセス時に検索される。',
   '// アーカイブを開く\nGX::Archive arc;\nif (arc.Open("Assets.gxarc", "mySecretKey")) {\n    auto data = arc.Read("textures/hero.png");\n    // ...\n}\narc.Close();',
   '• マジックナンバー "GXARC\\0\\0\\0" を検証する\n• パスワードが不正な場合は false を返す\n• 暗号化なしの場合は password を空文字にする'
 ],
@@ -235,13 +235,13 @@
 'Archive-SetPassword': [
   'void SetPassword(const std::string& password)',
   'アーカイブの暗号化パスワードを設定する。空文字を設定すると暗号化無効になる。パスワードはSave()時にSHA-256でハッシュ化され、AES-256-CBCの暗号鍵として使用される。Save()を呼ぶ前に設定すること。',
-  '// 暗号化アーカイブの作成\nGX::ArchiveWriter writer;\nwriter.SetPassword("secretKey123");\nwriter.AddFile("config.json", "Assets/config.json");\nwriter.Save("Encrypted.gxarc");',
+  '// 暗号化アーカイブの作成\nGX::ArchiveWriter writer;\nwriter.SetPassword("secretKey123"); // SHA-256でAES鍵を導出\nwriter.AddFile("config.json", "Assets/config.json"); // ディスクファイルを追加\nwriter.Save("Encrypted.gxarc");     // パック＆暗号化して出力',
   '• 空文字で暗号化無効\n• パスワードは SHA-256 でハッシュ化されて鍵として使用\n• Save() 前であればいつでも変更可能'
 ],
 
 'Archive-SetCompression': [
   'void SetCompression(bool enable)',
-  'LZ4圧縮の有効/無効を設定する。デフォルトはtrue (圧縮有効)。テクスチャや動画など既に圧縮済みのファイルが多い場合はfalseにすると、パック速度が向上し圧縮オーバーヘッドを回避できる。',
+  'LZ4圧縮の有効/無効を設定する。デフォルトはtrue (圧縮有効)。テクスチャや動画など既に圧縮済みのファイルが多い場合はfalseにすると、パック速度が向上し圧縮オーバーヘッドを回避できる。\n\n【用語】LZ4: 極めて高速な可逆圧縮アルゴリズム。圧縮率はgzipに劣るが、展開速度がメモリコピーに近い。ゲームのアセット読み込みで圧縮・展開のオーバーヘッドを最小限に抑えたい場合に最適。',
   '// 圧縮無効でアーカイブ作成\nGX::ArchiveWriter writer;\nwriter.SetCompression(false); // 圧縮しない\nwriter.AddFile("video.mp4", "Assets/video.mp4");\nwriter.Save("NoCompress.gxarc");',
   '• デフォルトは true (LZ4圧縮有効)\n• 既に圧縮済みのデータ (PNG, MP4等) には効果が薄い\n• 全ファイルに一括適用される (ファイル個別の設定は不可)'
 ],
@@ -291,9 +291,9 @@
 
 'Crypto-Encrypt': [
   'static std::vector<uint8_t> Encrypt(const void* data, size_t size, const uint8_t key[32], const uint8_t iv[16])',
-  'AES-256-CBCでデータを暗号化する。256ビット (32バイト) の鍵と128ビット (16バイト) の初期化ベクトルを使用する。PKCS#7パディングが自動的に適用される。失敗時は空のvectorを返す。Archiveの内部で使用されるが、直接呼び出すことも可能。',
-  '// データの暗号化\nuint8_t key[32], iv[16];\nGX::Crypto::GenerateRandomBytes(key, 32);\nGX::Crypto::GenerateRandomBytes(iv, 16);\n\nstd::string text = "Secret data";\nauto encrypted = GX::Crypto::Encrypt(\n    text.data(), text.size(), key, iv);',
-  '• Windows BCrypt API (bcrypt.dll) を内部で使用\n• PKCS#7 パディングにより出力サイズは入力より大きくなる\n• iv は暗号化と復号で同じ値を使う必要がある\n• 全 static メソッドなのでインスタンス不要'
+  'AES-256-CBCでデータを暗号化する。256ビット (32バイト) の鍵と128ビット (16バイト) の初期化ベクトルを使用する。PKCS#7パディングが自動的に適用される。失敗時は空のvectorを返す。Archiveの内部で使用されるが、直接呼び出すことも可能。\n\n【用語】AES-256-CBC: 共通鍵暗号の業界標準。256ビット鍵でブロック暗号化を行い、CBC（Cipher Block Chaining）モードで各ブロックを連鎖させる。GXLibではWindows BCrypt APIで実装され、アーカイブのファイルデータ暗号化に使用される。',
+  '// データの暗号化\nuint8_t key[32], iv[16];\nGX::Crypto::GenerateRandomBytes(key, 32); // 256ビット鍵をCSPRNGで生成\nGX::Crypto::GenerateRandomBytes(iv, 16);  // 128ビットIVをCSPRNGで生成\n\nstd::string text = "Secret data";\nauto encrypted = GX::Crypto::Encrypt(\n    text.data(), text.size(), key, iv); // AES-256-CBCで暗号化',
+  '• key: 32バイト（256ビット）の暗号鍵\n• iv: 16バイト（128ビット）の初期化ベクトル\n• Windows BCrypt API (bcrypt.dll) を内部で使用\n• PKCS#7 パディングにより出力サイズは入力より大きくなる（最大+16バイト）\n• iv は暗号化と復号で同じ値を使う必要がある\n• 全 static メソッドなのでインスタンス不要'
 ],
 
 'Crypto-Decrypt': [
@@ -312,7 +312,7 @@
 
 'Crypto-GenerateRandomBytes': [
   'static void GenerateRandomBytes(uint8_t* buffer, size_t size)',
-  '暗号学的に安全な乱数バイト列を生成する。Windows BCryptGenRandom APIを使用しており、暗号鍵やIVの生成に適している。疑似乱数 (rand()) とは異なり、予測不可能な乱数を提供する。',
+  '暗号学的に安全な乱数バイト列を生成する。Windows BCryptGenRandom APIを使用しており、暗号鍵やIVの生成に適している。疑似乱数 (rand()) とは異なり、予測不可能な乱数を提供する。\n\n【用語】CSPRNG（Cryptographically Secure Pseudo-Random Number Generator）: 暗号学的に安全な疑似乱数生成器。出力から内部状態を推測不可能で、暗号鍵やトークン生成に適する。BCryptGenRandomはWindows標準のCSPRNG。',
   '// 安全な乱数の生成\nuint8_t key[32];\nGX::Crypto::GenerateRandomBytes(key, 32); // 256-bit鍵\n\nuint8_t iv[16];\nGX::Crypto::GenerateRandomBytes(iv, 16); // 128-bit IV',
   '• BCryptGenRandom を内部使用 (CSPRNG)\n• ゲームの乱数には GX::Random を使用する方が適切 (性能面)\n• セキュリティ用途 (鍵生成、トークン等) に限定して使用\n• buffer は呼び出し側で確保すること'
 ],
@@ -361,7 +361,7 @@
 'AsyncLoader-Load': [
   'uint32_t Load(const std::string& path, std::function<void(FileData&)> onComplete)',
   '非同期ファイル読み込みリクエストをキューに追加する。pathはVFS経由で解決される。読み込み完了後、次のUpdate()呼び出し時にメインスレッドでonCompleteコールバックが発火される。戻り値のリクエストIDでGetStatus()による状態確認が可能。',
-  '// 非同期ファイル読み込み\nGX::AsyncLoader loader;\nuint32_t texId = loader.Load("assets/textures/hero.png",\n    [&texMgr, &device](GX::FileData& fd) {\n        if (fd.IsValid()) {\n            texMgr.CreateTextureFromMemory(\n                device, fd.Data(), fd.Size());\n        }\n    });\n// 毎フレーム Update() を呼ぶこと',
+  '// 非同期ファイル読み込み\nGX::AsyncLoader loader;\nuint32_t texId = loader.Load("assets/textures/hero.png",\n    [&texMgr, &device](GX::FileData& fd) {\n        if (fd.IsValid()) {  // 読み込み成功を確認\n            texMgr.CreateTextureFromMemory(\n                device, fd.Data(), fd.Size());\n        }\n    });\n// 毎フレーム Update() を呼ぶこと（コールバックの発火に必要）',
   '• コールバックはメインスレッドの Update() 内で呼ばれるためスレッドセーフ\n• VFS (FileSystem) 経由でファイルを読み込む\n• リクエストIDは 1 から連番で割り当てられる\n• 大量の同時リクエストはメモリ使用量に注意'
 ],
 
@@ -417,7 +417,7 @@
 
 'TCPSocket-Connect': [
   'bool Connect(const std::string& host, uint16_t port)',
-  'TCPサーバーに接続する。ホスト名解決 (DNS) とTCPハンドシェイクを行う。接続成功でtrue、タイムアウトや接続拒否の場合はfalseを返す。ブロッキング呼び出しのため、接続完了まで待機する。Winsock2の初期化は自動的に行われる。',
+  'TCPサーバーに接続する。ホスト名解決 (DNS) とTCPハンドシェイクを行う。接続成功でtrue、タイムアウトや接続拒否の場合はfalseを返す。ブロッキング呼び出しのため、接続完了まで待機する。Winsock2の初期化は自動的に行われる。\n\n【用語】TCP（Transmission Control Protocol）: 信頼性のあるストリーム型通信プロトコル。データの順序保証・再送・フロー制御を備え、HTTPやWebSocketの基盤。UDPと比べて遅延は大きいが、データの欠損がない。',
   '// TCPサーバーへの接続\nGX::TCPSocket socket;\nif (socket.Connect("127.0.0.1", 8080)) {\n    const char* msg = "Hello";\n    socket.Send(msg, (int)strlen(msg));\n    char buf[1024];\n    int received = socket.Receive(buf, sizeof(buf));\n}\nsocket.Close();',
   '• WSAStartup は初回呼び出し時に自動実行される\n• ブロッキング接続のためメインスレッドでの使用は注意\n• IPv4 アドレスまたはホスト名を指定可能\n• 接続失敗時はログにエラー内容が出力される'
 ],
@@ -470,7 +470,7 @@
 
 'UDPSocket-Bind': [
   'bool Bind(uint16_t port)',
-  'UDPソケットをローカルポートにバインドする。バインド後にReceiveFrom()で指定ポートへのデータを受信できる。送信のみの場合はBind不要 (SendToだけで使用可能)。成功でtrue、ポート使用中等の場合はfalseを返す。',
+  'UDPソケットをローカルポートにバインドする。バインド後にReceiveFrom()で指定ポートへのデータを受信できる。送信のみの場合はBind不要 (SendToだけで使用可能)。成功でtrue、ポート使用中等の場合はfalseを返す。\n\n【用語】UDP（User Datagram Protocol）: コネクションレスのデータグラム型通信プロトコル。配送保証や順序保証がない代わりに低遅延。リアルタイムゲームの位置同期やボイスチャットに適する。',
   '// UDPサーバーとしてバインド\nGX::UDPSocket socket;\nif (socket.Bind(9999)) {\n    char buf[1024];\n    std::string host;\n    uint16_t port;\n    int n = socket.ReceiveFrom(buf, sizeof(buf), host, port);\n}',
   '• 1つのポートに複数ソケットはバインドできない\n• 送信のみならバインド不要\n• WSAStartup は TCPSocket と共有で自動初期化\n• 0 を指定すると OS が空きポートを割り当てる'
 ],
@@ -576,7 +576,7 @@
   'void SetTimeout(int timeoutMs)',
   'リクエストのタイムアウトをミリ秒単位で設定する。デフォルトは30000ミリ秒 (30秒)。タイムアウトを超えるとリクエストが失敗し、statusCode=0のHTTPResponseが返される。同期・非同期両方のリクエストに適用される。',
   '// タイムアウトの設定\nGX::HTTPClient http;\nhttp.SetTimeout(5000); // 5秒\nauto res = http.Get("https://slow-api.example.com/data");\nif (!res.IsSuccess()) {\n    // タイムアウトまたはエラー\n}',
-  '• デフォルトは 30000ms (30秒)\n• 0 を設定するとタイムアウト無効 (非推奨)\n• WinHTTP の接続・受信タイムアウト両方に適用\n• 非同期リクエストにも影響する'
+  '• timeoutMs: タイムアウト時間（ミリ秒）。デフォルト30000（30秒）\n• 0 を設定するとタイムアウト無効 (非推奨)\n• WinHTTP の接続・受信タイムアウト両方に適用\n• 非同期リクエストにも影響する'
 ],
 
 // ============================================================
@@ -585,7 +585,7 @@
 
 'WebSocket-Connect': [
   'bool Connect(const std::string& url)',
-  'WebSocketサーバーに接続する。ws:// または wss:// のURLを指定する。内部でHTTPアップグレードハンドシェイクを行い、成功すると双方向通信が可能になる。接続後にバックグラウンドの受信スレッドが自動起動する。',
+  'WebSocketサーバーに接続する。ws:// または wss:// のURLを指定する。内部でHTTPアップグレードハンドシェイクを行い、成功すると双方向通信が可能になる。接続後にバックグラウンドの受信スレッドが自動起動する。\n\n【用語】WebSocket: HTTPコネクションをアップグレードして確立する全二重通信プロトコル。サーバーからのプッシュ通知が可能で、チャット、リアルタイムスコアボード、マルチプレイヤーゲームのサーバー通信に適する。',
   '// WebSocket接続\nGX::WebSocket ws;\nws.onMessage = [](const std::string& msg) {\n    GX::Logger::Info("Received: %s", msg.c_str());\n};\nif (ws.Connect("wss://echo.example.com")) {\n    ws.Send("Hello WebSocket!");\n}',
   '• WinHTTP WebSocket API を内部使用\n• wss:// は TLS 暗号化接続\n• 接続後に受信スレッドが自動起動する\n• コールバックを先に設定してから Connect すること'
 ],
@@ -683,7 +683,7 @@
 // --- MoviePlayer class ---
 'MoviePlayer-Open': [
   'bool Open(const std::string& filePath, GraphicsDevice& device, TextureManager& texManager)',
-  '動画ファイルを開いて再生準備をする。Media Foundationを初期化し、IMFSourceReaderでファイルを開く。動画の幅・高さ・再生時間を取得し、フレームデコード用のテクスチャをTextureManagerに作成する。対応形式はMP4, WMV, AVIなど。',
+  '動画ファイルを開いて再生準備をする。Media Foundationを初期化し、IMFSourceReaderでファイルを開く。動画の幅・高さ・再生時間を取得し、フレームデコード用のテクスチャをTextureManagerに作成する。対応形式はMP4, WMV, AVIなど。\n\n【用語】Media Foundation: Windows標準のメディア処理フレームワーク。動画・音声のデコード/エンコードを提供し、H.264/H.265/VP9等のコーデックをOSレベルでサポートする。GXLibではIMFSourceReaderによるフレーム単位デコードを使用。',
   '// 動画ファイルを開く\nGX::MoviePlayer player;\nif (player.Open("Assets/cutscene.mp4", device, texMgr)) {\n    printf("Size: %ux%u, Duration: %.1fs\\n",\n           player.GetWidth(), player.GetHeight(),\n           player.GetDuration());\n    player.Play();\n}',
   '• Media Foundation (MFStartup) を内部で初期化\n• RGB32 出力に設定されるため、デコーダーが自動変換\n• テクスチャは TextureManager に 1 ハンドル作成される\n• 対応コーデックは OS にインストールされた Media Foundation デコーダーに依存'
 ],
@@ -719,7 +719,7 @@
 'MoviePlayer-Seek': [
   'void Seek(double timeSeconds)',
   '指定時刻にシークする。IMFSourceReaderのSetCurrentPositionを使用してキーフレーム単位でシークする。再生中でも一時停止中でも使用可能。指定時刻はGetDuration()の範囲内であること。',
-  '// 動画の任意位置にジャンプ\nplayer.Play();\nplayer.Seek(30.0); // 30秒地点にシーク\n\n// 進捗バー操作\ndouble ratio = sliderValue; // 0.0〜1.0\nplayer.Seek(ratio * player.GetDuration());',
+  '// 動画の任意位置にジャンプ\nplayer.Play();\nplayer.Seek(30.0); // 30秒地点にシーク（キーフレーム単位）\n\n// 進捗バーから任意位置へシーク\ndouble ratio = sliderValue; // 0.0〜1.0\nplayer.Seek(ratio * player.GetDuration()); // 割合→秒に変換',
   '• キーフレーム単位のシークのため、正確な位置にはならない場合がある\n• 負の値や Duration を超える値の動作は未定義\n• シーク後の最初の Update() で新しいフレームがデコードされる\n• 圧縮形式によってシーク精度が異なる'
 ],
 
@@ -775,7 +775,7 @@
 'MoviePlayer-IsFinished': [
   'bool IsFinished() const',
   '動画が最後まで再生されたかを判定する。最終フレームのデコード完了後にtrueになる。ループ再生する場合はIsFinished()がtrueになったらSeek(0)とPlay()で先頭に戻す。Stop()呼び出しでリセットされる。',
-  '// ループ再生\nplayer.Play();\nwhile (running) {\n    player.Update(device);\n    if (player.IsFinished()) {\n        player.Stop();\n        player.Play(); // ループ\n    }\n    // 描画\n}',
+  '// ループ再生\nplayer.Play();\nwhile (running) {\n    player.Update(device); // フレームデコードを進める\n    if (player.IsFinished()) {\n        player.Stop();  // 再生位置を先頭にリセット\n        player.Play();  // 先頭から再度再生\n    }\n    // 描画\n}',
   '• 最終フレームデコード後に true になる\n• GetState() は Playing のまま変わらない場合がある\n• Stop() で false にリセットされる\n• Seek() で巻き戻した場合も false にリセットされる'
 ]
 

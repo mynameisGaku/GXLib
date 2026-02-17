@@ -8,6 +8,7 @@
 #include "cgltf.h"
 
 #include "Graphics/3D/ModelLoader.h"
+#include "Graphics/3D/GxmdModelLoader.h"
 #include "Graphics/3D/Vertex3D.h"
 #include "Core/Logger.h"
 #include <filesystem>
@@ -1321,6 +1322,13 @@ std::unique_ptr<Model> ModelLoader::LoadFromFile(const std::wstring& filePath,
                                                  MaterialManager& matManager)
 {
     std::wstring ext = GetExtensionLower(filePath);
+
+    if (ext == L".gxmd" || ext == L".gxpak")
+    {
+        GxmdModelLoader gxmdLoader;
+        return gxmdLoader.LoadFromGxmd(filePath, device, texManager, matManager);
+    }
+
     if (ext == L".gltf" || ext == L".glb")
         return LoadFromGLTF(filePath, device, texManager, matManager);
 

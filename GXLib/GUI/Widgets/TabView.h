@@ -32,7 +32,8 @@ public:
 
     bool OnEvent(const UIEvent& event) override;
     void Update(float deltaTime) override;
-    void Render(UIRenderer& renderer) override;
+    void RenderSelf(UIRenderer& renderer) override;
+    void RenderChildren(UIRenderer& renderer) override;
 
 private:
     static constexpr float k_TabHeaderHeight = 32.0f;

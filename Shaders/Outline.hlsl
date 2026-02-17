@@ -40,14 +40,10 @@ float3 ReconstructViewPos(float2 uv, float depth)
     return vp.xyz / vp.w;
 }
 
-// 法線復元（±1px、片側差分選択方式）
-float3 ReconstructNormal(float3 posC, float depthC, float2 uv, float2 ts)
+// 法線復元（事前サンプリング済み深度値を受け取る版）
+float3 ReconstructNormalFromDepths(float3 posC, float depthC, float2 uv, float2 ts,
+                                   float dR, float dL, float dD, float dU)
 {
-    float dR = gDepth.SampleLevel(gPointSampler, uv + float2(ts.x, 0), 0).r;
-    float dL = gDepth.SampleLevel(gPointSampler, uv - float2(ts.x, 0), 0).r;
-    float dD = gDepth.SampleLevel(gPointSampler, uv + float2(0, ts.y), 0).r;
-    float dU = gDepth.SampleLevel(gPointSampler, uv - float2(0, ts.y), 0).r;
-
     float3 pR = ReconstructViewPos(uv + float2(ts.x, 0), dR);
     float3 pL = ReconstructViewPos(uv - float2(ts.x, 0), dL);
     float3 pD = ReconstructViewPos(uv + float2(0, ts.y), dD);
@@ -63,6 +59,17 @@ float3 ReconstructNormal(float3 posC, float depthC, float2 uv, float2 ts)
     return n;
 }
 
+// 法線復元（±1px、片側差分選択方式 — 深度を内部でサンプリング）
+float3 ReconstructNormal(float3 posC, float depthC, float2 uv, float2 ts)
+{
+    float dR = gDepth.SampleLevel(gPointSampler, uv + float2(ts.x, 0), 0).r;
+    float dL = gDepth.SampleLevel(gPointSampler, uv - float2(ts.x, 0), 0).r;
+    float dD = gDepth.SampleLevel(gPointSampler, uv + float2(0, ts.y), 0).r;
+    float dU = gDepth.SampleLevel(gPointSampler, uv - float2(0, ts.y), 0).r;
+
+    return ReconstructNormalFromDepths(posC, depthC, uv, ts, dR, dL, dD, dU);
+}
+
 float4 PSOutline(FullscreenVSOutput input) : SV_Target
 {
     float2 uv = input.uv;
@@ -76,18 +83,26 @@ float4 PSOutline(FullscreenVSOutput input) : SV_Target
     float2 ts = float2(1.0 / screenWidth, 1.0 / screenHeight);
 
     // ============================================================
+    // 0. 4方向深度を事前サンプリング（Sobel + 法線で再利用）
+    // ============================================================
+    float dR = gDepth.SampleLevel(gPointSampler, uv + float2(ts.x, 0), 0).r;
+    float dL = gDepth.SampleLevel(gPointSampler, uv - float2(ts.x, 0), 0).r;
+    float dU = gDepth.SampleLevel(gPointSampler, uv + float2(0, -ts.y), 0).r;
+    float dD = gDepth.SampleLevel(gPointSampler, uv + float2(0, ts.y), 0).r;
+
+    // ============================================================
     // 1. 深度エッジ (Sobel): 3x3近傍のビュー空間Zに Sobel 適用
     // ============================================================
-    // 3x3近傍のビュー空間Zを取得
     float viewZC = ViewZFromDepth(depthC);
 
+    // 4隅は別途サンプリング（Sobel専用）
     float viewZ_TL = ViewZFromDepth(gDepth.SampleLevel(gPointSampler, uv + float2(-ts.x, -ts.y), 0).r);
-    float viewZ_T  = ViewZFromDepth(gDepth.SampleLevel(gPointSampler, uv + float2(    0, -ts.y), 0).r);
+    float viewZ_T  = ViewZFromDepth(dU);
     float viewZ_TR = ViewZFromDepth(gDepth.SampleLevel(gPointSampler, uv + float2( ts.x, -ts.y), 0).r);
-    float viewZ_L  = ViewZFromDepth(gDepth.SampleLevel(gPointSampler, uv + float2(-ts.x,     0), 0).r);
-    float viewZ_R  = ViewZFromDepth(gDepth.SampleLevel(gPointSampler, uv + float2( ts.x,     0), 0).r);
+    float viewZ_L  = ViewZFromDepth(dL);
+    float viewZ_R  = ViewZFromDepth(dR);
     float viewZ_BL = ViewZFromDepth(gDepth.SampleLevel(gPointSampler, uv + float2(-ts.x,  ts.y), 0).r);
-    float viewZ_B  = ViewZFromDepth(gDepth.SampleLevel(gPointSampler, uv + float2(    0,  ts.y), 0).r);
+    float viewZ_B  = ViewZFromDepth(dD);
     float viewZ_BR = ViewZFromDepth(gDepth.SampleLevel(gPointSampler, uv + float2( ts.x,  ts.y), 0).r);
 
     // Sobel X: [-1 0 +1; -2 0 +2; -1 0 +1]
@@ -100,20 +115,15 @@ float4 PSOutline(FullscreenVSOutput input) : SV_Target
 
     float depthEdge = sqrt(sobelX * sobelX + sobelY * sobelY);
 
-    // 距離非依存: ビュー空間Zに対する閾値
-    float depthFactor = saturate(depthEdge / depthThreshold);
+    // 距離非依存: 中心ビュー空間Zで正規化し、遠方の平面でもエッジ誤検出を防止
+    float depthFactor = saturate(depthEdge / (depthThreshold * abs(viewZC)));
 
     // ============================================================
     // 2. 法線エッジ: 中心+4近傍の法線から dot の差
     // ============================================================
     float3 posC = ReconstructViewPos(uv, depthC);
-    float3 normalC = ReconstructNormal(posC, depthC, uv, ts);
-
-    // 4近傍の法線
-    float dR = gDepth.SampleLevel(gPointSampler, uv + float2(ts.x, 0), 0).r;
-    float dL = gDepth.SampleLevel(gPointSampler, uv - float2(ts.x, 0), 0).r;
-    float dD = gDepth.SampleLevel(gPointSampler, uv + float2(0, ts.y), 0).r;
-    float dU = gDepth.SampleLevel(gPointSampler, uv - float2(0, ts.y), 0).r;
+    // 事前サンプリング済みの深度を再利用して法線復元
+    float3 normalC = ReconstructNormalFromDepths(posC, depthC, uv, ts, dR, dL, dD, dU);
 
     // スカイボックス近傍はスキップ
     float normalEdge = 0.0;

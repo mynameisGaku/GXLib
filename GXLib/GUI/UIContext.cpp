@@ -1,8 +1,89 @@
 #include "pch.h"
 #include "GUI/UIContext.h"
 #include "Input/InputManager.h"
+#include "Math/Transform2D.h"
 
 namespace GX { namespace GUI {
+
+static Transform2D BuildLocalTransform(const Widget& widget, const Style& style)
+{
+    float tx = style.translateX;
+    float ty = style.translateY;
+    float sx = style.scaleX;
+    float sy = style.scaleY;
+    float rad = style.rotate * 0.0174532925f;
+
+    float pivotX = widget.globalRect.x + widget.globalRect.width * style.pivotX;
+    float pivotY = widget.globalRect.y + widget.globalRect.height * style.pivotY;
+
+    Transform2D t = Transform2D::Identity();
+    if (tx != 0.0f || ty != 0.0f)
+        t = Multiply(t, Transform2D::Translation(tx, ty));
+    t = Multiply(t, Transform2D::Translation(pivotX, pivotY));
+    if (rad != 0.0f)
+        t = Multiply(t, Transform2D::Rotation(rad));
+    if (sx != 1.0f || sy != 1.0f)
+        t = Multiply(t, Transform2D::Scale(sx, sy));
+    t = Multiply(t, Transform2D::Translation(-pivotX, -pivotY));
+    return t;
+}
+
+static Transform2D BuildWorldTransform(const Widget* widget)
+{
+    std::vector<const Widget*> chain;
+    for (auto* w = widget; w; w = w->GetParent())
+        chain.push_back(w);
+    std::reverse(chain.begin(), chain.end());
+
+    Transform2D world = Transform2D::Identity();
+    for (auto* w : chain)
+    {
+        const Style& style = w->GetRenderStyle();
+        world = Multiply(world, BuildLocalTransform(*w, style));
+    }
+    return world;
+}
+
+static XMFLOAT2 ComputeLocalPoint(const Widget* widget, float x, float y)
+{
+    if (!widget)
+        return { x, y };
+    Transform2D world = BuildWorldTransform(widget);
+    Transform2D inv = Inverse(world);
+    return TransformPoint(inv, x, y);
+}
+
+static Widget* HitTestInternal(Widget* widget, float x, float y,
+                               const Transform2D& parent, XMFLOAT2* outLocal)
+{
+    if (!widget->visible || !widget->enabled) return nullptr;
+
+    const Style& style = widget->GetRenderStyle();
+    Transform2D local = BuildLocalTransform(*widget, style);
+    Transform2D world = Multiply(parent, local);
+    Transform2D inv = Inverse(world);
+    XMFLOAT2 localPt = TransformPoint(inv, x, y);
+
+    bool clipChildren = (widget->computedStyle.overflow == OverflowMode::Hidden ||
+                         widget->computedStyle.overflow == OverflowMode::Scroll);
+    if (clipChildren && !widget->globalRect.Contains(localPt.x, localPt.y))
+        return nullptr;
+
+    const auto& children = widget->GetChildren();
+    for (int i = static_cast<int>(children.size()) - 1; i >= 0; --i)
+    {
+        Widget* hit = HitTestInternal(children[i].get(), x, y, world, outLocal);
+        if (hit) return hit;
+    }
+
+    if (widget->globalRect.Contains(localPt.x, localPt.y))
+    {
+        if (outLocal) *outLocal = localPt;
+        return widget;
+    }
+
+    return nullptr;
+}
 
 // ============================================================================
 // 初期化
@@ -97,7 +178,10 @@ void UIContext::ProcessInputEvents(InputManager& input)
     int wheelDelta = mouse.GetWheel();
 
     // ヒットテスト
-    Widget* hitWidget = m_root ? HitTest(m_root.get(), mx, my) : nullptr;
+    XMFLOAT2 hitLocal = { mx, my };
+    Widget* hitWidget = m_root
+        ? HitTestInternal(m_root.get(), mx, my, Transform2D::Identity(), &hitLocal)
+        : nullptr;
 
     // --- マウス離脱 / 進入 ---
     if (hitWidget != m_hoveredWidget)
@@ -109,6 +193,9 @@ void UIContext::ProcessInputEvents(InputManager& input)
             leaveEvent.type = UIEventType::MouseLeave;
             leaveEvent.mouseX = mx;
             leaveEvent.mouseY = my;
+            XMFLOAT2 leaveLocal = ComputeLocalPoint(m_hoveredWidget, mx, my);
+            leaveEvent.localX = leaveLocal.x;
+            leaveEvent.localY = leaveLocal.y;
             leaveEvent.target = m_hoveredWidget;
             DispatchEvent(leaveEvent);
         }
@@ -119,6 +206,8 @@ void UIContext::ProcessInputEvents(InputManager& input)
             enterEvent.type = UIEventType::MouseEnter;
             enterEvent.mouseX = mx;
             enterEvent.mouseY = my;
+            enterEvent.localX = hitLocal.x;
+            enterEvent.localY = hitLocal.y;
             enterEvent.target = hitWidget;
             DispatchEvent(enterEvent);
         }
@@ -134,6 +223,8 @@ void UIContext::ProcessInputEvents(InputManager& input)
             moveEvent.type = UIEventType::MouseMove;
             moveEvent.mouseX = mx;
             moveEvent.mouseY = my;
+            moveEvent.localX = hitLocal.x;
+            moveEvent.localY = hitLocal.y;
             moveEvent.target = hitWidget;
             DispatchEvent(moveEvent);
         }
@@ -155,6 +246,8 @@ void UIContext::ProcessInputEvents(InputManager& input)
             downEvent.type = UIEventType::MouseDown;
             downEvent.mouseX = mx;
             downEvent.mouseY = my;
+            downEvent.localX = hitLocal.x;
+            downEvent.localY = hitLocal.y;
             downEvent.mouseButton = MouseButton::Left;
             downEvent.target = hitWidget;
             DispatchEvent(downEvent);
@@ -173,10 +266,14 @@ void UIContext::ProcessInputEvents(InputManager& input)
         {
             m_pressedWidget->pressed = false;
 
+            XMFLOAT2 pressedLocal = ComputeLocalPoint(m_pressedWidget, mx, my);
+
             UIEvent upEvent;
             upEvent.type = UIEventType::MouseUp;
             upEvent.mouseX = mx;
             upEvent.mouseY = my;
+            upEvent.localX = pressedLocal.x;
+            upEvent.localY = pressedLocal.y;
             upEvent.mouseButton = MouseButton::Left;
             upEvent.target = m_pressedWidget;
             DispatchEvent(upEvent);
@@ -188,6 +285,8 @@ void UIContext::ProcessInputEvents(InputManager& input)
                 clickEvent.type = UIEventType::Click;
                 clickEvent.mouseX = mx;
                 clickEvent.mouseY = my;
+                clickEvent.localX = pressedLocal.x;
+                clickEvent.localY = pressedLocal.y;
                 clickEvent.target = m_pressedWidget;
                 DispatchEvent(clickEvent);
 
@@ -206,6 +305,8 @@ void UIContext::ProcessInputEvents(InputManager& input)
         wheelEvent.type = UIEventType::MouseWheel;
         wheelEvent.mouseX = mx;
         wheelEvent.mouseY = my;
+        wheelEvent.localX = hitLocal.x;
+        wheelEvent.localY = hitLocal.y;
         wheelEvent.wheelDelta = wheelDelta;
         wheelEvent.target = hitWidget;
         DispatchEvent(wheelEvent);
@@ -293,6 +394,28 @@ void UIContext::DispatchEvent(UIEvent& event)
 {
     if (!event.target) return;
 
+    auto applyLocalPoint = [&](Widget* w)
+    {
+        switch (event.type)
+        {
+        case UIEventType::MouseDown:
+        case UIEventType::MouseUp:
+        case UIEventType::MouseMove:
+        case UIEventType::MouseWheel:
+        case UIEventType::MouseEnter:
+        case UIEventType::MouseLeave:
+        case UIEventType::Click:
+        {
+            XMFLOAT2 local = ComputeLocalPoint(w, event.mouseX, event.mouseY);
+            event.localX = local.x;
+            event.localY = local.y;
+            break;
+        }
+        default:
+            break;
+        }
+    };
+
     // 祖先パスを収集（ルート→ターゲットの順）
     std::vector<Widget*> path;
     CollectAncestors(event.target, path);
@@ -302,6 +425,7 @@ void UIContext::DispatchEvent(UIEvent& event)
     for (auto* w : path)
     {
         if (event.stopPropagation) break;
+        applyLocalPoint(w);
         w->OnEvent(event);
     }
 
@@ -309,6 +433,7 @@ void UIContext::DispatchEvent(UIEvent& event)
     if (!event.stopPropagation)
     {
         event.phase = UIEventPhase::Target;
+        applyLocalPoint(event.target);
         event.target->OnEvent(event);
     }
 
@@ -317,6 +442,7 @@ void UIContext::DispatchEvent(UIEvent& event)
     for (int i = static_cast<int>(path.size()) - 1; i >= 0; --i)
     {
         if (event.stopPropagation) break;
+        applyLocalPoint(path[i]);
         path[i]->OnEvent(event);
     }
 }
@@ -340,30 +466,7 @@ void UIContext::CollectAncestors(Widget* widget, std::vector<Widget*>& path)
 
 Widget* UIContext::HitTest(Widget* widget, float x, float y)
 {
-    if (!widget->visible || !widget->enabled) return nullptr;
-
-    // overflow:hidden/scroll の場合、親矩形外の子をスキップ
-    bool clipChildren = (widget->computedStyle.overflow == OverflowMode::Hidden ||
-                         widget->computedStyle.overflow == OverflowMode::Scroll);
-    if (clipChildren && !widget->globalRect.Contains(x, y))
-    {
-        // 自身の矩形外 → 子もクリップされるため自身のみテスト
-        return nullptr;
-    }
-
-    // 子を逆順（前面優先）で走査
-    const auto& children = widget->GetChildren();
-    for (int i = static_cast<int>(children.size()) - 1; i >= 0; --i)
-    {
-        Widget* hit = HitTest(children[i].get(), x, y);
-        if (hit) return hit;
-    }
-
-    // 自身の矩形でテスト
-    if (widget->globalRect.Contains(x, y))
-        return widget;
-
-    return nullptr;
+    return HitTestInternal(widget, x, y, Transform2D::Identity(), nullptr);
 }
 
 // ============================================================================

@@ -45,12 +45,12 @@ bool Slider::OnEvent(const UIEvent& event)
     if (event.type == UIEventType::MouseDown)
     {
         m_dragging = true;
-        SetValue(ScreenXToValue(event.mouseX));
+        SetValue(ScreenXToValue(event.localX));
         return true;
     }
     else if (event.type == UIEventType::MouseMove && m_dragging)
     {
-        SetValue(ScreenXToValue(event.mouseX));
+        SetValue(ScreenXToValue(event.localX));
         return true;
     }
     else if (event.type == UIEventType::MouseUp)
@@ -64,7 +64,7 @@ bool Slider::OnEvent(const UIEvent& event)
     return false;
 }
 
-void Slider::Render(UIRenderer& renderer)
+void Slider::RenderSelf(UIRenderer& renderer)
 {
     float range = m_max - m_min;
     float t = (range > 0.0f) ? (m_value - m_min) / range : 0.0f;
@@ -99,7 +99,7 @@ void Slider::Render(UIRenderer& renderer)
     thumbStyle.cornerRadius = k_ThumbSize * 0.5f;
     thumbStyle.borderWidth = 1.0f;
     thumbStyle.borderColor = { 0.2f, 0.4f, 0.7f, 1.0f };
-    renderer.DrawRect(thumbRect, thumbStyle, opacity);
+    renderer.DrawRect(thumbRect, thumbStyle, 1.0f);
 }
 
 }} // namespace GX::GUI

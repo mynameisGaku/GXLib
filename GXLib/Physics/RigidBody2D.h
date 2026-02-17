@@ -70,6 +70,21 @@ public:
     /// @return 逆質量 (1/mass)、非Dynamicの場合は0
     float InverseMass() const { return (bodyType == BodyType2D::Dynamic && mass > 0.0f) ? 1.0f / mass : 0.0f; }
 
+    /// @brief 逆慣性モーメントを取得する (Static/Kinematicは0を返す)
+    /// @return 逆慣性モーメント、非Dynamicの場合は0
+    float InverseInertia() const
+    {
+        if (InverseMass() <= 0.0f) return 0.0f;
+        if (shape.type == ShapeType2D::Circle)
+            return 2.0f / (mass * shape.radius * shape.radius);
+        else // AABB
+        {
+            float w = shape.halfExtents.x * 2.0f;
+            float h = shape.halfExtents.y * 2.0f;
+            return 12.0f / (mass * (w * w + h * h));
+        }
+    }
+
     Vector2 m_forceAccum;           ///< 蓄積された力 (Stepで消費される)
     float m_torqueAccum = 0.0f;     ///< 蓄積されたトルク (Stepで消費される)
 };

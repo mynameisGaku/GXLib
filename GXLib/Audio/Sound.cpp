@@ -42,6 +42,7 @@ bool Sound::LoadFromFile(const std::wstring& filePath)
     // RIFFヘッダー読み込み
     RiffHeader riff = {};
     file.read(reinterpret_cast<char*>(&riff), sizeof(RiffHeader));
+    if (!file.good()) return false;
 
     if (riff.riffId != MakeTag('R', 'I', 'F', 'F') ||
         riff.waveId != MakeTag('W', 'A', 'V', 'E'))
@@ -66,6 +67,7 @@ bool Sound::LoadFromFile(const std::wstring& filePath)
             m_format = {};
             uint32_t readSize = (std::min)(chunk.size, static_cast<uint32_t>(sizeof(WAVEFORMATEX)));
             file.read(reinterpret_cast<char*>(&m_format), readSize);
+            if (!file.good()) return false;
 
             // 残りをスキップ
             if (chunk.size > readSize)
@@ -78,6 +80,7 @@ bool Sound::LoadFromFile(const std::wstring& filePath)
             // dataチャンク: PCMデータ
             m_pcmData.resize(chunk.size);
             file.read(reinterpret_cast<char*>(m_pcmData.data()), chunk.size);
+            if (!file.good()) return false;
             foundData = true;
             break;  // dataが見つかったら終了
         }

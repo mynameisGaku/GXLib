@@ -23,6 +23,13 @@ cbuffer UIRectCB : register(b0)
     float2   cb_gradientDir;
     float    cb_gradientEnabled;
     float    cb_pad2;
+    float2   cb_effectCenter;
+    float    cb_effectTime;
+    float    cb_effectDuration;
+    float    cb_effectStrength;
+    float    cb_effectWidth;
+    float    cb_effectType;
+    float    cb_pad3;
 };
 
 struct VSInput
@@ -125,6 +132,22 @@ float4 PSMain(VSOutput input) : SV_Target
         uv = saturate(uv);
         float t = saturate(dot(uv - 0.5, dir) + 0.5);
         fillColor = lerp(cb_fillColor, cb_gradientColor, t);
+    }
+
+    // Ripple effect
+    if (cb_effectType > 0.5 && cb_effectDuration > 0.0f)
+    {
+        float2 uv = input.localUV / cb_rectSize;
+        uv = saturate(uv);
+        float rippleDist = length(uv - cb_effectCenter);
+        float t = saturate(cb_effectTime / cb_effectDuration);
+        float radius = t;
+        float w = max(cb_effectWidth, 0.0001f);
+        float ring = smoothstep(radius - w, radius, rippleDist) *
+                     (1.0f - smoothstep(radius, radius + w, rippleDist));
+        float fade = 1.0f - t;
+        float ripple = ring * cb_effectStrength * fade;
+        fillColor.rgb = lerp(fillColor.rgb, float3(1.0f, 1.0f, 1.0f), ripple);
     }
 
     // 塗りレイヤー（影の上に重ねる）

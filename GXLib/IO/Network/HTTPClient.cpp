@@ -18,6 +18,15 @@ HTTPClient::HTTPClient()
 
 HTTPClient::~HTTPClient()
 {
+    m_running.store(false);
+
+    for (auto& t : m_threads)
+    {
+        if (t.joinable())
+            t.join();
+    }
+    m_threads.clear();
+
     if (m_hSession)
         WinHttpCloseHandle(static_cast<HINTERNET>(m_hSession));
 }
@@ -192,22 +201,46 @@ HTTPResponse HTTPClient::Post(const std::string& url, const std::string& body,
 void HTTPClient::GetAsync(const std::string& url,
                             std::function<void(HTTPResponse)> callback)
 {
-    std::thread([this, url, callback]() {
+    // Remove finished threads before adding a new one
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_threads.erase(
+            std::remove_if(m_threads.begin(), m_threads.end(),
+                [](std::thread& t) { return !t.joinable(); }),
+            m_threads.end());
+    }
+
+    std::thread t([this, url, callback]() {
         auto resp = Get(url);
         std::lock_guard<std::mutex> lock(m_mutex);
         m_completedQueue.push_back({ std::move(resp), std::move(callback) });
-    }).detach();
+    });
+
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_threads.push_back(std::move(t));
 }
 
 void HTTPClient::PostAsync(const std::string& url, const std::string& body,
                              const std::string& contentType,
                              std::function<void(HTTPResponse)> callback)
 {
-    std::thread([this, url, body, contentType, callback]() {
+    // Remove finished threads before adding a new one
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_threads.erase(
+            std::remove_if(m_threads.begin(), m_threads.end(),
+                [](std::thread& t) { return !t.joinable(); }),
+            m_threads.end());
+    }
+
+    std::thread t([this, url, body, contentType, callback]() {
         auto resp = Post(url, body, contentType);
         std::lock_guard<std::mutex> lock(m_mutex);
         m_completedQueue.push_back({ std::move(resp), std::move(callback) });
-    }).detach();
+    });
+
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_threads.push_back(std::move(t));
 }
 
 void HTTPClient::Update()

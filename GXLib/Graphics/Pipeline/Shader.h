@@ -55,6 +55,9 @@ public:
                                const std::wstring& target,
                                const std::vector<std::pair<std::wstring, std::wstring>>& defines);
 
+    /// HLSLファイルをシェーダーライブラリとしてコンパイル（DXR用、lib_6_3ターゲット）
+    ShaderBlob CompileLibrary(const std::wstring& filePath);
+
     /// コンパイルエラーメッセージを取得（直前のCompileFromFileが失敗した場合）
     const std::string& GetLastError() const { return m_lastError; }
 

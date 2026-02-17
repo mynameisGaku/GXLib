@@ -103,7 +103,7 @@ bool Texture::UploadToGPU(ID3D12Device* device,
     const uint32_t bytesPerPixel = 4;
     const uint32_t rowPitch = (width * bytesPerPixel + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1)
                               & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1);
-    const uint32_t uploadSize = rowPitch * height;
+    const uint64_t uploadSize = static_cast<uint64_t>(rowPitch) * height;
 
     D3D12_HEAP_PROPERTIES uploadHeap = {};
     uploadHeap.Type = D3D12_HEAP_TYPE_UPLOAD;
@@ -147,7 +147,7 @@ bool Texture::UploadToGPU(ID3D12Device* device,
     uint8_t* dstData = static_cast<uint8_t*>(mapped);
     for (uint32_t y = 0; y < height; ++y)
     {
-        memcpy(dstData + y * rowPitch, srcData + y * width * bytesPerPixel, width * bytesPerPixel);
+        memcpy(dstData + static_cast<uint64_t>(y) * rowPitch, srcData + static_cast<uint64_t>(y) * width * bytesPerPixel, width * bytesPerPixel);
     }
     uploadBuffer->Unmap(0, nullptr);
 
@@ -211,6 +211,11 @@ bool Texture::UploadToGPU(ID3D12Device* device,
     }
 
     HANDLE event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+    if (!event)
+    {
+        GX_LOG_ERROR("Texture: Failed to create event");
+        return false;
+    }
     cmdQueue->Signal(fence.Get(), 1);
     fence->SetEventOnCompletion(1, event);
     WaitForSingleObject(event, INFINITE);
@@ -245,7 +250,7 @@ bool Texture::UpdatePixels(ID3D12Device* device,
     const uint32_t bytesPerPixel = 4;
     const uint32_t rowPitch = (width * bytesPerPixel + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1)
                               & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1);
-    const uint32_t uploadSize = rowPitch * height;
+    const uint64_t uploadSize = static_cast<uint64_t>(rowPitch) * height;
 
     // UPLOADヒープにステージングバッファを作成
     D3D12_HEAP_PROPERTIES uploadHeap = {};
@@ -285,7 +290,7 @@ bool Texture::UpdatePixels(ID3D12Device* device,
     uint8_t* dstData = static_cast<uint8_t*>(mapped);
     for (uint32_t y = 0; y < height; ++y)
     {
-        memcpy(dstData + y * rowPitch, srcData + y * width * bytesPerPixel, width * bytesPerPixel);
+        memcpy(dstData + static_cast<uint64_t>(y) * rowPitch, srcData + static_cast<uint64_t>(y) * width * bytesPerPixel, width * bytesPerPixel);
     }
     uploadBuffer->Unmap(0, nullptr);
 
@@ -354,6 +359,11 @@ bool Texture::UpdatePixels(ID3D12Device* device,
     }
 
     HANDLE event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+    if (!event)
+    {
+        GX_LOG_ERROR("Texture: Failed to create event");
+        return false;
+    }
     cmdQueue->Signal(fence.Get(), 1);
     fence->SetEventOnCompletion(1, event);
     WaitForSingleObject(event, INFINITE);

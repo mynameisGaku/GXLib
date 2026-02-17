@@ -2,6 +2,7 @@
 /// @brief 3Dレンダラーの実装
 #include "pch.h"
 #include "Graphics/3D/Renderer3D.h"
+#include "Graphics/3D/ShaderModelConstants.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
@@ -111,10 +112,21 @@ bool Renderer3D::Initialize(ID3D12Device* device, ID3D12CommandQueue* cmdQueue,
     if (!CreateShadowPipelineState(device))
         return false;
 
+    // シェーダーモデルPSOレジストリ初期化
+    if (!m_shaderRegistry.Initialize(device, m_rootSignature.Get()))
+    {
+        GX_LOG_ERROR("Renderer3D: Failed to initialize ShaderRegistry");
+        return false;
+    }
+
     // ホットリロード用PSO Rebuilder登録
     ShaderLibrary::Instance().RegisterPSORebuilder(
         L"Shaders/PBR.hlsl",
-        [this](ID3D12Device* dev) { return CreatePipelineState(dev); }
+        [this](ID3D12Device* dev) {
+            bool ok = CreatePipelineState(dev);
+            m_shaderRegistry.Rebuild(dev);
+            return ok;
+        }
     );
     ShaderLibrary::Instance().RegisterPSORebuilder(
         L"Shaders/ShadowDepth.hlsl",
@@ -159,12 +171,20 @@ bool Renderer3D::CreatePipelineState(ID3D12Device* device)
     }
 
     // ルートシグネチャ
-    // ルートパラメータ0: b0 ObjectConstants (CBV)
-    // ルートパラメータ1: b1 FrameConstants  (CBV)
-    // ルートパラメータ2: b2 LightConstants  (CBV)
-    // ルートパラメータ3: b3 MaterialConstants (CBV)
-    // ルートパラメータ4: テクスチャ用ディスクリプタテーブル (t0-t4)
-    // ルートパラメータ5: シャドウマップ用ディスクリプタテーブル (t8-t11)
+    // ルートパラメータ 0: b0 ObjectConstants (CBV)
+    // ルートパラメータ 1: b1 FrameConstants  (CBV)
+    // ルートパラメータ 2: b2 LightConstants  (CBV)
+    // ルートパラメータ 3: b3 ShaderModelGPUParams (CBV, 256B)
+    // ルートパラメータ 4: b4 BoneConstants   (CBV)
+    // ルートパラメータ 5: t0 albedo
+    // ルートパラメータ 6: t1 normal
+    // ルートパラメータ 7: t2 met/rough
+    // ルートパラメータ 8: t3 AO
+    // ルートパラメータ 9: t4 emissive
+    // ルートパラメータ10: t5 toonRamp
+    // ルートパラメータ11: t6 subsurfaceMap
+    // ルートパラメータ12: t7 clearCoatMask
+    // ルートパラメータ13: t8-t13 shadow maps
     // s0: リニアWrapサンプラ
     // s2: PCF用の比較サンプラ（影のソフト化）
     RootSignatureBuilder rsBuilder;
@@ -173,7 +193,7 @@ bool Renderer3D::CreatePipelineState(ID3D12Device* device)
         .AddCBV(0)  // b0: ObjectConstants
         .AddCBV(1)  // b1: FrameConstants
         .AddCBV(2)  // b2: LightConstants
-        .AddCBV(3)  // b3: MaterialConstants
+        .AddCBV(3)  // b3: ShaderModelGPUParams
         .AddCBV(4)  // b4: BoneConstants
         .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, 0,
                             D3D12_SHADER_VISIBILITY_PIXEL)  // t0: albedo
@@ -185,6 +205,12 @@ bool Renderer3D::CreatePipelineState(ID3D12Device* device)
                             D3D12_SHADER_VISIBILITY_PIXEL)  // t3: AO
         .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 1, 0,
                             D3D12_SHADER_VISIBILITY_PIXEL)  // t4: emissive
+        .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 5, 1, 0,
+                            D3D12_SHADER_VISIBILITY_PIXEL)  // t5: toonRamp
+        .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 6, 1, 0,
+                            D3D12_SHADER_VISIBILITY_PIXEL)  // t6: subsurfaceMap
+        .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 7, 1, 0,
+                            D3D12_SHADER_VISIBILITY_PIXEL)  // t7: clearCoatMask
         .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 8, 6, 0,
                             D3D12_SHADER_VISIBILITY_PIXEL)  // t8-t13: シャドウマップ（CSM + Spot + Point）
         .AddStaticSampler(0)  // s0: リニアWrapサンプラ
@@ -202,7 +228,9 @@ bool Renderer3D::CreatePipelineState(ID3D12Device* device)
         .SetVertexShader(vsBlob.GetBytecode())
         .SetPixelShader(psBlob.GetBytecode())
         .SetInputLayout(k_Vertex3DPBRLayout, _countof(k_Vertex3DPBRLayout))
-        .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT)  // HDR用RT
+        .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT, 0)  // HDR用RT
+        .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT, 1)  // Normal RT
+        .SetRenderTargetFormat(DXGI_FORMAT_R8G8B8A8_UNORM, 2)     // Albedo RT (GI用)
         .SetDepthFormat(DXGI_FORMAT_D32_FLOAT)
         .SetDepthEnable(true)
         .SetCullMode(D3D12_CULL_MODE_BACK)
@@ -214,7 +242,9 @@ bool Renderer3D::CreatePipelineState(ID3D12Device* device)
         .SetVertexShader(vsSkinned.GetBytecode())
         .SetPixelShader(psSkinned.GetBytecode())
         .SetInputLayout(k_Vertex3DSkinnedLayout, _countof(k_Vertex3DSkinnedLayout))
-        .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT)
+        .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT, 0)
+        .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT, 1)  // Normal RT
+        .SetRenderTargetFormat(DXGI_FORMAT_R8G8B8A8_UNORM, 2)     // Albedo RT (GI用)
         .SetDepthFormat(DXGI_FORMAT_D32_FLOAT)
         .SetDepthEnable(true)
         .SetCullMode(D3D12_CULL_MODE_BACK)
@@ -301,7 +331,9 @@ int Renderer3D::CreateMaterialShader(const ShaderProgramDesc& desc)
         .SetVertexShader(vsBlob.GetBytecode())
         .SetPixelShader(psBlob.GetBytecode())
         .SetInputLayout(k_Vertex3DPBRLayout, _countof(k_Vertex3DPBRLayout))
-        .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT)
+        .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT, 0)
+        .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT, 1)  // Normal RT
+        .SetRenderTargetFormat(DXGI_FORMAT_R8G8B8A8_UNORM, 2)     // Albedo RT (GI用)
         .SetDepthFormat(DXGI_FORMAT_D32_FLOAT)
         .SetDepthEnable(true)
         .SetCullMode(D3D12_CULL_MODE_BACK)
@@ -313,7 +345,9 @@ int Renderer3D::CreateMaterialShader(const ShaderProgramDesc& desc)
         .SetVertexShader(vsSkinned.GetBytecode())
         .SetPixelShader(psSkinned.GetBytecode())
         .SetInputLayout(k_Vertex3DSkinnedLayout, _countof(k_Vertex3DSkinnedLayout))
-        .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT)
+        .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT, 0)
+        .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT, 1)  // Normal RT
+        .SetRenderTargetFormat(DXGI_FORMAT_R8G8B8A8_UNORM, 2)     // Albedo RT (GI用)
         .SetDepthFormat(DXGI_FORMAT_D32_FLOAT)
         .SetDepthEnable(true)
         .SetCullMode(D3D12_CULL_MODE_BACK)
@@ -329,6 +363,11 @@ int Renderer3D::CreateMaterialShader(const ShaderProgramDesc& desc)
 
 void Renderer3D::BindPipeline(bool skinned, int shaderHandle)
 {
+    BindPipelineForModel(skinned, shaderHandle, gxfmt::ShaderModel::Standard);
+}
+
+void Renderer3D::BindPipelineForModel(bool skinned, int shaderHandle, gxfmt::ShaderModel model)
+{
     ID3D12PipelineState* target = nullptr;
     if (m_inShadowPass)
     {
@@ -341,6 +380,11 @@ void Renderer3D::BindPipeline(bool skinned, int shaderHandle)
             target = skinned ? it->second.psoSkinned.Get() : it->second.pso.Get();
     }
 
+    // シェーダーモデルに対応するPSOを取得
+    if (!target)
+        target = m_shaderRegistry.GetPSO(model, skinned);
+
+    // フォールバック: Standard PSO
     if (!target)
         target = skinned ? m_psoSkinned.Get() : m_pso.Get();
 
@@ -759,14 +803,62 @@ void Renderer3D::Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
     m_cmdList->SetGraphicsRootConstantBufferView(1, m_frameCB.GetGPUVirtualAddress(frameIndex));
     m_cmdList->SetGraphicsRootConstantBufferView(2, m_lightCB.GetGPUVirtualAddress(frameIndex));
 
-    // シャドウマップSRVバインド（Root Param 5: t8-t11）
+    // シャドウマップSRVバインド（Root Param 10: t8-t13 = CSM4 + Spot + Point）
     if (m_shadowEnabled)
     {
-        m_cmdList->SetGraphicsRootDescriptorTable(10, m_csm.GetSRVGPUHandle());
+        // 未使用シャドウマップがDEPTH_WRITEのままの場合、SRV状態に遷移
+        // (スポット/ポイントライトがないシーンで影パスがスキップされた場合)
+        D3D12_RESOURCE_BARRIER barriers[2] = {};
+        uint32_t barrierCount = 0;
+
+        if (m_spotShadowMap.GetCurrentState() != D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
+        {
+            auto& b = barriers[barrierCount++];
+            b.Type                   = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            b.Transition.pResource   = m_spotShadowMap.GetResource();
+            b.Transition.StateBefore = m_spotShadowMap.GetCurrentState();
+            b.Transition.StateAfter  = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+            b.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+            m_spotShadowMap.SetCurrentState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        }
+
+        if (m_pointShadowMap.GetCurrentState() != D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
+        {
+            auto& b = barriers[barrierCount++];
+            b.Type                   = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            b.Transition.pResource   = m_pointShadowMap.GetResource();
+            b.Transition.StateBefore = m_pointShadowMap.GetCurrentState();
+            b.Transition.StateAfter  = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+            b.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+            m_pointShadowMap.SetCurrentState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        }
+
+        if (barrierCount > 0)
+            m_cmdList->ResourceBarrier(barrierCount, barriers);
+
+        m_cmdList->SetGraphicsRootDescriptorTable(13, m_csm.GetSRVGPUHandle());
     }
 
     // トポロジ
     m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    // boneCBをidentity行列で初期化（DrawModel()がスキンドPSOを使う場合のフォールバック）
+    {
+        BoneConstants identityBones{};
+        XMFLOAT4X4 identity;
+        XMStoreFloat4x4(&identity, XMMatrixIdentity());
+        for (uint32_t i = 0; i < BoneConstants::k_MaxBones; ++i)
+            identityBones.boneMatrices[i] = identity;
+
+        void* boneData = m_boneCB.Map(frameIndex);
+        if (boneData)
+        {
+            memcpy(boneData, &identityBones, sizeof(BoneConstants));
+            m_boneCB.Unmap(frameIndex);
+        }
+        m_cmdList->SetGraphicsRootConstantBufferView(
+            4, m_boneCB.GetGPUVirtualAddress(frameIndex));
+    }
 
     // デフォルトマテリアル適用
     SetMaterial(m_defaultMaterial);
@@ -786,16 +878,32 @@ void Renderer3D::SetMaterial(const Material& material)
 {
     if (m_inShadowPass) return;  // シャドウパスではマテリアル不要
 
-    // マテリアル定数バッファ更新（リングバッファ方式）
+    // マテリアル定数バッファ更新（リングバッファ方式、256B ShaderModelGPUParams）
     if (m_materialCBMapped)
     {
-        memcpy(m_materialCBMapped + m_materialCBOffset, &material.constants, sizeof(MaterialConstants));
+        ShaderModelGPUParams gpuParams = ConvertToGPUParams(
+            material.shaderParams, material.shaderModel, material.constants.flags);
+
+        // 後方互換: shaderParamsが未設定（ShaderModel::Standard かつ既存APIコール）の場合
+        // MaterialConstantsからの変換を使用
+        if (material.shaderModel == gxfmt::ShaderModel::Standard &&
+            material.shaderParams.baseColor[0] == 1.0f &&
+            material.shaderParams.baseColor[1] == 1.0f &&
+            material.shaderParams.baseColor[2] == 1.0f &&
+            material.shaderParams.baseColor[3] == 1.0f &&
+            material.shaderParams.metallic == 0.0f &&
+            material.shaderParams.roughness == 0.5f)
+        {
+            gpuParams = ConvertFromLegacy(material.constants);
+        }
+
+        memcpy(m_materialCBMapped + m_materialCBOffset, &gpuParams, sizeof(ShaderModelGPUParams));
     }
     m_cmdList->SetGraphicsRootConstantBufferView(
         3, m_materialCB.GetGPUVirtualAddress(m_frameIndex) + m_materialCBOffset);
     m_materialCBOffset += 256;
 
-    // テクスチャバインド（t0-t4）
+    // テクスチャバインド（t0-t7）
     auto bindTex = [this](uint32_t rootIndex, int handle, int fallback)
     {
         int useHandle = (handle >= 0) ? handle : fallback;
@@ -805,11 +913,14 @@ void Renderer3D::SetMaterial(const Material& material)
             m_cmdList->SetGraphicsRootDescriptorTable(rootIndex, tex->GetSRVGPUHandle());
     };
 
-    bindTex(5, material.albedoMapHandle, m_defaultWhiteTex);
-    bindTex(6, material.normalMapHandle, m_defaultNormalTex);
-    bindTex(7, material.metRoughMapHandle, m_defaultWhiteTex);
-    bindTex(8, material.aoMapHandle, m_defaultWhiteTex);
-    bindTex(9, material.emissiveMapHandle, m_defaultBlackTex);
+    bindTex(5,  material.albedoMapHandle,        m_defaultWhiteTex);
+    bindTex(6,  material.normalMapHandle,        m_defaultNormalTex);
+    bindTex(7,  material.metRoughMapHandle,      m_defaultWhiteTex);
+    bindTex(8,  material.aoMapHandle,            m_defaultWhiteTex);
+    bindTex(9,  material.emissiveMapHandle,      m_defaultBlackTex);
+    bindTex(10, material.toonRampMapHandle,      m_defaultWhiteTex);
+    bindTex(11, material.subsurfaceMapHandle,    m_defaultWhiteTex);
+    bindTex(12, material.clearCoatMaskMapHandle, m_defaultBlackTex);
 }
 
 void Renderer3D::DrawMesh(const GPUMesh& mesh, const Transform3D& transform)
@@ -897,6 +1008,7 @@ void Renderer3D::DrawTerrain(const Terrain& terrain, const Transform3D& transfor
 void Renderer3D::DrawModel(const Model& model, const Transform3D& transform)
 {
     // オブジェクト定数バッファ更新（リングバッファ方式）
+    uint32_t objectCBOffsetForThisModel = m_objectCBOffset;
     if (m_objectCBMapped)
     {
         ObjectConstants oc;
@@ -914,24 +1026,70 @@ void Renderer3D::DrawModel(const Model& model, const Transform3D& transform)
     m_cmdList->IASetIndexBuffer(&ibv);
 
     bool skinned = model.IsSkinned();
+    bool hasToonSubMesh = false;
+
     for (const auto& sub : model.GetMesh().GetSubMeshes())
     {
         int shaderHandle = sub.shaderHandle;
         Material* mat = nullptr;
+        gxfmt::ShaderModel shaderModel = gxfmt::ShaderModel::Standard;
+
         if (!m_inShadowPass)
         {
             if (sub.materialHandle >= 0)
                 mat = m_materialManager.GetMaterial(sub.materialHandle);
-            if (shaderHandle < 0 && mat && mat->shaderHandle >= 0)
-                shaderHandle = mat->shaderHandle;
+            if (mat)
+            {
+                shaderModel = mat->shaderModel;
+                if (shaderHandle < 0 && mat->shaderHandle >= 0)
+                    shaderHandle = mat->shaderHandle;
+            }
         }
 
-        BindPipeline(skinned, shaderHandle);
+        BindPipelineForModel(skinned, shaderHandle, shaderModel);
 
         if (!m_inShadowPass && mat)
             SetMaterial(*mat);
 
         m_cmdList->DrawIndexedInstanced(sub.indexCount, 1, sub.indexOffset, 0, 0);
+
+        if (shaderModel == gxfmt::ShaderModel::Toon)
+            hasToonSubMesh = true;
+    }
+
+    // Toonアウトラインパス（メインパスのみ、シャドウパスではスキップ）
+    if (!m_inShadowPass && hasToonSubMesh)
+    {
+        // オブジェクトCBを再バインド（同じオフセット）
+        m_cmdList->SetGraphicsRootConstantBufferView(
+            0, m_objectCB.GetGPUVirtualAddress(m_frameIndex) + objectCBOffsetForThisModel);
+
+        for (const auto& sub : model.GetMesh().GetSubMeshes())
+        {
+            Material* mat = nullptr;
+            if (sub.materialHandle >= 0)
+                mat = m_materialManager.GetMaterial(sub.materialHandle);
+
+            if (!mat || mat->shaderModel != gxfmt::ShaderModel::Toon)
+                continue;
+
+            // アウトライン幅が0ならスキップ
+            if (mat->shaderParams.outlineWidth <= 0.0f)
+                continue;
+
+            // アウトラインPSOにバインド
+            ID3D12PipelineState* outlinePso = m_shaderRegistry.GetToonOutlinePSO(skinned);
+            if (outlinePso && outlinePso != m_currentPso)
+            {
+                m_cmdList->SetPipelineState(outlinePso);
+                m_currentPso = outlinePso;
+            }
+
+            // マテリアル再バインド（アウトラインシェーダーがパラメータを必要とする）
+            SetMaterial(*mat);
+
+            m_cmdList->DrawIndexedInstanced(sub.indexCount, 1, sub.indexOffset, 0, 0);
+        }
     }
 }
 

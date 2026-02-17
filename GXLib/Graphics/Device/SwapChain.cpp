@@ -2,6 +2,7 @@
 /// @brief スワップチェーン管理の実装
 #include "pch.h"
 #include "Graphics/Device/SwapChain.h"
+#include "Graphics/Device/Fence.h"
 #include "Core/Logger.h"
 
 namespace GX
@@ -70,10 +71,17 @@ void SwapChain::Present(bool vsync)
     m_swapChain->Present(syncInterval, flags);
 }
 
-bool SwapChain::Resize(ID3D12Device* device, uint32_t width, uint32_t height)
+bool SwapChain::Resize(ID3D12Device* device, uint32_t width, uint32_t height,
+                       ID3D12CommandQueue* queue, Fence* fence)
 {
     if (width == 0 || height == 0)
         return false;
+
+    // GPU同期: バックバッファ解放前にGPUの描画完了を待つ
+    if (queue && fence)
+    {
+        fence->WaitForGPU(queue);
+    }
 
     m_width  = width;
     m_height = height;

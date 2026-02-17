@@ -1,30 +1,58 @@
-/// @file Samples/Walkthrough3D/main.cpp
-/// @brief GXFrameworkの3Dウォークスルー例。カメラ移動の基本操作を示す。
-
-#include "FrameworkApp.h"
-#include "GameScene.h"
-
+﻿/// @file Samples/Walkthrough3D/main.cpp
+/// @brief 3Dウォークスルー。WASD/QEで移動するサンプル。
+#include "GXEasy.h"
+#include "Compat/CompatContext.h"
 #include "Graphics/3D/MeshData.h"
 #include "Graphics/3D/Light.h"
 #include "Graphics/3D/Material.h"
 #include "Graphics/3D/Fog.h"
 
 #include <format>
+#include <string>
+#include <Windows.h>
 
-namespace
+#ifdef UNICODE
+using TChar = wchar_t;
+#else
+using TChar = char;
+#endif
+
+using TString = std::basic_string<TChar>;
+
+template <class... Args>
+TString FormatT(const TChar* fmt, Args&&... args)
 {
+#ifdef UNICODE
+    return std::vformat(fmt, std::make_wformat_args(std::forward<Args>(args)...));
+#else
+    return std::vformat(fmt, std::make_format_args(std::forward<Args>(args)...));
+#endif
+}
 
-class WalkthroughScene : public GXFW::GameScene
+class WalkthroughApp : public GXEasy::App
 {
 public:
-    const char* GetName() const override { return "Walkthrough3D"; }
-
-protected:
-    void OnSceneEnter(GXFW::SceneContext& ctx) override
+    GXEasy::AppConfig GetConfig() const override
     {
-        auto& renderer = *ctx.renderer;
-        auto& camera = *ctx.camera;
-        auto& postFX = *ctx.postFX;
+        GXEasy::AppConfig config;
+        config.title = L"GXLib Sample: Walkthrough3D";
+        config.width = 1280;
+        config.height = 720;
+        config.bgR = 6;
+        config.bgG = 8;
+        config.bgB = 18;
+        return config;
+    }
+
+    void Start() override
+    {
+        auto& ctx = GX_Internal::CompatContext::Instance();
+        auto& renderer = ctx.renderer3D;
+        auto& camera = ctx.camera;
+        auto& postFX = ctx.postEffect;
+
+        // シャドウパスをこのサンプルでは回さないため、シャドウは無効化しておく
+        renderer.SetShadowEnabled(false);
 
         postFX.SetTonemapMode(GX::TonemapMode::ACES);
         postFX.GetBloom().SetEnabled(true);
@@ -77,15 +105,20 @@ protected:
         renderer.GetSkybox().SetSun({ 0.3f, -1.0f, 0.5f }, 5.0f);
         renderer.GetSkybox().SetColors({ 0.5f, 0.55f, 0.6f }, { 0.75f, 0.75f, 0.75f });
 
-        camera.SetPerspective(XM_PIDIV4, (float)ctx.swapChain->GetWidth() / ctx.swapChain->GetHeight(), 0.1f, 500.0f);
+        float aspect = static_cast<float>(ctx.swapChain.GetWidth()) / ctx.swapChain.GetHeight();
+        camera.SetPerspective(XM_PIDIV4, aspect, 0.1f, 500.0f);
         camera.SetPosition(0.0f, 3.0f, -8.0f);
         camera.Rotate(0.3f, 0.0f);
     }
 
-    void OnSceneUpdate(GXFW::SceneContext& ctx, float dt) override
+    void Update(float dt) override
     {
-        auto& camera = *ctx.camera;
-        auto& mouse = ctx.input->GetMouse();
+        auto& ctx = GX_Internal::CompatContext::Instance();
+        auto& camera = ctx.camera;
+        auto& mouse = ctx.inputManager.GetMouse();
+
+        m_totalTime += dt;
+        m_lastDt = dt;
 
         if (mouse.IsButtonTriggered(GX::MouseButton::Right))
         {
@@ -101,6 +134,7 @@ protected:
                 ShowCursor(TRUE);
             }
         }
+
         if (m_mouseCaptured)
         {
             int mx = mouse.GetX();
@@ -111,56 +145,74 @@ protected:
         }
 
         float speed = m_cameraSpeed * dt;
-        if (ctx.input->CheckHitKey(VK_SHIFT)) speed *= 3.0f;
-        if (ctx.input->CheckHitKey('W')) camera.MoveForward(speed);
-        if (ctx.input->CheckHitKey('S')) camera.MoveForward(-speed);
-        if (ctx.input->CheckHitKey('D')) camera.MoveRight(speed);
-        if (ctx.input->CheckHitKey('A')) camera.MoveRight(-speed);
-        if (ctx.input->CheckHitKey('E')) camera.MoveUp(speed);
-        if (ctx.input->CheckHitKey('Q')) camera.MoveUp(-speed);
+        if (CheckHitKey(KEY_INPUT_LSHIFT)) speed *= 3.0f;
+        if (CheckHitKey(KEY_INPUT_W)) camera.MoveForward(speed);
+        if (CheckHitKey(KEY_INPUT_S)) camera.MoveForward(-speed);
+        if (CheckHitKey(KEY_INPUT_D)) camera.MoveRight(speed);
+        if (CheckHitKey(KEY_INPUT_A)) camera.MoveRight(-speed);
+        if (CheckHitKey(KEY_INPUT_E)) camera.MoveUp(speed);
+        if (CheckHitKey(KEY_INPUT_Q)) camera.MoveUp(-speed);
     }
 
-    void OnSceneRender(GXFW::SceneContext& ctx) override
+    void Draw() override
     {
-        auto& renderer = *ctx.renderer;
+        auto& ctx = GX_Internal::CompatContext::Instance();
+        auto* cmd = ctx.cmdList;
+        const uint32_t frameIndex = ctx.frameIndex;
 
-        renderer.SetMaterial(m_floorMat);
-        renderer.DrawMesh(m_planeMesh, m_floorTransform);
+        // 3D描画の前に2Dバッチをフラッシュ
+        ctx.FlushAll();
+
+        // HDRシーン開始
+        ctx.postEffect.BeginScene(cmd, frameIndex,
+                                  ctx.renderer3D.GetDepthBuffer().GetDSVHandle(),
+                                  ctx.camera);
+        ctx.renderer3D.Begin(cmd, frameIndex, ctx.camera, m_totalTime);
+
+        ctx.renderer3D.SetMaterial(m_floorMat);
+        ctx.renderer3D.DrawMesh(m_planeMesh, m_floorTransform);
 
         for (int i = 0; i < k_NumCubes; ++i)
         {
-            renderer.SetMaterial(m_cubeMats[i]);
-            renderer.DrawMesh(m_cubeMesh, m_cubeTransforms[i]);
+            ctx.renderer3D.SetMaterial(m_cubeMats[i]);
+            ctx.renderer3D.DrawMesh(m_cubeMesh, m_cubeTransforms[i]);
         }
 
         for (int i = 0; i < k_NumSpheres; ++i)
         {
-            renderer.SetMaterial(m_sphereMats[i]);
-            renderer.DrawMesh(m_sphereMesh, m_sphereTransforms[i]);
+            ctx.renderer3D.SetMaterial(m_sphereMats[i]);
+            ctx.renderer3D.DrawMesh(m_sphereMesh, m_sphereTransforms[i]);
         }
 
-        renderer.SetMaterial(m_pillarMat);
+        ctx.renderer3D.SetMaterial(m_pillarMat);
         for (int i = 0; i < k_NumPillars; ++i)
-            renderer.DrawMesh(m_cylinderMesh, m_pillarTransforms[i]);
-    }
+            ctx.renderer3D.DrawMesh(m_cylinderMesh, m_pillarTransforms[i]);
 
-    void OnSceneRenderUI(GXFW::SceneContext& ctx) override
-    {
-        auto pos = ctx.camera->GetPosition();
-        ctx.DrawString(10.0f, 10.0f,
-                       std::format(L"FPS: {:.1f}", ctx.app->GetTimer().GetFPS()),
-                       0xFFFFFFFF);
-        ctx.DrawString(10.0f, 35.0f,
-                       std::format(L"Pos: ({:.1f}, {:.1f}, {:.1f})", pos.x, pos.y, pos.z),
-                       0xFF88BBFF);
-        ctx.DrawString(10.0f, 60.0f,
-                       L"Bloom: ON  SSAO: ON  FXAA: ON  Tonemap: ACES",
-                       0xFF88FF88);
+        ctx.renderer3D.End();
+        ctx.postEffect.EndScene();
 
-        float helpY = static_cast<float>(ctx.swapChain->GetHeight()) - 30.0f;
-        ctx.DrawString(10.0f, helpY,
-                       L"WASD: Move  QE: Up/Down  Shift: Fast  RClick: Mouse  ESC: Quit",
-                       0xFF888888);
+        // DepthBuffer をポストエフェクト用に SRV へ遷移
+        auto& depthBuffer = ctx.renderer3D.GetDepthBuffer();
+        depthBuffer.TransitionTo(cmd, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+        // ポストエフェクトをバックバッファへ
+        ctx.postEffect.Resolve(ctx.swapChain.GetCurrentRTVHandle(),
+                               depthBuffer,
+                               ctx.camera, m_lastDt);
+
+        // 次フレームの描画に備えて DEPTH_WRITE に戻す
+        depthBuffer.TransitionTo(cmd, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+
+        // HUD
+        const float fps = (m_lastDt > 0.0f) ? (1.0f / m_lastDt) : 0.0f;
+        const TString fpsText = FormatT(TEXT("FPS: {:.1f}"), fps);
+        DrawString(10, 10, fpsText.c_str(), GetColor(255, 255, 255));
+        auto pos = ctx.camera.GetPosition();
+        const TString posText = FormatT(TEXT("Pos: ({:.1f}, {:.1f}, {:.1f})"), pos.x, pos.y, pos.z);
+        DrawString(10, 35, posText.c_str(), GetColor(120, 180, 255));
+        DrawString(10, 60,
+                   TEXT("WASD: Move  QE: Up/Down  Shift: Fast  RClick: Mouse  ESC: Quit"),
+                   GetColor(136, 136, 136));
     }
 
 private:
@@ -173,6 +225,9 @@ private:
     bool  m_mouseCaptured = false;
     int   m_lastMX = 0;
     int   m_lastMY = 0;
+
+    float m_totalTime = 0.0f;
+    float m_lastDt = 0.0f;
 
     GX::GPUMesh m_planeMesh;
     GX::GPUMesh m_cubeMesh;
@@ -192,22 +247,6 @@ private:
     GX::Material    m_pillarMat;
 };
 
-} // namespace
+GX_EASY_APP(WalkthroughApp)
 
-int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
-{
-    GXFW::FrameworkApp app;
-    GXFW::AppConfig config;
-    config.title = L"GXLib Sample: Walkthrough3D";
-    config.width = 1280;
-    config.height = 720;
-    config.enableDebug = true;
 
-    if (!app.Initialize(config))
-        return -1;
-
-    app.SetScene(std::make_unique<WalkthroughScene>());
-    app.Run();
-    app.Shutdown();
-    return 0;
-}

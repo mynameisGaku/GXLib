@@ -44,7 +44,7 @@ public:
 
     void Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
                  RenderTarget& srcHDR, RenderTarget& destHDR,
-                 DepthBuffer& depth, const Camera3D& camera);
+                 DepthBuffer& depth, RenderTarget& normalRT, const Camera3D& camera);
 
     void OnResize(ID3D12Device* device, uint32_t width, uint32_t height);
 
@@ -85,11 +85,12 @@ private:
     ComPtr<ID3D12PipelineState> m_pso;
     DynamicBuffer m_cb;
 
-    // 2テクスチャ(scene + depth)用専用SRVヒープ (2スロット × 2フレーム = 4)
+    // 3テクスチャ(scene + depth + normal)用専用SRVヒープ (3スロット × 2フレーム = 6)
     DescriptorHeap m_srvHeap;
     ID3D12Device* m_device = nullptr;
 
-    void UpdateSRVHeap(RenderTarget& srcHDR, DepthBuffer& depth, uint32_t frameIndex);
+    void UpdateSRVHeap(RenderTarget& srcHDR, DepthBuffer& depth,
+                       RenderTarget& normalRT, uint32_t frameIndex);
 };
 
 } // namespace GX

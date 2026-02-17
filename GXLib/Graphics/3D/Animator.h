@@ -6,6 +6,8 @@
 #include "pch.h"
 #include "Graphics/3D/AnimationClip.h"
 #include "Graphics/3D/Skeleton.h"
+#include "Graphics/3D/BlendStack.h"
+#include "Graphics/3D/AnimatorStateMachine.h"
 
 namespace GX
 {
@@ -15,6 +17,10 @@ namespace GX
 class Animator
 {
 public:
+    /// @brief アニメーションの動作モード
+    /// 初学者向け: Simple=基本再生、BlendStack=レイヤー合成、StateMachine=状態遷移で制御。
+    enum class AnimMode { Simple, BlendStack, StateMachine };
+
     Animator() = default;
     ~Animator() = default;
 
@@ -26,6 +32,16 @@ public:
     void Stop() { m_playing = false; }
     void Pause() { m_paused = true; }
     void Resume() { m_paused = false; }
+
+    /// @brief BlendStackモードに切り替え
+    /// 初学者向け: レイヤーを重ねてブレンドしたいときに使います。nullでSimpleに戻ります。
+    void SetBlendStack(BlendStack* stack);
+
+    /// @brief StateMachineモードに切り替え
+    /// 初学者向け: 状態遷移でアニメを制御したいときに使います。nullでSimpleに戻ります。
+    void SetStateMachine(AnimatorStateMachine* sm);
+
+    AnimMode GetAnimMode() const { return m_mode; }
 
     /// @brief バインドポーズをボーン行列に評価する（再生前の初期化に便利）
     /// 初学者向け: まだアニメを再生していない時に、正しい「立ち姿」を作ります。
@@ -66,6 +82,10 @@ private:
     float m_fadeDuration = 0.0f;
     float m_fadeTime = 0.0f;
     bool  m_fading = false;
+
+    AnimMode m_mode = AnimMode::Simple;
+    BlendStack* m_blendStack = nullptr;
+    AnimatorStateMachine* m_stateMachine = nullptr;
 
     std::vector<TransformTRS> m_bindPose;
     std::vector<TransformTRS> m_poseA;

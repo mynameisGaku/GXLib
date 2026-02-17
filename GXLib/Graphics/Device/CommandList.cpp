@@ -30,6 +30,9 @@ bool CommandList::Initialize(ID3D12Device* device, D3D12_COMMAND_LIST_TYPE type)
         return false;
     }
 
+    // DXR用: ID3D12GraphicsCommandList4 を取得（対応していない場合はnull）
+    m_commandList.As(&m_commandList4);
+
     // 作成直後はOpen状態なのでCloseしておく
     m_commandList->Close();
 

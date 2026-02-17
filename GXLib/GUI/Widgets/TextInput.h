@@ -21,7 +21,7 @@ public:
     float GetIntrinsicHeight() const override;
     bool OnEvent(const UIEvent& event) override;
     void Update(float deltaTime) override;
-    void Render(UIRenderer& renderer) override;
+    void RenderSelf(UIRenderer& renderer) override;
 
     // 公開API
     void SetText(const std::wstring& text);

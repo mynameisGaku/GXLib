@@ -21,8 +21,9 @@ cbuffer SSRCB : register(b0)
     float nearZ;
 };
 
-Texture2D<float4> gScene : register(t0);
-Texture2D<float>  gDepth : register(t1);
+Texture2D<float4> gScene  : register(t0);
+Texture2D<float>  gDepth  : register(t1);
+Texture2D<float4> gNormal : register(t2);
 SamplerState gLinearSampler : register(s0);
 SamplerState gPointSampler  : register(s1);
 
@@ -40,45 +41,7 @@ float ViewZFromDepth(float d)
     return vp.z / vp.w;
 }
 
-// 法線復元 + エッジ信頼度 (±8pxカーネル, 中央/片側差分ブレンド)
-float3 ReconstructViewNormal(float3 posC, float depthC, float2 uv, float2 ts,
-                              out float edgeConfidence)
-{
-    float2 off = ts * 8.0;
-
-    float dR = gDepth.SampleLevel(gPointSampler, uv + float2(off.x, 0), 0).r;
-    float dL = gDepth.SampleLevel(gPointSampler, uv - float2(off.x, 0), 0).r;
-    float dD = gDepth.SampleLevel(gPointSampler, uv + float2(0, off.y), 0).r;
-    float dU = gDepth.SampleLevel(gPointSampler, uv - float2(0, off.y), 0).r;
-
-    float3 pR = ReconstructViewPos(uv + float2(off.x, 0), dR);
-    float3 pL = ReconstructViewPos(uv - float2(off.x, 0), dL);
-    float3 pD = ReconstructViewPos(uv + float2(0, off.y), dD);
-    float3 pU = ReconstructViewPos(uv - float2(0, off.y), dU);
-
-    // ビュー空間Zでエッジ判定 (距離に依存しない)
-    float viewEdgeThresh = 0.3; // ビュー空間単位
-    float wR = saturate(1.0 - abs(pR.z - posC.z) / viewEdgeThresh);
-    float wL = saturate(1.0 - abs(pL.z - posC.z) / viewEdgeThresh);
-    float wD = saturate(1.0 - abs(pD.z - posC.z) / viewEdgeThresh);
-    float wU = saturate(1.0 - abs(pU.z - posC.z) / viewEdgeThresh);
-
-    float3 dxCentral = (pR - pL) * 0.5;
-    float3 dxOneSide = (abs(dR - depthC) < abs(dL - depthC)) ? (pR - posC) : (posC - pL);
-    float3 dx = lerp(dxOneSide, dxCentral, wR * wL);
-
-    float3 dyCentral = (pD - pU) * 0.5;
-    float3 dyOneSide = (abs(dD - depthC) < abs(dU - depthC)) ? (pD - posC) : (posC - pU);
-    float3 dy = lerp(dyOneSide, dyCentral, wD * wU);
-
-    float3 n = normalize(cross(dx, dy));
-    if (dot(n, posC) > 0.0) n = -n;
-
-    // エッジ信頼度: 全方向の最小ウェイト (±8px範囲でエッジがあれば低下)
-    edgeConfidence = min(min(wR, wL), min(wD, wU));
-
-    return n;
-}
+// (ReconstructViewNormal削除 — GBuffer法線を直接使用)
 
 float ScreenEdgeFade(float2 uv)
 {
@@ -99,9 +62,32 @@ float4 PSSSR(FullscreenVSOutput input) : SV_Target
 
     float3 viewPos = ReconstructViewPos(uv, depth);
 
-    // 法線復元 + エッジ信頼度 (同じ±8pxサンプルから算出)
-    float edgeMask;
-    float3 viewNormal = ReconstructViewNormal(viewPos, depth, uv, texelSize, edgeMask);
+    // GBuffer法線 (LINEAR sampler でポリゴン境界スムージング)
+    float4 normalSample = gNormal.SampleLevel(gLinearSampler, uv, 0);
+    if (normalSample.a < 0.005)
+        return sceneColor;
+    float3 worldNormal = normalize(normalSample.rgb * 2.0 - 1.0);
+    float3 viewNormal = normalize(mul(worldNormal, (float3x3)view));
+
+    // 深度ベースエッジ検出 (シルエットフェードアウト用、法線再構築とは独立)
+    float edgeMask = 1.0;
+    {
+        float2 off = texelSize * 4.0;
+        float dR = gDepth.SampleLevel(gPointSampler, uv + float2(off.x, 0), 0);
+        float dL = gDepth.SampleLevel(gPointSampler, uv - float2(off.x, 0), 0);
+        float dD = gDepth.SampleLevel(gPointSampler, uv + float2(0, off.y), 0);
+        float dU = gDepth.SampleLevel(gPointSampler, uv - float2(0, off.y), 0);
+        float3 pR = ReconstructViewPos(uv + float2(off.x, 0), dR);
+        float3 pL = ReconstructViewPos(uv - float2(off.x, 0), dL);
+        float3 pD = ReconstructViewPos(uv + float2(0, off.y), dD);
+        float3 pU = ReconstructViewPos(uv - float2(0, off.y), dU);
+        float viewEdgeThresh = 0.3;
+        float wR = saturate(1.0 - abs(pR.z - viewPos.z) / viewEdgeThresh);
+        float wL = saturate(1.0 - abs(pL.z - viewPos.z) / viewEdgeThresh);
+        float wD = saturate(1.0 - abs(pD.z - viewPos.z) / viewEdgeThresh);
+        float wU = saturate(1.0 - abs(pU.z - viewPos.z) / viewEdgeThresh);
+        edgeMask = min(min(wR, wL), min(wD, wU));
+    }
 
     if (edgeMask < 0.01)
         return sceneColor;
@@ -113,7 +99,8 @@ float4 PSSSR(FullscreenVSOutput input) : SV_Target
         return sceneColor;
 
     float3 reflDir = reflect(viewDir, viewNormal);
-    float fresnel = 0.3 + 0.7 * pow(saturate(1.0 - NdotV), 5.0);
+    // Fresnel: F0=0.04 (非金属デフォルト) — SSR はマテリアル情報なしのため一律適用
+    float fresnel = 0.04 + 0.96 * pow(saturate(1.0 - NdotV), 5.0);
 
     // === Screen-space ray marching ===
     float3 rayOrigin = viewPos + viewNormal * 0.02;
@@ -216,7 +203,20 @@ float4 PSSSR(FullscreenVSOutput input) : SV_Target
     if (!hit)
         return sceneColor;
 
-    float4 reflColor = gScene.SampleLevel(gLinearSampler, hitUV, 0);
+    // 距離比例ブラー付き5タップクロスフィルタ (ポリゴンエッジ輝度ジャンプ平滑化)
+    float4 reflColor;
+    {
+        float blurRadius = max(hitK * 3.0, 1.5);
+        float2 blurStep = texelSize * blurRadius;
+
+        float4 c  = gScene.SampleLevel(gLinearSampler, hitUV, 0);
+        float4 r  = gScene.SampleLevel(gLinearSampler, hitUV + float2( blurStep.x, 0), 0);
+        float4 l  = gScene.SampleLevel(gLinearSampler, hitUV + float2(-blurStep.x, 0), 0);
+        float4 u  = gScene.SampleLevel(gLinearSampler, hitUV + float2(0,  blurStep.y), 0);
+        float4 d  = gScene.SampleLevel(gLinearSampler, hitUV + float2(0, -blurStep.y), 0);
+
+        reflColor = c * 0.4 + (r + l + u + d) * 0.15;
+    }
 
     float edgeFade = ScreenEdgeFade(hitUV);
     float distFade = 1.0 - saturate(hitK);

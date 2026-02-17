@@ -43,6 +43,13 @@ public:
     /// @return IDXGIAdapter1へのポインタ
     IDXGIAdapter1* GetAdapter() const { return m_adapter.Get(); }
 
+    /// @brief ID3D12Device5を取得する（DXR用）
+    /// @return ID3D12Device5へのポインタ（DXR非対応時はnullptr）
+    ID3D12Device5* GetDevice5() const { return m_device5.Get(); }
+
+    /// @brief レイトレーシングがサポートされているか
+    bool SupportsRaytracing() const { return m_supportsRaytracing; }
+
     /// @brief DXGI生存オブジェクトをレポートする（シャットダウン後に呼ぶ）
     static void ReportLiveObjects();
 
@@ -59,6 +66,8 @@ private:
     ComPtr<IDXGIFactory6>  m_factory;
     ComPtr<IDXGIAdapter1>  m_adapter;
     ComPtr<ID3D12Device>   m_device;
+    ComPtr<ID3D12Device5>  m_device5;
+    bool m_supportsRaytracing = false;
 };
 
 } // namespace GX

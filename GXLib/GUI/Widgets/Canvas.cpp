@@ -4,14 +4,16 @@
 
 namespace GX { namespace GUI {
 
-void Canvas::Render(UIRenderer& renderer)
+void Canvas::RenderSelf(UIRenderer& renderer)
 {
     const Style& drawStyle = GetRenderStyle();
     // 背景描画
     if (!drawStyle.backgroundColor.IsTransparent() ||
         drawStyle.borderWidth > 0.0f)
     {
-        renderer.DrawRect(globalRect, drawStyle, opacity);
+        UIRectEffect effect;
+        const UIRectEffect* eff = GetActiveEffect(drawStyle, effect);
+        renderer.DrawRect(globalRect, drawStyle, 1.0f, eff);
     }
 
     // カスタム描画コールバック

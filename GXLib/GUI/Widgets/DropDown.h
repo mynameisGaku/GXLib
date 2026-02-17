@@ -32,7 +32,7 @@ public:
     float GetIntrinsicHeight() const override { return 30.0f; }
 
     bool OnEvent(const UIEvent& event) override;
-    void Render(UIRenderer& renderer) override;
+    void RenderSelf(UIRenderer& renderer) override;
 
 private:
     static constexpr float k_ItemHeight = 28.0f;

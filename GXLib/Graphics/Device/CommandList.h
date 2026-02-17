@@ -56,8 +56,13 @@ public:
     /// @return ID3D12GraphicsCommandListへのポインタ
     ID3D12GraphicsCommandList* operator->() const { return m_commandList.Get(); }
 
+    /// @brief DXR用コマンドリスト (ID3D12GraphicsCommandList4) を取得する
+    /// @return ID3D12GraphicsCommandList4へのポインタ（DXR非対応時はnullptr）
+    ID3D12GraphicsCommandList4* Get4() const { return m_commandList4.Get(); }
+
 private:
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
+    ComPtr<ID3D12GraphicsCommandList4> m_commandList4;
     std::array<ComPtr<ID3D12CommandAllocator>, k_AllocatorCount> m_allocators;
 };
 

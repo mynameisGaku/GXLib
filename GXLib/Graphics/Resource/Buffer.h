@@ -35,6 +35,19 @@ public:
     const D3D12_VERTEX_BUFFER_VIEW& GetVertexBufferView() const { return m_vbv; }
     const D3D12_INDEX_BUFFER_VIEW& GetIndexBufferView() const { return m_ibv; }
     ID3D12Resource* GetResource() const { return m_resource.Get(); }
+    D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress() const { return m_resource ? m_resource->GetGPUVirtualAddress() : 0; }
+
+    /// GPU専用バッファを作成（BLAS/TLASスクラッチ/結果バッファ用）
+    bool CreateDefaultBuffer(ID3D12Device* device, uint64_t size,
+                             D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
+                             D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_COMMON);
+
+    /// UPLOADバッファを作成（データなし、CPU書き込み用）
+    bool CreateUploadBufferEmpty(ID3D12Device* device, uint64_t size);
+
+    /// マッピング用
+    void* Map();
+    void Unmap();
 
 private:
     bool CreateUploadBuffer(ID3D12Device* device, const void* data, uint32_t size);

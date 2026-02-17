@@ -14,6 +14,8 @@
 #define WIN32_LEAN_AND_MEAN  // 使用頻度の低いAPIを除外してコンパイル高速化
 #define NOMINMAX             // min/maxマクロを無効化（STLと衝突防止）
 #include <Windows.h>
+#include <mmsystem.h>
+#pragma comment(lib, "winmm.lib")
 
 // ============================================================================
 // DirectX 12

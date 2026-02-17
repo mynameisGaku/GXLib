@@ -258,7 +258,7 @@ void CompatContext::EndFrame()
     commandQueue.ExecuteCommandLists(lists, 1);
 
     // 画面表示
-    swapChain.Present(false);
+    swapChain.Present(vsyncEnabled);
 
     // GPU待機（フレーム同期）
     commandQueue.Flush();
@@ -276,6 +276,11 @@ int CompatContext::AllocateModelHandle()
         int h = modelFreeHandles.back();
         modelFreeHandles.pop_back();
         return h;
+    }
+    if (modelNextHandle >= k_MaxModels)
+    {
+        GX_LOG_ERROR("CompatContext: model handle limit reached (max: %d)", k_MaxModels);
+        return -1;
     }
     int h = modelNextHandle++;
     if (static_cast<size_t>(h) >= models.size())

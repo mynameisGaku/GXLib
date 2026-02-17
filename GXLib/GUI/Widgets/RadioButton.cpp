@@ -65,7 +65,7 @@ bool RadioButton::OnEvent(const UIEvent& event)
     return false;
 }
 
-void RadioButton::Render(UIRenderer& renderer)
+void RadioButton::RenderSelf(UIRenderer& renderer)
 {
     float circleX = globalRect.x;
     float circleY = globalRect.y + (globalRect.height - k_CircleSize) * 0.5f;
@@ -79,7 +79,7 @@ void RadioButton::Render(UIRenderer& renderer)
         ? StyleColor(0.5f, 0.6f, 0.9f, 1.0f)
         : StyleColor(0.4f, 0.4f, 0.55f, 1.0f);
     circleStyle.cornerRadius = k_CircleSize * 0.5f;
-    renderer.DrawRect(circleRect, circleStyle, opacity);
+    renderer.DrawRect(circleRect, circleStyle, 1.0f);
 
     // 選択時の内側ドット
     if (m_selected)
@@ -91,7 +91,7 @@ void RadioButton::Render(UIRenderer& renderer)
         Style dotStyle;
         dotStyle.backgroundColor = { 0.3f, 0.6f, 1.0f, 1.0f };
         dotStyle.cornerRadius = dotSize * 0.5f;
-        renderer.DrawRect(dotRect, dotStyle, opacity);
+        renderer.DrawRect(dotRect, dotStyle, 1.0f);
     }
 
     // ラベルテキスト
@@ -101,7 +101,7 @@ void RadioButton::Render(UIRenderer& renderer)
         float textH = static_cast<float>(renderer.GetLineHeight(m_fontHandle));
         float textY = globalRect.y + (globalRect.height - textH) * 0.5f;
         const Style& drawStyle = GetRenderStyle();
-        renderer.DrawText(textX, textY, m_fontHandle, m_text, drawStyle.color, opacity);
+        renderer.DrawText(textX, textY, m_fontHandle, m_text, drawStyle.color, 1.0f);
     }
 }
 

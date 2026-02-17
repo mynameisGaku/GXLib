@@ -6,15 +6,15 @@
 
 'Buffer-Create': [
   'bool CreateVertexBuffer(ID3D12Device* device, const void* data, uint32_t size, uint32_t stride)',
-  'GPU上に頂点バッファまたはインデックスバッファを作成します。内部でUPLOADヒープにバッファを確保し、指定データをコピーします。\nCreateVertexBufferは頂点データ用、CreateIndexBufferはインデックスデータ用です。初期化時に一度だけ呼び出してください。',
-  '// 三角形の頂点バッファを作成\nstruct Vertex { float x, y, z; };\nVertex verts[] = { {0,1,0}, {1,-1,0}, {-1,-1,0} };\nGX::Buffer vb;\nvb.CreateVertexBuffer(device, verts, sizeof(verts), sizeof(Vertex));',
-  '* UPLOADヒープを使用するため、CPUとGPU双方からアクセス可能だがGPU読み取り速度はDEFAULTヒープより遅い\n* 静的ジオメトリにはBufferを、毎フレーム更新されるデータにはDynamicBufferを使用すること\n* sizeは全データのバイト数、strideは1頂点あたりのバイト数を指定する'
+  'GPU上に頂点バッファまたはインデックスバッファを作成します。内部でUPLOADヒープにバッファを確保し、指定データをコピーします。\nCreateVertexBufferは頂点データ用、CreateIndexBufferはインデックスデータ用です。初期化時に一度だけ呼び出してください。\n\n【用語】GPU バッファはグラフィックスカード上のメモリ領域です。頂点データ（3D座標など）やインデックスデータ（頂点の接続順序）を GPU に送るために使います。',
+  '// 三角形の頂点バッファを作成\nstruct Vertex { float x, y, z; };\nVertex verts[] = {\n    {0, 1, 0},    // 頂点0: 上\n    {1, -1, 0},   // 頂点1: 右下\n    {-1, -1, 0}   // 頂点2: 左下\n};\nGX::Buffer vb;\nvb.CreateVertexBuffer(\n    device,          // D3D12デバイス\n    verts,           // 頂点データの先頭ポインタ\n    sizeof(verts),   // データ全体のバイト数\n    sizeof(Vertex)   // 1頂点あたりのバイト数\n);',
+  '* UPLOADヒープを使用するため、CPUとGPU双方からアクセス可能だがGPU読み取り速度はDEFAULTヒープより遅い\n* 静的ジオメトリにはBufferを、毎フレーム更新されるデータにはDynamicBufferを使用すること\n* size: 全データのバイト数（例: 頂点3個 × 12バイト = 36）\n* stride: 1頂点あたりのバイト数（例: float×3 = 12）'
 ],
 
 'Buffer-Map': [
   'void* Map()',
   'バッファリソースをCPUアクセス可能な状態にマッピングします。返されたポインタを通じてバッファの内容を読み書きできます。\n使用後は必ずUnmap()を呼び出してください。',
-  '// バッファの内容を更新する\nGX::Buffer buf;\nvoid* ptr = buf.Map();\nmemcpy(ptr, newData, dataSize);\nbuf.Unmap();',
+  '// バッファの内容を更新する\nGX::Buffer buf;\nvoid* ptr = buf.Map();          // CPU書き込み開始\nmemcpy(ptr, newData, dataSize); // データをコピー\nbuf.Unmap();                    // CPU書き込み終了',
   '* Map中にGPUがこのバッファを参照するとデータ競合が発生するため、GPUコマンド完了後に呼ぶこと\n* UPLOADヒープバッファのみマッピング可能（DEFAULTヒープは不可）\n* 失敗時はnullptrが返される'
 ],
 
@@ -52,16 +52,16 @@
 
 'DynamicBuffer-Create': [
   'bool Initialize(ID3D12Device* device, uint32_t maxSize, uint32_t stride)',
-  'ダブルバッファリング対応のUPLOADヒープバッファを2本作成します。maxSizeは1バッファあたりの最大バイト数です。\nSpriteBatchやPrimitiveBatchの頂点データなど毎フレーム更新されるデータに最適です。',
-  '// SpriteBatch用の動的頂点バッファ作成\nGX::DynamicBuffer dynBuf;\nbool ok = dynBuf.Initialize(device, 4096 * 4 * sizeof(Vertex), sizeof(Vertex));\n// 4096スプライト x 4頂点分を確保',
+  'ダブルバッファリング対応のUPLOADヒープバッファを2本作成します。maxSizeは1バッファあたりの最大バイト数です。\nSpriteBatchやPrimitiveBatchの頂点データなど毎フレーム更新されるデータに最適です。\n\n【用語】ダブルバッファリングは、GPUが読み込み中のバッファとは別のバッファにCPUが書き込む方式です。2本のバッファを交互に使うことでデータ競合を防ぎます。',
+  '// SpriteBatch用の動的頂点バッファ作成\nGX::DynamicBuffer dynBuf;\nbool ok = dynBuf.Initialize(\n    device,                          // D3D12デバイス\n    4096 * 4 * sizeof(Vertex),       // maxSize: 最大バイト数\n    sizeof(Vertex)                   // stride: 1頂点のバイト数\n);\n// 4096スプライト x 4頂点分を確保',
   '* 内部でk_BufferCount(=2)個のバッファを作成しダブルバッファリングを行う\n* maxSizeを超える書き込みは未定義動作になるため余裕を持って確保すること\n* strideは頂点バッファビュー生成時に使用される'
 ],
 
 'DynamicBuffer-Map': [
   'void* Map(uint32_t frameIndex)',
   '指定フレームのバッファをCPU書き込み用にマッピングします。frameIndexは現在のフレーム番号（0または1）を渡します。\nGPUが読み込み中の前フレームとは異なるバッファが返されるため安全に書き込めます。',
-  '// 毎フレームの頂点データ書き込み\nuint32_t fi = swapChain.GetCurrentBackBufferIndex();\nvoid* ptr = dynBuf.Map(fi);\nmemcpy(ptr, vertices, vertCount * sizeof(Vertex));\ndynBuf.Unmap(fi);',
-  '* frameIndexはSwapChainのバックバッファインデックスと同期させること\n* 同一フレームで複数回Mapする場合はオフセットを手動管理する必要がある\n* 失敗時はnullptrが返される'
+  '// 毎フレームの頂点データ書き込み\nuint32_t fi = swapChain.GetCurrentBackBufferIndex(); // 0 or 1\nvoid* ptr = dynBuf.Map(fi);      // 現フレームのバッファをマップ\nmemcpy(ptr, vertices, vertCount * sizeof(Vertex));\ndynBuf.Unmap(fi);                // マップ解除',
+  '* frameIndex: SwapChainのバックバッファインデックスと同期させること（0 または 1）\n* 同一フレームで複数回Mapする場合はオフセットを手動管理する必要がある\n* 失敗時はnullptrが返される'
 ],
 
 'DynamicBuffer-Unmap': [
@@ -81,7 +81,7 @@
 'DynamicBuffer-GetVBView': [
   'D3D12_VERTEX_BUFFER_VIEW GetVertexBufferView(uint32_t frameIndex, uint32_t usedSize) const',
   '指定フレームの頂点バッファビューを生成して返します。usedSizeは実際に使用したバイト数を指定し、GPU側で無駄な領域を読まないようにします。\nIASetVertexBuffersに渡して使用します。',
-  '// 頂点バッファビューの取得とバインド\nuint32_t usedBytes = spriteCount * 4 * sizeof(Vertex);\nauto vbv = dynBuf.GetVertexBufferView(frameIndex, usedBytes);\ncmdList->IASetVertexBuffers(0, 1, &vbv);',
+  '// 頂点バッファビューの取得とバインド\nuint32_t usedBytes = spriteCount * 4 * sizeof(Vertex); // 実使用バイト数\nauto vbv = dynBuf.GetVertexBufferView(\n    frameIndex,  // 現フレームのバッファ (0 or 1)\n    usedBytes    // 実際に使用したバイト数\n);\ncmdList->IASetVertexBuffers(0, 1, &vbv);',
   '* usedSizeはmaxSize以下であること（超過すると不正な読み取りが発生）\n* strideはInitialize時に設定した値が自動で使われる\n* 毎フレームのスプライト数変動に対応するためusedSizeを可変にできる'
 ],
 
@@ -98,15 +98,15 @@
 
 'Texture-LoadFromFile': [
   'bool LoadFromFile(ID3D12Device* device, ID3D12CommandQueue* cmdQueue, const std::wstring& filePath, DescriptorHeap* srvHeap, uint32_t srvIndex)',
-  '画像ファイルからテクスチャを読み込み、GPUにアップロードします。内部でstb_imageを使用してPNG/JPG/BMP等をデコードし、ステージングバッファ経由でDEFAULTヒープにコピーします。\nSRVも同時に作成され、シェーダーからアクセス可能になります。',
-  '// テクスチャファイルの読み込み\nGX::Texture tex;\nbool ok = tex.LoadFromFile(device, cmdQueue,\n    L\"Assets/player.png\", &srvHeap, 0);\nif (!ok) { /* エラー処理 */ }',
+  '画像ファイルからテクスチャを読み込み、GPUにアップロードします。内部でstb_imageを使用してPNG/JPG/BMP等をデコードし、ステージングバッファ経由でDEFAULTヒープにコピーします。\nSRVも同時に作成され、シェーダーからアクセス可能になります。\n\n【用語】テクスチャは GPU 上の画像データです。PNG や JPG を読み込んで、2D スプライトや 3D モデルの表面に貼り付ける画像を管理します。SRV (Shader Resource View) はシェーダからテクスチャを読み取るための「読み取り用ビュー」です。',
+  '// テクスチャファイルの読み込み\nGX::Texture tex;\nbool ok = tex.LoadFromFile(\n    device,                  // D3D12デバイス\n    cmdQueue,                // コマンドキュー（GPU転送用）\n    L\"Assets/player.png\",   // 画像ファイルパス\n    &srvHeap,                // SRVディスクリプタヒープ\n    0                        // SRVスロット番号\n);\nif (!ok) { /* エラー処理 */ }',
   '* stb_imageが対応するフォーマット（PNG, JPG, BMP, TGA, GIF等）を読み込み可能\n* RGBA8形式でGPUにアップロードされる（アルファチャンネルがない画像は自動でA=255が追加）\n* コマンドキューでコピーコマンドを実行するため、呼び出し時にGPU同期が発生する'
 ],
 
 'Texture-CreateFromMemory': [
   'bool CreateFromMemory(ID3D12Device* device, ID3D12CommandQueue* cmdQueue, const void* pixels, uint32_t width, uint32_t height, DescriptorHeap* srvHeap, uint32_t srvIndex)',
   'CPUメモリ上のRGBAピクセルデータからテクスチャを作成します。フォントアトラスやプロシージャル生成テクスチャなど、ファイルを経由しないテクスチャ作成に使用します。\nピクセルデータはRGBA8（1ピクセル4バイト）形式で渡してください。',
-  '// プロシージャルテクスチャの作成\nstd::vector<uint8_t> pixels(256 * 256 * 4, 255);\nGX::Texture tex;\ntex.CreateFromMemory(device, cmdQueue,\n    pixels.data(), 256, 256, &srvHeap, 1);',
+  '// プロシージャルテクスチャの作成\nstd::vector<uint8_t> pixels(256 * 256 * 4, 255); // 白で埋めた画像\nGX::Texture tex;\ntex.CreateFromMemory(\n    device, cmdQueue,   // デバイスとコマンドキュー\n    pixels.data(),      // RGBA8ピクセルデータ\n    256, 256,           // 幅, 高さ\n    &srvHeap, 1         // SRVヒープとスロット番号\n);',
   '* pixelsはwidth * height * 4バイトのRGBA8データであること\n* 内部でステージングバッファ→DEFAULTヒープコピーが行われる\n* SoftImageのCreateTextureと組み合わせるとピクセル操作→GPU転送が容易'
 ],
 
@@ -158,7 +158,7 @@
 
 'TextureManager-Initialize': [
   'bool Initialize(ID3D12Device* device, ID3D12CommandQueue* cmdQueue)',
-  'テクスチャマネージャーを初期化します。内部でShader-visible SRVディスクリプタヒープ（最大256スロット）を作成します。\nアプリケーション起動時に一度だけ呼び出してください。',
+  'テクスチャマネージャーを初期化します。内部でShader-visible SRVディスクリプタヒープ（最大256スロット）を作成します。\nアプリケーション起動時に一度だけ呼び出してください。\\n\\n【用語】ハンドルベース管理は、リソースを整数 ID (ハンドル) で参照する方式です。直接ポインタを持つより安全で、解放済みリソースへの不正アクセスを防げます。',
   '// テクスチャマネージャーの初期化\nGX::TextureManager texMgr;\ntexMgr.Initialize(device, cmdQueue);',
   '* k_MaxTextures(=256)個までのテクスチャを同時管理可能\n* SpriteBatchが内部にTextureManagerを持つため、通常は直接作成する必要はない\n* SRVヒープはShader-visible（GPUからアクセス可能）で作成される'
 ],
@@ -232,7 +232,7 @@
 
 'RenderTarget-Create': [
   'bool Create(ID3D12Device* device, uint32_t width, uint32_t height, DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM)',
-  'オフスクリーンレンダーターゲットを作成します。RTVとSRVの両方のディスクリプタヒープを内部で確保します。\nHDRパイプラインではR16G16B16A16_FLOAT、LDRではR8G8B8A8_UNORMを指定します。',
+  'オフスクリーンレンダーターゲットを作成します。RTVとSRVの両方のディスクリプタヒープを内部で確保します。\nHDRパイプラインではR16G16B16A16_FLOAT、LDRではR8G8B8A8_UNORMを指定します。\\n\\n【用語】レンダーターゲット (RT) は GPU の描画先テクスチャです。画面に直接ではなく中間バッファに描画し、ポストエフェクト等の後処理を可能にします。HDR は通常の 0〜255 より広い明るさ範囲を扱う方式です。',
   '// HDRレンダーターゲットの作成\nGX::RenderTarget hdrRT;\nhdrRT.Create(device, 1280, 720,\n    DXGI_FORMAT_R16G16B16A16_FLOAT);\n// ポストエフェクトのping-pong用に2枚作成することが多い',
   '* 内部でRTVヒープ（1スロット）とSRVヒープ（1スロット）を作成する\n* 初期ステートはD3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE\n* ポストエフェクトパイプラインではHDR RT×2 + LDR RT×2の計4枚を使用する'
 ],
@@ -292,7 +292,7 @@
 
 'DepthBuffer-Create': [
   'bool Create(ID3D12Device* device, uint32_t width, uint32_t height, DXGI_FORMAT format = DXGI_FORMAT_D32_FLOAT)',
-  '深度バッファを作成します（DSVのみ）。3D描画でのZテストに使用します。\nフォーマットはD32_FLOAT（32bit浮動小数点深度）がデフォルトです。',
+  '深度バッファを作成します（DSVのみ）。3D描画でのZテストに使用します。\nフォーマットはD32_FLOAT（32bit浮動小数点深度）がデフォルトです。\\n\\n【用語】深度バッファは各ピクセルの「カメラからの距離」を記録します。手前の物体が奥の物体を隠す（深度テスト）ために使います。',
   '// メインの深度バッファ作成\nGX::DepthBuffer depthBuf;\ndepthBuf.Create(device, 1280, 720);',
   '* DSVヒープ（1スロット）を内部で作成する\n* 初期ステートはD3D12_RESOURCE_STATE_DEPTH_WRITE\n* SRVは作成されないため、シェーダーからの深度読み取りにはCreateWithOwnSRVを使用する'
 ],
@@ -391,7 +391,7 @@
 
 'SpriteBatch-Initialize': [
   'bool Initialize(ID3D12Device* device, ID3D12CommandQueue* cmdQueue, uint32_t screenWidth, uint32_t screenHeight)',
-  'SpriteBatchを初期化します。内部でDynamicBuffer、IndexBuffer、PSO（全ブレンドモード分）、TextureManager、RootSignatureを作成します。\n画面サイズに基づく正射影行列も設定されます。',
+  'SpriteBatchを初期化します。内部でDynamicBuffer、IndexBuffer、PSO（全ブレンドモード分）、TextureManager、RootSignatureを作成します。\n画面サイズに基づく正射影行列も設定されます。\\n\\n【用語】スプライトバッチは 2D 画像を効率的にまとめて描画する仕組みです。個別に描画するより大幅に高速です。',
   '// SpriteBatchの初期化\nGX::SpriteBatch spriteBatch;\nspriteBatch.Initialize(device, cmdQueue, 1280, 720);',
   '* k_MaxSprites(=4096)個のスプライトをバッチ処理可能\n* 6種のBlendMode用PSOが全て作成される\n* TextureManagerも内部で初期化されるため別途作成不要'
 ],

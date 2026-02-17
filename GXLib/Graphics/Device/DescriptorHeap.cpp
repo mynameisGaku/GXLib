@@ -46,19 +46,44 @@ uint32_t DescriptorHeap::AllocateIndex()
         return index;
     }
 
-    assert(m_currentIndex < m_numDescriptors && "Descriptor heap is full!");
+    if (m_currentIndex >= m_numDescriptors)
+    {
+        GX_LOG_ERROR("Descriptor heap is full! (capacity: %u)", m_numDescriptors);
+        return k_InvalidIndex;
+    }
     return m_currentIndex++;
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE DescriptorHeap::Allocate()
 {
     uint32_t index = AllocateIndex();
+    if (index == k_InvalidIndex)
+    {
+        D3D12_CPU_DESCRIPTOR_HANDLE handle = {};
+        handle.ptr = 0;
+        return handle;
+    }
     return GetCPUHandle(index);
 }
 
 void DescriptorHeap::Free(uint32_t index)
 {
-    assert(index < m_numDescriptors && "Invalid descriptor index!");
+    if (index >= m_numDescriptors)
+    {
+        GX_LOG_ERROR("Invalid descriptor index %u (capacity: %u)", index, m_numDescriptors);
+        return;
+    }
+
+    // 二重解放検出
+    for (uint32_t freeIdx : m_freeList)
+    {
+        if (freeIdx == index)
+        {
+            GX_LOG_ERROR("Double-free of descriptor index %u detected!", index);
+            return;
+        }
+    }
+
     m_freeList.push_back(index);
 }
 

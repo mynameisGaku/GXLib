@@ -34,12 +34,12 @@ float4 PSMotionBlur(FullscreenVSOutput input) : SV_Target
     float2 ndc = uv * float2(2.0, -2.0) + float2(-1.0, 1.0);
     float4 clipPos = float4(ndc, depth, 1.0);
 
-    // ワールド座標再構成
-    float4 worldPos = mul(invViewProjection, clipPos);
+    // ワールド座標再構成 (行ベクトル × 行列: DirectXMath 規約)
+    float4 worldPos = mul(clipPos, invViewProjection);
     worldPos /= worldPos.w;
 
     // 前フレームのスクリーン座標に再投影
-    float4 prevClip = mul(previousViewProjection, worldPos);
+    float4 prevClip = mul(worldPos, previousViewProjection);
     float2 prevNDC = prevClip.xy / prevClip.w;
     float2 prevUV = prevNDC * float2(0.5, -0.5) + 0.5;
 

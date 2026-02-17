@@ -11,10 +11,7 @@ AsyncLoader::AsyncLoader()
 
 AsyncLoader::~AsyncLoader()
 {
-    {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        m_running = false;
-    }
+    m_running.store(false);
     m_cv.notify_one();
     if (m_workerThread.joinable())
         m_workerThread.join();
@@ -78,9 +75,9 @@ void AsyncLoader::WorkerLoop()
 
         {
             std::unique_lock<std::mutex> lock(m_mutex);
-            m_cv.wait(lock, [this]() { return !m_running || !m_pendingQueue.empty(); });
+            m_cv.wait(lock, [this]() { return !m_running.load() || !m_pendingQueue.empty(); });
 
-            if (!m_running && m_pendingQueue.empty())
+            if (!m_running.load() && m_pendingQueue.empty())
                 return;
 
             if (m_pendingQueue.empty())

@@ -65,16 +65,26 @@ float4 PSGenerate(FullscreenVSOutput input) : SV_Target
     // ビュー空間位置を復元
     float3 viewPos = ReconstructViewPos(uv, depth);
 
-    // ddx/ddyで法線を再構築
+    // 4方向バイラテラル法線復元（深度不連続面でのアーティファクト軽減）
     float2 texelSize = float2(1.0 / gScreenWidth, 1.0 / gScreenHeight);
 
     float depthR = tDepth.Sample(sPoint, uv + float2(texelSize.x, 0)).r;
-    float depthU = tDepth.Sample(sPoint, uv + float2(0, -texelSize.y)).r;
+    float depthL = tDepth.Sample(sPoint, uv - float2(texelSize.x, 0)).r;
+    float depthD = tDepth.Sample(sPoint, uv + float2(0, texelSize.y)).r;
+    float depthU = tDepth.Sample(sPoint, uv - float2(0, texelSize.y)).r;
 
     float3 viewPosR = ReconstructViewPos(uv + float2(texelSize.x, 0), depthR);
-    float3 viewPosU = ReconstructViewPos(uv + float2(0, -texelSize.y), depthU);
+    float3 viewPosL = ReconstructViewPos(uv - float2(texelSize.x, 0), depthL);
+    float3 viewPosD = ReconstructViewPos(uv + float2(0, texelSize.y), depthD);
+    float3 viewPosU = ReconstructViewPos(uv - float2(0, texelSize.y), depthU);
 
-    float3 normal = normalize(cross(viewPosU - viewPos, viewPosR - viewPos));
+    // 深度差が小さい側を選択（エッジ跨ぎ防止）
+    float3 dx = (abs(depthR - depth) < abs(depthL - depth))
+        ? (viewPosR - viewPos) : (viewPos - viewPosL);
+    float3 dy = (abs(depthD - depth) < abs(depthU - depth))
+        ? (viewPosD - viewPos) : (viewPos - viewPosU);
+
+    float3 normal = normalize(cross(dx, dy));
 
     // ランダム回転ベクトル
     float3 randomVec = HashRotation(input.pos.xy);
@@ -105,7 +115,7 @@ float4 PSGenerate(FullscreenVSOutput input) : SV_Target
         float3 sampleViewPos = ReconstructViewPos(offset.xy, sampleDepth);
 
         // 遮蔽判定
-        float rangeCheck = smoothstep(0.0, 1.0, gRadius / abs(viewPos.z - sampleViewPos.z));
+        float rangeCheck = smoothstep(0.0, 1.0, gRadius / max(abs(viewPos.z - sampleViewPos.z), 0.0001));
         occlusion += (sampleViewPos.z <= samplePos.z - gBias ? 1.0 : 0.0) * rangeCheck;
     }
 

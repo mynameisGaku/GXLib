@@ -54,6 +54,8 @@ public:
     void SetCurrentState(D3D12_RESOURCE_STATES state) { m_currentState = state; }
 
     /// リソースバリアを発行してステート遷移
+    /// @note 外部から直接 D3D12 バリアを発行すると m_currentState と実際のステートが
+    ///       不整合になります。ステート遷移には必ずこのメソッドを使用してください。
     void TransitionTo(ID3D12GraphicsCommandList* cmdList, D3D12_RESOURCE_STATES newState);
 
 private:

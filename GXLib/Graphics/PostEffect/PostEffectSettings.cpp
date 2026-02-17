@@ -3,6 +3,8 @@
 #include "pch.h"
 #include "Graphics/PostEffect/PostEffectSettings.h"
 #include "Graphics/PostEffect/PostEffectPipeline.h"
+#include "Graphics/RayTracing/RTReflections.h"
+#include "Graphics/RayTracing/RTGI.h"
 #include "Core/Logger.h"
 
 #include <fstream>
@@ -169,6 +171,26 @@ bool PostEffectSettings::Load(const std::string& filePath, PostEffectPipeline& p
         if (cg.contains("temperature")) pipeline.SetTemperature(cg["temperature"].get<float>());
     }
 
+    // DXR RT反射
+    if (pe.contains("rtReflections") && pipeline.GetRTReflections())
+    {
+        auto& rt = pe["rtReflections"];
+        if (rt.contains("enabled"))     pipeline.GetRTReflections()->SetEnabled(rt["enabled"].get<bool>());
+        if (rt.contains("maxDistance")) pipeline.GetRTReflections()->SetMaxDistance(rt["maxDistance"].get<float>());
+        if (rt.contains("intensity"))   pipeline.GetRTReflections()->SetIntensity(rt["intensity"].get<float>());
+    }
+
+    // DXR RTGI (グローバルイルミネーション)
+    if (pe.contains("rtgi") && pipeline.GetRTGI())
+    {
+        auto& gi = pe["rtgi"];
+        if (gi.contains("enabled"))           pipeline.GetRTGI()->SetEnabled(gi["enabled"].get<bool>());
+        if (gi.contains("intensity"))         pipeline.GetRTGI()->SetIntensity(gi["intensity"].get<float>());
+        if (gi.contains("maxDistance"))        pipeline.GetRTGI()->SetMaxDistance(gi["maxDistance"].get<float>());
+        if (gi.contains("temporalAlpha"))     pipeline.GetRTGI()->SetTemporalAlpha(gi["temporalAlpha"].get<float>());
+        if (gi.contains("spatialIterations")) pipeline.GetRTGI()->SetSpatialIterations(gi["spatialIterations"].get<int>());
+    }
+
     GX_LOG_INFO("PostEffectSettings: Loaded from %s", filePath.c_str());
     return true;
 }
@@ -297,6 +319,28 @@ bool PostEffectSettings::Save(const std::string& filePath, const PostEffectPipel
         cg["saturation"]  = pipeline.GetSaturation();
         cg["temperature"] = pipeline.GetTemperature();
         pe["colorGrading"] = cg;
+    }
+
+    // DXR RT反射
+    if (pipeline.GetRTReflections())
+    {
+        json rt;
+        rt["enabled"]     = pipeline.GetRTReflections()->IsEnabled();
+        rt["maxDistance"]  = pipeline.GetRTReflections()->GetMaxDistance();
+        rt["intensity"]    = pipeline.GetRTReflections()->GetIntensity();
+        pe["rtReflections"] = rt;
+    }
+
+    // DXR RTGI (グローバルイルミネーション)
+    if (pipeline.GetRTGI())
+    {
+        json gi;
+        gi["enabled"]           = pipeline.GetRTGI()->IsEnabled();
+        gi["intensity"]         = pipeline.GetRTGI()->GetIntensity();
+        gi["maxDistance"]        = pipeline.GetRTGI()->GetMaxDistance();
+        gi["temporalAlpha"]     = pipeline.GetRTGI()->GetTemporalAlpha();
+        gi["spatialIterations"] = pipeline.GetRTGI()->GetSpatialIterations();
+        pe["rtgi"] = gi;
     }
 
     root["postEffects"] = pe;

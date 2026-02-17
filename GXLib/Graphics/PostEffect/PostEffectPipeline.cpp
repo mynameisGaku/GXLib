@@ -11,6 +11,8 @@
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Graphics/Device/BarrierBatch.h"
+#include "Graphics/RayTracing/RTReflections.h"
+#include "Graphics/RayTracing/RTGI.h"
 #include "Core/Logger.h"
 
 namespace GX
@@ -25,6 +27,12 @@ bool PostEffectPipeline::Initialize(ID3D12Device* device, uint32_t width, uint32
     // HDR用RT (高ダイナミックレンジ)
     if (!m_hdrRT.Create(device, width, height, k_HDRFormat)) return false;
     if (!m_hdrPingPongRT.Create(device, width, height, k_HDRFormat)) return false;
+
+    // GBuffer法線RT (DXR反射用)
+    if (!m_normalRT.Create(device, width, height, k_HDRFormat)) return false;
+
+    // GBufferアルベドRT (GI用)
+    if (!m_albedoRT.Create(device, width, height, k_LDRFormat)) return false;
 
     // LDR用RT (低ダイナミックレンジ)
     if (!m_ldrRT[0].Create(device, width, height, k_LDRFormat)) return false;
@@ -136,7 +144,9 @@ bool PostEffectPipeline::CreatePipelines(ID3D12Device* device)
             .AddCBV(0)
             .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, 0,
                                 D3D12_SHADER_VISIBILITY_PIXEL)
-            .AddStaticSampler(0)
+            .AddStaticSampler(0, D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+                              D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+                              D3D12_COMPARISON_FUNC_NEVER)
             .Build(device);
         if (!m_commonRS) return false;
     }
@@ -288,12 +298,20 @@ void PostEffectPipeline::BeginScene(ID3D12GraphicsCommandList* cmdList, uint32_t
     }
 
     m_hdrRT.TransitionTo(cmdList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    m_normalRT.TransitionTo(cmdList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    m_albedoRT.TransitionTo(cmdList, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-    auto rtvHandle = m_hdrRT.GetRTVHandle();
     const float clearColor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
-    cmdList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+    D3D12_CPU_DESCRIPTOR_HANDLE rtvs[3] = {
+        m_hdrRT.GetRTVHandle(),
+        m_normalRT.GetRTVHandle(),
+        m_albedoRT.GetRTVHandle()
+    };
+    cmdList->ClearRenderTargetView(rtvs[0], clearColor, 0, nullptr);
+    cmdList->ClearRenderTargetView(rtvs[1], clearColor, 0, nullptr);
+    cmdList->ClearRenderTargetView(rtvs[2], clearColor, 0, nullptr);
     cmdList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-    cmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+    cmdList->OMSetRenderTargets(3, rtvs, FALSE, &dsvHandle);
 
     D3D12_VIEWPORT viewport = {};
     viewport.Width  = static_cast<float>(m_width);
@@ -310,6 +328,8 @@ void PostEffectPipeline::BeginScene(ID3D12GraphicsCommandList* cmdList, uint32_t
 void PostEffectPipeline::EndScene()
 {
     m_hdrRT.TransitionTo(m_cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    m_normalRT.TransitionTo(m_cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    m_albedoRT.TransitionTo(m_cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
@@ -325,6 +345,15 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
     // ========================================
     RenderTarget* currentHDR = &m_hdrRT;
 
+    // RTGI (GI加算合成, SSAOの前)
+    if (m_rtGI && m_rtGI->IsEnabled() && m_cmdList4)
+    {
+        RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
+        m_rtGI->SetNormalRT(&m_normalRT);
+        m_rtGI->Execute(m_cmdList4, m_frameIndex, *currentHDR, *dest, depthBuffer, camera, m_albedoRT);
+        currentHDR = dest;
+    }
+
     // SSAO (HDRシーンにインプレース乗算合成)
     if (m_ssao.IsEnabled())
     {
@@ -334,11 +363,22 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
         currentHDR->TransitionTo(m_cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     }
 
-    // SSR (HDR空間, SSAOの後)
-    if (m_ssr.IsEnabled())
+    // 反射: DXR RT反射 (排他) または SSR
+    bool rtUsed = false;
+    if (m_rtReflections && m_rtReflections->IsEnabled() && m_cmdList4)
     {
         RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
-        m_ssr.Execute(m_cmdList, m_frameIndex, *currentHDR, *dest, depthBuffer, camera);
+        m_rtReflections->SetNormalRT(&m_normalRT);
+        m_rtReflections->Execute(m_cmdList4, m_frameIndex, *currentHDR, *dest, depthBuffer, camera);
+        currentHDR = dest;
+        rtUsed = true;
+    }
+
+    // SSR (HDR空間, SSAOの後) — RT反射と排他
+    if (!rtUsed && m_ssr.IsEnabled())
+    {
+        RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
+        m_ssr.Execute(m_cmdList, m_frameIndex, *currentHDR, *dest, depthBuffer, m_normalRT, camera);
         currentHDR = dest;
     }
 
@@ -499,6 +539,8 @@ void PostEffectPipeline::OnResize(ID3D12Device* device, uint32_t width, uint32_t
     m_height = height;
     m_hdrRT.Create(device, width, height, k_HDRFormat);
     m_hdrPingPongRT.Create(device, width, height, k_HDRFormat);
+    m_normalRT.Create(device, width, height, k_HDRFormat);
+    m_albedoRT.Create(device, width, height, k_LDRFormat);
     m_ldrRT[0].Create(device, width, height, k_LDRFormat);
     m_ldrRT[1].Create(device, width, height, k_LDRFormat);
     m_ssao.OnResize(device, width, height);
@@ -510,6 +552,10 @@ void PostEffectPipeline::OnResize(ID3D12Device* device, uint32_t width, uint32_t
     m_volumetricLight.OnResize(device, width, height);
     m_taa.OnResize(device, width, height);
     m_autoExposure.OnResize(device, width, height);
+    if (m_rtReflections)
+        m_rtReflections->OnResize(device, width, height);
+    if (m_rtGI)
+        m_rtGI->OnResize(device, width, height);
 }
 
 bool PostEffectPipeline::LoadSettings(const std::string& filePath)

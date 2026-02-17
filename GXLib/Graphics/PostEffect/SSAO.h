@@ -49,6 +49,7 @@ class SSAO
 {
 public:
     static constexpr uint32_t k_KernelSize = 64;
+    static_assert(k_KernelSize > 0, "SSAO kernel size must be > 0");
 
     SSAO() = default;
     ~SSAO() = default;

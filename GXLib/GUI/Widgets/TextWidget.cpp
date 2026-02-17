@@ -16,7 +16,7 @@ float TextWidget::GetIntrinsicHeight() const
     return static_cast<float>(m_renderer->GetLineHeight(m_fontHandle));
 }
 
-void TextWidget::Render(UIRenderer& renderer)
+void TextWidget::RenderSelf(UIRenderer& renderer)
 {
     if (m_text.empty() || m_fontHandle < 0) return;
     const Style& drawStyle = GetRenderStyle();
@@ -24,7 +24,9 @@ void TextWidget::Render(UIRenderer& renderer)
     // 背景（設定されている場合）
     if (!drawStyle.backgroundColor.IsTransparent())
     {
-        renderer.DrawRect(globalRect, drawStyle, opacity);
+        UIRectEffect effect;
+        const UIRectEffect* eff = GetActiveEffect(drawStyle, effect);
+        renderer.DrawRect(globalRect, drawStyle, 1.0f, eff);
     }
 
     // テキスト位置計算（textAlign）
@@ -69,7 +71,7 @@ void TextWidget::Render(UIRenderer& renderer)
     if (textY < topLimit) textY = topLimit;
     if (textY > bottomLimit) textY = bottomLimit;
 
-    renderer.DrawText(textX, textY, m_fontHandle, m_text, drawStyle.color, opacity);
+    renderer.DrawText(textX, textY, m_fontHandle, m_text, drawStyle.color, 1.0f);
 
     // 子は通常描画しない（TextWidgetは末端）
 }

@@ -49,18 +49,21 @@ enable_testing()
 # 繧ｵ繝悶・繝ｭ繧ｸ繧ｧ繧ｯ繝医ｒ霑ｽ蜉
 add_subdirectory(GXLib)
 add_subdirectory(Sandbox)
-add_subdirectory(Framework)
 add_subdirectory(Tests)
+
+# Asset pipeline tools
+add_subdirectory(gxconv)
+add_subdirectory(gxloader)
+add_subdirectory(gxpak)
 
 # =============================================================================
 # 繧ｵ繝ｳ繝励Ν繝励Ο繧ｸ繧ｧ繧ｯ繝亥・騾壹・繧ｯ繝ｭ
 # =============================================================================
 macro(gxlib_add_sample SAMPLE_NAME)
     add_executable(${SAMPLE_NAME} WIN32 main.cpp)
-    target_link_libraries(${SAMPLE_NAME} PRIVATE GXLib GXFrameworkLib)
+    target_link_libraries(${SAMPLE_NAME} PRIVATE GXLib)
     target_include_directories(${SAMPLE_NAME} PRIVATE
         ${CMAKE_SOURCE_DIR}/GXLib
-        ${CMAKE_SOURCE_DIR}/Framework/src
     )
 
     # Shaders/Assets 繧貞・蜉帙ョ繧｣繝ｬ繧ｯ繝医Μ縺ｫ繧ｳ繝斐・
@@ -99,6 +102,10 @@ add_subdirectory(Samples/Walkthrough3D)
 add_subdirectory(Samples/GUIMenuDemo)
 add_subdirectory(Samples/PostEffectShowcase)
 add_subdirectory(Samples/EasyHello)
+add_subdirectory(Samples/DXRShowcase)
+
+# GXModelViewer (ImGui-based 3D model viewer)
+add_subdirectory(GXModelViewer)
 
 # Sandbox繧偵せ繧ｿ繝ｼ繝医い繝・・繝励Ο繧ｸ繧ｧ繧ｯ繝医↓險ｭ螳・
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT Sandbox)

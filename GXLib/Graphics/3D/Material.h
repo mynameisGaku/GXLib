@@ -4,11 +4,12 @@
 /// 初学者向け: PBRは「現実っぽい光の反射」を目指す方式です。
 
 #include "pch.h"
+#include <gxformat/shader_model.h>
 
 namespace GX
 {
 
-/// @brief マテリアル定数（GPU定数バッファ向けに配置）
+/// @brief マテリアル定数（GPU定数バッファ向けに配置、後方互換）
 struct MaterialConstants
 {
     XMFLOAT4 albedoFactor;       // RGBA
@@ -23,11 +24,14 @@ struct MaterialConstants
 /// @brief マテリアルのテクスチャ有無フラグ
 namespace MaterialFlags
 {
-    constexpr uint32_t HasAlbedoMap   = 1 << 0;
-    constexpr uint32_t HasNormalMap   = 1 << 1;
-    constexpr uint32_t HasMetRoughMap = 1 << 2;
-    constexpr uint32_t HasAOMap       = 1 << 3;
-    constexpr uint32_t HasEmissiveMap = 1 << 4;
+    constexpr uint32_t HasAlbedoMap        = 1 << 0;
+    constexpr uint32_t HasNormalMap        = 1 << 1;
+    constexpr uint32_t HasMetRoughMap      = 1 << 2;
+    constexpr uint32_t HasAOMap            = 1 << 3;
+    constexpr uint32_t HasEmissiveMap      = 1 << 4;
+    constexpr uint32_t HasToonRampMap      = 1 << 5;
+    constexpr uint32_t HasSubsurfaceMap    = 1 << 6;
+    constexpr uint32_t HasClearCoatMaskMap = 1 << 7;
 }
 
 /// @brief MaterialManager::SetTextureで使うテクスチャスロット
@@ -37,7 +41,10 @@ enum class MaterialTextureSlot
     Normal,
     MetalRoughness,
     AO,
-    Emissive
+    Emissive,
+    ToonRamp,
+    SubsurfaceMap,
+    ClearCoatMask
 };
 
 /// @brief PBRマテリアルデータ
@@ -53,13 +60,21 @@ struct Material
         0                          // flags
     };
 
-    int albedoMapHandle   = -1;
-    int normalMapHandle   = -1;
-    int metRoughMapHandle = -1;
-    int aoMapHandle       = -1;
-    int emissiveMapHandle = -1;
+    int albedoMapHandle        = -1;
+    int normalMapHandle        = -1;
+    int metRoughMapHandle      = -1;
+    int aoMapHandle            = -1;
+    int emissiveMapHandle      = -1;
+    int toonRampMapHandle      = -1;
+    int subsurfaceMapHandle    = -1;
+    int clearCoatMaskMapHandle = -1;
 
     int shaderHandle      = -1; // 任意のシェーダー上書き
+
+    /// シェーダーモデル（Standard/Unlit/Toon/Phong/Subsurface/ClearCoat）
+    gxfmt::ShaderModel       shaderModel  = gxfmt::ShaderModel::Standard;
+    /// シェーダーモデル固有パラメータ（256B）
+    gxfmt::ShaderModelParams shaderParams = {};
 };
 
 /// @brief マテリアル管理（ハンドル + フリーリスト）

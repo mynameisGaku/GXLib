@@ -34,16 +34,25 @@ float4 PSThreshold(FullscreenVSOutput input) : SV_Target
     return float4(color * contribution, 1.0f);
 }
 
-// --- Downsample Pass ---
+// --- Downsample Pass (Karis average: HDRファイアフライ抑制) ---
 float4 PSDownsample(FullscreenVSOutput input) : SV_Target
 {
     float2 uv = input.uv;
     float2 d = gTexelSize * 0.5f;
-    float3 c  = tSource.Sample(sLinear, uv + float2(-d.x, -d.y)).rgb;
-           c += tSource.Sample(sLinear, uv + float2( d.x, -d.y)).rgb;
-           c += tSource.Sample(sLinear, uv + float2(-d.x,  d.y)).rgb;
-           c += tSource.Sample(sLinear, uv + float2( d.x,  d.y)).rgb;
-    return float4(c * 0.25f, 1.0f);
+    float3 s0 = tSource.Sample(sLinear, uv + float2(-d.x, -d.y)).rgb;
+    float3 s1 = tSource.Sample(sLinear, uv + float2( d.x, -d.y)).rgb;
+    float3 s2 = tSource.Sample(sLinear, uv + float2(-d.x,  d.y)).rgb;
+    float3 s3 = tSource.Sample(sLinear, uv + float2( d.x,  d.y)).rgb;
+
+    // Karis average: 輝度の逆数で重み付け → 極端に明るいピクセルの影響を抑制
+    float w0 = 1.0f / (1.0f + Luminance(s0));
+    float w1 = 1.0f / (1.0f + Luminance(s1));
+    float w2 = 1.0f / (1.0f + Luminance(s2));
+    float w3 = 1.0f / (1.0f + Luminance(s3));
+    float wSum = w0 + w1 + w2 + w3;
+
+    float3 c = (s0 * w0 + s1 * w1 + s2 * w2 + s3 * w3) / wSum;
+    return float4(c, 1.0f);
 }
 
 // --- Gaussian Blur 9-tap ---

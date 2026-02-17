@@ -40,11 +40,17 @@ void CascadedShadowMap::Update(const Camera3D& camera, const XMFLOAT3& lightDire
     float nearZ = camera.GetNearZ();
     float farZ  = camera.GetFarZ();
 
-    // カスケード分割距離を計算
+    // カスケード分割距離を計算 (PSSM: logarithmic/linear blend)
+    constexpr float lambda = 0.5f;  // log/linear ブレンド比率 (0=linear, 1=log)
+    float ratio = farZ / nearZ;
+
     float prevSplit = nearZ;
     for (uint32_t i = 0; i < k_NumCascades; ++i)
     {
-        float splitDist = nearZ + (farZ - nearZ) * m_cascadeRatios[i];
+        float p = static_cast<float>(i + 1) / static_cast<float>(k_NumCascades);
+        float logSplit = nearZ * std::pow(ratio, p);
+        float linSplit = nearZ + (farZ - nearZ) * p;
+        float splitDist = lambda * logSplit + (1.0f - lambda) * linSplit;
         m_constants.cascadeSplits[i] = splitDist;
 
         ComputeCascadeLightVP(i, camera, lightDirection, prevSplit, splitDist);

@@ -123,7 +123,7 @@ void VolumetricLight::UpdateSunInfo(const Camera3D& camera)
     XMVECTOR sunClip = XMVector3TransformCoord(sunWorld, viewProj);
 
     // NDC→UV変換
-    XMFLOAT3 sunNDC;
+    XMFLOAT3 sunNDC = {0.0f, 0.0f, 0.0f};
     XMStoreFloat3(&sunNDC, sunClip);
     float sunU = sunNDC.x * 0.5f + 0.5f;
     float sunV = -sunNDC.y * 0.5f + 0.5f;

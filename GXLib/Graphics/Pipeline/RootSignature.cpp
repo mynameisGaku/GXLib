@@ -37,7 +37,8 @@ RootSignatureBuilder& RootSignatureBuilder::AddDescriptorTable(D3D12_DESCRIPTOR_
                                                                  uint32_t shaderRegister,
                                                                  uint32_t numDescriptors,
                                                                  uint32_t space,
-                                                                 D3D12_SHADER_VISIBILITY visibility)
+                                                                 D3D12_SHADER_VISIBILITY visibility,
+                                                                 D3D12_DESCRIPTOR_RANGE_FLAGS rangeFlags)
 {
     // unique_ptrで確保してポインタの安定性を保証
     auto range = std::make_unique<D3D12_DESCRIPTOR_RANGE1>();
@@ -45,7 +46,7 @@ RootSignatureBuilder& RootSignatureBuilder::AddDescriptorTable(D3D12_DESCRIPTOR_
     range->NumDescriptors                    = numDescriptors;
     range->BaseShaderRegister                = shaderRegister;
     range->RegisterSpace                     = space;
-    range->Flags                             = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
+    range->Flags                             = rangeFlags;
     range->OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
     D3D12_ROOT_PARAMETER1 param = {};

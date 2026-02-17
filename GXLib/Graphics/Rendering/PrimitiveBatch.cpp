@@ -132,6 +132,13 @@ void PrimitiveBatch::Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameInd
 
     m_mappedTriVertices  = static_cast<PrimitiveVertex*>(m_triangleVertexBuffer.Map(frameIndex));
     m_mappedLineVertices = static_cast<PrimitiveVertex*>(m_lineVertexBuffer.Map(frameIndex));
+    if (!m_mappedTriVertices || !m_mappedLineVertices)
+    {
+        GX_LOG_ERROR("PrimitiveBatch: Failed to map vertex buffer(s)");
+        if (m_mappedTriVertices)  { m_triangleVertexBuffer.Unmap(frameIndex); m_mappedTriVertices = nullptr; }
+        if (m_mappedLineVertices) { m_lineVertexBuffer.Unmap(frameIndex); m_mappedLineVertices = nullptr; }
+        return;
+    }
     m_triVertexCount  = 0;
     m_lineVertexCount = 0;
 

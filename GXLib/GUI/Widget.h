@@ -12,6 +12,7 @@ namespace GX { namespace GUI {
 
 // 前方宣言
 class UIRenderer;
+struct UIRectEffect;
 
 // ============================================================================
 // ウィジェットタイプ
@@ -64,6 +65,7 @@ struct UIEvent
     UIEventType type = UIEventType::MouseMove;
     UIEventPhase phase = UIEventPhase::Target;
     float mouseX = 0.0f, mouseY = 0.0f;
+    float localX = 0.0f, localY = 0.0f;
     int mouseButton = 0;
     int wheelDelta = 0;
     int keyCode = 0;
@@ -139,11 +141,20 @@ public:
     std::function<void()> onBlur;
     std::function<void()> onSubmit;
     std::function<void(const UIEvent&)> onEvent;
+    /// 値変更コールバック。各ウィジェットの値形式:
+    /// - CheckBox: "true" / "false"
+    /// - Slider: "0.5" (float文字列)
+    /// - RadioButton: 選択されたラジオボタンのテキスト
+    /// - TextInput: 入力テキスト (UTF-8)
+    /// - DropDown/ListView: 選択されたアイテムのテキスト
     std::function<void(const std::string&)> onValueChanged;
 
     // --- ライフサイクル ---
     virtual void Update(float deltaTime);
     virtual void Render(UIRenderer& renderer);
+    virtual void RenderSelf(UIRenderer& renderer) {}
+    virtual void RenderChildren(UIRenderer& renderer);
+    const UIRectEffect* GetActiveEffect(const Style& style, UIRectEffect& out) const;
 
 protected:
     void UpdateStyleTransition(float deltaTime, const Style& targetStyle);
@@ -157,6 +168,11 @@ protected:
     float m_transitionTime = 0.0f;
     float m_transitionDuration = 0.0f;
     bool m_hasRenderStyle = false;
+
+    bool m_effectActive = false;
+    float m_effectTime = 0.0f;
+    float m_effectCenterX = 0.5f;
+    float m_effectCenterY = 0.5f;
 };
 
 }} // namespace GX::GUI

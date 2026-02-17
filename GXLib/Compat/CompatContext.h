@@ -53,6 +53,9 @@ public:
     /// @return 正常時 0、ウィンドウが閉じられた場合 -1
     int ProcessMessage();
 
+    /// @brief 垂直同期の有効/無効を設定する
+    void SetVSync(bool enabled) { vsyncEnabled = enabled; }
+
     // --- バッチ管理 ---
 
     /// @brief アクティブな描画バッチの種類
@@ -108,11 +111,13 @@ public:
     int          defaultFontHandle = -1; ///< デフォルトフォントのハンドル
     ActiveBatch  activeBatch    = ActiveBatch::None; ///< 現在アクティブなバッチ種別
     bool         frameActive    = false; ///< フレーム描画中フラグ
+    bool         vsyncEnabled   = false; ///< 垂直同期を有効にするか
     uint32_t     bgColor_r      = 0;    ///< 背景色 赤成分（0〜255）
     uint32_t     bgColor_g      = 0;    ///< 背景色 緑成分（0〜255）
     uint32_t     bgColor_b      = 0;    ///< 背景色 青成分（0〜255）
 
     // --- 3D モデルレジストリ ---
+    static constexpr int k_MaxModels = 256;
 
     /// @brief 3Dモデルの管理エントリ
     struct ModelEntry

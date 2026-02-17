@@ -1,32 +1,60 @@
-/// @file Samples/PostEffectShowcase/main.cpp
-/// @brief GXFrameworkのポストエフェクト紹介サンプル。効果のON/OFFを体験できる。
-
-#include "FrameworkApp.h"
-#include "GameScene.h"
-
+﻿/// @file Samples/PostEffectShowcase/main.cpp
+/// @brief ポストエフェクトをON/OFFして試すサンプル。
+#include "GXEasy.h"
+#include "Compat/CompatContext.h"
 #include "Graphics/3D/MeshData.h"
 #include "Graphics/3D/Light.h"
 #include "Graphics/3D/Material.h"
 #include "Graphics/3D/Fog.h"
 
 #include <format>
+#include <string>
+#include <Windows.h>
 
-namespace
+#ifdef UNICODE
+using TChar = wchar_t;
+#else
+using TChar = char;
+#endif
+
+using TString = std::basic_string<TChar>;
+
+template <class... Args>
+TString FormatT(const TChar* fmt, Args&&... args)
 {
+#ifdef UNICODE
+    return std::vformat(fmt, std::make_wformat_args(std::forward<Args>(args)...));
+#else
+    return std::vformat(fmt, std::make_format_args(std::forward<Args>(args)...));
+#endif
+}
 
-class PostEffectScene : public GXFW::GameScene
+class PostEffectApp : public GXEasy::App
 {
 public:
-    const char* GetName() const override { return "PostEffectShowcase"; }
-
-protected:
-    void OnSceneEnter(GXFW::SceneContext& ctx) override
+    GXEasy::AppConfig GetConfig() const override
     {
-        m_ctx = &ctx;
-        auto& renderer = *ctx.renderer;
-        auto& camera = *ctx.camera;
+        GXEasy::AppConfig config;
+        config.title = L"GXLib Sample: PostEffect Showcase";
+        config.width = 1280;
+        config.height = 720;
+        config.bgR = 6;
+        config.bgG = 8;
+        config.bgB = 18;
+		config.vsync = true;
+        return config;
+    }
 
-        auto& postFX = *ctx.postFX;
+    void Start() override
+    {
+        auto& ctx = GX_Internal::CompatContext::Instance();
+        auto& renderer = ctx.renderer3D;
+        auto& camera = ctx.camera;
+        auto& postFX = ctx.postEffect;
+
+        // シャドウパスをこのサンプルでは回さないため、シャドウは無効化しておく
+        renderer.SetShadowEnabled(false);
+
         postFX.SetTonemapMode(GX::TonemapMode::ACES);
         postFX.GetBloom().SetEnabled(true);
         postFX.GetSSAO().SetEnabled(true);
@@ -85,16 +113,21 @@ protected:
         renderer.GetSkybox().SetSun({ 0.3f, -1.0f, 0.5f }, 5.0f);
         renderer.GetSkybox().SetColors({ 0.5f, 0.55f, 0.6f }, { 0.75f, 0.75f, 0.75f });
 
-        camera.SetPerspective(XM_PIDIV4, (float)ctx.swapChain->GetWidth() / ctx.swapChain->GetHeight(), 0.1f, 500.0f);
+        float aspect = static_cast<float>(ctx.swapChain.GetWidth()) / ctx.swapChain.GetHeight();
+        camera.SetPerspective(XM_PIDIV4, aspect, 0.1f, 500.0f);
         camera.SetPosition(0.0f, 3.0f, -8.0f);
         camera.Rotate(0.3f, 0.0f);
     }
 
-    void OnSceneUpdate(GXFW::SceneContext& ctx, float dt) override
+    void Update(float dt) override
     {
-        auto& camera = *ctx.camera;
-        auto& kb = ctx.input->GetKeyboard();
-        auto& mouse = ctx.input->GetMouse();
+        auto& ctx = GX_Internal::CompatContext::Instance();
+        auto& camera = ctx.camera;
+        auto& kb = ctx.inputManager.GetKeyboard();
+        auto& mouse = ctx.inputManager.GetMouse();
+
+        m_totalTime += dt;
+        m_lastDt = dt;
 
         if (mouse.IsButtonTriggered(GX::MouseButton::Right))
         {
@@ -126,19 +159,22 @@ protected:
         }
 
         float speed = m_cameraSpeed * dt;
-        if (ctx.input->CheckHitKey(VK_SHIFT)) speed *= 3.0f;
-        if (ctx.input->CheckHitKey('W')) camera.MoveForward(speed);
-        if (ctx.input->CheckHitKey('S')) camera.MoveForward(-speed);
-        if (ctx.input->CheckHitKey('D')) camera.MoveRight(speed);
-        if (ctx.input->CheckHitKey('A')) camera.MoveRight(-speed);
-        if (ctx.input->CheckHitKey('E')) camera.MoveUp(speed);
-        if (ctx.input->CheckHitKey('Q')) camera.MoveUp(-speed);
+        if (CheckHitKey(KEY_INPUT_LSHIFT)) speed *= 3.0f;
+        if (CheckHitKey(KEY_INPUT_W)) camera.MoveForward(speed);
+        if (CheckHitKey(KEY_INPUT_S)) camera.MoveForward(-speed);
+        if (CheckHitKey(KEY_INPUT_D)) camera.MoveRight(speed);
+        if (CheckHitKey(KEY_INPUT_A)) camera.MoveRight(-speed);
+        if (CheckHitKey(KEY_INPUT_E)) camera.MoveUp(speed);
+        if (CheckHitKey(KEY_INPUT_Q)) camera.MoveUp(-speed);
 
-        // 数字キーでエフェクト切り替え。どの効果が効いているか確認しやすい。
-        int toggleKeys[] = { '1','2','3','4','5','6','7','8','9','0' };
+        // キー入力でエフェクトを切り替える
+        const int keys[k_NumEffects] = {
+            '1', '2', '3', '4', '5',
+            '6', '7', '8', '9', '0'
+        };
         for (int i = 0; i < k_NumEffects; ++i)
         {
-            if (kb.IsKeyTriggered(toggleKeys[i]))
+            if (kb.IsKeyTriggered(keys[i]))
                 ToggleEffect(i);
         }
 
@@ -146,59 +182,73 @@ protected:
             m_autoRotate = !m_autoRotate;
     }
 
-    void OnSceneRender(GXFW::SceneContext& ctx) override
+    void Draw() override
     {
-        auto& renderer = *ctx.renderer;
+        auto& ctx = GX_Internal::CompatContext::Instance();
+        auto* cmd = ctx.cmdList;
+        const uint32_t frameIndex = ctx.frameIndex;
 
-        renderer.SetMaterial(m_floorMat);
-        renderer.DrawMesh(m_planeMesh, m_floorTransform);
+        ctx.FlushAll();
+
+        ctx.postEffect.BeginScene(cmd, frameIndex,
+                                  ctx.renderer3D.GetDepthBuffer().GetDSVHandle(),
+                                  ctx.camera);
+        ctx.renderer3D.Begin(cmd, frameIndex, ctx.camera, m_totalTime);
+
+        ctx.renderer3D.SetMaterial(m_floorMat);
+        ctx.renderer3D.DrawMesh(m_planeMesh, m_floorTransform);
 
         for (int i = 0; i < k_NumCubes; ++i)
         {
-            renderer.SetMaterial(m_cubeMats[i]);
-            renderer.DrawMesh(m_cubeMesh, m_cubeTransforms[i]);
+            ctx.renderer3D.SetMaterial(m_cubeMats[i]);
+            ctx.renderer3D.DrawMesh(m_cubeMesh, m_cubeTransforms[i]);
         }
 
         for (int i = 0; i < k_NumSpheres; ++i)
         {
-            renderer.SetMaterial(m_sphereMats[i]);
-            renderer.DrawMesh(m_sphereMesh, m_sphereTransforms[i]);
+            ctx.renderer3D.SetMaterial(m_sphereMats[i]);
+            ctx.renderer3D.DrawMesh(m_sphereMesh, m_sphereTransforms[i]);
         }
 
-        renderer.SetMaterial(m_pillarMat);
+        ctx.renderer3D.SetMaterial(m_pillarMat);
         for (int i = 0; i < k_NumPillars; ++i)
-            renderer.DrawMesh(m_cylinderMesh, m_pillarTransforms[i]);
-    }
+            ctx.renderer3D.DrawMesh(m_cylinderMesh, m_pillarTransforms[i]);
 
-    void OnSceneRenderUI(GXFW::SceneContext& ctx) override
-    {
+        ctx.renderer3D.End();
+        ctx.postEffect.EndScene();
+
+        ctx.postEffect.Resolve(ctx.swapChain.GetCurrentRTVHandle(),
+                               ctx.renderer3D.GetDepthBuffer(),
+                               ctx.camera, m_lastDt);
+
+        // UI描画
         float panelX = 10.0f;
         float panelY = 10.0f;
         float panelW = 320.0f;
         float panelH = 260.0f;
 
-        ctx.DrawBox(panelX, panelY, panelX + panelW, panelY + panelH, 0xCC000000, true);
-        ctx.DrawString(panelX + 8.0f, panelY + 8.0f, L"Post-Effect Showcase", 0xFF44CCFF);
+        DrawBox((int)panelX, (int)panelY, (int)(panelX + panelW), (int)(panelY + panelH),
+                GetColor(0, 0, 0), TRUE);
+        DrawString((int)panelX + 8, (int)panelY + 8, TEXT("Post-Effect Showcase"),
+                   GetColor(68, 204, 255));
 
         float y = panelY + 36.0f;
         for (int i = 0; i < k_NumEffects; ++i)
         {
-            uint32_t col = IsEffectEnabled(i) ? 0xFF88FF88 : 0xFF888888;
-            ctx.DrawString(panelX + 8.0f, y,
-                           std::format(L"[{}] {}",
-                                       (i == 9 ? L"0" : std::to_wstring(i + 1)),
-                                       k_EffectNames[i]),
-                           col);
+            unsigned int col = IsEffectEnabled(i) ? GetColor(136, 255, 136) : GetColor(136, 136, 136);
+            const int keyNum = (i == 9) ? 0 : (i + 1);
+            const TString line = FormatT(TEXT("[{}] {}"), keyNum, k_EffectNames[i]);
+            DrawString((int)panelX + 8, (int)y, line.c_str(), col);
             y += 20.0f;
         }
 
-        ctx.DrawString(panelX + 8.0f, y + 10.0f,
-                       L"R: Auto rotate camera",
-                       0xFF888888);
+        DrawString((int)panelX + 8, (int)(y + 10),
+                   TEXT("R: Auto rotate camera"),
+                   GetColor(136, 136, 136));
 
-        ctx.DrawString(10.0f, (float)ctx.swapChain->GetHeight() - 30.0f,
-                       L"WASD/QE Move  Shift Fast  RClick Mouse  ESC Quit",
-                       0xFF888888);
+        DrawString(10, (int)ctx.swapChain.GetHeight() - 30,
+                   TEXT("WASD/QE Move  Shift Fast  RClick Mouse  ESC Quit"),
+                   GetColor(136, 136, 136));
     }
 
 private:
@@ -206,12 +256,10 @@ private:
     static constexpr int k_NumSpheres = 3;
     static constexpr int k_NumPillars = 4;
     static constexpr int k_NumEffects = 10;
-    static constexpr const wchar_t* k_EffectNames[k_NumEffects] = {
-        L"Bloom", L"SSAO", L"FXAA", L"Vignette", L"ColorGrad",
-        L"DoF", L"MotionBlur", L"SSR", L"Outline", L"TAA"
+    static constexpr const TChar* k_EffectNames[k_NumEffects] = {
+        TEXT("Bloom"), TEXT("SSAO"), TEXT("FXAA"), TEXT("Vignette"), TEXT("ColorGrad"),
+        TEXT("DoF"), TEXT("MotionBlur"), TEXT("SSR"), TEXT("Outline"), TEXT("TAA")
     };
-
-    GXFW::SceneContext* m_ctx = nullptr;
 
     float m_cameraSpeed = 5.0f;
     float m_mouseSens = 0.003f;
@@ -219,6 +267,9 @@ private:
     int   m_lastMX = 0;
     int   m_lastMY = 0;
     bool  m_autoRotate = false;
+
+    float m_totalTime = 0.0f;
+    float m_lastDt = 0.0f;
 
     GX::GPUMesh m_planeMesh;
     GX::GPUMesh m_cubeMesh;
@@ -239,9 +290,7 @@ private:
 
     bool IsEffectEnabled(int idx) const
     {
-        if (!m_ctx || !m_ctx->postFX)
-            return false;
-        auto& fx = *m_ctx->postFX;
+        auto& fx = GX_Internal::CompatContext::Instance().postEffect;
         switch (idx)
         {
         case 0: return fx.GetBloom().IsEnabled();
@@ -260,9 +309,7 @@ private:
 
     void ToggleEffect(int idx)
     {
-        if (!m_ctx || !m_ctx->postFX)
-            return;
-        auto& fx = *m_ctx->postFX;
+        auto& fx = GX_Internal::CompatContext::Instance().postEffect;
         switch (idx)
         {
         case 0: fx.GetBloom().SetEnabled(!fx.GetBloom().IsEnabled()); break;
@@ -280,22 +327,6 @@ private:
     }
 };
 
-} // namespace
+GX_EASY_APP(PostEffectApp)
 
-int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
-{
-    GXFW::FrameworkApp app;
-    GXFW::AppConfig config;
-    config.title = L"GXLib Sample: PostEffect Showcase";
-    config.width = 1280;
-    config.height = 720;
-    config.enableDebug = true;
 
-    if (!app.Initialize(config))
-        return -1;
-
-    app.SetScene(std::make_unique<PostEffectScene>());
-    app.Run();
-    app.Shutdown();
-    return 0;
-}

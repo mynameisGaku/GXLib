@@ -42,7 +42,8 @@ float4 PSCoC(FullscreenVSOutput input) : SV_Target
     float depth = tDepth.Sample(sPoint, input.uv).r;
 
     // スカイ (depth ≈ 1.0) は最大ブラー
-    if (depth >= 0.9999)
+    static const float k_SkyDepthThreshold = 0.9999;
+    if (depth >= k_SkyDepthThreshold)
         return float4(1.0, 0, 0, 0);
 
     // ビュー空間のZ値を取得
@@ -70,14 +71,16 @@ Texture2D    tScene      : register(t0);
 SamplerState sLinear     : register(s0);
 
 static const int kKernelRadius = 6;
+// 正規化済みガウス重み (合計 = 1.0)
+static const float kGaussWeightSum = 0.1963 + 2.0 * (0.1745 + 0.1217 + 0.0667 + 0.0287 + 0.0097 + 0.0026);
 static const float kGaussWeights[7] = {
-    0.1963,   // center
-    0.1745,   // ±1
-    0.1217,   // ±2
-    0.0667,   // ±3
-    0.0287,   // ±4
-    0.0097,   // ±5
-    0.0026    // ±6
+    0.1963 / kGaussWeightSum,   // center
+    0.1745 / kGaussWeightSum,   // ±1
+    0.1217 / kGaussWeightSum,   // ±2
+    0.0667 / kGaussWeightSum,   // ±3
+    0.0287 / kGaussWeightSum,   // ±4
+    0.0097 / kGaussWeightSum,   // ±5
+    0.0026 / kGaussWeightSum    // ±6
 };
 
 float4 PSBlurH(FullscreenVSOutput input) : SV_Target
@@ -88,7 +91,7 @@ float4 PSBlurH(FullscreenVSOutput input) : SV_Target
     [unroll]
     for (int i = 1; i <= kKernelRadius; ++i)
     {
-        float2 offset = float2(gTexelSizeX * i * 2.0, 0); // *2 でblur半径増大
+        float2 offset = float2(gTexelSizeX * i * 2.0, 0); // *2: half-res RTでのサンプル間隔を倍にし、ブラー半径を拡大
         result += tScene.Sample(sLinear, uv + offset) * kGaussWeights[i];
         result += tScene.Sample(sLinear, uv - offset) * kGaussWeights[i];
     }

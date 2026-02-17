@@ -60,6 +60,18 @@ void Animator::Play(const AnimationClip* clip, bool loop, float speed)
     m_paused = false;
 }
 
+void Animator::SetBlendStack(BlendStack* stack)
+{
+    m_blendStack = stack;
+    m_mode = stack ? AnimMode::BlendStack : AnimMode::Simple;
+}
+
+void Animator::SetStateMachine(AnimatorStateMachine* sm)
+{
+    m_stateMachine = sm;
+    m_mode = sm ? AnimMode::StateMachine : AnimMode::Simple;
+}
+
 void Animator::CrossFade(const AnimationClip* clip, float duration, bool loop, float speed)
 {
     if (!clip)
@@ -166,7 +178,11 @@ void Animator::BlendPoses(const std::vector<TransformTRS>& a,
 
 void Animator::Update(float deltaTime)
 {
-    if (!m_playing || m_paused || !m_skeleton)
+    if (!m_skeleton)
+        return;
+
+    // BlendStack/StateMachineモードはm_playingに依存しない
+    if (m_mode == AnimMode::Simple && (!m_playing || m_paused))
         return;
 
     EnsurePoseStorage();
@@ -174,29 +190,56 @@ void Animator::Update(float deltaTime)
     if (jointCount == 0)
         return;
 
-    if (m_fading && m_next.clip)
+    const TransformTRS* bindPose = m_bindPose.empty() ? nullptr : m_bindPose.data();
+
+    switch (m_mode)
     {
-        AdvanceClip(m_current, deltaTime);
-        AdvanceClip(m_next, deltaTime);
-
-        SampleClip(m_current, m_poseA);
-        SampleClip(m_next, m_poseB);
-
-        m_fadeTime += deltaTime;
-        float t = (std::min)(m_fadeTime / m_fadeDuration, 1.0f);
-        BlendPoses(m_poseA, m_poseB, t, m_localPose);
-
-        if (t >= 1.0f)
+    case AnimMode::BlendStack:
+        // BlendStackモード: レイヤースタックがポーズを計算
+        // 初学者向け: 複数レイヤーを重ねてブレンドしたポーズを取得します。
+        if (m_blendStack)
         {
-            m_current = m_next;
-            m_next = {};
-            m_fading = false;
+            m_blendStack->Update(deltaTime, jointCount, bindPose, m_localPose.data());
         }
-    }
-    else
-    {
-        AdvanceClip(m_current, deltaTime);
-        SampleClip(m_current, m_localPose);
+        break;
+
+    case AnimMode::StateMachine:
+        // StateMachineモード: ステートマシンがポーズを計算
+        // 初学者向け: 現在の状態に応じたアニメーションポーズを取得します。
+        if (m_stateMachine)
+        {
+            m_stateMachine->Update(deltaTime, jointCount, bindPose, m_localPose.data());
+        }
+        break;
+
+    case AnimMode::Simple:
+    default:
+        // Simpleモード: 既存のクロスフェードロジック
+        if (m_fading && m_next.clip)
+        {
+            AdvanceClip(m_current, deltaTime);
+            AdvanceClip(m_next, deltaTime);
+
+            SampleClip(m_current, m_poseA);
+            SampleClip(m_next, m_poseB);
+
+            m_fadeTime += deltaTime;
+            float t = (std::min)(m_fadeTime / m_fadeDuration, 1.0f);
+            BlendPoses(m_poseA, m_poseB, t, m_localPose);
+
+            if (t >= 1.0f)
+            {
+                m_current = m_next;
+                m_next = {};
+                m_fading = false;
+            }
+        }
+        else
+        {
+            AdvanceClip(m_current, deltaTime);
+            SampleClip(m_current, m_localPose);
+        }
+        break;
     }
 
     // ローカル変換行列を作成

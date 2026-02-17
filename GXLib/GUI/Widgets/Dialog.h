@@ -38,7 +38,7 @@ public:
     float GetIntrinsicHeight() const override { return 0.0f; }
 
     bool OnEvent(const UIEvent& event) override;
-    void Render(UIRenderer& renderer) override;
+    void RenderSelf(UIRenderer& renderer) override;
 
     /// オーバーレイクリック時のコールバック
     std::function<void()> onClose;

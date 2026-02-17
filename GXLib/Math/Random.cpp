@@ -55,18 +55,21 @@ Vector2 Random::PointInCircle(float radius)
 {
     // 円内を一様に分布させる（リジェクションサンプリング）。
     // 四角からランダムに選んで、円の外ならやり直す。
-    for (;;)
+    constexpr int k_MaxIterations = 1000;
+    for (int iter = 0; iter < k_MaxIterations; ++iter)
     {
         float x = Float(-1.0f, 1.0f);
         float y = Float(-1.0f, 1.0f);
         if (x * x + y * y <= 1.0f)
             return { x * radius, y * radius };
     }
+    return { 0.0f, 0.0f };
 }
 
 Vector3 Random::PointInSphere(float radius)
 {
-    for (;;)
+    constexpr int k_MaxIterations = 1000;
+    for (int iter = 0; iter < k_MaxIterations; ++iter)
     {
         float x = Float(-1.0f, 1.0f);
         float y = Float(-1.0f, 1.0f);
@@ -74,6 +77,7 @@ Vector3 Random::PointInSphere(float radius)
         if (x * x + y * y + z * z <= 1.0f)
             return { x * radius, y * radius, z * radius };
     }
+    return { 0.0f, 0.0f, 0.0f };
 }
 
 Vector2 Random::Direction2D()
@@ -86,7 +90,8 @@ Vector3 Random::Direction3D()
 {
     // 球面上の一様分布（Marsaglia法）。
     // 2Dの乱数から球面上の点に変換するテクニック。
-    for (;;)
+    constexpr int k_MaxIterations = 1000;
+    for (int iter = 0; iter < k_MaxIterations; ++iter)
     {
         float x = Float(-1.0f, 1.0f);
         float y = Float(-1.0f, 1.0f);
@@ -95,6 +100,7 @@ Vector3 Random::Direction3D()
         float factor = 2.0f * std::sqrt(1.0f - s);
         return { x * factor, y * factor, 1.0f - 2.0f * s };
     }
+    return { 0.0f, 1.0f, 0.0f };
 }
 
 Color Random::RandomColor(float alpha)

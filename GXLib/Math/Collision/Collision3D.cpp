@@ -423,7 +423,9 @@ Vector3 ClosestPointOnTriangle(const Vector3& point, const Triangle& tri)
 Vector3 ClosestPointOnLine(const Vector3& point, const Vector3& lineA, const Vector3& lineB)
 {
     Vector3 ab = lineB - lineA;
-    float t = (point - lineA).Dot(ab) / ab.Dot(ab);
+    float denom = ab.Dot(ab);
+    if (denom < 1e-6f) return lineA;
+    float t = (point - lineA).Dot(ab) / denom;
     t = MathUtil::Clamp(t, 0.0f, 1.0f);
     return lineA + ab * t;
 }

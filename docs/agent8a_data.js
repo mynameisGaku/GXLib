@@ -6,7 +6,7 @@
 
 'Vector2-ctor_default': [
   'Vector2()',
-  'ゼロベクトル (0, 0) で初期化するデフォルトコンストラクタです。XMFLOAT2を継承しており、DirectXMathとゼロオーバーヘッドで相互運用できます。明示的に値を指定しない場合、x, y ともに 0.0f で初期化されます。',
+  'ゼロベクトル (0, 0) で初期化するデフォルトコンストラクタです。XMFLOAT2を継承しており、DirectXMathとゼロオーバーヘッドで相互運用できます。明示的に値を指定しない場合、x, y ともに 0.0f で初期化されます。\n\n【用語】DirectXMath: MicrosoftのSIMD最適化数学ライブラリ。XMFLOAT2/3/4はストレージ用構造体、XMVECTORはSIMD演算用レジスタ型。GXLibのVector2/3/4はXMFLOAT系を継承し、内部でSIMD関数を利用して高速演算を実現する。',
   `GX::Vector2 v;
 // v.x == 0.0f, v.y == 0.0f`,
   '• XMFLOAT2を継承しているため、DirectXMath関数にそのまま渡せる\n• デフォルト状態はゼロベクトル'
@@ -76,13 +76,13 @@ GX::Vector2 scaled2 = 0.5f * v; // (1.0f, 1.5f)`,
 
 'Vector2-Dot': [
   'float Dot(const Vector2& v) const',
-  '2つのベクトルの内積（ドット積）を計算します。内部で DirectXMath の XMVector2Dot を使用するため高速です。2つのベクトルの類似度や射影量の計算に利用します。結果が正なら同方向、負なら逆方向、0なら直交です。',
+  '2つのベクトルの内積（ドット積）を計算します。内部で DirectXMath の XMVector2Dot を使用するため高速です。2つのベクトルの類似度や射影量の計算に利用します。結果が正なら同方向、負なら逆方向、0なら直交です。\n\n【用語】内積（Dot Product）: 2ベクトルの各成分の積の和。結果はスカラーで、a・b = |a||b|cosθ の関係。ライティングの拡散反射、視野角判定、射影計算など3Dグラフィックスの基本演算。',
   `GX::Vector2 a(1.0f, 0.0f);
 GX::Vector2 b(0.0f, 1.0f);
-float d = a.Dot(b); // 0.0f (直交)
+float d = a.Dot(b);  // 0.0f（直交: 90度）
 
 GX::Vector2 c(1.0f, 0.0f);
-float d2 = a.Dot(c); // 1.0f (同方向)`,
+float d2 = a.Dot(c); // 1.0f（同方向: 0度）`,
   '• 戻り値はスカラー (float)\n• DirectXMath の SIMD 演算を内部使用'
 ],
 
@@ -126,7 +126,7 @@ float dist = a.Distance(b); // 5.0f`,
   '2つのベクトル間を線形補間します。t=0 のとき a、t=1 のとき b を返します。アニメーションやスムーズな移動の実装に使用します。t は 0〜1 の範囲に限定されず、外挿も可能です。',
   `GX::Vector2 start(0.0f, 0.0f);
 GX::Vector2 end(100.0f, 200.0f);
-GX::Vector2 mid = GX::Vector2::Lerp(start, end, 0.5f);
+GX::Vector2 mid = GX::Vector2::Lerp(start, end, 0.5f); // t=0.5で中間点
 // mid == (50.0f, 100.0f)`,
   '• 静的メンバ関数\n• t を [0, 1] にクランプしないため、外挿にも使用可能'
 ],
@@ -341,7 +341,7 @@ auto view = GX::Matrix4x4::LookAtLH(eye, target, up);`,
 
 'Vector4-ctor_xyzw': [
   'Vector4(float x, float y, float z, float w)',
-  '指定した x, y, z, w 成分で初期化するコンストラクタです。同次座標やシェーダーへの4成分データ受け渡しに使用します。',
+  '指定した x, y, z, w 成分で初期化するコンストラクタです。同次座標やシェーダーへの4成分データ受け渡しに使用します。\n\n【用語】同次座標（Homogeneous Coordinates）: 3D座標にw成分を追加した4成分表現。w=1で位置、w=0で方向ベクトルを表す。4x4行列による平行移動・回転・スケールの統一的な変換を可能にする。',
   `GX::Vector4 v(1.0f, 2.0f, 3.0f, 1.0f);`,
   '• 同次座標 (w=1 で位置、w=0 で方向) の表現に便利'
 ],
@@ -466,10 +466,10 @@ GX::Matrix4x4 invView = view.Inverse();`,
 'Matrix4x4-Multiply': [
   'Matrix4x4 operator*(const Matrix4x4& m) const',
   '2つの行列を乗算して合成行列を返します。変換の合成（スケール→回転→平行移動など）に使用します。行列の乗算順序は右から左に適用されます。',
-  `GX::Matrix4x4 scale = GX::Matrix4x4::Scaling(2.0f);
-GX::Matrix4x4 rot = GX::Matrix4x4::RotationY(GX::MathUtil::PI / 4.0f);
-GX::Matrix4x4 trans = GX::Matrix4x4::Translation(0.0f, 5.0f, 0.0f);
-GX::Matrix4x4 world = scale * rot * trans;`,
+  `GX::Matrix4x4 scale = GX::Matrix4x4::Scaling(2.0f);                      // 2倍拡大
+GX::Matrix4x4 rot = GX::Matrix4x4::RotationY(GX::MathUtil::PI / 4.0f);  // Y軸45度回転
+GX::Matrix4x4 trans = GX::Matrix4x4::Translation(0.0f, 5.0f, 0.0f);     // Y方向に5移動
+GX::Matrix4x4 world = scale * rot * trans; // S * R * T の順で合成`,
   '• 乗算順序に注意: S * R * T が一般的\n• DirectXMath の XMMatrixMultiply を内部使用'
 ],
 
@@ -521,9 +521,9 @@ GX::Matrix4x4 rz = GX::Matrix4x4::RotationZ(angle);`,
 'Matrix4x4-LookAt': [
   'static Matrix4x4 LookAtLH(const Vector3& eye, const Vector3& target, const Vector3& up)',
   '左手座標系のビュー行列（LookAt行列）を作成する静的メンバ関数です。カメラの位置、注視点、上方向ベクトルを指定します。3Dシーンのカメラ設定に必須です。',
-  `GX::Vector3 eye(0.0f, 5.0f, -10.0f);
-GX::Vector3 target(0.0f, 0.0f, 0.0f);
-GX::Vector3 up = GX::Vector3::Up();
+  `GX::Vector3 eye(0.0f, 5.0f, -10.0f);    // カメラ位置
+GX::Vector3 target(0.0f, 0.0f, 0.0f);   // 注視点
+GX::Vector3 up = GX::Vector3::Up();      // 上方向 (0,1,0)
 GX::Matrix4x4 view = GX::Matrix4x4::LookAtLH(eye, target, up);`,
   '• 左手座標系 (LH) 専用\n• DirectXMath の XMMatrixLookAtLH を内部使用'
 ],
@@ -531,10 +531,11 @@ GX::Matrix4x4 view = GX::Matrix4x4::LookAtLH(eye, target, up);`,
 'Matrix4x4-Perspective': [
   'static Matrix4x4 PerspectiveFovLH(float fovY, float aspect, float nearZ, float farZ)',
   '左手座標系の透視投影行列を作成する静的メンバ関数です。垂直視野角、アスペクト比、ニア/ファークリップ面を指定します。3Dシーンの遠近感を表現するために使用します。',
-  `float fov = GX::MathUtil::DegreesToRadians(60.0f);
-float aspect = 1280.0f / 720.0f;
-GX::Matrix4x4 proj = GX::Matrix4x4::PerspectiveFovLH(fov, aspect, 0.1f, 1000.0f);`,
-  '• fovY はラジアン単位\n• nearZ は 0 より大きい値を指定すること\n• 左手座標系 (LH) 専用'
+  `float fov = GX::MathUtil::DegreesToRadians(60.0f); // 垂直視野角60度
+float aspect = 1280.0f / 720.0f;                    // アスペクト比 16:9
+GX::Matrix4x4 proj = GX::Matrix4x4::PerspectiveFovLH(
+    fov, aspect, 0.1f, 1000.0f); // nearZ=0.1, farZ=1000`,
+  '• fovY: 垂直視野角（ラジアン）。一般的に45〜90度\n• aspect: 横幅/縦幅のアスペクト比\n• nearZ: ニアクリップ面（0より大きい値。推奨: 0.1以上）\n• farZ: ファークリップ面（nearZより大きい値）\n• 左手座標系 (LH) 専用'
 ],
 
 'Matrix4x4-Orthographic': [
@@ -550,7 +551,7 @@ GX::Matrix4x4 proj = GX::Matrix4x4::PerspectiveFovLH(fov, aspect, 0.1f, 1000.0f)
 
 'Quaternion-ctor_default': [
   'Quaternion()',
-  '単位クォータニオン (0, 0, 0, 1) で初期化するデフォルトコンストラクタです。回転なしの状態を表します。XMFLOAT4 を継承しています。',
+  '単位クォータニオン (0, 0, 0, 1) で初期化するデフォルトコンストラクタです。回転なしの状態を表します。XMFLOAT4 を継承しています。\n\n【用語】クォータニオン（Quaternion）: 4成分（x,y,z,w）の超複素数で3D回転を表現する数学的構造。オイラー角と異なりジンバルロック（特定角度で自由度が失われる現象）が発生せず、Slerp補間で滑らかな回転アニメーションが可能。3Dゲームエンジンの回転表現の標準。',
   `GX::Quaternion q;
 // q.x == 0, q.y == 0, q.z == 0, q.w == 1 (回転なし)`,
   '• 単位クォータニオン = 回転なし\n• XMFLOAT4 継承'
@@ -607,8 +608,8 @@ float wVal = q.w; // 1.0f`,
 'Quaternion-FromAxisAngle': [
   'static Quaternion FromAxisAngle(const Vector3& axis, float radians)',
   '任意の軸周りの回転を表すクォータニオンを作成します。回転軸は正規化されている必要があります。角度はラジアン単位です。ジンバルロックを回避できる回転表現です。',
-  `GX::Vector3 axis = GX::Vector3::Up();
-float angle = GX::MathUtil::DegreesToRadians(90.0f);
+  `GX::Vector3 axis = GX::Vector3::Up(); // Y軸周りの回転
+float angle = GX::MathUtil::DegreesToRadians(90.0f); // 90度をラジアンに
 GX::Quaternion q = GX::Quaternion::FromAxisAngle(axis, angle);`,
   '• 軸は正規化されていること\n• 角度はラジアン単位\n• ジンバルロックが発生しない'
 ],
@@ -625,7 +626,7 @@ GX::Quaternion q = GX::Quaternion::FromEuler(pitch, yaw, roll);`,
 
 'Quaternion-Slerp': [
   'static Quaternion Slerp(const Quaternion& a, const Quaternion& b, float t)',
-  '2つのクォータニオン間を球面線形補間（Slerp）します。t=0 のとき a、t=1 のとき b を返します。回転アニメーションにおいて一定の角速度で滑らかに補間する場合に使用します。Lerp より高品質ですが計算コストが高いです。',
+  '2つのクォータニオン間を球面線形補間（Slerp）します。t=0 のとき a、t=1 のとき b を返します。回転アニメーションにおいて一定の角速度で滑らかに補間する場合に使用します。Lerp より高品質ですが計算コストが高いです。\n\n【用語】Slerp（Spherical Linear Interpolation）: 球面線形補間。4次元単位球面上の最短弧に沿って一定角速度で補間する手法。スケルタルアニメーションのボーン回転補間やカメラの向き補間に使用される。',
   `GX::Quaternion start = GX::Quaternion::Identity();
 GX::Quaternion end = GX::Quaternion::FromAxisAngle(GX::Vector3::Up(), GX::MathUtil::PI);
 GX::Quaternion mid = GX::Quaternion::Slerp(start, end, 0.5f);`,
@@ -776,7 +777,7 @@ XMFLOAT4 xmf = c.ToXMFLOAT4();
 
 'Color-FromHSV': [
   'static Color FromHSV(float h, float s, float v, float a = 1.0f)',
-  'HSV（色相・彩度・明度）色空間から Color を生成する静的メンバ関数です。色相 h は 0〜360 度、彩度 s と明度 v は 0〜1 の範囲で指定します。色相環ベースの色選択やカラーパレット生成に便利です。',
+  'HSV（色相・彩度・明度）色空間から Color を生成する静的メンバ関数です。色相 h は 0〜360 度、彩度 s と明度 v は 0〜1 の範囲で指定します。色相環ベースの色選択やカラーパレット生成に便利です。\n\n【用語】HSV色空間: 色相（Hue, 0-360度）、彩度（Saturation, 0-1）、明度（Value, 0-1）の3成分で色を表現する色空間。RGB色空間より人間の直感に近く、カラーピッカーや色相アニメーションに適する。',
   `// 色相120度 = 緑
 GX::Color green = GX::Color::FromHSV(120.0f, 1.0f, 1.0f);
 
@@ -784,7 +785,7 @@ GX::Color green = GX::Color::FromHSV(120.0f, 1.0f, 1.0f);
 for (int i = 0; i < 7; ++i) {
     GX::Color c = GX::Color::FromHSV(i * 51.4f, 1.0f, 1.0f);
 }`,
-  '• h: [0, 360)、s: [0, 1]、v: [0, 1]\n• h は 360 で自動ラップ'
+  '• h: 色相 [0, 360)度。0=赤、120=緑、240=青\n• s: 彩度 [0, 1]。0=灰色、1=鮮やか\n• v: 明度 [0, 1]。0=黒、1=最大輝度\n• h は 360 で自動ラップ'
 ],
 
 'Color-White': [
@@ -906,7 +907,7 @@ float fahrenheit = GX::MathUtil::Remap(100.0f, 0.0f, 100.0f, 32.0f, 212.0f); // 
 
 'MathUtil-SmoothStep': [
   'inline float SmoothStep(float edge0, float edge1, float x)',
-  'Hermite 補間によるスムーズステップ関数（3次多項式）です。edge0〜edge1 の範囲で 0〜1 に滑らかに変化する値を返します。線形補間より自然な遷移（イーズイン/アウト）が必要な場合に使用します。',
+  'Hermite 補間によるスムーズステップ関数（3次多項式）です。edge0〜edge1 の範囲で 0〜1 に滑らかに変化する値を返します。線形補間より自然な遷移（イーズイン/アウト）が必要な場合に使用します。\n\n【用語】Hermite補間/SmoothStep: 端点で微分係数が0になる3次多項式（3t^2 - 2t^3）。線形補間（Lerp）と異なり、始点・終点で速度が滑らかにゼロになるためアニメーションの自然な緩急表現に使われる。',
   `float t = GX::MathUtil::SmoothStep(0.0f, 1.0f, 0.5f);
 // t ≈ 0.5f (中間点では Lerp と同じだが、端で緩やかに変化)`,
   '• 3次多項式: 3t^2 - 2t^3\n• 端点で1次微分が0になる\n• 汎用的なイージング関数'
@@ -970,7 +971,7 @@ bool eq2 = GX::MathUtil::ApproximatelyEqual(1.0f, 1.01f, 0.1f); // true`,
 
 'Random-ctor_default': [
   'Random()',
-  'ランダムなシードで初期化するデフォルトコンストラクタです。内部で Mersenne Twister (std::mt19937) を使用します。毎回異なるシーケンスを生成します。',
+  'ランダムなシードで初期化するデフォルトコンストラクタです。内部で Mersenne Twister (std::mt19937) を使用します。毎回異なるシーケンスを生成します。\n\n【用語】Mersenne Twister（MT19937）: 周期2^19937-1の高品質疑似乱数生成器。ゲーム用途に十分な統計的品質を持ち、C++標準ライブラリ（std::mt19937）で提供される。暗号用途にはCSPRNG（Crypto::GenerateRandomBytes）を使用すること。',
   `GX::Random rng;
 int value = rng.Int(1, 100);`,
   '• std::mt19937 ベース\n• 実行ごとに異なるシーケンス'
@@ -997,9 +998,9 @@ int first = rng.Int(); // シード42からの最初の乱数`,
   'int32_t Int() / int32_t Int(int32_t min, int32_t max)',
   'ランダムな整数を生成します。引数なし版は 32 ビットの乱数値を返します。min, max を指定する版は [min, max]（両端含む）の範囲の一様分布乱数を返します。',
   `GX::Random rng;
-int raw = rng.Int();           // 任意の32ビット整数
-int dice = rng.Int(1, 6);     // サイコロ: 1〜6
-int damage = rng.Int(10, 50); // ダメージ: 10〜50`,
+int raw = rng.Int();           // 任意の32ビット整数（全範囲）
+int dice = rng.Int(1, 6);     // サイコロ: [1, 6] の閉区間
+int damage = rng.Int(10, 50); // ダメージ: [10, 50] の閉区間`,
   '• 範囲指定版は [min, max] の閉区間\n• min <= max であること'
 ],
 
