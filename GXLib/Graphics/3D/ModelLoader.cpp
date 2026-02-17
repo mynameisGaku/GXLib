@@ -1158,7 +1158,9 @@ static std::unique_ptr<Model> LoadFromFBX(const std::wstring& filePath,
 
         // 法線・接線を用意
         // 初学者向け: ライティングや法線マップに必要なベクトルを確保します。
-        mesh->GenerateNormals(true);
+        // GenerateNormals(false): 既存法線を保持（trueだとConvertScene後のLHクロス積で
+        // RH頂点から法線を再計算してしまい、全成分が反転する）
+        mesh->GenerateNormals(false);
         mesh->GenerateTangentsData();
 
         FbxLayerElementMaterial* matElem = mesh->GetElementMaterial();
