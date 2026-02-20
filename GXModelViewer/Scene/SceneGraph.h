@@ -9,6 +9,7 @@
 #include "Graphics/3D/Transform3D.h"
 #include "Graphics/3D/Model.h"
 #include "Graphics/3D/Material.h"
+#include "Graphics/3D/Animator.h"
 
 /// @brief A single entity in the scene graph
 struct SceneEntity
@@ -22,6 +23,16 @@ struct SceneEntity
     int              parentIndex = -1;
     bool             visible = true;
     std::string      sourcePath;                       // import元ファイルパス
+
+    // アニメーション
+    std::unique_ptr<GX::Animator> animator;
+    int  selectedClipIndex = -1;
+
+    // 表示制御
+    std::vector<bool> submeshVisibility;
+    bool showBones = false;
+    bool showWireframe = false;
+    bool _pendingRemoval = false;  // internal: deferred deletion flag
 };
 
 /// @brief Simple flat scene graph (entities stored in a vector)
@@ -47,10 +58,20 @@ public:
     /// Get the number of entity slots (including removed).
     int GetEntityCount() const { return static_cast<int>(m_entities.size()); }
 
+    /// Check if there are entities waiting to be destroyed (GPU flush needed first).
+    bool HasPendingRemovals() const { return !m_pendingRemovals.empty(); }
+
+    /// Actually destroy pending entities. Call AFTER GPU flush.
+    void ProcessPendingRemovals();
+
     /// Currently selected entity index (-1 = none).
     int selectedEntity = -1;
+
+    /// Currently selected bone index (-1 = none). Shared between Hierarchy and Skeleton panels.
+    int selectedBone = -1;
 
 private:
     std::vector<SceneEntity> m_entities;
     std::vector<int>         m_freeIndices;
+    std::vector<int>         m_pendingRemovals;
 };

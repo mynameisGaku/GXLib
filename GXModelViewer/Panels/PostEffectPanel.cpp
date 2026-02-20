@@ -22,7 +22,12 @@ void PostEffectPanel::Draw(GX::PostEffectPipeline& pipeline)
         ImGui::End();
         return;
     }
+    DrawContent(pipeline);
+    ImGui::End();
+}
 
+void PostEffectPanel::DrawContent(GX::PostEffectPipeline& pipeline)
+{
     // --- Bloom ---
     if (ImGui::CollapsingHeader("Bloom", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -321,6 +326,4 @@ void PostEffectPanel::Draw(GX::PostEffectPipeline& pipeline)
                 pipeline.SetChromaticAberration(chromatic);
         }
     }
-
-    ImGui::End();
 }

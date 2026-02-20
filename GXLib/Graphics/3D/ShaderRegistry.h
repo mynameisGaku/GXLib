@@ -29,7 +29,7 @@ public:
     /// @return PSOへのポインタ（nullptr = 未初期化）
     ID3D12PipelineState* GetPSO(gxfmt::ShaderModel model, bool skinned) const;
 
-    /// @brief Toonアウトライン用PSOを取得
+    /// @brief Toonアウトライン用PSOを取得（スムース法線ベース）
     /// @param skinned スキニング有無
     /// @return PSOへのポインタ
     ID3D12PipelineState* GetToonOutlinePSO(bool skinned) const;
@@ -52,7 +52,7 @@ private:
     Shader                       m_shaderCompiler;
     ID3D12RootSignature*         m_rootSignature = nullptr;
     ShaderModelPSO               m_psos[k_NumShaderModels];     // indexed by ShaderModel enum
-    ShaderModelPSO               m_toonOutline;                 // Toon outline PSO
+    ShaderModelPSO               m_toonOutline;                 // Toon outline PSO (スムース法線ベース)
 };
 
 } // namespace GX

@@ -49,14 +49,14 @@ struct ShaderModelParams
     float    normalScale        = 1.0f;                          // 84
     float    aoStrength         = 1.0f;                          // 88
 
-    // --- Toon (offset 92..155) ---
-    float    shadeColor[4]      = { 0.5f, 0.5f, 0.5f, 1.0f };  // 92
-    float    outlineWidth       = 0.0f;                          // 108
-    float    outlineColor[4]    = { 0.0f, 0.0f, 0.0f, 1.0f };  // 112
-    float    rampThreshold      = 0.5f;                          // 128
-    float    rampSmoothing      = 0.1f;                          // 132
-    uint32_t rampBands          = 2;                             // 136
-    float    rimColor[4]        = { 1.0f, 1.0f, 1.0f, 1.0f };  // 140
+    // --- Toon (offset 92..163) ---
+    float    shadeColor[4]      = { 0.7f, 0.7f, 0.7f, 1.0f };  // 92:  1st shade color
+    float    shade2ndColor[4]   = { 0.3f, 0.3f, 0.3f, 1.0f };  // 108: 2nd shade color
+    float    baseColorStep      = 0.5f;                          // 124: base->1st threshold
+    float    baseShadeFeather   = 0.1f;                          // 128: base->1st feather
+    float    shadeColorStep     = 0.2f;                          // 132: 1st->2nd threshold
+    float    shade1st2ndFeather = 0.05f;                         // 136: 1st->2nd feather
+    float    rimColor[4]        = { 1.0f, 1.0f, 1.0f, 1.0f };  // 140: rim color
     float    rimPower           = 3.0f;                          // 156
     float    rimIntensity       = 0.0f;                          // 160
 
@@ -74,8 +74,30 @@ struct ShaderModelParams
     float    clearCoatStrength  = 0.0f;                          // 204
     float    clearCoatRoughness = 0.0f;                          // 208
 
-    // --- Padding to 256 bytes ---
-    uint8_t  _reserved[44]     = {};                             // 212..255
+    // --- Toon Extended (offset 212..255) ---
+    float    outlineWidth       = 0.0f;                          // 212: outline width
+    float    outlineColor[3]    = { 0.0f, 0.0f, 0.0f };         // 216: outline color (RGB)
+    float    highColor[3]       = { 1.0f, 1.0f, 1.0f };         // 228: specular color
+    float    highColorPower     = 50.0f;                         // 240: specular power
+    float    highColorIntensity = 0.0f;                          // 244: specular intensity
+    float    shadowReceiveLevel = 1.0f;                          // 248: CSM shadow influence
+    float    rimInsideMask      = 0.5f;                          // 252: rim shadow mask
+
+    // --- Toon extended: reuse Phong/Subsurface/ClearCoat fields (mutually exclusive) ---
+    inline float& toonRimLightDirMask()       { return specularColor[0]; }
+    inline float& toonRimFeatherOff()         { return specularColor[1]; }
+    inline float& toonHighColorBlendAdd()     { return specularColor[2]; }
+    inline float& toonHighColorOnShadow()     { return shininess; }
+    inline float& toonOutlineFarDist()        { return subsurfaceColor[0]; }
+    inline float& toonOutlineNearDist()       { return subsurfaceColor[1]; }
+    inline float& toonOutlineBlendBaseColor() { return subsurfaceColor[2]; }
+    inline const float& toonRimLightDirMask()       const { return specularColor[0]; }
+    inline const float& toonRimFeatherOff()         const { return specularColor[1]; }
+    inline const float& toonHighColorBlendAdd()     const { return specularColor[2]; }
+    inline const float& toonHighColorOnShadow()     const { return shininess; }
+    inline const float& toonOutlineFarDist()        const { return subsurfaceColor[0]; }
+    inline const float& toonOutlineNearDist()       const { return subsurfaceColor[1]; }
+    inline const float& toonOutlineBlendBaseColor() const { return subsurfaceColor[2]; }
 };
 
 static_assert(sizeof(ShaderModelParams) == 256, "ShaderModelParams must be exactly 256 bytes");
@@ -92,8 +114,19 @@ inline ShaderModelParams DefaultShaderModelParams(ShaderModel model)
     case ShaderModel::Unlit:
         break;
     case ShaderModel::Toon:
-        p.rampBands = 2;
         p.outlineWidth = 0.002f;
+        p.highColorPower = 50.0f;
+        p.highColorIntensity = 0.0f;
+        p.shadowReceiveLevel = 1.0f;
+        p.rimInsideMask = 0.5f;
+        // Toon extended aliases
+        p.toonRimLightDirMask()       = 0.0f;
+        p.toonRimFeatherOff()         = 0.0f;
+        p.toonHighColorBlendAdd()     = 1.0f;
+        p.toonHighColorOnShadow()     = 1.0f;
+        p.toonOutlineFarDist()        = 100.0f;
+        p.toonOutlineNearDist()       = 0.5f;
+        p.toonOutlineBlendBaseColor() = 0.0f;
         break;
     case ShaderModel::Phong:
         p.shininess = 32.0f;

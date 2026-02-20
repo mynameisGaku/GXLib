@@ -258,4 +258,24 @@ std::unique_ptr<LoadedModel> LoadGxmd(const std::string& filePath)
     return LoadGxmdFromMemory(buffer.data(), buffer.size());
 }
 
+#ifdef _WIN32
+std::unique_ptr<LoadedModel> LoadGxmdW(const std::wstring& filePath)
+{
+    FILE* f = _wfopen(filePath.c_str(), L"rb");
+    if (!f) return nullptr;
+
+    fseek(f, 0, SEEK_END);
+    long fileSize = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    if (fileSize <= 0) { fclose(f); return nullptr; }
+
+    std::vector<uint8_t> buffer(static_cast<size_t>(fileSize));
+    fread(buffer.data(), 1, buffer.size(), f);
+    fclose(f);
+
+    return LoadGxmdFromMemory(buffer.data(), buffer.size());
+}
+#endif
+
 } // namespace gxloader

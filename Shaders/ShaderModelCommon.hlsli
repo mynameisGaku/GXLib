@@ -82,18 +82,18 @@ cbuffer ShaderModelConstants : register(b3)
     float    gAOStrength;         // 56
     float    gReflectance;        // 60
 
-    // Toon (64..143)
-    float4   gShadeColor;         // 64
-    float    gOutlineWidth;       // 80
-    float3   gOutlineColor;       // 84
-    float    gRampThreshold;      // 96
-    float    gRampSmoothing;      // 100
-    uint     gRampBands;          // 104
-    float    _toonPad;            // 108
+    // Toon (64..143) — UTS2-style double shade
+    float4   gShadeColor;         // 64:  1st shade color
+    float4   gShade2ndColor;      // 80:  2nd shade color
+    float    gBaseColorStep;      // 96:  base->1st threshold
+    float    gBaseShadeFeather;   // 100: base->1st feather
+    float    gShadeColorStep;     // 104: 1st->2nd threshold
+    float    gShade1st2ndFeather; // 108: 1st->2nd feather
     float4   gRimColor;           // 112
     float    gRimPower;           // 128
     float    gRimIntensity;       // 132
-    float2   _toonPad2;           // 136
+    float    gHighColorPower;     // 136: specular power
+    float    gHighColorIntensity; // 140: specular intensity
 
     // Phong (144..159)
     float3   gSpecularColor;      // 144
@@ -111,9 +111,23 @@ cbuffer ShaderModelConstants : register(b3)
     float    gClearCoatRoughness; // 196
     float2   _ccPad;              // 200
 
-    // Reserved (208..255)
-    float    _reserved[12];       // 208
+    // Toon Extended (208..255)
+    float    gOutlineWidth;       // 208
+    float3   gOutlineColor;       // 212
+    float3   gHighColor;          // 224: specular color
+    float    gShadowReceiveLevel; // 236: CSM shadow influence
+    float    gRimInsideMask;      // 240: rim shadow mask
+    float3   _toonPad2;           // 244
 };
+
+// Toon extended: aliases into Phong/Subsurface/ClearCoat fields (mutually exclusive)
+#define gRimLightDirMask       gSpecularColor.x
+#define gRimFeatherOff         gSpecularColor.y
+#define gHighColorBlendAdd     gSpecularColor.z
+#define gHighColorOnShadow     gShininess
+#define gOutlineFarDist        gSubsurfaceColor.x
+#define gOutlineNearDist       gSubsurfaceColor.y
+#define gOutlineBlendBaseColor gSubsurfaceColor.z
 
 cbuffer BoneConstants : register(b4)
 {
@@ -379,17 +393,14 @@ ShadowInfo ComputeShadowAll(float3 posW, float3 N, float viewZ)
 /// @brief 個別ライトのシャドウファクターを取得
 float GetLightShadow(uint lightIndex, float cascadeShadow, float3 posW, float3 N)
 {
-    // 法線オフセットバイアス
-    float3 mainLightDir = float3(0, -1, 0);
-    for (uint li = 0; li < gNumLights; ++li)
-    {
-        if (gLights[li].type == LIGHT_DIRECTIONAL)
-        {
-            mainLightDir = normalize(gLights[li].direction);
-            break;
-        }
-    }
-    float NdotL = dot(N, -mainLightDir);
+    // ライト種別に応じた方向で法線オフセットバイアスを計算
+    float3 lightDir;
+    if (gLights[lightIndex].type == LIGHT_DIRECTIONAL)
+        lightDir = normalize(gLights[lightIndex].direction);
+    else
+        lightDir = normalize(posW - gLights[lightIndex].position);
+
+    float NdotL = dot(N, -lightDir);
     float normalOffsetScale = saturate(1.0f - NdotL);
     static const float k_ShadowNormalBias = 0.05f;
     float3 shadowPosW = posW + N * normalOffsetScale * k_ShadowNormalBias;

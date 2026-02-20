@@ -250,6 +250,38 @@ bool Renderer3D::CreatePipelineState(ID3D12Device* device)
         .SetCullMode(D3D12_CULL_MODE_BACK)
         .Build(device);
 
+    // ワイヤフレームPSO（static）
+    PipelineStateBuilder psoWireBuilder;
+    m_psoWireframe = psoWireBuilder
+        .SetRootSignature(m_rootSignature.Get())
+        .SetVertexShader(vsBlob.GetBytecode())
+        .SetPixelShader(psBlob.GetBytecode())
+        .SetInputLayout(k_Vertex3DPBRLayout, _countof(k_Vertex3DPBRLayout))
+        .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT, 0)
+        .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT, 1)
+        .SetRenderTargetFormat(DXGI_FORMAT_R8G8B8A8_UNORM, 2)
+        .SetDepthFormat(DXGI_FORMAT_D32_FLOAT)
+        .SetDepthEnable(true)
+        .SetFillMode(D3D12_FILL_MODE_WIREFRAME)
+        .SetCullMode(D3D12_CULL_MODE_NONE)
+        .Build(device);
+
+    // ワイヤフレームPSO（skinned）
+    PipelineStateBuilder psoSkinnedWireBuilder;
+    m_psoSkinnedWireframe = psoSkinnedWireBuilder
+        .SetRootSignature(m_rootSignature.Get())
+        .SetVertexShader(vsSkinned.GetBytecode())
+        .SetPixelShader(psSkinned.GetBytecode())
+        .SetInputLayout(k_Vertex3DSkinnedLayout, _countof(k_Vertex3DSkinnedLayout))
+        .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT, 0)
+        .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT, 1)
+        .SetRenderTargetFormat(DXGI_FORMAT_R8G8B8A8_UNORM, 2)
+        .SetDepthFormat(DXGI_FORMAT_D32_FLOAT)
+        .SetDepthEnable(true)
+        .SetFillMode(D3D12_FILL_MODE_WIREFRAME)
+        .SetCullMode(D3D12_CULL_MODE_NONE)
+        .Build(device);
+
     m_currentPso = nullptr;
     return m_pso != nullptr && m_psoSkinned != nullptr;
 }
@@ -285,7 +317,7 @@ bool Renderer3D::CreateShadowPipelineState(ID3D12Device* device)
         .SetDepthFormat(DXGI_FORMAT_D32_FLOAT)
         .SetDepthEnable(true)
         .SetCullMode(D3D12_CULL_MODE_NONE)    // 両面描画（単面ジオメトリのライトリーク防止）
-        .SetDepthBias(200, 0.0f, 2.0f)        // 深度バイアス（自己シャドウ防止）
+        .SetDepthBias(500, 0.0f, 3.0f)        // 深度バイアス（自己シャドウ防止）
         .SetRenderTargetCount(0)               // カラー出力なし
         .Build(device);
 
@@ -297,7 +329,7 @@ bool Renderer3D::CreateShadowPipelineState(ID3D12Device* device)
         .SetDepthFormat(DXGI_FORMAT_D32_FLOAT)
         .SetDepthEnable(true)
         .SetCullMode(D3D12_CULL_MODE_NONE)
-        .SetDepthBias(200, 0.0f, 2.0f)
+        .SetDepthBias(500, 0.0f, 3.0f)
         .SetRenderTargetCount(0)
         .Build(device);
 
@@ -369,7 +401,13 @@ void Renderer3D::BindPipeline(bool skinned, int shaderHandle)
 void Renderer3D::BindPipelineForModel(bool skinned, int shaderHandle, gxfmt::ShaderModel model)
 {
     ID3D12PipelineState* target = nullptr;
-    if (m_inShadowPass)
+
+    // ワイヤフレームモード時はShaderModel問わずワイヤフレームPSOにフォールバック
+    if (m_wireframeMode && !m_inShadowPass)
+    {
+        target = skinned ? m_psoSkinnedWireframe.Get() : m_psoWireframe.Get();
+    }
+    else if (m_inShadowPass)
     {
         target = skinned ? m_shadowPsoSkinned.Get() : m_shadowPso.Get();
     }
@@ -897,6 +935,18 @@ void Renderer3D::SetMaterial(const Material& material)
             gpuParams = ConvertFromLegacy(material.constants);
         }
 
+        // 1フレーム目だけログ出力（デバッグ用）
+        static int s_matLogCount = 0;
+        if (s_matLogCount < 5)
+        {
+            GX_LOG_INFO("SetMaterial: flags=0x%x baseColor=(%.2f,%.2f,%.2f,%.2f) albedoHandle=%d",
+                        gpuParams.flags,
+                        gpuParams.baseColor.x, gpuParams.baseColor.y,
+                        gpuParams.baseColor.z, gpuParams.baseColor.w,
+                        material.albedoMapHandle);
+            ++s_matLogCount;
+        }
+
         memcpy(m_materialCBMapped + m_materialCBOffset, &gpuParams, sizeof(ShaderModelGPUParams));
     }
     m_cmdList->SetGraphicsRootConstantBufferView(
@@ -1036,7 +1086,9 @@ void Renderer3D::DrawModel(const Model& model, const Transform3D& transform)
 
         if (!m_inShadowPass)
         {
-            if (sub.materialHandle >= 0)
+            if (m_materialOverride)
+                mat = const_cast<Material*>(m_materialOverride);
+            else if (sub.materialHandle >= 0)
                 mat = m_materialManager.GetMaterial(sub.materialHandle);
             if (mat)
             {
@@ -1058,38 +1110,47 @@ void Renderer3D::DrawModel(const Model& model, const Transform3D& transform)
     }
 
     // Toonアウトラインパス（メインパスのみ、シャドウパスではスキップ）
-    if (!m_inShadowPass && hasToonSubMesh)
+    // スムース法線ベース1パス描画
+    if (!m_inShadowPass && hasToonSubMesh && model.GetMesh().HasSmoothNormals())
     {
         // オブジェクトCBを再バインド（同じオフセット）
         m_cmdList->SetGraphicsRootConstantBufferView(
             0, m_objectCB.GetGPUVirtualAddress(m_frameIndex) + objectCBOffsetForThisModel);
 
+        // Slot 0 + Slot 1 バインド（スムース法線）
+        D3D12_VERTEX_BUFFER_VIEW views[2];
+        views[0] = model.GetMesh().GetVertexBuffer().GetVertexBufferView();
+        views[1] = model.GetMesh().GetSmoothNormalBufferView();
+        m_cmdList->IASetVertexBuffers(0, 2, views);
+
         for (const auto& sub : model.GetMesh().GetSubMeshes())
         {
             Material* mat = nullptr;
-            if (sub.materialHandle >= 0)
+            if (m_materialOverride)
+                mat = const_cast<Material*>(m_materialOverride);
+            else if (sub.materialHandle >= 0)
                 mat = m_materialManager.GetMaterial(sub.materialHandle);
 
             if (!mat || mat->shaderModel != gxfmt::ShaderModel::Toon)
                 continue;
 
-            // アウトライン幅が0ならスキップ
             if (mat->shaderParams.outlineWidth <= 0.0f)
                 continue;
 
-            // アウトラインPSOにバインド
             ID3D12PipelineState* outlinePso = m_shaderRegistry.GetToonOutlinePSO(skinned);
             if (outlinePso && outlinePso != m_currentPso)
             {
                 m_cmdList->SetPipelineState(outlinePso);
                 m_currentPso = outlinePso;
             }
-
-            // マテリアル再バインド（アウトラインシェーダーがパラメータを必要とする）
             SetMaterial(*mat);
-
             m_cmdList->DrawIndexedInstanced(sub.indexCount, 1, sub.indexOffset, 0, 0);
         }
+
+        // Slot 0 単独に戻す（後続描画に影響しないよう）
+        auto vbv2 = model.GetMesh().GetVertexBuffer().GetVertexBufferView();
+        m_cmdList->IASetVertexBuffers(0, 1, &vbv2);
+        m_lastBoundVB = nullptr; // 冗長バインド防止キャッシュをリセット
     }
 }
 
@@ -1147,6 +1208,133 @@ void Renderer3D::SetFog(FogMode mode, const XMFLOAT3& color, float start, float 
     m_fogConstants.fogStart   = start;
     m_fogConstants.fogEnd     = end;
     m_fogConstants.fogDensity = density;
+}
+
+void Renderer3D::SetWireframeMode(bool enabled)
+{
+    m_wireframeMode = enabled;
+}
+
+void Renderer3D::DrawModel(const Model& model, const Transform3D& transform,
+                            const std::vector<bool>& submeshVisibility)
+{
+    // オブジェクト定数バッファ更新（リングバッファ方式）
+    uint32_t objectCBOffsetForThisModel = m_objectCBOffset;
+    if (m_objectCBMapped)
+    {
+        ObjectConstants oc;
+        XMStoreFloat4x4(&oc.world, XMMatrixTranspose(transform.GetWorldMatrix()));
+        XMStoreFloat4x4(&oc.worldInverseTranspose, XMMatrixTranspose(transform.GetWorldInverseTranspose()));
+        memcpy(m_objectCBMapped + m_objectCBOffset, &oc, sizeof(ObjectConstants));
+    }
+    m_cmdList->SetGraphicsRootConstantBufferView(
+        0, m_objectCB.GetGPUVirtualAddress(m_frameIndex) + m_objectCBOffset);
+    m_objectCBOffset += 256;
+
+    auto vbv = model.GetMesh().GetVertexBuffer().GetVertexBufferView();
+    auto ibv = model.GetMesh().GetIndexBuffer().GetIndexBufferView();
+    m_cmdList->IASetVertexBuffers(0, 1, &vbv);
+    m_cmdList->IASetIndexBuffer(&ibv);
+
+    bool skinned = model.IsSkinned();
+    bool hasToonSubMesh = false;
+    const auto& subMeshes = model.GetMesh().GetSubMeshes();
+
+    for (size_t si = 0; si < subMeshes.size(); ++si)
+    {
+        if (si < submeshVisibility.size() && !submeshVisibility[si])
+            continue;
+
+        const auto& sub = subMeshes[si];
+        int shaderHandle = sub.shaderHandle;
+        Material* mat = nullptr;
+        gxfmt::ShaderModel shaderModel = gxfmt::ShaderModel::Standard;
+
+        if (!m_inShadowPass)
+        {
+            if (m_materialOverride)
+                mat = const_cast<Material*>(m_materialOverride);
+            else if (sub.materialHandle >= 0)
+                mat = m_materialManager.GetMaterial(sub.materialHandle);
+            if (mat)
+            {
+                shaderModel = mat->shaderModel;
+                if (shaderHandle < 0 && mat->shaderHandle >= 0)
+                    shaderHandle = mat->shaderHandle;
+            }
+        }
+
+        BindPipelineForModel(skinned, shaderHandle, shaderModel);
+
+        if (!m_inShadowPass && mat)
+            SetMaterial(*mat);
+
+        m_cmdList->DrawIndexedInstanced(sub.indexCount, 1, sub.indexOffset, 0, 0);
+
+        if (shaderModel == gxfmt::ShaderModel::Toon)
+            hasToonSubMesh = true;
+    }
+
+    // Toonアウトラインパス（スムース法線ベース1パス描画）
+    if (!m_inShadowPass && hasToonSubMesh && model.GetMesh().HasSmoothNormals())
+    {
+        m_cmdList->SetGraphicsRootConstantBufferView(
+            0, m_objectCB.GetGPUVirtualAddress(m_frameIndex) + objectCBOffsetForThisModel);
+
+        // Slot 0 + Slot 1 バインド（スムース法線）
+        D3D12_VERTEX_BUFFER_VIEW views[2];
+        views[0] = model.GetMesh().GetVertexBuffer().GetVertexBufferView();
+        views[1] = model.GetMesh().GetSmoothNormalBufferView();
+        m_cmdList->IASetVertexBuffers(0, 2, views);
+
+        for (size_t si = 0; si < subMeshes.size(); ++si)
+        {
+            if (si < submeshVisibility.size() && !submeshVisibility[si])
+                continue;
+
+            const auto& sub = subMeshes[si];
+            Material* mat = nullptr;
+            if (m_materialOverride)
+                mat = const_cast<Material*>(m_materialOverride);
+            else if (sub.materialHandle >= 0)
+                mat = m_materialManager.GetMaterial(sub.materialHandle);
+
+            if (!mat || mat->shaderModel != gxfmt::ShaderModel::Toon)
+                continue;
+            if (mat->shaderParams.outlineWidth <= 0.0f)
+                continue;
+
+            ID3D12PipelineState* outlinePso = m_shaderRegistry.GetToonOutlinePSO(skinned);
+            if (outlinePso && outlinePso != m_currentPso)
+            {
+                m_cmdList->SetPipelineState(outlinePso);
+                m_currentPso = outlinePso;
+            }
+            SetMaterial(*mat);
+            m_cmdList->DrawIndexedInstanced(sub.indexCount, 1, sub.indexOffset, 0, 0);
+        }
+
+        // Slot 0 単独に戻す（後続描画に影響しないよう）
+        auto vbv2 = model.GetMesh().GetVertexBuffer().GetVertexBufferView();
+        m_cmdList->IASetVertexBuffers(0, 1, &vbv2);
+        m_lastBoundVB = nullptr; // 冗長バインド防止キャッシュをリセット
+    }
+}
+
+void Renderer3D::DrawSkinnedModel(const Model& model, const Transform3D& transform,
+                                    const Animator& animator,
+                                    const std::vector<bool>& submeshVisibility)
+{
+    void* cbData = m_boneCB.Map(m_frameIndex);
+    if (cbData)
+    {
+        memcpy(cbData, &animator.GetBoneConstants(), sizeof(BoneConstants));
+        m_boneCB.Unmap(m_frameIndex);
+    }
+    uint32_t boneRootIndex = m_inShadowPass ? 2 : 4;
+    m_cmdList->SetGraphicsRootConstantBufferView(
+        boneRootIndex, m_boneCB.GetGPUVirtualAddress(m_frameIndex));
+    DrawModel(model, transform, submeshVisibility);
 }
 
 void Renderer3D::OnResize(uint32_t width, uint32_t height)

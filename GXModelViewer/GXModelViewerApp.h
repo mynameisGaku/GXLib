@@ -18,6 +18,7 @@
 #include "Graphics/3D/Material.h"
 #include "Graphics/Resource/TextureManager.h"
 #include "Graphics/PostEffect/PostEffectPipeline.h"
+#include "Graphics/Resource/RenderTarget.h"
 #include "Graphics/3D/ModelLoader.h"
 
 // Panels
@@ -34,6 +35,13 @@
 #include "Panels/AnimatorPanel.h"
 #include "Panels/BlendTreeEditor.h"
 #include "Panels/TextureBrowser.h"
+#include "Panels/ModelInfoPanel.h"
+#include "Panels/SkeletonPanel.h"
+#include "Panels/AssetBrowserPanel.h"
+#include "InfiniteGrid.h"
+
+#include <imgui.h>
+#include "ImGuizmo.h"
 
 /// @brief GXModelViewer application class
 class GXModelViewerApp
@@ -42,6 +50,10 @@ public:
     bool Initialize(HINSTANCE hInstance, uint32_t width, uint32_t height, const wchar_t* title);
     int  Run();
     void Shutdown();
+
+    // Public import methods (used by AssetBrowserPanel)
+    void ImportModel(const std::string& filePath);
+    void ImportAnimation(const std::string& filePath);
 
 private:
     // ImGui lifecycle
@@ -54,19 +66,28 @@ private:
     void BuildDockSpace();
     void UpdateUI();
     void BuildMainMenuBar();
+    void DrawViewportToolbar(ImVec2 imageMin);
+
+    // Viewport picking
+    void HandleViewportPicking();
+    static bool ComputeEntityAABB(const SceneEntity& entity, XMFLOAT3& outMin, XMFLOAT3& outMax);
 
     // Orbit camera
     void UpdateOrbitCamera();
     void HandleOrbitInput();
 
-    // Model import/export
-    void ImportModel(const std::string& filePath);
+    // Model export
     void ExportToGxmd(const std::string& outputPath);
     void ExportToGxan(const std::string& outputPath);
 
     // Rendering
     void RenderFrame(float deltaTime);
+    void DrawSceneForShadow();
+    void DrawEntitiesForShadow();
     void OnResize(uint32_t width, uint32_t height);
+
+    // Bone visualization
+    void DrawSkeletonOverlay(const SceneEntity& entity);
 
     // GXLib core
     GX::Application     m_app;
@@ -82,9 +103,7 @@ private:
 
     // Scene data
     SceneGraph          m_sceneGraph;
-    GX::GPUMesh         m_gridMesh;
-    GX::Material        m_gridMaterial;
-    GX::Transform3D     m_gridTransform;
+    InfiniteGrid        m_infiniteGrid;
 
     // Resource managers
     GX::ModelLoader     m_modelLoader;
@@ -94,6 +113,19 @@ private:
     // ImGui
     GX::DescriptorHeap  m_imguiSrvHeap;
     bool                m_imguiInitialized = false;
+
+    // Viewport render target (3D scene -> this RT -> ImGui::Image)
+    GX::RenderTarget    m_viewportRT;
+    uint32_t            m_viewportWidth  = 0;
+    uint32_t            m_viewportHeight = 0;
+    bool                m_viewportNeedsResize = false;
+    bool                m_viewportHovered = false;
+    bool                m_viewportFocused = false;
+    uint32_t            m_viewportSrvIndex = 0;  // index in m_imguiSrvHeap
+
+    // Viewport image rect (for picking)
+    ImVec2              m_viewportImageMin  = {};
+    ImVec2              m_viewportImageSize = {};
 
     // Frame synchronization
     uint64_t m_frameFenceValues[GX::SwapChain::k_BufferCount] = {};
@@ -110,7 +142,10 @@ private:
     float m_orbitYaw   = 0.0f;
     float m_orbitPitch = 0.5f;
     float m_orbitDistance = 8.0f;
+    float m_orbitMaxDistance = 200.0f;
     XMFLOAT3 m_orbitTarget = { 0.0f, 0.0f, 0.0f };
+    bool  m_orbitDragActive = false;
+    int   m_prevSelectedBone = -1;
 
     // Panel visibility flags
     bool m_showSceneHierarchy = true;
@@ -125,6 +160,9 @@ private:
     bool m_showAnimator       = false;
     bool m_showBlendTree      = false;
     bool m_showTextureBrowser = false;
+    bool m_showModelInfo      = true;
+    bool m_showSkeleton       = false;
+    bool m_showAssetBrowser   = true;
 
     // Panel instances
     SceneHierarchyPanel m_sceneHierarchyPanel;
@@ -139,4 +177,25 @@ private:
     AnimatorPanel       m_animatorPanel;
     BlendTreeEditor     m_blendTreeEditor;
     TextureBrowser      m_textureBrowser;
+    ModelInfoPanel      m_modelInfoPanel;
+    SkeletonPanel       m_skeletonPanel;
+    AssetBrowserPanel   m_assetBrowserPanel;
+
+    // Drag & drop
+    std::vector<std::string> m_pendingDropFiles;
+
+    // Debug
+    bool m_showBounds = false;
+
+    // Background color
+    float m_bgColor[3] = {0.4f, 0.55f, 0.8f};
+    bool  m_showBgColorPicker = false;
+
+    // Gizmo
+    ImGuizmo::OPERATION m_gizmoOperation = ImGuizmo::TRANSLATE;
+    ImGuizmo::MODE      m_gizmoMode      = ImGuizmo::WORLD;
+    bool  m_useSnap        = false;
+    float m_snapTranslation = 0.5f;
+    float m_snapRotation    = 15.0f;
+    float m_snapScale       = 0.1f;
 };

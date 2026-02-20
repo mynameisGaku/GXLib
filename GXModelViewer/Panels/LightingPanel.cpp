@@ -36,7 +36,12 @@ void LightingPanel::Draw(GX::Renderer3D& renderer)
         ImGui::End();
         return;
     }
+    DrawContent(renderer);
+    ImGui::End();
+}
 
+void LightingPanel::DrawContent(GX::Renderer3D& renderer)
+{
     // Ambient color
     if (ImGui::ColorEdit3("Ambient", m_ambientColor))
     {
@@ -188,6 +193,4 @@ void LightingPanel::Draw(GX::Renderer3D& renderer)
         }
         m_dirty = false;
     }
-
-    ImGui::End();
 }

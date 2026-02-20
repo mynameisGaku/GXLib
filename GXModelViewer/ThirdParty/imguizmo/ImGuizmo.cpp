@@ -960,7 +960,7 @@ namespace IMGUIZMO_NAMESPACE
       gContext.mWidth = width;
       gContext.mHeight = height;
       gContext.mXMax = gContext.mX + gContext.mWidth;
-      gContext.mYMax = gContext.mY + gContext.mXMax;
+      gContext.mYMax = gContext.mY + gContext.mHeight;
       gContext.mDisplayRatio = width / height;
    }
 
@@ -1091,7 +1091,7 @@ namespace IMGUIZMO_NAMESPACE
 
       matrix_t viewInverse;
       viewInverse.Inverse(gContext.mViewMat);
-      gContext.mCameraDir = viewInverse.v.dir;
+      gContext.mCameraDir = Normalized(viewInverse.v.position - gContext.mModel.v.position);
       gContext.mCameraEye = viewInverse.v.position;
       gContext.mCameraRight = viewInverse.v.right;
       gContext.mCameraUp = viewInverse.v.up;

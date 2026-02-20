@@ -48,6 +48,42 @@ void Animator::EvaluateBindPose()
     m_skeleton->ComputeBoneMatrices(m_globalTransforms.data(), m_boneConstants.boneMatrices);
 }
 
+void Animator::SetCurrentTime(float time)
+{
+    if (!m_skeleton || !m_current.clip)
+        return;
+
+    float duration = m_current.clip->GetDuration();
+    m_current.time = (std::max)(0.0f, (std::min)(time, duration));
+
+    EnsurePoseStorage();
+    uint32_t jointCount = m_skeleton->GetJointCount();
+    if (jointCount == 0)
+        return;
+
+    SampleClip(m_current, m_localPose);
+
+    // ルートモーション固定
+    if (jointCount > 0 && !m_bindPose.empty())
+    {
+        if (m_lockRootPosition)
+            m_localPose[0].translation = m_bindPose[0].translation;
+        if (m_lockRootRotation)
+            m_localPose[0].rotation = m_bindPose[0].rotation;
+    }
+
+    for (uint32_t i = 0; i < jointCount; ++i)
+    {
+        XMMATRIX S = XMMatrixScaling(m_localPose[i].scale.x, m_localPose[i].scale.y, m_localPose[i].scale.z);
+        XMMATRIX R = XMMatrixRotationQuaternion(XMLoadFloat4(&m_localPose[i].rotation));
+        XMMATRIX T = XMMatrixTranslation(m_localPose[i].translation.x, m_localPose[i].translation.y, m_localPose[i].translation.z);
+        XMStoreFloat4x4(&m_localTransforms[i], S * R * T);
+    }
+
+    m_skeleton->ComputeGlobalTransforms(m_localTransforms.data(), m_globalTransforms.data());
+    m_skeleton->ComputeBoneMatrices(m_globalTransforms.data(), m_boneConstants.boneMatrices);
+}
+
 void Animator::Play(const AnimationClip* clip, bool loop, float speed)
 {
     m_current.clip = clip;
@@ -240,6 +276,15 @@ void Animator::Update(float deltaTime)
             SampleClip(m_current, m_localPose);
         }
         break;
+    }
+
+    // ルートモーション固定
+    if (jointCount > 0 && !m_bindPose.empty())
+    {
+        if (m_lockRootPosition)
+            m_localPose[0].translation = m_bindPose[0].translation;
+        if (m_lockRootRotation)
+            m_localPose[0].rotation = m_bindPose[0].rotation;
     }
 
     // ローカル変換行列を作成

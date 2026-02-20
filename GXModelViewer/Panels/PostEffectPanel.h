@@ -8,7 +8,9 @@ namespace GX { class PostEffectPipeline; }
 class PostEffectPanel
 {
 public:
-    /// Draw the post-effect controls.
-    /// @param pipeline The PostEffectPipeline to read/write parameters.
+    /// Draw the post-effect controls (standalone window).
     void Draw(GX::PostEffectPipeline& pipeline);
+
+    /// Draw only the content (no Begin/End), for embedding in a tabbed container.
+    void DrawContent(GX::PostEffectPipeline& pipeline);
 };

@@ -10,9 +10,11 @@ namespace GX { class Skybox; }
 class SkyboxPanel
 {
 public:
-    /// Draw the skybox settings panel.
-    /// @param skybox The GXLib Skybox to read/write parameters.
+    /// Draw the skybox settings panel (standalone window).
     void Draw(GX::Skybox& skybox);
+
+    /// Draw only the content (no Begin/End), for embedding in a tabbed container.
+    void DrawContent(GX::Skybox& skybox);
 
 private:
     // Cubemap face file paths (placeholder for future cubemap support)

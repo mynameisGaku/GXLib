@@ -55,6 +55,7 @@ target_include_directories(GXModelViewer PRIVATE
     ${CMAKE_SOURCE_DIR}/GXLib
     ${CMAKE_SOURCE_DIR}/gxconv
     ${CMAKE_SOURCE_DIR}/gxformat
+    ${CMAKE_SOURCE_DIR}/gxloader
     ${IMGUI_DIR}
     ${IMGUI_DIR}/backends
     ${IMGUIZMO_DIR}
@@ -63,7 +64,7 @@ target_include_directories(GXModelViewer PRIVATE
     ${FILEDIALOG_DIR}
 )
 
-target_link_libraries(GXModelViewer PRIVATE GXLib)
+target_link_libraries(GXModelViewer PRIVATE GXLib gxloader)
 
 # Copy Shaders and Assets
 add_custom_command(TARGET GXModelViewer POST_BUILD

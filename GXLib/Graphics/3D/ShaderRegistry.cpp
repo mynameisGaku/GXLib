@@ -119,9 +119,11 @@ bool ShaderRegistry::CompileToonOutlinePSO(ID3D12Device* device)
 {
     const wchar_t* path = L"Shaders/ToonOutline.hlsl";
 
+    // --- Static variant ---
     auto vsBlob = m_shaderCompiler.CompileFromFile(path, L"VSMain_Outline", L"vs_6_0");
     auto psBlob = m_shaderCompiler.CompileFromFile(path, L"PSMain_Outline", L"ps_6_0");
 
+    // --- Skinned variant ---
     std::vector<std::pair<std::wstring, std::wstring>> skinnedDefines = { { L"SKINNED", L"1" } };
     auto vsSkinned = m_shaderCompiler.CompileFromFile(path, L"VSMain_Outline", L"vs_6_0", skinnedDefines);
     auto psSkinned = m_shaderCompiler.CompileFromFile(path, L"PSMain_Outline", L"ps_6_0", skinnedDefines);
@@ -133,35 +135,41 @@ bool ShaderRegistry::CompileToonOutlinePSO(ID3D12Device* device)
         return false;
     }
 
-    // Static PSO — front culling for outline effect
-    PipelineStateBuilder psoBuilder;
-    m_toonOutline.pso = psoBuilder
-        .SetRootSignature(m_rootSignature)
-        .SetVertexShader(vsBlob.GetBytecode())
-        .SetPixelShader(psBlob.GetBytecode())
-        .SetInputLayout(k_Vertex3DPBRLayout, _countof(k_Vertex3DPBRLayout))
-        .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT, 0)
-        .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT, 1)
-        .SetRenderTargetFormat(DXGI_FORMAT_R8G8B8A8_UNORM, 2)
-        .SetDepthFormat(DXGI_FORMAT_D32_FLOAT)
-        .SetDepthEnable(true)
-        .SetCullMode(D3D12_CULL_MODE_FRONT)  // フロントカリング（アウトライン用）
-        .Build(device);
+    // Outline PSO — static (スムース法線ベース、k_Vertex3DPBROutlineLayout使用)
+    {
+        PipelineStateBuilder b;
+        m_toonOutline.pso = b
+            .SetRootSignature(m_rootSignature)
+            .SetVertexShader(vsBlob.GetBytecode())
+            .SetPixelShader(psBlob.GetBytecode())
+            .SetInputLayout(k_Vertex3DPBROutlineLayout, _countof(k_Vertex3DPBROutlineLayout))
+            .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT, 0)
+            .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT, 1)
+            .SetRenderTargetFormat(DXGI_FORMAT_R8G8B8A8_UNORM, 2)
+            .SetDepthFormat(DXGI_FORMAT_D32_FLOAT)
+            .SetDepthEnable(true)
+            .SetCullMode(D3D12_CULL_MODE_FRONT)
+            .SetDepthBias(500, 0.0f, 2.0f)
+            .Build(device);
+    }
 
-    // Skinned PSO
-    PipelineStateBuilder psoSkinnedBuilder;
-    m_toonOutline.psoSkinned = psoSkinnedBuilder
-        .SetRootSignature(m_rootSignature)
-        .SetVertexShader(vsSkinned.GetBytecode())
-        .SetPixelShader(psSkinned.GetBytecode())
-        .SetInputLayout(k_Vertex3DSkinnedLayout, _countof(k_Vertex3DSkinnedLayout))
-        .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT, 0)
-        .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT, 1)
-        .SetRenderTargetFormat(DXGI_FORMAT_R8G8B8A8_UNORM, 2)
-        .SetDepthFormat(DXGI_FORMAT_D32_FLOAT)
-        .SetDepthEnable(true)
-        .SetCullMode(D3D12_CULL_MODE_FRONT)
-        .Build(device);
+    // Outline PSO — skinned
+    {
+        PipelineStateBuilder b;
+        m_toonOutline.psoSkinned = b
+            .SetRootSignature(m_rootSignature)
+            .SetVertexShader(vsSkinned.GetBytecode())
+            .SetPixelShader(psSkinned.GetBytecode())
+            .SetInputLayout(k_Vertex3DSkinnedOutlineLayout, _countof(k_Vertex3DSkinnedOutlineLayout))
+            .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT, 0)
+            .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT, 1)
+            .SetRenderTargetFormat(DXGI_FORMAT_R8G8B8A8_UNORM, 2)
+            .SetDepthFormat(DXGI_FORMAT_D32_FLOAT)
+            .SetDepthEnable(true)
+            .SetCullMode(D3D12_CULL_MODE_FRONT)
+            .SetDepthBias(500, 0.0f, 2.0f)
+            .Build(device);
+    }
 
     return m_toonOutline.pso != nullptr && m_toonOutline.psoSkinned != nullptr;
 }

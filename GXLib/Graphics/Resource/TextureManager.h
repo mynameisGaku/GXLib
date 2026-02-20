@@ -53,6 +53,9 @@ public:
     /// ハンドルからテクスチャリージョン（UV矩形）を取得
     const TextureRegion& GetRegion(int handle) const;
 
+    /// ハンドルからテクスチャのファイルパスを取得
+    const std::wstring& GetFilePath(int handle) const;
+
     /// テクスチャを解放
     void ReleaseTexture(int handle);
 

@@ -61,6 +61,7 @@ public:
                 TransformTRS* outPose);
 
     bool IsTransitioning() const { return m_transitioning; }
+    const std::vector<AnimTransition>& GetTransitions() const { return m_transitions; }
 
 private:
     void CheckTransitions();

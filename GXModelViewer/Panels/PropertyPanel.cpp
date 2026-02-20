@@ -13,20 +13,28 @@
 static constexpr float k_DegToRad = XM_PI / 180.0f;
 static constexpr float k_RadToDeg = 180.0f / XM_PI;
 
-void PropertyPanel::Draw(SceneGraph& scene, GX::MaterialManager& matManager, GX::TextureManager& texManager)
+void PropertyPanel::Draw(SceneGraph& scene, GX::MaterialManager& matManager, GX::TextureManager& texManager,
+                         ImGuizmo::OPERATION& gizmoOp, ImGuizmo::MODE& gizmoMode,
+                         bool& useSnap, float& snapT, float& snapR, float& snapS)
 {
-    (void)texManager;
-
     if (!ImGui::Begin("Properties"))
     {
         ImGui::End();
         return;
     }
+    DrawContent(scene, matManager, texManager, gizmoOp, gizmoMode, useSnap, snapT, snapR, snapS);
+    ImGui::End();
+}
+
+void PropertyPanel::DrawContent(SceneGraph& scene, GX::MaterialManager& matManager, GX::TextureManager& texManager,
+                                ImGuizmo::OPERATION& gizmoOp, ImGuizmo::MODE& gizmoMode,
+                                bool& useSnap, float& snapT, float& snapR, float& snapS)
+{
+    (void)texManager;
 
     if (scene.selectedEntity < 0)
     {
         ImGui::TextDisabled("No entity selected");
-        ImGui::End();
         return;
     }
 
@@ -34,7 +42,6 @@ void PropertyPanel::Draw(SceneGraph& scene, GX::MaterialManager& matManager, GX:
     if (!entity)
     {
         ImGui::TextDisabled("Invalid entity");
-        ImGui::End();
         return;
     }
 
@@ -53,6 +60,46 @@ void PropertyPanel::Draw(SceneGraph& scene, GX::MaterialManager& matManager, GX:
 
     ImGui::Separator();
 
+    // --- Gizmo Mode ---
+    if (ImGui::CollapsingHeader("Gizmo", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        // Operation radio buttons
+        if (ImGui::RadioButton("Translate (T)", gizmoOp == ImGuizmo::TRANSLATE))
+            gizmoOp = ImGuizmo::TRANSLATE;
+        ImGui::SameLine();
+        if (ImGui::RadioButton("Rotate (E)", gizmoOp == ImGuizmo::ROTATE))
+            gizmoOp = ImGuizmo::ROTATE;
+        ImGui::SameLine();
+        if (ImGui::RadioButton("Scale (R)", gizmoOp == ImGuizmo::SCALE))
+            gizmoOp = ImGuizmo::SCALE;
+
+        // World / Local toggle
+        if (gizmoOp != ImGuizmo::SCALE)
+        {
+            if (ImGui::RadioButton("World", gizmoMode == ImGuizmo::WORLD))
+                gizmoMode = ImGuizmo::WORLD;
+            ImGui::SameLine();
+            if (ImGui::RadioButton("Local (L)", gizmoMode == ImGuizmo::LOCAL))
+                gizmoMode = ImGuizmo::LOCAL;
+        }
+
+        // Snap controls
+        ImGui::Checkbox("Snap", &useSnap);
+        if (useSnap)
+        {
+            ImGui::Indent();
+            if (gizmoOp == ImGuizmo::TRANSLATE)
+                ImGui::DragFloat("Snap Value", &snapT, 0.05f, 0.01f, 100.0f, "%.2f");
+            else if (gizmoOp == ImGuizmo::ROTATE)
+                ImGui::DragFloat("Snap Angle", &snapR, 1.0f, 1.0f, 180.0f, "%.0f deg");
+            else if (gizmoOp == ImGuizmo::SCALE)
+                ImGui::DragFloat("Snap Scale", &snapS, 0.01f, 0.01f, 10.0f, "%.2f");
+            ImGui::Unindent();
+        }
+    }
+
+    ImGui::Separator();
+
     // --- Transform ---
     DrawTransformSection(*entity);
 
@@ -63,10 +110,17 @@ void PropertyPanel::Draw(SceneGraph& scene, GX::MaterialManager& matManager, GX:
 
     ImGui::Separator();
 
+    // --- Rendering ---
+    if (ImGui::CollapsingHeader("Rendering"))
+    {
+        ImGui::Checkbox("Show Bones", &entity->showBones);
+        ImGui::Checkbox("Wireframe", &entity->showWireframe);
+    }
+
+    ImGui::Separator();
+
     // --- Material Override ---
     DrawMaterialOverrideSection(*entity);
-
-    ImGui::End();
 }
 
 void PropertyPanel::DrawTransformSection(SceneEntity& entity)
@@ -176,6 +230,16 @@ void PropertyPanel::DrawModelMaterials(SceneEntity& entity, GX::MaterialManager&
         if (!mat) continue;
 
         ImGui::PushID(static_cast<int>(i));
+
+        // サブメッシュ可視性チェックボックス
+        if (i < entity.submeshVisibility.size())
+        {
+            bool vis = entity.submeshVisibility[i];
+            if (ImGui::Checkbox("##vis", &vis))
+                entity.submeshVisibility[i] = vis;
+            ImGui::SameLine();
+        }
+
         char label[64];
         snprintf(label, sizeof(label), "Material %d", static_cast<int>(i));
         if (ImGui::TreeNode(label))
@@ -238,18 +302,44 @@ void PropertyPanel::DrawShaderModelParams(gxfmt::ShaderModelParams& params, gxfm
     case gxfmt::ShaderModel::Toon:
     {
         ImGui::Separator();
-        ImGui::Text("Toon Parameters");
-        ImGui::ColorEdit4("Shade Color", params.shadeColor);
-        ImGui::SliderFloat("Outline Width", &params.outlineWidth, 0.0f, 0.05f, "%.4f");
-        ImGui::ColorEdit4("Outline Color", params.outlineColor);
-        ImGui::SliderFloat("Ramp Threshold", &params.rampThreshold, 0.0f, 1.0f);
-        ImGui::SliderFloat("Ramp Smoothing", &params.rampSmoothing, 0.0f, 1.0f);
-        int bands = static_cast<int>(params.rampBands);
-        if (ImGui::SliderInt("Ramp Bands", &bands, 1, 8))
-            params.rampBands = static_cast<uint32_t>(bands);
+        ImGui::Text("Shade");
+        ImGui::ColorEdit4("1st Shade Color", params.shadeColor);
+        ImGui::ColorEdit4("2nd Shade Color", params.shade2ndColor);
+        ImGui::SliderFloat("Base Color Step", &params.baseColorStep, 0.0f, 1.0f);
+        ImGui::SliderFloat("Base Shade Feather", &params.baseShadeFeather, 0.0f, 1.0f);
+        ImGui::SliderFloat("Shade Color Step", &params.shadeColorStep, 0.0f, 1.0f);
+        ImGui::SliderFloat("1st-2nd Shade Feather", &params.shade1st2ndFeather, 0.0f, 1.0f);
+        ImGui::SliderFloat("Shadow Receive Level", &params.shadowReceiveLevel, 0.0f, 1.0f);
+        ImGui::Separator();
+        ImGui::Text("Outline");
+        ImGui::SliderFloat("Outline Width", &params.outlineWidth, 0.0f, 5.0f, "%.3f");
+        ImGui::ColorEdit3("Outline Color", params.outlineColor);
+        ImGui::SliderFloat("Near Distance", &params.toonOutlineNearDist(), 0.0f, 10.0f);
+        ImGui::SliderFloat("Far Distance", &params.toonOutlineFarDist(), 1.0f, 500.0f);
+        ImGui::SliderFloat("Base Color Blend", &params.toonOutlineBlendBaseColor(), 0.0f, 1.0f);
+        ImGui::Separator();
+        ImGui::Text("Rim Light");
         ImGui::ColorEdit4("Rim Color", params.rimColor);
         ImGui::SliderFloat("Rim Power", &params.rimPower, 0.1f, 10.0f);
         ImGui::SliderFloat("Rim Intensity", &params.rimIntensity, 0.0f, 5.0f);
+        ImGui::SliderFloat("Rim Inside Mask", &params.rimInsideMask, 0.0f, 1.0f);
+        ImGui::SliderFloat("Light Dir Mask", &params.toonRimLightDirMask(), 0.0f, 1.0f);
+        {
+            bool featherOff = params.toonRimFeatherOff() > 0.5f;
+            if (ImGui::Checkbox("Rim Feather Off", &featherOff))
+                params.toonRimFeatherOff() = featherOff ? 1.0f : 0.0f;
+        }
+        ImGui::Separator();
+        ImGui::Text("Specular");
+        ImGui::ColorEdit3("High Color", params.highColor);
+        ImGui::SliderFloat("High Color Power", &params.highColorPower, 1.0f, 128.0f, "%.1f");
+        ImGui::SliderFloat("High Color Intensity", &params.highColorIntensity, 0.0f, 2.0f);
+        ImGui::SliderFloat("High Color on Shadow", &params.toonHighColorOnShadow(), 0.0f, 1.0f);
+        {
+            bool blendAdd = params.toonHighColorBlendAdd() > 0.5f;
+            if (ImGui::Checkbox("Additive Blend", &blendAdd))
+                params.toonHighColorBlendAdd() = blendAdd ? 1.0f : 0.0f;
+        }
         break;
     }
 

@@ -64,6 +64,14 @@ public:
     /// @param target 注視点の位置
     void SetTarget(const XMFLOAT3& target) { m_target = target; }
 
+    /// @brief ピッチ角を直接設定する（オービットカメラ用）
+    /// @param pitch ピッチ角（ラジアン、±89度にクランプ）
+    void SetPitch(float pitch);
+
+    /// @brief ヨー角を直接設定する（オービットカメラ用）
+    /// @param yaw ヨー角（ラジアン）
+    void SetYaw(float yaw);
+
     // --- TPS用設定 ---
 
     /// @brief TPSモードでのカメラとターゲット間の距離を設定する

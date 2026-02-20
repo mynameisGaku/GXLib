@@ -4,10 +4,13 @@
 #include "pch.h"
 #include "GxmdModelLoader.h"
 #include "Graphics/3D/Vertex3D.h"
+#include "Graphics/3D/Mesh.h"
 #include "Graphics/3D/Skeleton.h"
 #include "Graphics/3D/AnimationClip.h"
+#include "Core/Logger.h"
 
 #include <model_loader.h>
+#include <filesystem>
 
 // Verify vertex layout compatibility
 static_assert(sizeof(gxfmt::VertexStandard) == sizeof(GX::Vertex3D_PBR),
@@ -17,15 +20,6 @@ static_assert(sizeof(gxfmt::VertexSkinned) == sizeof(GX::Vertex3D_Skinned),
 
 namespace GX
 {
-
-static std::string WideToUtf8(const std::wstring& wstr)
-{
-    if (wstr.empty()) return "";
-    int size = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, nullptr, 0, nullptr, nullptr);
-    std::string result(size - 1, '\0');
-    WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, result.data(), size, nullptr, nullptr);
-    return result;
-}
 
 static std::wstring Utf8ToWide(const std::string& str)
 {
@@ -48,8 +42,7 @@ std::unique_ptr<Model> GxmdModelLoader::LoadFromGxmd(const std::wstring& filePat
                                                        TextureManager& texManager,
                                                        MaterialManager& matManager)
 {
-    std::string utf8Path = WideToUtf8(filePath);
-    auto loaded = gxloader::LoadGxmd(utf8Path);
+    auto loaded = gxloader::LoadGxmdW(filePath);
     if (!loaded)
         return nullptr;
 
@@ -100,13 +93,55 @@ std::unique_ptr<Model> GxmdModelLoader::LoadFromGxmd(const std::wstring& filePat
             break;
         }
 
+        // Clear stale string table offsets (these are meaningless at runtime)
+        for (int t = 0; t < 8; ++t)
+            mat.shaderParams.textureNames[t] = -1;
+
         // Load textures (slots 0-7)
         auto loadTex = [&](int slot) -> int {
             if (slot < 0 || slot >= 8 || srcMat.texturePaths[slot].empty())
                 return -1;
-            std::wstring texPath = dir + L"/" + Utf8ToWide(srcMat.texturePaths[slot]);
-            return texManager.LoadTexture(texPath);
+            std::wstring texName = Utf8ToWide(srcMat.texturePaths[slot]);
+            // Strip directory from texture path (FBX stores absolute paths)
+            size_t lastSlash = texName.find_last_of(L"/\\");
+            if (lastSlash != std::wstring::npos)
+                texName = texName.substr(lastSlash + 1);
+            // Try: dir/textureName
+            std::wstring texPath = dir + L"/" + texName;
+            int h = texManager.LoadTexture(texPath);
+            if (h >= 0) return h;
+            // Try: dir/textures/textureName
+            texPath = dir + L"/textures/" + texName;
+            h = texManager.LoadTexture(texPath);
+            if (h >= 0) return h;
+            // Try: dir/*.fbm/textureName (FBX texture subdirectory convention)
+            {
+                std::error_code ec;
+                for (auto& entry : std::filesystem::directory_iterator(std::filesystem::path(dir), ec))
+                {
+                    if (!entry.is_directory()) continue;
+                    auto dirName = entry.path().filename().wstring();
+                    if (dirName.size() > 4 && dirName.substr(dirName.size() - 4) == L".fbm")
+                    {
+                        texPath = entry.path().wstring() + L"/" + texName;
+                        h = texManager.LoadTexture(texPath);
+                        if (h >= 0) return h;
+                    }
+                }
+            }
+            GX_LOG_WARN("GXMD texture not found: %s (slot %d, material '%s')",
+                        srcMat.texturePaths[slot].c_str(), slot, srcMat.name.c_str());
+            return -1;
         };
+
+        // Log if no texture paths at all
+        {
+            bool anyTex = false;
+            for (int t = 0; t < 8; ++t)
+                if (!srcMat.texturePaths[t].empty()) { anyTex = true; break; }
+            if (!anyTex)
+                GX_LOG_INFO("GXMD material '%s': no texture paths in file", srcMat.name.c_str());
+        }
 
         mat.albedoMapHandle = loadTex(0);
         if (mat.albedoMapHandle >= 0)
@@ -213,6 +248,35 @@ std::unique_ptr<Model> GxmdModelLoader::LoadFromGxmd(const std::wstring& filePat
     }
 
     model->SetCPUData(std::move(cpuData));
+
+    // スムース法線計算
+    {
+        const auto* cpu = model->GetCPUData();
+        if (cpu)
+        {
+            uint32_t vtxCount = isSkinned ? static_cast<uint32_t>(cpu->skinnedVertices.size())
+                                           : static_cast<uint32_t>(cpu->staticVertices.size());
+            std::vector<XMFLOAT3> positions(vtxCount), normals(vtxCount);
+            if (isSkinned)
+            {
+                for (uint32_t i = 0; i < vtxCount; ++i)
+                {
+                    positions[i] = cpu->skinnedVertices[i].position;
+                    normals[i]   = cpu->skinnedVertices[i].normal;
+                }
+            }
+            else
+            {
+                for (uint32_t i = 0; i < vtxCount; ++i)
+                {
+                    positions[i] = cpu->staticVertices[i].position;
+                    normals[i]   = cpu->staticVertices[i].normal;
+                }
+            }
+            auto smooth = ComputeSmoothNormals(positions.data(), normals.data(), vtxCount);
+            model->GetMesh().CreateSmoothNormalBuffer(device, smooth.data(), vtxCount);
+        }
+    }
 
     // --- Skeleton ---
     if (!loaded->joints.empty())

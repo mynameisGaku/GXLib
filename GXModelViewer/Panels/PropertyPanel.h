@@ -5,16 +5,22 @@
 #include "Scene/SceneGraph.h"
 #include "Graphics/3D/Material.h"
 #include "Graphics/Resource/TextureManager.h"
+#include <imgui.h>
+#include "ImGuizmo.h"
 
 /// @brief ImGui panel that displays and edits properties of the selected entity
 class PropertyPanel
 {
 public:
-    /// Draw the property panel.
-    /// @param scene The scene graph (reads selectedEntity).
-    /// @param matManager Material manager for material operations.
-    /// @param texManager Texture manager for texture operations.
-    void Draw(SceneGraph& scene, GX::MaterialManager& matManager, GX::TextureManager& texManager);
+    /// Draw the property panel (standalone window — without gizmo controls).
+    void Draw(SceneGraph& scene, GX::MaterialManager& matManager, GX::TextureManager& texManager,
+              ImGuizmo::OPERATION& gizmoOp, ImGuizmo::MODE& gizmoMode,
+              bool& useSnap, float& snapT, float& snapR, float& snapS);
+
+    /// Draw only the content (no Begin/End), for embedding in a tabbed container.
+    void DrawContent(SceneGraph& scene, GX::MaterialManager& matManager, GX::TextureManager& texManager,
+                     ImGuizmo::OPERATION& gizmoOp, ImGuizmo::MODE& gizmoMode,
+                     bool& useSnap, float& snapT, float& snapR, float& snapS);
 
 private:
     /// Draw the transform editing section.

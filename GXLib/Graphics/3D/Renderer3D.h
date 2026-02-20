@@ -155,6 +155,9 @@ public:
     /// @param face キューブマップの面インデックス
     void EndPointShadowPass(uint32_t face);
 
+    /// @brief シャドウパス中かどうかを返す
+    bool IsInShadowPass() const { return m_inShadowPass; }
+
     /// @brief メインレンダリングパスのフレームを開始する
     /// @param cmdList グラフィックスコマンドリスト
     /// @param frameIndex 現在のフレームインデックス
@@ -203,6 +206,25 @@ public:
     /// @brief スキニングモデルを描画する (Animator)
     void DrawSkinnedModel(const Model& model, const Transform3D& transform,
                            const Animator& animator);
+
+    /// @brief サブメッシュ可視性付きモデル描画
+    void DrawModel(const Model& model, const Transform3D& transform,
+                   const std::vector<bool>& submeshVisibility);
+
+    /// @brief サブメッシュ可視性付きスキニングモデル描画
+    void DrawSkinnedModel(const Model& model, const Transform3D& transform,
+                           const Animator& animator,
+                           const std::vector<bool>& submeshVisibility);
+
+    /// @brief マテリアルオーバーライドを設定する（全サブメッシュに適用）
+    void SetMaterialOverride(const Material* mat) { m_materialOverride = mat; }
+
+    /// @brief マテリアルオーバーライドを解除する
+    void ClearMaterialOverride() { m_materialOverride = nullptr; }
+
+    /// @brief ワイヤフレームモードの設定
+    void SetWireframeMode(bool enabled);
+    bool IsWireframeMode() const { return m_wireframeMode; }
 
     /// @brief フレームの描画を終了する
     void End();
@@ -358,6 +380,14 @@ private:
     int m_defaultBlackTex = -1;
 
     ID3D12PipelineState* m_currentPso = nullptr;
+
+    // マテリアルオーバーライド
+    const Material* m_materialOverride = nullptr;
+
+    // ワイヤフレームPSO
+    bool m_wireframeMode = false;
+    ComPtr<ID3D12PipelineState> m_psoWireframe;
+    ComPtr<ID3D12PipelineState> m_psoSkinnedWireframe;
 
     // 冗長バインド防止用 — 前回バインドしたVB/IBリソース
     ID3D12Resource* m_lastBoundVB = nullptr;

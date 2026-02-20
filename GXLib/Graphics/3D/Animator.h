@@ -55,6 +55,18 @@ public:
 
     bool IsPlaying() const { return m_playing; }
 
+    const AnimationClip* GetCurrentClip() const { return m_current.clip; }
+    float GetCurrentTime() const { return m_current.time; }
+    void  SetCurrentTime(float time);
+    float GetSpeed() const { return m_current.speed; }
+    void  SetSpeed(float speed) { m_current.speed = speed; }
+    bool  IsPaused() const { return m_paused; }
+
+    void SetLockRootPosition(bool lock) { m_lockRootPosition = lock; }
+    void SetLockRootRotation(bool lock) { m_lockRootRotation = lock; }
+    bool IsRootPositionLocked() const { return m_lockRootPosition; }
+    bool IsRootRotationLocked() const { return m_lockRootRotation; }
+
 private:
     struct ClipState
     {
@@ -86,6 +98,9 @@ private:
     AnimMode m_mode = AnimMode::Simple;
     BlendStack* m_blendStack = nullptr;
     AnimatorStateMachine* m_stateMachine = nullptr;
+
+    bool m_lockRootPosition = false;
+    bool m_lockRootRotation = false;
 
     std::vector<TransformTRS> m_bindPose;
     std::vector<TransformTRS> m_poseA;

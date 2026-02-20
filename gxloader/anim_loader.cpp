@@ -82,4 +82,24 @@ std::unique_ptr<LoadedGxan> LoadGxan(const std::string& filePath)
     return LoadGxanFromMemory(buffer.data(), buffer.size());
 }
 
+#ifdef _WIN32
+std::unique_ptr<LoadedGxan> LoadGxanW(const std::wstring& filePath)
+{
+    FILE* f = _wfopen(filePath.c_str(), L"rb");
+    if (!f) return nullptr;
+
+    fseek(f, 0, SEEK_END);
+    long fileSize = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    if (fileSize <= 0) { fclose(f); return nullptr; }
+
+    std::vector<uint8_t> buffer(static_cast<size_t>(fileSize));
+    fread(buffer.data(), 1, buffer.size(), f);
+    fclose(f);
+
+    return LoadGxanFromMemory(buffer.data(), buffer.size());
+}
+#endif
+
 } // namespace gxloader

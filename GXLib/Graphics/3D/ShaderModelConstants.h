@@ -25,18 +25,18 @@ struct ShaderModelGPUParams
     float    aoStrength;          // 56
     float    reflectance;         // 60
 
-    // --- Toon (64..127) ---
-    XMFLOAT4 shadeColor;          // 64
-    float    outlineWidth;        // 80
-    XMFLOAT3 outlineColor;        // 84 (packed float3)
-    float    rampThreshold;       // 96
-    float    rampSmoothing;       // 100
-    uint32_t rampBands;           // 104
-    float    _toonPad;            // 108
+    // --- Toon (64..143) --- UTS2-style double shade
+    XMFLOAT4 shadeColor;          // 64:  1st shade color
+    XMFLOAT4 shade2ndColor;       // 80:  2nd shade color
+    float    baseColorStep;       // 96:  base->1st threshold
+    float    baseShadeFeather;    // 100: base->1st feather
+    float    shadeColorStep;      // 104: 1st->2nd threshold
+    float    shade1st2ndFeather;  // 108: 1st->2nd feather
     XMFLOAT4 rimColor;            // 112
     float    rimPower;            // 128
     float    rimIntensity;        // 132
-    float    _toonPad2[2];        // 136
+    float    highColorPower;      // 136: specular power
+    float    highColorIntensity;  // 140: specular intensity
 
     // --- Phong (144..159) ---
     XMFLOAT3 specularColor;       // 144
@@ -54,8 +54,13 @@ struct ShaderModelGPUParams
     float    clearCoatRoughness;  // 196
     float    _ccPad[2];           // 200
 
-    // --- Reserved (208..255) ---
-    float    _reserved[12];       // 208
+    // --- Toon Extended (208..255) ---
+    float    outlineWidth;        // 208
+    XMFLOAT3 outlineColor;        // 212
+    XMFLOAT3 highColor;           // 224: specular color
+    float    shadowReceiveLevel;  // 236: CSM shadow influence
+    float    rimInsideMask;       // 240: rim shadow mask
+    float    _toonReserved[3];    // 244..255
 };
 
 static_assert(sizeof(ShaderModelGPUParams) == 256, "ShaderModelGPUParams must be exactly 256 bytes");
@@ -80,23 +85,40 @@ inline ShaderModelGPUParams ConvertToGPUParams(const gxfmt::ShaderModelParams& s
     dst.aoStrength      = src.aoStrength;
     dst.reflectance     = src.reflectance;
 
-    // Toon
-    dst.shadeColor      = { src.shadeColor[0], src.shadeColor[1], src.shadeColor[2], src.shadeColor[3] };
-    dst.outlineWidth    = src.outlineWidth;
-    dst.outlineColor    = { src.outlineColor[0], src.outlineColor[1], src.outlineColor[2] };
-    dst.rampThreshold   = src.rampThreshold;
-    dst.rampSmoothing   = src.rampSmoothing;
-    dst.rampBands       = src.rampBands;
-    dst.rimColor        = { src.rimColor[0], src.rimColor[1], src.rimColor[2], src.rimColor[3] };
-    dst.rimPower        = src.rimPower;
-    dst.rimIntensity    = src.rimIntensity;
+    // Toon (UTS2 double shade)
+    dst.shadeColor        = { src.shadeColor[0], src.shadeColor[1], src.shadeColor[2], src.shadeColor[3] };
+    dst.shade2ndColor     = { src.shade2ndColor[0], src.shade2ndColor[1], src.shade2ndColor[2], src.shade2ndColor[3] };
+    dst.baseColorStep     = src.baseColorStep;
+    dst.baseShadeFeather  = src.baseShadeFeather;
+    dst.shadeColorStep    = src.shadeColorStep;
+    dst.shade1st2ndFeather = src.shade1st2ndFeather;
+    dst.rimColor          = { src.rimColor[0], src.rimColor[1], src.rimColor[2], src.rimColor[3] };
+    dst.rimPower          = src.rimPower;
+    dst.rimIntensity      = src.rimIntensity;
+    dst.highColorPower    = src.highColorPower;
+    dst.highColorIntensity = src.highColorIntensity;
 
-    // Phong
-    dst.specularColor   = { src.specularColor[0], src.specularColor[1], src.specularColor[2] };
-    dst.shininess       = src.shininess;
+    // Toon Extended
+    dst.outlineWidth       = src.outlineWidth;
+    dst.outlineColor       = { src.outlineColor[0], src.outlineColor[1], src.outlineColor[2] };
+    dst.highColor          = { src.highColor[0], src.highColor[1], src.highColor[2] };
+    dst.shadowReceiveLevel = src.shadowReceiveLevel;
+    dst.rimInsideMask      = src.rimInsideMask;
 
-    // Subsurface
-    dst.subsurfaceColor    = { src.subsurfaceColor[0], src.subsurfaceColor[1], src.subsurfaceColor[2] };
+    // Phong / Subsurface / ClearCoat — Toon aliases when Toon model
+    if (model == gxfmt::ShaderModel::Toon)
+    {
+        // Toon reuses Phong/SS/CC fields as aliases
+        dst.specularColor   = { src.toonRimLightDirMask(), src.toonRimFeatherOff(), src.toonHighColorBlendAdd() };
+        dst.shininess       = src.toonHighColorOnShadow();
+        dst.subsurfaceColor = { src.toonOutlineFarDist(), src.toonOutlineNearDist(), src.toonOutlineBlendBaseColor() };
+    }
+    else
+    {
+        dst.specularColor   = { src.specularColor[0], src.specularColor[1], src.specularColor[2] };
+        dst.shininess       = src.shininess;
+        dst.subsurfaceColor = { src.subsurfaceColor[0], src.subsurfaceColor[1], src.subsurfaceColor[2] };
+    }
     dst.subsurfaceRadius   = src.subsurfaceRadius;
     dst.subsurfaceStrength = src.subsurfaceStrength;
     dst.thickness          = src.thickness;

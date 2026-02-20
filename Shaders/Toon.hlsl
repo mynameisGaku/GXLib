@@ -1,42 +1,12 @@
 /// @file Toon.hlsl
-/// @brief トゥーン（セル）シェーダー — ステップ/ランプ照明 + リムライト
+/// @brief UTS2ベース トゥーンシェーダー — ダブルシェード方式
 ///
-/// NdotLをランプ関数で量子化し、アニメ調の明暗を生成する。
-/// gShadeColor で暗部の色味を制御、gRampBands でバンド数を設定。
-/// リムライトは Fresnel的な NdotV を使い縁を光らせる。
+/// UnityChan Toon Shader 2 (UTS2) のアルゴリズムに基づく3ゾーンシェーディング。
+/// Base Color → 1st Shade → 2nd Shade の3段階グラデーションで
+/// アニメ調の自然な明暗を生成する。
+/// CSMシャドウは gShadowReceiveLevel で halfLambert に統合。
 
 #include "ShaderModelCommon.hlsli"
-
-// ============================================================================
-// ランプ関数: NdotLをバンド数で量子化
-// ============================================================================
-
-float ToonRamp(float NdotL, float threshold, float smoothing, uint bands)
-{
-    // テクスチャランプが使用可能な場合はそちらを使用
-    if (gMaterialFlags & HAS_TOON_RAMP_MAP)
-    {
-        // ランプテクスチャの横方向をNdotLで参照（V=0.5固定）
-        float u = saturate(NdotL * 0.5f + 0.5f);
-        return tToonRamp.Sample(sLinearWrap, float2(u, 0.5f)).r;
-    }
-
-    // バンド数による量子化ランプ
-    if (bands <= 1)
-    {
-        // 2値（影/光）: smoothstepでソフトエッジ
-        return smoothstep(threshold - smoothing, threshold + smoothing, NdotL);
-    }
-
-    // 複数バンド: NdotLを[0,1]に正規化→バンド数で量子化
-    float halfLambert = NdotL * 0.5f + 0.5f;
-    float stepped = floor(halfLambert * (float)bands) / (float)bands;
-    // バンド境界をスムージング
-    float frac_ = frac(halfLambert * (float)bands);
-    float blend = smoothstep(0.5f - smoothing, 0.5f + smoothing, frac_);
-    float nextStep = min(stepped + 1.0f / (float)bands, 1.0f);
-    return lerp(stepped, nextStep, blend);
-}
 
 // ============================================================================
 // ピクセルシェーダー
@@ -63,8 +33,14 @@ PSOutput PSMain(PSInput input)
     // --- シャドウ ---
     ShadowInfo shadowInfo = ComputeShadowAll(input.posW, N, input.viewZ);
 
-    // --- トゥーンライティング ---
+    // --- UTS2 ダブルシェードライティング ---
     float3 Lo = float3(0, 0, 0);
+
+    // メインライトの halfLambert（リムライト方向マスク用に保持）
+    float mainHalfLambert = 0.5f;
+    // メインライトの shadowMask1（スペキュラ影マスク用に保持）
+    float mainShadowMask1 = 0.0f;
+
     for (uint i = 0; i < gNumLights; ++i)
     {
         float3 L;
@@ -92,27 +68,76 @@ PSOutput PSMain(PSInput input)
 
         float NdotL = dot(N, L);
 
-        // ランプ照明
-        float ramp = ToonRamp(NdotL, gRampThreshold, gRampSmoothing, gRampBands);
+        // per-light shadow
+        float shadow = GetLightShadow(i, shadowInfo.cascadeShadow, input.posW, N);
 
-        // lit色とshade色をランプでブレンド
-        float3 litColor = albedo.rgb;
-        float3 shadedColor = albedo.rgb * gShadeColor.rgb;
-        float3 toonColor = lerp(shadedColor, litColor, ramp);
+        // UTS2: Half Lambert + シャドウ統合
+        float halfLambert = NdotL * 0.5f + 0.5f;
+        halfLambert *= lerp(1.0f, shadow, gShadowReceiveLevel);
+
+        // メインライトの halfLambert 保持（リム方向マスク用）
+        if (i == 0)
+            mainHalfLambert = halfLambert;
+
+        // UTS2準拠: 片側ランプ（step以下にfeather幅で遷移）
+        // shadowMask=0→base(lit), shadowMask=1→shade(dark)
+        float feather1 = max(gBaseShadeFeather, 0.001f);
+        float shadowMask1 = saturate((gBaseColorStep - halfLambert) / feather1);
+
+        float feather2 = max(gShade1st2ndFeather, 0.001f);
+        float shadowMask2 = saturate((gShadeColorStep - halfLambert) / feather2);
+
+        // メインライトの shadowMask1 保持（スペキュラ影マスク用）
+        if (i == 0)
+            mainShadowMask1 = shadowMask1;
+
+        // 3ゾーン合成: base → 1st shade → 2nd shade (UTS2方式)
+        float3 shade1st = albedo.rgb * gShadeColor.rgb;
+        float3 shade2nd = albedo.rgb * gShade2ndColor.rgb;
+        float3 shadeBlend = lerp(shade1st, shade2nd, shadowMask2);
+        float3 toonColor = lerp(albedo.rgb, shadeBlend, shadowMask1);
 
         // ライトの色と強度
         float3 radiance = gLights[i].color * gLights[i].intensity * attenuation;
 
-        // per-light shadow
-        float shadow = GetLightShadow(i, shadowInfo.cascadeShadow, input.posW, N);
+        Lo += toonColor * radiance;
 
-        Lo += toonColor * radiance * shadow;
+        // UTS2準拠 スペキュラハイライト
+        if (gHighColorIntensity > 0.0f)
+        {
+            float3 H = normalize(V + L);
+            float NdotH = max(dot(N, H), 0.0f);
+
+            // UTS2: power→可変閾値マッピング
+            float normPow = saturate(gHighColorPower / 128.0f);
+            float specThreshold = 1.0f - pow(normPow, 5.0f);
+            float specMask = step(specThreshold, NdotH) * gHighColorIntensity;
+
+            // 影マスク: gHighColorOnShadow (0=影でスペキュラ消す, 1=維持)
+            specMask *= lerp(1.0f - shadowMask1, 1.0f, gHighColorOnShadow);
+
+            // ブレンドモード: gHighColorBlendAdd (0=乗算, 1=加算)
+            float3 specAdd = gHighColor * specMask * radiance;
+            float3 specMul = toonColor * (1.0f + specMask * (gHighColor - 1.0f));
+            Lo += lerp(specMul - toonColor, specAdd, gHighColorBlendAdd) * shadow;
+        }
     }
 
-    // --- リムライト ---
+    // --- UTS2準拠 リムライト ---
     float NdotV = max(dot(N, V), 0.0f);
-    float rimFactor = pow(1.0f - NdotV, gRimPower) * gRimIntensity;
-    float3 rimContribution = gRimColor.rgb * gRimColor.a * rimFactor;
+    float rimRaw = pow(1.0f - NdotV, gRimPower) * gRimIntensity;
+
+    // Inside mask: フェザーON/OFF
+    float rimFinal;
+    if (gRimFeatherOff > 0.5f)
+        rimFinal = step(gRimInsideMask, rimRaw);
+    else
+        rimFinal = saturate((rimRaw - gRimInsideMask) / max(1.0f - gRimInsideMask, 0.001f));
+
+    // ライト方向マスク: mainHalfLambert でlit側に制限
+    rimFinal *= lerp(1.0f, mainHalfLambert, gRimLightDirMask);
+
+    float3 rimContribution = gRimColor.rgb * gRimColor.a * rimFinal;
 
     // --- アンビエント ---
     float3 ambient = gAmbientColor * albedo.rgb * ao;

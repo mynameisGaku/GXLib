@@ -43,9 +43,13 @@ void SceneHierarchyPanel::Draw(SceneGraph& scene)
 
         ImGui::PushID(i);
 
-        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_Leaf
-                                 | ImGuiTreeNodeFlags_SpanAvailWidth
-                                 | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+        bool hasSkeleton = entity->model && entity->model->HasSkeleton();
+
+        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth
+                                 | ImGuiTreeNodeFlags_OpenOnArrow;
+
+        if (!hasSkeleton)
+            flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 
         if (scene.selectedEntity == i)
             flags |= ImGuiTreeNodeFlags_Selected;
@@ -55,7 +59,6 @@ void SceneHierarchyPanel::Draw(SceneGraph& scene)
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
 
         bool nodeOpen = ImGui::TreeNodeEx(entity->name.c_str(), flags);
-        (void)nodeOpen; // leaf node, always closed
 
         if (!entity->visible)
             ImGui::PopStyleColor();
@@ -64,6 +67,7 @@ void SceneHierarchyPanel::Draw(SceneGraph& scene)
         if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
         {
             scene.selectedEntity = i;
+            scene.selectedBone = -1;
         }
 
         // Right-click context menu
@@ -83,6 +87,19 @@ void SceneHierarchyPanel::Draw(SceneGraph& scene)
             ImGui::EndPopup();
         }
 
+        // Draw bone tree inside expanded skinned entity
+        if (hasSkeleton && nodeOpen)
+        {
+            const GX::Skeleton* skeleton = entity->model->GetSkeleton();
+            const auto& joints = skeleton->GetJoints();
+            for (size_t j = 0; j < joints.size(); ++j)
+            {
+                if (joints[j].parentIndex == -1)
+                    DrawBoneTree(skeleton, scene, static_cast<int>(j));
+            }
+            ImGui::TreePop();
+        }
+
         ImGui::PopID();
     }
 
@@ -100,4 +117,44 @@ void SceneHierarchyPanel::Draw(SceneGraph& scene)
     }
 
     ImGui::End();
+}
+
+void SceneHierarchyPanel::DrawBoneTree(const GX::Skeleton* skeleton, SceneGraph& scene, int jointIndex)
+{
+    const auto& joints = skeleton->GetJoints();
+    if (jointIndex < 0 || jointIndex >= static_cast<int>(joints.size()))
+        return;
+
+    // Find children
+    bool hasChildren = false;
+    for (size_t i = 0; i < joints.size(); ++i)
+    {
+        if (joints[i].parentIndex == jointIndex)
+        {
+            hasChildren = true;
+            break;
+        }
+    }
+
+    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
+    if (!hasChildren) flags |= ImGuiTreeNodeFlags_Leaf;
+    if (jointIndex == scene.selectedBone) flags |= ImGuiTreeNodeFlags_Selected;
+
+    char label[128];
+    snprintf(label, sizeof(label), "[%d] %s", jointIndex, joints[jointIndex].name.c_str());
+
+    bool open = ImGui::TreeNodeEx(label, flags);
+
+    if (ImGui::IsItemClicked())
+        scene.selectedBone = jointIndex;
+
+    if (open)
+    {
+        for (size_t i = 0; i < joints.size(); ++i)
+        {
+            if (joints[i].parentIndex == jointIndex)
+                DrawBoneTree(skeleton, scene, static_cast<int>(i));
+        }
+        ImGui::TreePop();
+    }
 }

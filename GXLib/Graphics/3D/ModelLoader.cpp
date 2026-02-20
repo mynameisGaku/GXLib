@@ -9,7 +9,9 @@
 
 #include "Graphics/3D/ModelLoader.h"
 #include "Graphics/3D/GxmdModelLoader.h"
+#include "Graphics/3D/AnimationClip.h"
 #include "Graphics/3D/Vertex3D.h"
+#include "Graphics/3D/Mesh.h"
 #include "Core/Logger.h"
 #include <filesystem>
 #include <unordered_map>
@@ -572,6 +574,31 @@ static std::unique_ptr<Model> LoadFromGLTF(const std::wstring& filePath,
     if (useSkinning)
         LoadGltfAnimations(data, *model);
 
+    // スムース法線計算（SetCPUData前、頂点データがmoveされる前に計算）
+    {
+        uint32_t vtxCount = useSkinning ? static_cast<uint32_t>(skinnedVertices.size())
+                                         : static_cast<uint32_t>(staticVertices.size());
+        std::vector<XMFLOAT3> positions(vtxCount), normals(vtxCount);
+        if (useSkinning)
+        {
+            for (uint32_t i = 0; i < vtxCount; ++i)
+            {
+                positions[i] = skinnedVertices[i].position;
+                normals[i]   = skinnedVertices[i].normal;
+            }
+        }
+        else
+        {
+            for (uint32_t i = 0; i < vtxCount; ++i)
+            {
+                positions[i] = staticVertices[i].position;
+                normals[i]   = staticVertices[i].normal;
+            }
+        }
+        auto smooth = ComputeSmoothNormals(positions.data(), normals.data(), vtxCount);
+        model->GetMesh().CreateSmoothNormalBuffer(device, smooth.data(), vtxCount);
+    }
+
     MeshCPUData cpu;
     if (useSkinning)
         cpu.skinnedVertices = std::move(skinnedVertices);
@@ -596,6 +623,7 @@ static std::unique_ptr<Model> LoadFromGLTF(const std::wstring& filePath,
 
 static XMFLOAT4X4 ToXMFLOAT4X4(const FbxAMatrix& m)
 {
+    // FbxAMatrix uses row-vector convention (same as DirectXMath) — no transpose needed
     XMFLOAT4X4 out;
     for (int r = 0; r < 4; ++r)
         for (int c = 0; c < 4; ++c)
@@ -603,15 +631,66 @@ static XMFLOAT4X4 ToXMFLOAT4X4(const FbxAMatrix& m)
     return out;
 }
 
-static std::wstring ResolveFbxTexturePath(FbxFileTexture* tex, const std::wstring& baseDir)
+static std::wstring ResolveFbxTexturePath(FbxFileTexture* tex, const std::wstring& baseDir,
+                                          const std::wstring& fbxFilePath)
 {
     if (!tex) return L"";
-    const char* fileName = tex->GetFileName();
-    const char* relName = tex->GetRelativeFileName();
-    std::wstring path = ToWString(fileName && *fileName ? fileName : (relName ? relName : ""));
-    if (path.empty())
-        return L"";
 
+    const char* fileName = tex->GetFileName();
+    const char* relName  = tex->GetRelativeFileName();
+
+    GX_LOG_INFO("ModelLoader: ResolveFbxTexturePath: fileName='%s' relName='%s' baseDir='%ls'",
+                fileName ? fileName : "(null)", relName ? relName : "(null)", baseDir.c_str());
+
+    // 1. 絶対パスがあればまずチェック
+    if (fileName && *fileName)
+    {
+        std::wstring absPath = ToWString(fileName);
+        if (std::filesystem::exists(absPath))
+            return absPath;
+
+        // 2. 絶対パスが存在しない場合、ファイル名だけ抽出してFBXディレクトリで探す
+        std::filesystem::path fn = std::filesystem::path(absPath).filename();
+        std::wstring localPath = (std::filesystem::path(baseDir) / fn).wstring();
+        if (std::filesystem::exists(localPath))
+            return localPath;
+
+        // 3. よくあるサブディレクトリも試す
+        for (const wchar_t* sub : { L"textures", L"Textures", L"texture", L"tex" })
+        {
+            std::wstring subPath = (std::filesystem::path(baseDir) / sub / fn).wstring();
+            if (std::filesystem::exists(subPath))
+                return subPath;
+        }
+
+        // 3b. FBXファイル名ベースの .fbm サブディレクトリ
+        {
+            std::wstring fbxStem = std::filesystem::path(fbxFilePath).stem().wstring();
+            std::wstring fbmDir = fbxStem + L".fbm";
+            std::wstring fbmPath = (std::filesystem::path(baseDir) / fbmDir / fn).wstring();
+            if (std::filesystem::exists(fbmPath))
+                return fbmPath;
+        }
+    }
+
+    // 4. 相対パスを試す
+    if (relName && *relName)
+    {
+        std::wstring relPath = ToWString(relName);
+        std::filesystem::path p(relPath);
+        std::wstring resolved = (std::filesystem::path(baseDir) / p).wstring();
+        if (std::filesystem::exists(resolved))
+            return resolved;
+
+        // 相対パスのファイル名だけでも試す
+        std::wstring fnOnly = (std::filesystem::path(baseDir) / p.filename()).wstring();
+        if (std::filesystem::exists(fnOnly))
+            return fnOnly;
+    }
+
+    // 5. フォールバック: パスを結合して返す（stbi_loadに試行させる）
+    std::wstring path = ToWString(fileName && *fileName ? fileName : (relName ? relName : ""));
+    if (path.empty()) return L"";
     std::filesystem::path p(path);
     if (p.is_absolute())
         return path;
@@ -620,7 +699,8 @@ static std::wstring ResolveFbxTexturePath(FbxFileTexture* tex, const std::wstrin
 
 static int LoadFbxTextureFromProperty(FbxProperty prop,
                                       TextureManager& texManager,
-                                      const std::wstring& baseDir)
+                                      const std::wstring& baseDir,
+                                      const std::wstring& fbxFilePath)
 {
     if (!prop.IsValid())
         return -1;
@@ -632,11 +712,43 @@ static int LoadFbxTextureFromProperty(FbxProperty prop,
         if (!tex) continue;
         FbxFileTexture* fileTex = FbxCast<FbxFileTexture>(tex);
         if (!fileTex) continue;
-        std::wstring texPath = ResolveFbxTexturePath(fileTex, baseDir);
-        if (texPath.empty()) continue;
+        std::wstring texPath = ResolveFbxTexturePath(fileTex, baseDir, fbxFilePath);
+        if (texPath.empty())
+        {
+            GX_LOG_WARN("ModelLoader: FBX texture not found: %s", fileTex->GetFileName());
+            continue;
+        }
         int handle = texManager.LoadTexture(texPath);
         if (handle >= 0)
+        {
+            GX_LOG_INFO("ModelLoader: FBX texture loaded: %ls", texPath.c_str());
             return handle;
+        }
+        GX_LOG_WARN("ModelLoader: FBX texture load failed: %ls", texPath.c_str());
+    }
+    return -1;
+}
+
+/// @brief マテリアルの全プロパティからテクスチャを検索するフォールバック
+static int LoadFbxTextureFromAnyProperty(FbxSurfaceMaterial* mat,
+                                         TextureManager& texManager,
+                                         const std::wstring& baseDir,
+                                         const std::wstring& fbxFilePath)
+{
+    if (!mat) return -1;
+    FbxProperty prop = mat->GetFirstProperty();
+    while (prop.IsValid())
+    {
+        if (prop.GetSrcObjectCount<FbxFileTexture>() > 0)
+        {
+            int handle = LoadFbxTextureFromProperty(prop, texManager, baseDir, fbxFilePath);
+            if (handle >= 0)
+            {
+                GX_LOG_INFO("ModelLoader: FBX albedo found via property '%s'", prop.GetName().Buffer());
+                return handle;
+            }
+        }
+        prop = mat->GetNextProperty(prop);
     }
     return -1;
 }
@@ -645,7 +757,8 @@ static std::unordered_map<FbxSurfaceMaterial*, int>
 LoadFbxMaterials(FbxScene* scene,
                  TextureManager& texManager,
                  MaterialManager& matManager,
-                 const std::wstring& baseDir)
+                 const std::wstring& baseDir,
+                 const std::wstring& fbxFilePath)
 {
     std::unordered_map<FbxSurfaceMaterial*, int> materialMap;
     if (!scene) return materialMap;
@@ -661,10 +774,15 @@ LoadFbxMaterials(FbxScene* scene,
         FbxSurfaceLambert* lambert = FbxCast<FbxSurfaceLambert>(matSrc);
         FbxSurfacePhong* phong = FbxCast<FbxSurfacePhong>(matSrc);
 
+        GX_LOG_INFO("ModelLoader: FBX material[%d]: '%s' (Lambert=%s, Phong=%s)",
+                    i, matSrc->GetName(), lambert ? "yes" : "no", phong ? "yes" : "no");
+
         if (lambert)
         {
             FbxDouble3 diff = lambert->Diffuse.Get();
             double diffFactor = lambert->DiffuseFactor.Get();
+            GX_LOG_INFO("ModelLoader:   Diffuse=(%.2f,%.2f,%.2f) DiffuseFactor=%.2f",
+                        diff[0], diff[1], diff[2], diffFactor);
             mat.constants.albedoFactor = {
                 static_cast<float>(diff[0] * diffFactor),
                 static_cast<float>(diff[1] * diffFactor),
@@ -690,23 +808,32 @@ LoadFbxMaterials(FbxScene* scene,
             mat.constants.roughnessFactor = (std::max)(roughness, 0.04f);
         }
 
+        // Diffuse テクスチャ検索（標準プロパティ → 全プロパティフォールバック）
         int albedoHandle = LoadFbxTextureFromProperty(
             matSrc->FindProperty(FbxSurfaceMaterial::sDiffuse),
-            texManager, baseDir);
+            texManager, baseDir, fbxFilePath);
+        if (albedoHandle < 0)
+        {
+            GX_LOG_INFO("ModelLoader:   sDiffuse has no texture, trying all properties...");
+            albedoHandle = LoadFbxTextureFromAnyProperty(matSrc, texManager, baseDir, fbxFilePath);
+        }
         if (albedoHandle >= 0)
         {
             mat.albedoMapHandle = albedoHandle;
             mat.constants.flags |= MaterialFlags::HasAlbedoMap;
+            // テクスチャがある場合、albedoFactorを白に上書き
+            // (FBX Diffuse/DiffuseFactorが暗いとテクスチャが見えなくなるため)
+            mat.constants.albedoFactor = { 1.0f, 1.0f, 1.0f, 1.0f };
         }
 
         int normalHandle = LoadFbxTextureFromProperty(
             matSrc->FindProperty(FbxSurfaceMaterial::sNormalMap),
-            texManager, baseDir);
+            texManager, baseDir, fbxFilePath);
         if (normalHandle < 0)
         {
             normalHandle = LoadFbxTextureFromProperty(
                 matSrc->FindProperty(FbxSurfaceMaterial::sBump),
-                texManager, baseDir);
+                texManager, baseDir, fbxFilePath);
         }
         if (normalHandle >= 0)
         {
@@ -716,7 +843,7 @@ LoadFbxMaterials(FbxScene* scene,
 
         int emissiveHandle = LoadFbxTextureFromProperty(
             matSrc->FindProperty(FbxSurfaceMaterial::sEmissive),
-            texManager, baseDir);
+            texManager, baseDir, fbxFilePath);
         if (emissiveHandle >= 0)
         {
             mat.emissiveMapHandle = emissiveHandle;
@@ -751,7 +878,8 @@ static void CollectFbxSkeletonNodes(FbxNode* node,
 
 static std::unique_ptr<Skeleton> BuildFbxSkeleton(const std::vector<FbxNode*>& joints,
                                                   const std::unordered_map<FbxNode*, int>& jointMap,
-                                                  const std::unordered_map<FbxNode*, XMFLOAT4X4>& invBindMap)
+                                                  const std::unordered_map<FbxNode*, XMFLOAT4X4>& invBindMap,
+                                                  bool negateZ)
 {
     auto skeleton = std::make_unique<Skeleton>();
     FbxTime zeroTime;
@@ -775,8 +903,20 @@ static std::unique_ptr<Skeleton> BuildFbxSkeleton(const std::vector<FbxNode*>& j
         }
         j.parentIndex = parentIndex;
 
-        FbxAMatrix local = node->EvaluateLocalTransform(zeroTime);
-        j.localTransform = ToXMFLOAT4X4(local);
+        // ルートボーン: EvaluateGlobalTransformでシーンルートの軸/単位変換を含める
+        // 子ボーン: EvaluateLocalTransformで親ボーン相対の変換を使用
+        FbxAMatrix xform = (parentIndex == -1)
+            ? node->EvaluateGlobalTransform(zeroTime)
+            : node->EvaluateLocalTransform(zeroTime);
+
+        j.localTransform = ToXMFLOAT4X4(xform);
+        // RH→LH変換: M * Scale(1,1,-1) 行列方式（コードベース全体がこの規約）
+        if (parentIndex == -1 && negateZ)
+        {
+            XMMATRIX m = XMLoadFloat4x4(&j.localTransform);
+            m = m * XMMatrixScaling(1.0f, 1.0f, -1.0f);
+            XMStoreFloat4x4(&j.localTransform, m);
+        }
 
         auto itInv = invBindMap.find(node);
         if (itInv != invBindMap.end())
@@ -799,7 +939,8 @@ static void CollectAnimTimes(FbxAnimCurve* curve, std::vector<FbxTime>& out)
 
 static void LoadFbxAnimations(FbxScene* scene,
                               const std::unordered_map<FbxNode*, int>& jointMap,
-                              Model& model)
+                              Model& model,
+                              bool negateZ)
 {
     if (!scene || jointMap.empty())
         return;
@@ -831,6 +972,17 @@ static void LoadFbxAnimations(FbxScene* scene,
 
         for (const auto& [node, jointIndex] : jointMap)
         {
+            // ルートボーン判定（ボーン祖先がjointMapにない）
+            bool isRootBone = true;
+            {
+                FbxNode* p = node->GetParent();
+                while (p)
+                {
+                    if (jointMap.count(p)) { isRootBone = false; break; }
+                    p = p->GetParent();
+                }
+            }
+
             std::vector<FbxTime> times;
 
             CollectAnimTimes(node->LclTranslation.GetCurve(layer, FBXSDK_CURVENODE_COMPONENT_X), times);
@@ -859,22 +1011,34 @@ static void LoadFbxAnimations(FbxScene* scene,
                 if (localTime < start) localTime = start;
                 if (localTime > end) localTime = end;
 
-                FbxAMatrix m = node->EvaluateLocalTransform(localTime);
-                FbxVector4 pos = m.GetT();
-                FbxQuaternion q = m.GetQ();
-                FbxVector4 sca = m.GetS();
+                // ルートボーン: EvaluateGlobalTransformでシーン軸/単位変換を含める
+                // 子ボーン: EvaluateLocalTransformで親ボーン相対の変換を使用
+                FbxAMatrix m = isRootBone
+                    ? node->EvaluateGlobalTransform(localTime)
+                    : node->EvaluateLocalTransform(localTime);
+
+                // FBX SDKのGetT/GetQ/GetSで直接TRS取得（反射行列のDecompose不安定性を回避）
+                TransformTRS trs;
+                {
+                    FbxVector4    pos = m.GetT();
+                    FbxQuaternion rot = m.GetQ();
+                    FbxVector4    sca = m.GetS();
+                    if (isRootBone && negateZ)
+                    {
+                        pos[2] = -pos[2];
+                        rot[0] = -rot[0];
+                        rot[1] = -rot[1];
+                        sca[2] = -sca[2];   // M*Scale(1,1,-1)規約: det<0の反射を表現
+                    }
+                    trs.translation = { (float)pos[0], (float)pos[1], (float)pos[2] };
+                    trs.rotation    = { (float)rot[0], (float)rot[1], (float)rot[2], (float)rot[3] };
+                    trs.scale       = { (float)sca[0], (float)sca[1], (float)sca[2] };
+                }
 
                 float timeSec = static_cast<float>((localTime - start).GetSecondDouble());
-                channel.translationKeys.push_back({ timeSec, { static_cast<float>(pos[0]),
-                                                              static_cast<float>(pos[1]),
-                                                              static_cast<float>(pos[2]) } });
-                channel.rotationKeys.push_back({ timeSec, { static_cast<float>(q[0]),
-                                                           static_cast<float>(q[1]),
-                                                           static_cast<float>(q[2]),
-                                                           static_cast<float>(q[3]) } });
-                channel.scaleKeys.push_back({ timeSec, { static_cast<float>(sca[0]),
-                                                        static_cast<float>(sca[1]),
-                                                        static_cast<float>(sca[2]) } });
+                channel.translationKeys.push_back({ timeSec, trs.translation });
+                channel.rotationKeys.push_back({ timeSec, trs.rotation });
+                channel.scaleKeys.push_back({ timeSec, trs.scale });
             }
 
             clip.AddChannel(channel);
@@ -1040,14 +1204,18 @@ static std::unique_ptr<Model> LoadFromFBX(const std::wstring& filePath,
     importer->Destroy();
 
     // 座標系と単位系を変換
-    // 初学者向け: FBXはツールごとに軸向きや単位が違うため、DirectX基準に揃えます。
-    FbxAxisSystem::DirectX.ConvertScene(scene);
+    // FbxAxisSystem::ConvertScene は RotZ(-180°) をルートに追加しY軸を反転させるため使用しない
+    // RH→LH変換はZ反転で手動処理する
+    FbxAxisSystem origAxisSystem = scene->GetGlobalSettings().GetAxisSystem();
+    bool needAxisConversion = (origAxisSystem != FbxAxisSystem::DirectX);
+
+    // FbxSystemUnit::ConvertScene は単位変換（cm→m）のみ — ルートノードに0.01スケールを追加
     FbxSystemUnit::m.ConvertScene(scene);
 
     FbxGeometryConverter geomConv(manager);
     geomConv.Triangulate(scene, true);
 
-    auto materialMap = LoadFbxMaterials(scene, texManager, matManager, baseDir);
+    auto materialMap = LoadFbxMaterials(scene, texManager, matManager, baseDir, filePath);
 
     // メッシュを収集
     struct MeshItem { FbxNode* node; FbxMesh* mesh; };
@@ -1127,7 +1295,7 @@ static std::unique_ptr<Model> LoadFromFBX(const std::wstring& filePath,
 
     std::unique_ptr<Skeleton> skeleton;
     if (modelSkinned)
-        skeleton = BuildFbxSkeleton(jointNodes, jointMap, invBindMap);
+        skeleton = BuildFbxSkeleton(jointNodes, jointMap, invBindMap, needAxisConversion);
 
     std::vector<Vertex3D_PBR> staticVertices;
     std::vector<Vertex3D_Skinned> skinnedVertices;
@@ -1140,6 +1308,13 @@ static std::unique_ptr<Model> LoadFromFBX(const std::wstring& filePath,
     {
         FbxMesh* mesh = item.mesh;
         if (!mesh) continue;
+
+        // 非スキンメッシュ用: ノードのグローバル変換を取得
+        // スキンメッシュはボーン行列がConvertSceneの座標変換を含むため不要
+        FbxAMatrix nodeGlobal;
+        bool applyNodeTransform = !modelSkinned;
+        if (applyNodeTransform)
+            nodeGlobal = item.node->EvaluateGlobalTransform();
 
         const int cpCount = mesh->GetControlPointsCount();
         const FbxVector4* controlPoints = mesh->GetControlPoints();
@@ -1156,20 +1331,63 @@ static std::unique_ptr<Model> LoadFromFBX(const std::wstring& filePath,
             cpWeights.assign(cpCount, XMFLOAT4(1, 0, 0, 0));
         }
 
+        // UV エレメントを GenerateTangentsData の前にキャッシュ
+        // (GenerateTangentsData が UV レイヤーを破壊する FBX SDK バグ対策)
+        FbxGeometryElementUV* uvElement = mesh->GetElementUV(0);
+        FbxGeometryElement::EMappingMode uvMapping = FbxGeometryElement::eNone;
+        FbxGeometryElement::EReferenceMode uvRefMode = FbxGeometryElement::eDirect;
+        if (uvElement)
+        {
+            uvMapping = uvElement->GetMappingMode();
+            uvRefMode = uvElement->GetReferenceMode();
+        }
+
+        // UV データを事前にキャッシュ（per-polygon-vertex 配列）
+        std::vector<FbxVector2> cachedUVs;
+        if (uvElement)
+        {
+            const int polyCount0 = mesh->GetPolygonCount();
+            for (int p0 = 0; p0 < polyCount0; ++p0)
+            {
+                int ps = mesh->GetPolygonSize(p0);
+                for (int v0 = 0; v0 < ps; ++v0)
+                {
+                    FbxVector2 uv(0, 0);
+                    if (uvMapping == FbxGeometryElement::eByPolygonVertex)
+                    {
+                        int texUVIndex = mesh->GetTextureUVIndex(p0, v0);
+                        if (texUVIndex >= 0 && texUVIndex < uvElement->GetDirectArray().GetCount())
+                            uv = uvElement->GetDirectArray().GetAt(texUVIndex);
+                    }
+                    else if (uvMapping == FbxGeometryElement::eByControlPoint)
+                    {
+                        int cpIdx = mesh->GetPolygonVertex(p0, v0);
+                        if (uvRefMode == FbxGeometryElement::eIndexToDirect)
+                        {
+                            int uvIdx = uvElement->GetIndexArray().GetAt(cpIdx);
+                            uv = uvElement->GetDirectArray().GetAt(uvIdx);
+                        }
+                        else
+                        {
+                            uv = uvElement->GetDirectArray().GetAt(cpIdx);
+                        }
+                    }
+                    cachedUVs.push_back(uv);
+                }
+            }
+            GX_LOG_INFO("ModelLoader: UV element: mapping=%d ref=%d directCount=%d cachedCount=%d",
+                        (int)uvMapping, (int)uvRefMode,
+                        uvElement->GetDirectArray().GetCount(), (int)cachedUVs.size());
+        }
+
         // 法線・接線を用意
-        // 初学者向け: ライティングや法線マップに必要なベクトルを確保します。
-        // GenerateNormals(false): 既存法線を保持（trueだとConvertScene後のLHクロス積で
-        // RH頂点から法線を再計算してしまい、全成分が反転する）
         mesh->GenerateNormals(false);
         mesh->GenerateTangentsData();
 
         FbxLayerElementMaterial* matElem = mesh->GetElementMaterial();
 
-        FbxStringList uvNames;
-        mesh->GetUVSetNames(uvNames);
-        const char* uvName = uvNames.GetCount() > 0 ? uvNames[0] : nullptr;
-
         const int polyCount = mesh->GetPolygonCount();
+        int cachedUVIndex = 0;
         for (int p = 0; p < polyCount; ++p)
         {
             int matIndex = 0;
@@ -1190,32 +1408,62 @@ static std::unique_ptr<Model> LoadFromFBX(const std::wstring& filePath,
 
             int polySize = mesh->GetPolygonSize(p);
             if (polySize < 3)
-                continue;
-
-            // 既に三角化済みだが、念のためファン分割にも対応
-            // 初学者向け: 多角形が来た場合も三角形に分解して描画します。
-            for (int v = 0; v < polySize; ++v)
             {
+                cachedUVIndex += polySize;
+                continue;
+            }
+
+            for (int vi = 0; vi < polySize; ++vi)
+            {
+                int v = vi;
+
                 int cpIndex = mesh->GetPolygonVertex(p, v);
                 FbxVector4 pos = controlPoints[cpIndex];
                 FbxVector4 normal;
                 if (!mesh->GetPolygonVertexNormal(p, v, normal))
                     normal = FbxVector4(0, 1, 0, 0);
 
+                // 非スキンメッシュ: ノードのグローバル変換を頂点に適用
+                if (applyNodeTransform)
+                {
+                    pos = nodeGlobal.MultT(pos);
+                    normal = nodeGlobal.MultR(normal);
+                    normal.Normalize();
+
+                    // RH→LH変換: Z反転
+                    if (needAxisConversion)
+                    {
+                        pos[2] = -pos[2];
+                        normal[2] = -normal[2];
+                    }
+                }
+
+                // キャッシュ済みUVを使用（winding flipを考慮してvインデックスで参照）
+                int uvCacheIdx = cachedUVIndex + v;
                 FbxVector2 uv(0, 0);
-                bool unmapped = false;
-                if (uvName)
-                    mesh->GetPolygonVertexUV(p, v, uvName, uv, unmapped);
+                if (uvCacheIdx >= 0 && uvCacheIdx < static_cast<int>(cachedUVs.size()))
+                    uv = cachedUVs[uvCacheIdx];
 
                 FbxVector4 tangent(1, 0, 0, 1);
                 GetPolygonVertexTangent(mesh, p, v, tangent);
+                if (applyNodeTransform)
+                {
+                    FbxVector4 t3(tangent[0], tangent[1], tangent[2], 0);
+                    t3 = nodeGlobal.MultR(t3);
+                    t3.Normalize();
+                    tangent = FbxVector4(t3[0], t3[1], t3[2], tangent[3]);
+
+                    // RH→LH変換: タンジェントZ反転
+                    if (needAxisConversion)
+                        tangent[2] = -tangent[2];
+                }
 
                 if (modelSkinned)
                 {
                     Vertex3D_Skinned vtx = {};
                     vtx.position = { static_cast<float>(pos[0]), static_cast<float>(pos[1]), static_cast<float>(pos[2]) };
                     vtx.normal = { static_cast<float>(normal[0]), static_cast<float>(normal[1]), static_cast<float>(normal[2]) };
-                    vtx.texcoord = { static_cast<float>(uv[0]), static_cast<float>(uv[1]) };
+                    vtx.texcoord = { static_cast<float>(uv[0]), 1.0f - static_cast<float>(uv[1]) };
                     vtx.tangent = { static_cast<float>(tangent[0]), static_cast<float>(tangent[1]),
                                     static_cast<float>(tangent[2]), static_cast<float>(tangent[3]) };
                     if (cpIndex >= 0 && cpIndex < static_cast<int>(cpJoints.size()))
@@ -1235,7 +1483,7 @@ static std::unique_ptr<Model> LoadFromFBX(const std::wstring& filePath,
                     Vertex3D_PBR vtx = {};
                     vtx.position = { static_cast<float>(pos[0]), static_cast<float>(pos[1]), static_cast<float>(pos[2]) };
                     vtx.normal = { static_cast<float>(normal[0]), static_cast<float>(normal[1]), static_cast<float>(normal[2]) };
-                    vtx.texcoord = { static_cast<float>(uv[0]), static_cast<float>(uv[1]) };
+                    vtx.texcoord = { static_cast<float>(uv[0]), 1.0f - static_cast<float>(uv[1]) };
                     vtx.tangent = { static_cast<float>(tangent[0]), static_cast<float>(tangent[1]),
                                     static_cast<float>(tangent[2]), static_cast<float>(tangent[3]) };
                     staticVertices.push_back(vtx);
@@ -1246,7 +1494,40 @@ static std::unique_ptr<Model> LoadFromFBX(const std::wstring& filePath,
                     : static_cast<uint32_t>(staticVertices.size() - 1);
                 submeshIndexMap[matHandle].push_back(idx);
             }
+            cachedUVIndex += polySize;
         }
+    }
+
+    // UV診断ログ
+    if (modelSkinned && !skinnedVertices.empty())
+    {
+        float uMin = 1e9f, uMax = -1e9f, vMin = 1e9f, vMax = -1e9f;
+        int zeroCount = 0;
+        for (const auto& vtx : skinnedVertices)
+        {
+            uMin = (std::min)(uMin, vtx.texcoord.x); uMax = (std::max)(uMax, vtx.texcoord.x);
+            vMin = (std::min)(vMin, vtx.texcoord.y); vMax = (std::max)(vMax, vtx.texcoord.y);
+            if (vtx.texcoord.x == 0.0f && vtx.texcoord.y == 0.0f) ++zeroCount;
+        }
+        GX_LOG_INFO("ModelLoader: UV range: U=[%.4f, %.4f] V=[%.4f, %.4f] zero=%d/%d",
+                    uMin, uMax, vMin, vMax, zeroCount, (int)skinnedVertices.size());
+        // サンプル出力
+        for (int si = 0; si < (std::min)(5, (int)skinnedVertices.size()); ++si)
+            GX_LOG_INFO("ModelLoader: UV[%d]=(%.4f, %.4f)", si,
+                        skinnedVertices[si].texcoord.x, skinnedVertices[si].texcoord.y);
+    }
+    else if (!staticVertices.empty())
+    {
+        float uMin = 1e9f, uMax = -1e9f, vMin = 1e9f, vMax = -1e9f;
+        int zeroCount = 0;
+        for (const auto& vtx : staticVertices)
+        {
+            uMin = (std::min)(uMin, vtx.texcoord.x); uMax = (std::max)(uMax, vtx.texcoord.x);
+            vMin = (std::min)(vMin, vtx.texcoord.y); vMax = (std::max)(vMax, vtx.texcoord.y);
+            if (vtx.texcoord.x == 0.0f && vtx.texcoord.y == 0.0f) ++zeroCount;
+        }
+        GX_LOG_INFO("ModelLoader: UV range: U=[%.4f, %.4f] V=[%.4f, %.4f] zero=%d/%d",
+                    uMin, uMax, vMin, vMax, zeroCount, (int)staticVertices.size());
     }
 
     if (modelSkinned)
@@ -1293,7 +1574,32 @@ static std::unique_ptr<Model> LoadFromFBX(const std::wstring& filePath,
         model->SetSkeleton(std::move(skeleton));
 
     if (modelSkinned && model->HasSkeleton())
-        LoadFbxAnimations(scene, jointMap, *model);
+        LoadFbxAnimations(scene, jointMap, *model, needAxisConversion);
+
+    // スムース法線計算（SetCPUData前、頂点データがmoveされる前に計算）
+    {
+        uint32_t vtxCount = modelSkinned ? static_cast<uint32_t>(skinnedVertices.size())
+                                          : static_cast<uint32_t>(staticVertices.size());
+        std::vector<XMFLOAT3> positions(vtxCount), normals(vtxCount);
+        if (modelSkinned)
+        {
+            for (uint32_t i = 0; i < vtxCount; ++i)
+            {
+                positions[i] = skinnedVertices[i].position;
+                normals[i]   = skinnedVertices[i].normal;
+            }
+        }
+        else
+        {
+            for (uint32_t i = 0; i < vtxCount; ++i)
+            {
+                positions[i] = staticVertices[i].position;
+                normals[i]   = staticVertices[i].normal;
+            }
+        }
+        auto smooth = ComputeSmoothNormals(positions.data(), normals.data(), vtxCount);
+        model->GetMesh().CreateSmoothNormalBuffer(device, smooth.data(), vtxCount);
+    }
 
     MeshCPUData cpu;
     if (modelSkinned)

@@ -20,7 +20,8 @@
 // Helper: Convert GX::Model -> gxconv::Scene
 // ============================================================
 static gxconv::Scene ConvertModelToScene(const SceneEntity& entity,
-                                          GX::MaterialManager& matManager)
+                                          GX::MaterialManager& matManager,
+                                          GX::TextureManager* texManager)
 {
     gxconv::Scene scene;
     const GX::Model* model = entity.model;
@@ -119,6 +120,32 @@ static gxconv::Scene ConvertModelToScene(const SceneEntity& entity,
             {
                 intMat.shaderModel = mat->shaderModel;
                 intMat.params = mat->shaderParams;
+
+                // Extract texture file paths for GXMD export
+                if (texManager)
+                {
+                    int texHandles[8] = {
+                        mat->albedoMapHandle, mat->normalMapHandle, mat->metRoughMapHandle,
+                        mat->aoMapHandle, mat->emissiveMapHandle, mat->toonRampMapHandle,
+                        mat->subsurfaceMapHandle, mat->clearCoatMaskMapHandle
+                    };
+                    for (int t = 0; t < 8; ++t)
+                    {
+                        if (texHandles[t] >= 0)
+                        {
+                            const auto& wpath = texManager->GetFilePath(texHandles[t]);
+                            if (!wpath.empty())
+                            {
+                                auto slash = wpath.find_last_of(L"/\\");
+                                std::wstring filename = (slash != std::wstring::npos) ? wpath.substr(slash + 1) : wpath;
+                                int sz = WideCharToMultiByte(CP_UTF8, 0, filename.c_str(), -1, nullptr, 0, nullptr, nullptr);
+                                std::string utf8(sz - 1, '\0');
+                                WideCharToMultiByte(CP_UTF8, 0, filename.c_str(), -1, utf8.data(), sz, nullptr, nullptr);
+                                intMat.texturePaths[t] = utf8;
+                            }
+                        }
+                    }
+                }
             }
         }
         scene.materials.push_back(std::move(intMat));
@@ -227,6 +254,7 @@ static gxconv::Scene ConvertModelToScene(const SceneEntity& entity,
 // ============================================================
 bool ModelExporter::ExportToGxmd(const SceneEntity& entity,
                                   GX::MaterialManager& matManager,
+                                  GX::TextureManager& texManager,
                                   const std::string& outputPath)
 {
     if (!entity.model)
@@ -235,7 +263,7 @@ bool ModelExporter::ExportToGxmd(const SceneEntity& entity,
         return false;
     }
 
-    gxconv::Scene scene = ConvertModelToScene(entity, matManager);
+    gxconv::Scene scene = ConvertModelToScene(entity, matManager, &texManager);
     if (scene.meshes.empty())
     {
         GX_LOG_ERROR("ExportToGxmd: conversion produced no meshes");
@@ -268,7 +296,7 @@ bool ModelExporter::ExportToGxan(const SceneEntity& entity,
     // We need a dummy matManager for the conversion (materials aren't used by GXAN)
     // but ConvertModelToScene requires one. Use a temporary.
     GX::MaterialManager dummyMat;
-    gxconv::Scene scene = ConvertModelToScene(entity, dummyMat);
+    gxconv::Scene scene = ConvertModelToScene(entity, dummyMat, nullptr);
     if (scene.animations.empty())
     {
         GX_LOG_ERROR("ExportToGxan: conversion produced no animations");

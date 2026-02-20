@@ -25,11 +25,12 @@ void SceneGraph::RemoveEntity(int index)
 {
     if (index < 0 || index >= static_cast<int>(m_entities.size()))
         return;
+    if (m_entities[index].name.empty() || m_entities[index]._pendingRemoval)
+        return;
 
-    // Clear the entity data
-    m_entities[index] = SceneEntity{};
-    m_entities[index].name.clear(); // empty name marks as removed
-    m_freeIndices.push_back(index);
+    // Mark for deferred removal (GPU resources may still be in-flight)
+    m_entities[index]._pendingRemoval = true;
+    m_pendingRemovals.push_back(index);
 
     // Deselect if the removed entity was selected
     if (selectedEntity == index)
@@ -43,12 +44,23 @@ void SceneGraph::RemoveEntity(int index)
     }
 }
 
+void SceneGraph::ProcessPendingRemovals()
+{
+    for (int index : m_pendingRemovals)
+    {
+        m_entities[index] = SceneEntity{};
+        m_entities[index].name.clear();
+        m_freeIndices.push_back(index);
+    }
+    m_pendingRemovals.clear();
+}
+
 SceneEntity* SceneGraph::GetEntity(int index)
 {
     if (index < 0 || index >= static_cast<int>(m_entities.size()))
         return nullptr;
-    if (m_entities[index].name.empty())
-        return nullptr; // removed slot
+    if (m_entities[index].name.empty() || m_entities[index]._pendingRemoval)
+        return nullptr;
     return &m_entities[index];
 }
 
@@ -56,7 +68,7 @@ const SceneEntity* SceneGraph::GetEntity(int index) const
 {
     if (index < 0 || index >= static_cast<int>(m_entities.size()))
         return nullptr;
-    if (m_entities[index].name.empty())
+    if (m_entities[index].name.empty() || m_entities[index]._pendingRemoval)
         return nullptr;
     return &m_entities[index];
 }

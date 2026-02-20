@@ -35,4 +35,9 @@ std::unique_ptr<LoadedGxan> LoadGxan(const std::string& filePath);
 /// Load a GXAN from memory buffer
 std::unique_ptr<LoadedGxan> LoadGxanFromMemory(const uint8_t* data, size_t size);
 
+#ifdef _WIN32
+/// Load a GXAN file using wide-char path (supports non-ASCII paths on Windows)
+std::unique_ptr<LoadedGxan> LoadGxanW(const std::wstring& filePath);
+#endif
+
 } // namespace gxloader

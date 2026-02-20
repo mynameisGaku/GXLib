@@ -129,16 +129,13 @@ void AnimatorPanel::Draw(GX::AnimatorStateMachine* stateMachine)
     }
 
     // Draw transition links
-    // We iterate all transitions from internal state. Since AnimatorStateMachine
-    // doesn't expose its transition list directly, we draw links based on
-    // the state connectivity we know about. For the visualization, we build
-    // links from the transitions stored internally.
-    // NOTE: AnimatorStateMachine stores transitions as a private vector.
-    // Since we can't access them, we skip link drawing if the API doesn't expose them.
-    // For now, we draw a self-explanatory note.
-
-    // The panel visualizes nodes; links require exposing transitions from the state machine.
-    // A future API addition (GetTransitions) would enable this.
+    const auto& transitions = stateMachine->GetTransitions();
+    for (size_t i = 0; i < transitions.size(); ++i)
+    {
+        ImNodes::Link(LinkId(static_cast<int>(i)),
+                      OutputPinId(static_cast<int>(transitions[i].fromState)),
+                      InputPinId(static_cast<int>(transitions[i].toState)));
+    }
 
     ImNodes::MiniMap(0.2f, ImNodesMiniMapLocation_BottomRight);
     ImNodes::EndNodeEditor();

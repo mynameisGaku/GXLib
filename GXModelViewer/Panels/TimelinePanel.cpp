@@ -5,8 +5,10 @@
 #include <imgui.h>
 #include "Graphics/3D/Animator.h"
 #include "Graphics/3D/AnimationClip.h"
+#include "Graphics/3D/Model.h"
 
-void TimelinePanel::Draw(GX::Animator* animator, float deltaTime)
+void TimelinePanel::Draw(GX::Animator* animator, const GX::Model* model,
+                          float deltaTime, int* selectedClipIndex)
 {
     if (!ImGui::Begin("Timeline"))
     {
@@ -14,96 +16,153 @@ void TimelinePanel::Draw(GX::Animator* animator, float deltaTime)
         return;
     }
 
-    if (!animator)
+    if (!animator || !model)
     {
-        ImGui::TextDisabled("No Animator assigned.");
+        ImGui::TextDisabled("No animated model selected.");
         ImGui::End();
         return;
     }
 
-    // --- Current clip info ---
-    // We read the clip from the animator's internal state.
-    // Animator exposes IsPlaying() but not the clip directly,
-    // so we display what we can and control via our own time tracking.
+    // --- Animation clip selector ---
+    const auto& animations = model->GetAnimations();
+    uint32_t animCount = model->GetAnimationCount();
 
-    const bool animatorPlaying = animator->IsPlaying();
+    if (animCount > 0 && selectedClipIndex)
+    {
+        // Build combo items
+        int curIdx = *selectedClipIndex;
+        if (curIdx < 0) curIdx = 0;
+
+        const char* previewName = (curIdx < static_cast<int>(animCount))
+            ? animations[curIdx].GetName().c_str()
+            : "---";
+
+        if (ImGui::BeginCombo("Animation Clip", previewName))
+        {
+            for (uint32_t i = 0; i < animCount; ++i)
+            {
+                bool selected = (static_cast<int>(i) == curIdx);
+                char label[128];
+                snprintf(label, sizeof(label), "[%u] %s (%.2fs)",
+                         i, animations[i].GetName().c_str(), animations[i].GetDuration());
+                if (ImGui::Selectable(label, selected))
+                {
+                    *selectedClipIndex = static_cast<int>(i);
+                    animator->Play(&animations[i], true, m_playbackSpeed);
+                    m_playing = true;
+                }
+                if (selected) ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+    }
+    else
+    {
+        ImGui::TextDisabled("No animation clips available.");
+    }
+
+    ImGui::Separator();
+
+    // --- Current clip info ---
+    const GX::AnimationClip* currentClip = animator->GetCurrentClip();
+    float duration = currentClip ? currentClip->GetDuration() : 0.0f;
+    float currentTime = animator->GetCurrentTime();
+
     const char* modeName = "Simple";
     if (animator->GetAnimMode() == GX::Animator::AnimMode::BlendStack)
         modeName = "BlendStack";
     else if (animator->GetAnimMode() == GX::Animator::AnimMode::StateMachine)
         modeName = "StateMachine";
 
-    ImGui::Text("Mode: %s", modeName);
-    ImGui::Text("Animator: %s", animatorPlaying ? "Playing" : "Stopped");
-    ImGui::Separator();
+    ImGui::Text("Mode: %s  |  %s", modeName,
+                animator->IsPlaying() ? (animator->IsPaused() ? "Paused" : "Playing") : "Stopped");
 
     // --- Transport controls ---
-    // Play
-    if (ImGui::Button(m_playing ? "Pause" : "Play"))
+    // Rewind
+    if (ImGui::Button("|<"))
     {
-        m_playing = !m_playing;
-        if (m_playing)
-            animator->Resume();
-        else
-            animator->Pause();
+        animator->SetCurrentTime(0.0f);
     }
+    ImGui::SameLine();
 
+    // Play/Pause toggle
+    if (ImGui::Button(m_playing && !animator->IsPaused() ? "||" : ">"))
+    {
+        if (!animator->IsPlaying() && currentClip)
+        {
+            animator->Play(currentClip, true, m_playbackSpeed);
+            m_playing = true;
+        }
+        else if (animator->IsPaused())
+        {
+            animator->Resume();
+            m_playing = true;
+        }
+        else
+        {
+            animator->Pause();
+            m_playing = false;
+        }
+    }
     ImGui::SameLine();
 
     // Stop
-    if (ImGui::Button("Stop"))
+    if (ImGui::Button("[]"))
     {
         m_playing = false;
-        m_currentTime = 0.0f;
         animator->Stop();
+        animator->SetCurrentTime(0.0f);
     }
-
-    ImGui::Separator();
 
     // --- Time display and scrub ---
-    // We track time externally for the scrub slider.
-    // In Simple mode, the animator manages its own time, but the slider
-    // gives the user a visual representation.
-    float duration = 0.0f;
+    ImGui::Text("Time: %.3f / %.3f s", currentTime, duration);
 
-    // Try to get duration from the animator's state info.
-    // Since Animator doesn't expose the current clip's duration directly,
-    // we provide a reasonable default and let the user see the time.
-    // For StateMachine mode, we could query the current state's clip.
-    // For now, use a fixed max that adjusts with playback.
-    duration = 10.0f; // fallback
-
-    // Advance our tracking time if playing
-    if (m_playing)
+    if (duration > 0.0f)
     {
-        m_currentTime += deltaTime * m_playbackSpeed;
-        if (duration > 0.0f && m_currentTime > duration)
-            m_currentTime = 0.0f; // wrap
-    }
-
-    ImGui::Text("Time: %.2f / %.2f s", m_currentTime, duration);
-
-    // Scrub slider
-    if (ImGui::SliderFloat("##Scrub", &m_currentTime, 0.0f, duration, "%.2f s"))
-    {
-        // User is scrubbing - pause playback
-        m_playing = false;
-        animator->Pause();
+        float scrubTime = currentTime;
+        if (ImGui::SliderFloat("##Scrub", &scrubTime, 0.0f, duration, "%.3f s"))
+        {
+            animator->SetCurrentTime(scrubTime);
+            if (!animator->IsPlaying() && currentClip)
+            {
+                animator->Play(currentClip, true, 0.0f);
+                animator->Pause();
+            }
+            m_playing = false;
+        }
     }
 
     ImGui::Separator();
 
     // --- Playback speed ---
-    ImGui::SliderFloat("Speed", &m_playbackSpeed, 0.1f, 3.0f, "%.1fx");
+    if (ImGui::SliderFloat("Speed", &m_playbackSpeed, 0.0f, 4.0f, "%.2fx"))
+    {
+        animator->SetSpeed(m_playbackSpeed);
+    }
 
-    if (ImGui::Button("1x"))
-        m_playbackSpeed = 1.0f;
-    ImGui::SameLine();
-    if (ImGui::Button("0.5x"))
-        m_playbackSpeed = 0.5f;
-    ImGui::SameLine();
-    if (ImGui::Button("2x"))
-        m_playbackSpeed = 2.0f;
+    // Speed presets
+    const float presets[] = { 0.25f, 0.5f, 1.0f, 2.0f, 4.0f };
+    const char* presetLabels[] = { "0.25x", "0.5x", "1x", "2x", "4x" };
+    for (int i = 0; i < 5; ++i)
+    {
+        if (i > 0) ImGui::SameLine();
+        if (ImGui::Button(presetLabels[i]))
+        {
+            m_playbackSpeed = presets[i];
+            animator->SetSpeed(m_playbackSpeed);
+        }
+    }
+
+    ImGui::Separator();
+    {
+        bool lockPos = animator->IsRootPositionLocked();
+        if (ImGui::Checkbox("Lock Root Position", &lockPos))
+            animator->SetLockRootPosition(lockPos);
+        ImGui::SameLine();
+        bool lockRot = animator->IsRootRotationLocked();
+        if (ImGui::Checkbox("Lock Root Rotation", &lockRot))
+            animator->SetLockRootRotation(lockRot);
+    }
 
     ImGui::End();
 }

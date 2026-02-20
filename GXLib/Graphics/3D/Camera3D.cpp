@@ -24,6 +24,19 @@ void Camera3D::SetOrthographic(float width, float height, float nearZ, float far
     m_farZ   = farZ;
 }
 
+void Camera3D::SetPitch(float pitch)
+{
+    constexpr float maxPitch = XM_PIDIV2 - 0.01f;
+    m_pitch = (std::max)(-maxPitch, (std::min)(pitch, maxPitch));
+    m_dirtyVectors = true;
+}
+
+void Camera3D::SetYaw(float yaw)
+{
+    m_yaw = yaw;
+    m_dirtyVectors = true;
+}
+
 void Camera3D::Rotate(float deltaPitch, float deltaYaw)
 {
     m_pitch += deltaPitch;

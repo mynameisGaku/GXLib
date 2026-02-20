@@ -42,7 +42,12 @@ static std::string GetTextureFilePath(const ufbx_material_map& map)
             return std::string(map.texture->relative_filename.data, map.texture->relative_filename.length);
         return "";
     }
-    return std::string(map.texture->filename.data, map.texture->filename.length);
+    std::string fullPath(map.texture->filename.data, map.texture->filename.length);
+    // Strip directory — only store filename (FBX has absolute paths)
+    auto slash = fullPath.find_last_of("/\\");
+    if (slash != std::string::npos)
+        return fullPath.substr(slash + 1);
+    return fullPath;
 }
 
 static std::string UfbxStr(ufbx_string s)
@@ -57,6 +62,7 @@ bool FbxImporter::Import(const std::string& filePath, Scene& outScene)
     opts.target_unit_meters = 1.0f;
     opts.target_camera_axes = ufbx_axes_left_handed_y_up;
     opts.target_light_axes = ufbx_axes_left_handed_y_up;
+    opts.space_conversion = UFBX_SPACE_CONVERSION_ADJUST_TRANSFORMS;
 
     ufbx_error error = {};
     ufbx_scene* scene = ufbx_load_file(filePath.c_str(), &opts, &error);
@@ -167,16 +173,36 @@ bool FbxImporter::Import(const std::string& filePath, Scene& outScene)
             }
 
             // Local transform (TRS)
-            joint.localTranslation[0] = static_cast<float>(node->local_transform.translation.x);
-            joint.localTranslation[1] = static_cast<float>(node->local_transform.translation.y);
-            joint.localTranslation[2] = static_cast<float>(node->local_transform.translation.z);
-            joint.localRotation[0] = static_cast<float>(node->local_transform.rotation.x);
-            joint.localRotation[1] = static_cast<float>(node->local_transform.rotation.y);
-            joint.localRotation[2] = static_cast<float>(node->local_transform.rotation.z);
-            joint.localRotation[3] = static_cast<float>(node->local_transform.rotation.w);
-            joint.localScale[0] = static_cast<float>(node->local_transform.scale.x);
-            joint.localScale[1] = static_cast<float>(node->local_transform.scale.y);
-            joint.localScale[2] = static_cast<float>(node->local_transform.scale.z);
+            if (joint.parentIndex == -1)
+            {
+                // Root bone: use node_to_world to include non-bone ancestor
+                // (e.g. Armature) axis/unit conversions from ADJUST_TRANSFORMS
+                ufbx_transform worldXf = ufbx_matrix_to_transform(&node->node_to_world);
+                joint.localTranslation[0] = static_cast<float>(worldXf.translation.x);
+                joint.localTranslation[1] = static_cast<float>(worldXf.translation.y);
+                joint.localTranslation[2] = static_cast<float>(worldXf.translation.z);
+                joint.localRotation[0] = static_cast<float>(worldXf.rotation.x);
+                joint.localRotation[1] = static_cast<float>(worldXf.rotation.y);
+                joint.localRotation[2] = static_cast<float>(worldXf.rotation.z);
+                joint.localRotation[3] = static_cast<float>(worldXf.rotation.w);
+                joint.localScale[0] = static_cast<float>(worldXf.scale.x);
+                joint.localScale[1] = static_cast<float>(worldXf.scale.y);
+                joint.localScale[2] = static_cast<float>(worldXf.scale.z);
+            }
+            else
+            {
+                // Child bone: local transform relative to parent bone
+                joint.localTranslation[0] = static_cast<float>(node->local_transform.translation.x);
+                joint.localTranslation[1] = static_cast<float>(node->local_transform.translation.y);
+                joint.localTranslation[2] = static_cast<float>(node->local_transform.translation.z);
+                joint.localRotation[0] = static_cast<float>(node->local_transform.rotation.x);
+                joint.localRotation[1] = static_cast<float>(node->local_transform.rotation.y);
+                joint.localRotation[2] = static_cast<float>(node->local_transform.rotation.z);
+                joint.localRotation[3] = static_cast<float>(node->local_transform.rotation.w);
+                joint.localScale[0] = static_cast<float>(node->local_transform.scale.x);
+                joint.localScale[1] = static_cast<float>(node->local_transform.scale.y);
+                joint.localScale[2] = static_cast<float>(node->local_transform.scale.z);
+            }
         }
 
         // Set inverse bind matrices from skin clusters
@@ -193,22 +219,23 @@ bool FbxImporter::Import(const std::string& filePath, Scene& outScene)
                 auto& joint = outScene.skeleton[it->second];
                 // ufbx geometry_to_bone is already the inverse bind matrix
                 const ufbx_matrix& m = cluster->geometry_to_bone;
-                // Store as row-major 4x4
-                joint.inverseBindMatrix[0]  = static_cast<float>(m.cols[0].x);
-                joint.inverseBindMatrix[1]  = static_cast<float>(m.cols[1].x);
-                joint.inverseBindMatrix[2]  = static_cast<float>(m.cols[2].x);
-                joint.inverseBindMatrix[3]  = static_cast<float>(m.cols[3].x);
-                joint.inverseBindMatrix[4]  = static_cast<float>(m.cols[0].y);
-                joint.inverseBindMatrix[5]  = static_cast<float>(m.cols[1].y);
-                joint.inverseBindMatrix[6]  = static_cast<float>(m.cols[2].y);
-                joint.inverseBindMatrix[7]  = static_cast<float>(m.cols[3].y);
-                joint.inverseBindMatrix[8]  = static_cast<float>(m.cols[0].z);
-                joint.inverseBindMatrix[9]  = static_cast<float>(m.cols[1].z);
-                joint.inverseBindMatrix[10] = static_cast<float>(m.cols[2].z);
-                joint.inverseBindMatrix[11] = static_cast<float>(m.cols[3].z);
-                joint.inverseBindMatrix[12] = 0.0f;
-                joint.inverseBindMatrix[13] = 0.0f;
-                joint.inverseBindMatrix[14] = 0.0f;
+                // Store as row-major 4x4 (row-vector convention for DirectXMath)
+                // ufbx cols are column vectors → transpose to row-vector layout
+                joint.inverseBindMatrix[0]  = static_cast<float>(m.cols[0].x);  // m00
+                joint.inverseBindMatrix[1]  = static_cast<float>(m.cols[0].y);  // m10
+                joint.inverseBindMatrix[2]  = static_cast<float>(m.cols[0].z);  // m20
+                joint.inverseBindMatrix[3]  = 0.0f;
+                joint.inverseBindMatrix[4]  = static_cast<float>(m.cols[1].x);  // m01
+                joint.inverseBindMatrix[5]  = static_cast<float>(m.cols[1].y);  // m11
+                joint.inverseBindMatrix[6]  = static_cast<float>(m.cols[1].z);  // m21
+                joint.inverseBindMatrix[7]  = 0.0f;
+                joint.inverseBindMatrix[8]  = static_cast<float>(m.cols[2].x);  // m02
+                joint.inverseBindMatrix[9]  = static_cast<float>(m.cols[2].y);  // m12
+                joint.inverseBindMatrix[10] = static_cast<float>(m.cols[2].z);  // m22
+                joint.inverseBindMatrix[11] = 0.0f;
+                joint.inverseBindMatrix[12] = static_cast<float>(m.cols[3].x);  // tx
+                joint.inverseBindMatrix[13] = static_cast<float>(m.cols[3].y);  // ty
+                joint.inverseBindMatrix[14] = static_cast<float>(m.cols[3].z);  // tz
                 joint.inverseBindMatrix[15] = 1.0f;
             }
         }
@@ -393,6 +420,19 @@ bool FbxImporter::Import(const std::string& filePath, Scene& outScene)
 
         for (auto& [node, jointIdx] : boneNodeToIndex)
         {
+            // Determine if this is a root bone (no bone ancestor in skeleton)
+            bool isRootBone = true;
+            if (node->parent)
+            {
+                if (boneNodeToIndex.find(node->parent) != boneNodeToIndex.end())
+                    isRootBone = false;
+            }
+
+            // For root bones, pre-fetch parent's world matrix (static during animation)
+            ufbx_matrix parentWorld = {};
+            if (isRootBone && node->parent)
+                parentWorld = node->parent->node_to_world;
+
             // Translation channel
             {
                 IntermediateAnimChannel ch;
@@ -407,6 +447,13 @@ bool FbxImporter::Import(const std::string& filePath, Scene& outScene)
                     if (t > stack->time_end) t = stack->time_end;
 
                     ufbx_transform xf = ufbx_evaluate_transform(stack->anim, node, t);
+                    if (isRootBone && node->parent)
+                    {
+                        // Convert local to world: parent_world * local_matrix
+                        ufbx_matrix localMat = ufbx_transform_to_matrix(&xf);
+                        ufbx_matrix worldMat = ufbx_matrix_mul(&parentWorld, &localMat);
+                        xf = ufbx_matrix_to_transform(&worldMat);
+                    }
                     IntermediateKeyframeVec3 kf;
                     kf.time = static_cast<float>(t - stack->time_begin);
                     kf.value[0] = static_cast<float>(xf.translation.x);
@@ -431,6 +478,12 @@ bool FbxImporter::Import(const std::string& filePath, Scene& outScene)
                     if (t > stack->time_end) t = stack->time_end;
 
                     ufbx_transform xf = ufbx_evaluate_transform(stack->anim, node, t);
+                    if (isRootBone && node->parent)
+                    {
+                        ufbx_matrix localMat = ufbx_transform_to_matrix(&xf);
+                        ufbx_matrix worldMat = ufbx_matrix_mul(&parentWorld, &localMat);
+                        xf = ufbx_matrix_to_transform(&worldMat);
+                    }
                     IntermediateKeyframeQuat kf;
                     kf.time = static_cast<float>(t - stack->time_begin);
                     kf.value[0] = static_cast<float>(xf.rotation.x);
@@ -456,6 +509,12 @@ bool FbxImporter::Import(const std::string& filePath, Scene& outScene)
                     if (t > stack->time_end) t = stack->time_end;
 
                     ufbx_transform xf = ufbx_evaluate_transform(stack->anim, node, t);
+                    if (isRootBone && node->parent)
+                    {
+                        ufbx_matrix localMat = ufbx_transform_to_matrix(&xf);
+                        ufbx_matrix worldMat = ufbx_matrix_mul(&parentWorld, &localMat);
+                        xf = ufbx_matrix_to_transform(&worldMat);
+                    }
                     IntermediateKeyframeVec3 kf;
                     kf.time = static_cast<float>(t - stack->time_begin);
                     kf.value[0] = static_cast<float>(xf.scale.x);

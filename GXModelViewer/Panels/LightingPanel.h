@@ -13,9 +13,11 @@ public:
     /// Initialize the panel with default lights.
     void Initialize();
 
-    /// Draw the lighting panel.
-    /// @param renderer The 3D renderer to apply light changes to.
+    /// Draw the lighting panel (standalone window).
     void Draw(GX::Renderer3D& renderer);
+
+    /// Draw only the content (no Begin/End), for embedding in a tabbed container.
+    void DrawContent(GX::Renderer3D& renderer);
 
     /// Get the current light data array.
     const std::vector<GX::LightData>& GetLights() const { return m_lights; }

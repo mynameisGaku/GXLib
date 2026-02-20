@@ -13,7 +13,12 @@ void SkyboxPanel::Draw(GX::Skybox& skybox)
         ImGui::End();
         return;
     }
+    DrawContent(skybox);
+    ImGui::End();
+}
 
+void SkyboxPanel::DrawContent(GX::Skybox& skybox)
+{
     // --- Cubemap Faces ---
     if (ImGui::CollapsingHeader("Cubemap Faces"))
     {
@@ -92,6 +97,4 @@ void SkyboxPanel::Draw(GX::Skybox& skybox)
         ImGui::SliderFloat("Rotation", &m_rotation, 0.0f, 360.0f, "%.1f deg");
         ImGui::TextWrapped("Note: Rotation is stored locally and not applied to the Skybox yet.");
     }
-
-    ImGui::End();
 }

@@ -17,12 +17,16 @@ Texture2DArray tPointShadow : register(t13);
 // 比較サンプラー（s2）
 SamplerComparisonState sShadowCmp : register(s2);
 
+// PCFサンプリング半径スケール（ペナンブラ幅）
+static const float k_ShadowSoftness = 2.0f;
+
 // ============================================================================
 // PCFフィルタリング（5x5カーネル）
 // ============================================================================
+
 float SampleShadowMapPCF(Texture2D shadowMap, float3 shadowCoord, float shadowMapSize)
 {
-    float texelSize = 1.0f / shadowMapSize;
+    float texelSize = k_ShadowSoftness / shadowMapSize;
     float shadow = 0.0f;
 
     // 5x5 PCF
@@ -42,28 +46,32 @@ float SampleShadowMapPCF(Texture2D shadowMap, float3 shadowCoord, float shadowMa
 }
 
 // ============================================================================
-// Texture2DArray用PCFフィルタリング（3x3カーネル）
+// Texture2DArray用PCFフィルタリング（5x5カーネル、CSMと同品質）
 // ============================================================================
 float SampleShadowArrayPCF(Texture2DArray shadowArray, float3 shadowCoord,
                              uint arraySlice, float shadowMapSize)
 {
-    float texelSize = 1.0f / shadowMapSize;
+    float texelSize = k_ShadowSoftness / shadowMapSize;
     float shadow = 0.0f;
 
-    // 3x3 PCF
+    // 面境界マージン（PCFオフセットがキューブ面UVを超えないようクランプ）
+    float margin = 1.5f / shadowMapSize;
+
+    // 5x5 PCF（CSMと同じカーネルサイズ）
     [unroll]
-    for (int y = -1; y <= 1; ++y)
+    for (int y = -2; y <= 2; ++y)
     {
         [unroll]
-        for (int x = -1; x <= 1; ++x)
+        for (int x = -2; x <= 2; ++x)
         {
             float2 offset = float2(x, y) * texelSize;
-            float3 uva = float3(shadowCoord.xy + offset, (float)arraySlice);
+            float2 uv = clamp(shadowCoord.xy + offset, margin, 1.0f - margin);
+            float3 uva = float3(uv, (float)arraySlice);
             shadow += shadowArray.SampleCmpLevelZero(sShadowCmp, uva, shadowCoord.z);
         }
     }
 
-    return shadow / 9.0f;
+    return shadow / 25.0f;
 }
 
 // ============================================================================

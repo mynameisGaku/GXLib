@@ -146,6 +146,15 @@ const TextureRegion& TextureManager::GetRegion(int handle) const
     return m_entries[handle].region;
 }
 
+static const std::wstring s_emptyPath;
+
+const std::wstring& TextureManager::GetFilePath(int handle) const
+{
+    if (handle < 0 || handle >= static_cast<int>(m_entries.size()))
+        return s_emptyPath;
+    return m_entries[handle].filePath;
+}
+
 void TextureManager::ReleaseTexture(int handle)
 {
     if (handle < 0 || handle >= static_cast<int>(m_entries.size()))
