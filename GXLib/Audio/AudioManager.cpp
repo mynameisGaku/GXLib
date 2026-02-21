@@ -1,7 +1,9 @@
 /// @file AudioManager.cpp
-/// @brief オーディオマネージャーの実装
+/// @brief オーディオマネージャーの実装（3Dサウンド + ミキサー対応）
 #include "pch.h"
 #include "Audio/AudioManager.h"
+#include "Audio/AudioListener.h"
+#include "Audio/AudioEmitter.h"
 #include "Core/Logger.h"
 
 namespace GX
@@ -18,8 +20,15 @@ bool AudioManager::Initialize()
     m_soundPlayer.Initialize(&m_device);
     m_musicPlayer.Initialize(&m_device);
 
+    // オーディオミキサー初期化（BGM/SE/Voiceバス）
+    if (!m_mixer.Initialize(m_device))
+    {
+        GX_LOG_WARN("AudioManager: Mixer initialization failed, continuing without mixer");
+    }
+
     m_entries.reserve(k_MaxSounds);
-    GX_LOG_INFO("AudioManager initialized (max: %u sounds)", k_MaxSounds);
+    GX_LOG_INFO("AudioManager initialized (max: %u sounds, X3DAudio: %s)",
+                k_MaxSounds, m_device.IsX3DAudioInitialized() ? "enabled" : "disabled");
     return true;
 }
 
@@ -82,6 +91,35 @@ void AudioManager::PlaySound(int handle, float volume, float pan)
     m_soundPlayer.Play(*entry.sound, volume, pan);
 }
 
+void AudioManager::PlaySoundOnBus(int handle, AudioBus& bus, float volume)
+{
+    if (handle < 0 || handle >= static_cast<int>(m_entries.size()))
+        return;
+
+    auto& entry = m_entries[handle];
+    if (!entry.sound || !entry.sound->IsValid())
+        return;
+
+    m_soundPlayer.PlayOnBus(*entry.sound, bus, volume);
+}
+
+int AudioManager::PlaySound3D(int handle, AudioEmitter& emitter, float volume)
+{
+    if (handle < 0 || handle >= static_cast<int>(m_entries.size()))
+        return -1;
+
+    auto& entry = m_entries[handle];
+    if (!entry.sound || !entry.sound->IsValid())
+        return -1;
+
+    return m_soundPlayer.Play3D(*entry.sound, emitter, volume);
+}
+
+void AudioManager::StopSound3D(int voiceId)
+{
+    m_soundPlayer.Stop3D(voiceId);
+}
+
 void AudioManager::PlayMusic(int handle, bool loop, float volume)
 {
     if (handle < 0 || handle >= static_cast<int>(m_entries.size()))
@@ -132,20 +170,36 @@ void AudioManager::SetMasterVolume(float volume)
     m_device.SetMasterVolume(volume);
 }
 
+void AudioManager::SetListener(const AudioListener& listener)
+{
+    m_currentListener = &listener;
+}
+
 void AudioManager::Update(float deltaTime)
 {
     // BGMのフェード音量補間と、SE再生済みVoiceの解放を行う
     m_musicPlayer.Update(deltaTime);
     m_soundPlayer.CleanupFinishedVoices();
+
+    // 3Dサウンドの空間計算を更新
+    if (m_currentListener)
+    {
+        m_soundPlayer.Update3D(*m_currentListener);
+    }
 }
 
 void AudioManager::Shutdown()
 {
-    // 破棄順序: BGM停止 → 全エントリ解放 → デバイス破棄
+    // 破棄順序: 全Voice停止 → BGM停止 → ミキサー → 全エントリ解放 → デバイス破棄
+    // SoundPlayerの全Voiceを先に停止しないと、Sound(PCMデータ)やデバイス破棄後に
+    // デストラクタでアクセス違反が発生する
+    m_soundPlayer.StopAll();
     m_musicPlayer.Stop();
+    m_mixer.Shutdown();
     m_entries.clear();
     m_pathCache.clear();
     m_freeHandles.clear();
+    m_currentListener = nullptr;
     m_device.Shutdown();
     GX_LOG_INFO("AudioManager shutdown");
 }

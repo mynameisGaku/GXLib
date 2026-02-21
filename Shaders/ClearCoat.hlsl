@@ -156,8 +156,9 @@ PSOutput PSMain(PSInput input)
         Lo += (baseBRDF * baseAttenuation * NdotL + ccSpecular * NdotL) * radiance * shadow;
     }
 
-    // --- アンビエント ---
-    float3 ambient = gAmbientColor * albedo.rgb * ao;
+    // --- アンビエント + IBL ---
+    float3 iblContrib = EvaluateIBL(N, V, albedo.rgb, metallic, roughness, ao);
+    float3 ambient = iblContrib + gAmbientColor * albedo.rgb * ao;
 
     // --- エミッシブ ---
     float3 emissive = SampleEmissive(input.texcoord);

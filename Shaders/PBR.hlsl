@@ -65,8 +65,11 @@ PSOutput PSMain(PSInput input)
         Lo += contribution;
     }
 
-    // アンビエント
-    float3 ambient = gAmbientColor * albedo.rgb * ao;
+    // アンビエント + IBL間接照明
+    // IBLが有効な場合は環境マップからの間接照明を使用し、
+    // gAmbientColorは追加の定数アンビエントとして加算する
+    float3 iblContribution = EvaluateIBL(N, V, albedo.rgb, metallic, roughness, ao);
+    float3 ambient = iblContribution + gAmbientColor * albedo.rgb * ao;
 
     // エミッシブ
     float3 emissive = SampleEmissive(input.texcoord);

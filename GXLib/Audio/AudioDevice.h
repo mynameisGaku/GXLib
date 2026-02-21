@@ -13,7 +13,7 @@
 namespace GX
 {
 
-/// @brief XAudio2エンジンとMasteringVoiceを管理するクラス
+/// @brief XAudio2エンジンとMasteringVoice、X3DAudioを管理するクラス
 class AudioDevice
 {
 public:
@@ -39,10 +39,31 @@ public:
     /// @param volume 音量（0.0=無音 〜 1.0=最大）
     void SetMasterVolume(float volume);
 
+    /// @brief X3DAudioが初期化済みか
+    /// @return 初期化済みならtrue
+    bool IsX3DAudioInitialized() const { return m_x3dInitialized; }
+
+    /// @brief X3DAudioハンドルを取得する（3D音響計算用）
+    /// @return X3DAUDIO_HANDLEへのconst参照
+    const X3DAUDIO_HANDLE& GetX3DHandle() const { return m_x3dAudioHandle; }
+
+    /// @brief MasteringVoiceの出力チャンネル数を取得する
+    /// @return チャンネル数
+    uint32_t GetOutputChannelCount() const { return m_outputChannels; }
+
 private:
+    /// @brief X3DAudioを初期化する（Initialize内部から呼ばれる）
+    /// @return 成功でtrue
+    bool InitializeX3DAudio();
+
     ComPtr<IXAudio2>        m_xaudio2;
     IXAudio2MasteringVoice* m_masterVoice = nullptr;  ///< XAudio2が寿命を管理するのでComPtrは不要
     bool                    m_comInitialized = false;  ///< このインスタンスがCoInitializeExを呼んだか
+
+    // X3DAudio（3D空間音響）
+    X3DAUDIO_HANDLE m_x3dAudioHandle = {};
+    bool            m_x3dInitialized = false;
+    uint32_t        m_outputChannels = 2;  ///< MasteringVoiceの出力チャンネル数
 };
 
 } // namespace GX

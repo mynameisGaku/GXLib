@@ -143,6 +143,9 @@ bool GXModelViewerApp::Initialize(HINSTANCE hInstance, uint32_t width, uint32_t 
     // Initialize texture manager
     m_textureManager.Initialize(device, m_commandQueue.GetQueue());
 
+    // Initialize audio manager (for Audio panel)
+    m_audioManager.Initialize();
+
     // Set up camera (orbit mode)
     m_camera.SetPerspective(XM_PIDIV4, static_cast<float>(width) / height, 0.1f, 1000.0f);
     UpdateOrbitCamera();
@@ -381,6 +384,11 @@ void GXModelViewerApp::BuildMainMenuBar()
             ImGui::MenuItem("Asset Browser", nullptr, &m_showAssetBrowser);
             ImGui::MenuItem("Performance", nullptr, &m_showPerformance);
             ImGui::MenuItem("Log", nullptr, &m_showLog);
+            ImGui::Separator();
+            ImGui::MenuItem("IBL", nullptr, &m_showIBL);
+            ImGui::MenuItem("Particles", nullptr, &m_showParticles);
+            ImGui::MenuItem("IK", nullptr, &m_showIK);
+            ImGui::MenuItem("Audio", nullptr, &m_showAudio);
             ImGui::Separator();
             // Wireframe (global toggle for all entities)
             {
@@ -700,6 +708,21 @@ void GXModelViewerApp::UpdateUI()
     // Log
     if (m_showLog)
         m_logPanel.Draw();
+
+    // IBL
+    if (m_showIBL)
+        m_iblPanel.Draw(m_renderer3D.GetIBL(), m_renderer3D.GetSkybox(), m_renderer3D);
+
+    // IK
+    if (m_showIK)
+    {
+        bool hasSkeleton = selEntity && selEntity->model && selEntity->model->HasSkeleton();
+        m_ikPanel.Draw(nullptr, nullptr, hasSkeleton);
+    }
+
+    // Audio (standalone mixer panel)
+    if (m_showAudio)
+        m_audioPanel.Draw(m_audioManager.GetMixer());
 
     // Background color picker
     if (m_showBgColorPicker)
@@ -1901,6 +1924,7 @@ void GXModelViewerApp::HandleViewportPicking()
 void GXModelViewerApp::Shutdown()
 {
     m_commandQueue.Flush();
+    m_audioManager.Shutdown();
     ShutdownImGui();
     m_app.Shutdown();
 

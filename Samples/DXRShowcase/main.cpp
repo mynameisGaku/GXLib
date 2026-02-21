@@ -14,27 +14,7 @@
 #include "Graphics/RayTracing/RTGI.h"
 #include "Graphics/3D/CascadedShadowMap.h"
 
-#include <format>
-#include <string>
 #include <Windows.h>
-
-#ifdef UNICODE
-using TChar = wchar_t;
-#else
-using TChar = char;
-#endif
-
-using TString = std::basic_string<TChar>;
-
-template <class... Args>
-TString FormatT(const TChar* fmt, Args&&... args)
-{
-#ifdef UNICODE
-    return std::vformat(fmt, std::make_wformat_args(args...));
-#else
-    return std::vformat(fmt, std::make_format_args(args...));
-#endif
-}
 
 class DXRShowcaseApp : public GXEasy::App
 {

@@ -3,6 +3,8 @@
 #include "pch.h"
 #include "Compat/GXLib.h"
 #include "Compat/CompatContext.h"
+#include "Audio/AudioEmitter.h"
+#include "Audio/AudioListener.h"
 
 using Ctx = GX_Internal::CompatContext;
 
@@ -92,4 +94,31 @@ int StopMusic()
 int CheckMusic()
 {
     return Ctx::Instance().audioManager.IsMusicPlaying() ? 1 : 0;
+}
+
+// ============================================================================
+// 3Dサウンド
+// ============================================================================
+int Set3DPositionSoundMem(VECTOR pos, int handle)
+{
+    auto& ctx = Ctx::Instance();
+    ctx.audioEmitter3D.SetPosition({ pos.x, pos.y, pos.z });
+    return 0;
+}
+
+int Set3DRadiusSoundMem(float radius, int handle)
+{
+    auto& ctx = Ctx::Instance();
+    ctx.audioEmitter3D.SetMaxDistance(radius);
+    return 0;
+}
+
+int SetListenerPosition(VECTOR pos, VECTOR front, VECTOR up)
+{
+    auto& ctx = Ctx::Instance();
+    ctx.audioListener3D.SetPosition({ pos.x, pos.y, pos.z });
+    ctx.audioListener3D.SetOrientation({ front.x, front.y, front.z },
+                                        { up.x, up.y, up.z });
+    ctx.audioManager.SetListener(ctx.audioListener3D);
+    return 0;
 }

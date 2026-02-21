@@ -67,6 +67,46 @@ public:
     /// @param color 線の色
     void DrawGrid(float size, uint32_t divisions, const XMFLOAT4& color);
 
+    /// @brief ワイヤフレームのコーンを描画する
+    /// @param center 底面の中心座標
+    /// @param direction 軸方向（正規化済み）。先端 = center + direction * height
+    /// @param height コーンの高さ
+    /// @param radius 底面の半径
+    /// @param color 線の色
+    /// @param segments 底面円の分割数（デフォルト16）
+    void DrawWireCone(const XMFLOAT3& center, const XMFLOAT3& direction,
+                      float height, float radius, const XMFLOAT4& color,
+                      uint32_t segments = 16);
+
+    /// @brief ワイヤフレームのカプセルを描画する（2点間）
+    /// @param p0 カプセルの一端の中心
+    /// @param p1 カプセルのもう一端の中心
+    /// @param radius カプセルの半径
+    /// @param color 線の色
+    /// @param segments 円・半球弧の分割数（デフォルト8）
+    void DrawWireCapsule(const XMFLOAT3& p0, const XMFLOAT3& p1, float radius,
+                         const XMFLOAT4& color, uint32_t segments = 8);
+
+    /// @brief ワイヤフレームの視錐台を描画する（逆VP行列からNDCコーナーを逆投影）
+    /// @param inverseViewProjection 逆ViewProjection行列
+    /// @param color 線の色
+    void DrawWireFrustum(const XMFLOAT4X4& inverseViewProjection, const XMFLOAT4& color);
+
+    /// @brief 任意平面上のワイヤフレーム円を描画する
+    /// @param center 円の中心座標
+    /// @param normal 平面の法線（正規化済み）
+    /// @param radius 円の半径
+    /// @param color 線の色
+    /// @param segments 円の分割数（デフォルト16）
+    void DrawWireCircle(const XMFLOAT3& center, const XMFLOAT3& normal, float radius,
+                        const XMFLOAT4& color, uint32_t segments = 16);
+
+    /// @brief XYZ軸を描画する（赤=X, 緑=Y, 青=Z）
+    /// @param origin 軸の原点
+    /// @param size 軸の長さ
+    /// @param alpha 線のアルファ値（デフォルト1.0）
+    void DrawAxis(const XMFLOAT3& origin, float size, float alpha = 1.0f);
+
     /// @brief バッチを終了してGPUに描画コマンドを発行する
     void End();
 

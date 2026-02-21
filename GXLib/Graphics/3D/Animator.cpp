@@ -294,8 +294,22 @@ void Animator::Update(float deltaTime)
         XMStoreFloat4x4(&m_localTransforms[i], S * R * T);
     }
 
-    // ローカル→グローバル変換し、逆バインドポーズを適用してスキニング用行列を生成
+    // ローカル→グローバル変換
     m_skeleton->ComputeGlobalTransforms(m_localTransforms.data(), m_globalTransforms.data());
+
+    // IK適用（FK計算後、ボーン行列計算前に実行）
+    if (m_footIK && m_footIK->IsEnabled() && m_footIK->IsSetup() && m_getGroundHeight)
+    {
+        m_footIK->Apply(m_localTransforms.data(), m_globalTransforms.data(),
+                        *m_skeleton, m_worldTransform, m_getGroundHeight);
+    }
+    if (m_lookAtIK && m_lookAtIK->IsEnabled() && m_lookAtIK->IsSetup() && m_lookAtActive)
+    {
+        m_lookAtIK->Apply(m_localTransforms.data(), m_globalTransforms.data(),
+                          *m_skeleton, m_worldTransform, m_lookAtTarget, m_lookAtWeight);
+    }
+
+    // 逆バインドポーズを適用してスキニング用行列を生成
     uint32_t boneCount = (std::min)(jointCount, BoneConstants::k_MaxBones);
     m_skeleton->ComputeBoneMatrices(m_globalTransforms.data(), m_boneConstants.boneMatrices);
 }

@@ -163,7 +163,7 @@ void TextRenderer::DrawFormatString(int fontHandle, float x, float y, uint32_t c
 
     va_list args;
     va_start(args, format);
-    vswprintf_s(buffer, 1024, format, args);
+    vswprintf_s(buffer, _countof(buffer), format, args);
     va_end(args);
 
     DrawString(fontHandle, x, y, buffer, color);
@@ -191,6 +191,187 @@ int TextRenderer::GetStringWidth(int fontHandle, const std::wstring& text)
     }
 
     return static_cast<int>(ceilf(width));
+}
+
+float TextRenderer::MeasureLineWidth(int fontHandle, const std::wstring& line)
+{
+    float width = 0.0f;
+    for (wchar_t ch : line)
+    {
+        const GlyphInfo* glyph = m_fontManager->GetGlyphInfo(fontHandle, ch);
+        if (glyph)
+            width += glyph->advance;
+    }
+    return width;
+}
+
+std::vector<std::wstring> TextRenderer::BreakLines(int fontHandle, const std::wstring& text,
+                                                    const TextLayoutOptions& options)
+{
+    std::vector<std::wstring> result;
+
+    // Split by \n first
+    std::vector<std::wstring> paragraphs;
+    size_t start = 0;
+    while (start <= text.size())
+    {
+        size_t pos = text.find(L'\n', start);
+        if (pos == std::wstring::npos)
+        {
+            paragraphs.push_back(text.substr(start));
+            break;
+        }
+        paragraphs.push_back(text.substr(start, pos - start));
+        start = pos + 1;
+    }
+
+    bool doWrap = options.wordWrap && options.maxWidth > 0.0f;
+
+    for (const auto& para : paragraphs)
+    {
+        if (!doWrap || para.empty())
+        {
+            result.push_back(para);
+            continue;
+        }
+
+        // Word-wrap this paragraph
+        float lineWidth = 0.0f;
+        size_t lineStart = 0;
+        size_t lastSpace = std::wstring::npos; // index of last space in current line segment
+
+        for (size_t i = 0; i < para.size(); ++i)
+        {
+            wchar_t ch = para[i];
+
+            if (ch == L' ')
+                lastSpace = i;
+
+            float charAdvance = 0.0f;
+            const GlyphInfo* glyph = m_fontManager->GetGlyphInfo(fontHandle, ch);
+            if (glyph)
+                charAdvance = glyph->advance;
+
+            if (lineWidth + charAdvance > options.maxWidth && i > lineStart)
+            {
+                // Need to break
+                if (lastSpace != std::wstring::npos && lastSpace > lineStart)
+                {
+                    // Break at last space
+                    result.push_back(para.substr(lineStart, lastSpace - lineStart));
+                    // Skip the space itself
+                    lineStart = lastSpace + 1;
+                    // Recalculate width from lineStart to current position
+                    lineWidth = 0.0f;
+                    for (size_t j = lineStart; j <= i; ++j)
+                    {
+                        const GlyphInfo* g = m_fontManager->GetGlyphInfo(fontHandle, para[j]);
+                        if (g)
+                            lineWidth += g->advance;
+                    }
+                    lastSpace = std::wstring::npos;
+                }
+                else
+                {
+                    // Force-break at current character (no space found)
+                    result.push_back(para.substr(lineStart, i - lineStart));
+                    lineStart = i;
+                    lineWidth = charAdvance;
+                    lastSpace = std::wstring::npos;
+                }
+            }
+            else
+            {
+                lineWidth += charAdvance;
+            }
+        }
+
+        // Add the remaining part of the paragraph
+        result.push_back(para.substr(lineStart));
+    }
+
+    return result;
+}
+
+void TextRenderer::DrawStringLayout(int fontHandle, float x, float y,
+                                     const std::wstring& text, uint32_t color,
+                                     const TextLayoutOptions& options)
+{
+    if (!m_spriteBatch || !m_fontManager)
+        return;
+
+    std::vector<std::wstring> lines = BreakLines(fontHandle, text, options);
+    float lineHeight = static_cast<float>(m_fontManager->GetLineHeight(fontHandle)) * options.lineSpacing;
+    float cursorY = y;
+
+    for (const auto& line : lines)
+    {
+        float drawX = x;
+
+        if (options.maxWidth > 0.0f && options.align != TextAlign::Left)
+        {
+            float lineWidth = MeasureLineWidth(fontHandle, line);
+            if (options.align == TextAlign::Center)
+                drawX = x + (options.maxWidth - lineWidth) * 0.5f;
+            else // Right
+                drawX = x + (options.maxWidth - lineWidth);
+        }
+
+        DrawString(fontHandle, drawX, cursorY, line, color);
+        cursorY += lineHeight;
+    }
+}
+
+int TextRenderer::GetStringHeight(int fontHandle, const std::wstring& text,
+                                   const TextLayoutOptions& options)
+{
+    if (!m_fontManager)
+        return 0;
+
+    std::vector<std::wstring> lines = BreakLines(fontHandle, text, options);
+    float lineHeight = static_cast<float>(m_fontManager->GetLineHeight(fontHandle)) * options.lineSpacing;
+
+    if (lines.empty())
+        return 0;
+
+    return static_cast<int>(ceilf(static_cast<float>(lines.size()) * lineHeight));
+}
+
+void TextRenderer::DrawStringInRect(int fontHandle, float x, float y, float width, float height,
+                                     const std::wstring& text, uint32_t color,
+                                     const TextLayoutOptions& options)
+{
+    if (!m_spriteBatch || !m_fontManager)
+        return;
+
+    // Override maxWidth to match the rect width
+    TextLayoutOptions rectOptions = options;
+    rectOptions.maxWidth = width;
+
+    std::vector<std::wstring> lines = BreakLines(fontHandle, text, rectOptions);
+    float lineHeight = static_cast<float>(m_fontManager->GetLineHeight(fontHandle)) * rectOptions.lineSpacing;
+    float cursorY = y;
+
+    for (const auto& line : lines)
+    {
+        // Clip: skip lines whose top exceeds the rect bottom
+        if (cursorY + lineHeight > y + height + 0.5f)
+            break;
+
+        float drawX = x;
+
+        if (rectOptions.maxWidth > 0.0f && rectOptions.align != TextAlign::Left)
+        {
+            float lineWidth = MeasureLineWidth(fontHandle, line);
+            if (rectOptions.align == TextAlign::Center)
+                drawX = x + (rectOptions.maxWidth - lineWidth) * 0.5f;
+            else // Right
+                drawX = x + (rectOptions.maxWidth - lineWidth);
+        }
+
+        DrawString(fontHandle, drawX, cursorY, line, color);
+        cursorY += lineHeight;
+    }
 }
 
 } // namespace GX

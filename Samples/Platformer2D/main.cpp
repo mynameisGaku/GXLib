@@ -6,27 +6,6 @@
 /// 重力・ジャンプ・接地判定・カメラ追従を自前実装している。
 #include "GXEasy.h"
 
-#include <format>
-#include <string>
-
-#ifdef UNICODE
-using TChar = wchar_t;
-#else
-using TChar = char;
-#endif
-
-using TString = std::basic_string<TChar>;
-
-/// @brief UNICODE/ANSI両対応のフォーマット関数
-template <class... Args>
-TString FormatT(const TChar* fmt, Args&&... args)
-{
-#ifdef UNICODE
-    return std::vformat(fmt, std::make_wformat_args(std::forward<Args>(args)...));
-#else
-    return std::vformat(fmt, std::make_format_args(std::forward<Args>(args)...));
-#endif
-}
 
 /// @brief 2Dプラットフォーマーのメインクラス
 ///

@@ -98,4 +98,58 @@ float3 CookTorranceBRDF(float3 N, float3 V, float3 L, float3 albedo,
     return diffuse + specular;
 }
 
+// ============================================================================
+// Fresnel（roughness考慮版）
+// IBLの環境反射でroughnessが高い場合にフレネル効果を抑える。
+// ============================================================================
+
+/// @brief Schlick Fresnel（roughness考慮版）— IBL用
+float3 FresnelSchlickRoughness(float cosTheta, float3 F0, float roughness)
+{
+    return F0 + (max(float3(1.0 - roughness, 1.0 - roughness, 1.0 - roughness), F0) - F0) *
+           pow(saturate(1.0 - cosTheta), 5.0);
+}
+
+// ============================================================================
+// IBLテクスチャ (t15-t17)
+// 環境マップから事前計算された間接照明テクスチャ（Renderer3Dで自動バインド）
+// ============================================================================
+
+TextureCube<float4> tIBLIrradiance  : register(t15); // 拡散照射キューブマップ（コサイン畳み込み済み）
+TextureCube<float4> tIBLPrefiltered : register(t16); // 鏡面プリフィルタキューブマップ（roughnessミップ）
+Texture2D<float4>   tIBLBRDFLUT    : register(t17); // BRDF積分LUT (x=scale, y=bias)
+SamplerState        sLinearClamp   : register(s1);   // リニアClampサンプラー（IBL/BRDF LUT用）
+
+// ============================================================================
+// IBL間接照明
+// Split-sum近似で拡散+鏡面の環境反射を計算する。
+// ============================================================================
+
+/// @brief IBL間接照明 — 拡散(照射マップ) + 鏡面(プリフィルタマップ + BRDF LUT)
+float3 EvaluateIBL(float3 N, float3 V, float3 albedo, float metallic, float roughness, float ao)
+{
+    float NdotV = max(dot(N, V), 0.0);
+    float3 R = reflect(-V, N);
+
+    // F0: 非金属=0.04, 金属=アルベド色
+    float3 F0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);
+    float3 F = FresnelSchlickRoughness(NdotV, F0, roughness);
+
+    // エネルギー保存
+    float3 kS = F;
+    float3 kD = (1.0 - kS) * (1.0 - metallic);
+
+    // 拡散IBL: 照射マップからコサイン畳み込み済みの放射輝度を取得
+    float3 irradiance = tIBLIrradiance.Sample(sLinearClamp, N).rgb;
+    float3 diffuseIBL = kD * albedo * irradiance;
+
+    // 鏡面IBL: プリフィルタマップ（roughness→ミップ）+ BRDF LUT
+    float maxMipLevel = 4.0; // k_PrefilteredMipLevels - 1
+    float3 prefilteredColor = tIBLPrefiltered.SampleLevel(sLinearClamp, R, roughness * maxMipLevel).rgb;
+    float2 envBRDF = tIBLBRDFLUT.Sample(sLinearClamp, float2(NdotV, roughness)).rg;
+    float3 specularIBL = prefilteredColor * (F * envBRDF.x + envBRDF.y);
+
+    return (diffuseIBL + specularIBL) * ao;
+}
+
 #endif // PBR_COMMON_HLSLI

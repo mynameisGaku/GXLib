@@ -47,7 +47,42 @@ bool AudioDevice::Initialize()
         return false;
     }
 
-    GX_LOG_INFO("AudioDevice initialized (XAudio2)");
+    // X3DAudio初期化（3D空間音響）
+    InitializeX3DAudio();
+
+    GX_LOG_INFO("AudioDevice initialized (XAudio2 + X3DAudio)");
+    return true;
+}
+
+bool AudioDevice::InitializeX3DAudio()
+{
+    if (!m_masterVoice) return false;
+
+    // MasteringVoiceのチャンネルマスクを取得（スピーカー配置情報）
+    DWORD channelMask = 0;
+    HRESULT hr = m_masterVoice->GetChannelMask(&channelMask);
+    if (FAILED(hr))
+    {
+        GX_LOG_WARN("AudioDevice: GetChannelMask failed, X3DAudio disabled");
+        return false;
+    }
+
+    // 出力チャンネル数を取得
+    XAUDIO2_VOICE_DETAILS details;
+    m_masterVoice->GetVoiceDetails(&details);
+    m_outputChannels = details.InputChannels;
+
+    // X3DAudioの初期化。チャンネルマスクと音速から空間音響計算エンジンを構築する。
+    hr = X3DAudioInitialize(channelMask, X3DAUDIO_SPEED_OF_SOUND, m_x3dAudioHandle);
+    if (FAILED(hr))
+    {
+        GX_LOG_WARN("AudioDevice: X3DAudioInitialize failed: 0x%08X",
+                     static_cast<unsigned>(hr));
+        return false;
+    }
+
+    m_x3dInitialized = true;
+    GX_LOG_INFO("AudioDevice: X3DAudio initialized (%u output channels)", m_outputChannels);
     return true;
 }
 

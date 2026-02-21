@@ -5,6 +5,12 @@
 /// GXLibの簡易APIで使用する定数・型を定義します。
 /// DXLibからの移行を容易にするための互換定数も含みます。
 
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
 #include <windows.h>
 
 // ============================================================================

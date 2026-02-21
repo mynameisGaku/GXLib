@@ -42,6 +42,8 @@ using Microsoft::WRL::ComPtr;
 // XAudio2 — オーディオAPI
 // ============================================================================
 #include <xaudio2.h>
+#include <x3daudio.h>
+#pragma comment(lib, "xaudio2.lib")
 
 // ============================================================================
 // DirectWrite / Direct2D — テキストレンダリング用

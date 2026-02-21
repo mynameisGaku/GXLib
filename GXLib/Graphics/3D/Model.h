@@ -127,6 +127,14 @@ public:
     /// @return インデックス（見つからない場合 -1）
     int FindAnimationIndex(const std::string& name) const;
 
+    // --- バウンディング ---
+
+    /// @brief CPUデータからAABBを計算する（Entity::SetBounds用）
+    /// @param outMin 最小隅の出力先
+    /// @param outMax 最大隅の出力先
+    /// @return CPUデータが存在すればtrue
+    bool ComputeAABB(XMFLOAT3& outMin, XMFLOAT3& outMax) const;
+
     // --- CPUデータ ---
 
     /// @brief CPU側のメッシュデータを保存する

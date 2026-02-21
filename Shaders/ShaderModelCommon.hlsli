@@ -154,6 +154,20 @@ cbuffer BoneConstants : register(b4)
 #define HAS_CLEARCOAT_MASK_MAP (1 << 7) // クリアコートマスクマップあり
 
 // ============================================================================
+// インスタンシング用StructuredBuffer (t14)
+// DrawModelInstanced 使用時に INSTANCED マクロが定義される
+// ============================================================================
+
+#if defined(INSTANCED)
+struct InstanceData
+{
+    float4x4 instanceWorld;            // ワールド変換行列（転置済み）
+    float4x4 instanceWorldInvTranspose; // 法線変換用逆転置行列（転置済み）
+};
+StructuredBuffer<InstanceData> gInstanceData : register(t14);
+#endif
+
+// ============================================================================
 // テクスチャバインディング (t0-t7)
 // t8-t13, s2 は ShadowUtils.hlsli で宣言済み
 // ============================================================================
@@ -211,7 +225,12 @@ struct PSOutput
 // ============================================================================
 
 /// @brief 共通頂点シェーダー — スキニング・ワールド変換・ビュー空間Z計算を行う
-PSInput VSMain(VSInput input)
+/// インスタンシング時は SV_InstanceID でインスタンスごとのワールド行列を取得する
+PSInput VSMain(VSInput input
+#if defined(INSTANCED)
+    , uint instanceID : SV_InstanceID
+#endif
+)
 {
     PSInput output;
 
@@ -243,13 +262,22 @@ PSInput VSMain(VSInput input)
     tangentL = skinnedTangent;
 #endif
 
-    float4 posW = mul(posL, world);
+    // ワールド変換行列を選択（インスタンシング時はインスタンスデータから取得）
+#if defined(INSTANCED)
+    float4x4 worldMat = gInstanceData[instanceID].instanceWorld;
+    float4x4 worldInvT = gInstanceData[instanceID].instanceWorldInvTranspose;
+#else
+    float4x4 worldMat = world;
+    float4x4 worldInvT = worldInverseTranspose;
+#endif
+
+    float4 posW = mul(posL, worldMat);
     output.posW = posW.xyz;
     output.posH = mul(posW, gViewProjection);
 
-    float3x3 wit = (float3x3)worldInverseTranspose;
+    float3x3 wit = (float3x3)worldInvT;
     output.normalW = normalize(mul(normalL, wit));
-    output.tangentW = normalize(mul(tangentL, (float3x3)world));
+    output.tangentW = normalize(mul(tangentL, (float3x3)worldMat));
     output.bitangentSign = input.tangent.w;
 
     output.texcoord = input.texcoord;

@@ -192,3 +192,53 @@ int GetJoypadInputState(int inputType)
 
     return result;
 }
+
+// ============================================================================
+// アクションマッピング
+// ============================================================================
+
+/// DIKキーコードをVKキーコードに変換する
+static int DIKToVK(int dikCode)
+{
+    InitDIKTable();
+    if (dikCode >= 0 && dikCode < 256) return s_dikToVK[dikCode];
+    return dikCode;
+}
+
+int SetActionKey(const char* actionName, int keyCode)
+{
+    auto& ctx = Ctx::Instance();
+    auto& am = ctx.inputManager.GetActionMapping();
+    int vk = DIKToVK(keyCode);
+    am.DefineAction(actionName, { GX::InputBinding::Key(vk) });
+    return 0;
+}
+
+int SetActionButton(const char* actionName, int padButton)
+{
+    auto& ctx = Ctx::Instance();
+    auto& am = ctx.inputManager.GetActionMapping();
+    am.DefineAction(actionName, { GX::InputBinding::PadBtn(padButton) });
+    return 0;
+}
+
+int IsActionPressed(const char* actionName)
+{
+    auto& ctx = Ctx::Instance();
+    auto& am = ctx.inputManager.GetActionMapping();
+    return am.IsActionPressed(actionName) ? 1 : 0;
+}
+
+int IsActionTriggered(const char* actionName)
+{
+    auto& ctx = Ctx::Instance();
+    auto& am = ctx.inputManager.GetActionMapping();
+    return am.IsActionTriggered(actionName) ? 1 : 0;
+}
+
+float GetActionAxis(const char* axisName)
+{
+    auto& ctx = Ctx::Instance();
+    auto& am = ctx.inputManager.GetActionMapping();
+    return am.GetActionValue(axisName);
+}

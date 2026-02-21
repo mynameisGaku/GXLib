@@ -27,6 +27,9 @@
 #include "Graphics/Layer/LayerCompositor.h"
 #include "Input/InputManager.h"
 #include "Audio/AudioManager.h"
+#include "Audio/AudioEmitter.h"
+#include "Audio/AudioListener.h"
+#include "Graphics/Rendering/ParticleSystem2D.h"
 
 namespace GX_Internal
 {
@@ -101,6 +104,13 @@ public:
     GX::Camera3D             camera;           ///< 3Dカメラ
     GX::PostEffectPipeline   postEffect;       ///< ポストエフェクトパイプライン
 
+    // --- 2Dパーティクル ---
+    GX::ParticleSystem2D     particleSystem2D; ///< 2Dパーティクルシステム
+
+    // --- 3Dオーディオ ---
+    GX::AudioEmitter         audioEmitter3D;   ///< 3Dサウンド用エミッター（簡易API用）
+    GX::AudioListener        audioListener3D;  ///< 3Dサウンド用リスナー（簡易API用）
+
     // --- 状態 ---
     int          drawScreen     = GX_SCREEN_BACK;       ///< 現在の描画先スクリーン
     int          drawBlendMode  = GX_BLENDMODE_NOBLEND; ///< 現在のブレンドモード
@@ -126,6 +136,10 @@ public:
         GX::Transform3D transform;          ///< ワールド変換
         GX::Animator    animator;           ///< スキンメッシュ用アニメータ
         bool valid = false;                 ///< エントリが有効か
+
+        ModelEntry() = default;
+        ModelEntry(ModelEntry&&) = default;
+        ModelEntry& operator=(ModelEntry&&) = default;
     };
     std::vector<ModelEntry> models;          ///< モデルエントリの配列
     std::vector<int>        modelFreeHandles; ///< 再利用可能なハンドルのフリーリスト

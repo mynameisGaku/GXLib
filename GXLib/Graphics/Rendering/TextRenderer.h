@@ -54,7 +54,40 @@ public:
     /// @return 文字列の描画幅（ピクセル）
     int GetStringWidth(int fontHandle, const std::wstring& text);
 
+    /// テキストの水平揃え
+    enum class TextAlign { Left, Center, Right };
+
+    /// テキストレイアウトオプション
+    struct TextLayoutOptions
+    {
+        float maxWidth = 0.0f;       ///< 最大幅（0=無制限）
+        float lineSpacing = 1.2f;    ///< 行間倍率（1.0=フォントサイズ分）
+        TextAlign align = TextAlign::Left;
+        bool wordWrap = true;        ///< 自動改行
+    };
+
+    /// レイアウト付きテキスト描画（自動改行・揃え対応）
+    void DrawStringLayout(int fontHandle, float x, float y,
+                           const std::wstring& text, uint32_t color,
+                           const TextLayoutOptions& options);
+
+    /// テキストの描画高さを計算する（改行含む）
+    int GetStringHeight(int fontHandle, const std::wstring& text,
+                         const TextLayoutOptions& options);
+
+    /// 矩形領域内にテキストを描画する
+    void DrawStringInRect(int fontHandle, float x, float y, float width, float height,
+                           const std::wstring& text, uint32_t color,
+                           const TextLayoutOptions& options);
+
 private:
+    /// テキストを行に分割する（改行・ワードラップ対応）
+    std::vector<std::wstring> BreakLines(int fontHandle, const std::wstring& text,
+                                          const TextLayoutOptions& options);
+
+    /// 単一行の描画幅を計算する（内部ヘルパー）
+    float MeasureLineWidth(int fontHandle, const std::wstring& line);
+
     SpriteBatch* m_spriteBatch = nullptr;
     FontManager* m_fontManager = nullptr;
 };

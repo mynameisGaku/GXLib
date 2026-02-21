@@ -172,6 +172,216 @@ void PrimitiveBatch3D::DrawGrid(float size, uint32_t divisions, const XMFLOAT4& 
     }
 }
 
+void PrimitiveBatch3D::DrawWireCone(const XMFLOAT3& center, const XMFLOAT3& direction,
+                                     float height, float radius, const XMFLOAT4& color,
+                                     uint32_t segments)
+{
+    // Compute tip position
+    XMVECTOR vCenter = XMLoadFloat3(&center);
+    XMVECTOR vDir    = XMVector3Normalize(XMLoadFloat3(&direction));
+    XMVECTOR vTip    = XMVectorAdd(vCenter, XMVectorScale(vDir, height));
+
+    XMFLOAT3 tip;
+    XMStoreFloat3(&tip, vTip);
+
+    // Build two perpendicular vectors to the direction axis
+    XMVECTOR vRef = (fabsf(direction.y) > 0.9f)
+                    ? XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f)
+                    : XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+    XMVECTOR vRight = XMVector3Normalize(XMVector3Cross(vDir, vRef));
+    XMVECTOR vUp    = XMVector3Cross(vRight, vDir);
+
+    float step = XM_2PI / static_cast<float>(segments);
+
+    XMFLOAT3 prevBase;
+    for (uint32_t i = 0; i <= segments; ++i)
+    {
+        float angle = step * i;
+        XMVECTOR vOffset = XMVectorAdd(
+            XMVectorScale(vRight, cosf(angle) * radius),
+            XMVectorScale(vUp,    sinf(angle) * radius));
+        XMVECTOR vBasePoint = XMVectorAdd(vCenter, vOffset);
+
+        XMFLOAT3 basePoint;
+        XMStoreFloat3(&basePoint, vBasePoint);
+
+        if (i > 0)
+        {
+            // Base circle edge
+            DrawLine(prevBase, basePoint, color);
+        }
+
+        // Line from base to tip (draw at each vertex for full wireframe)
+        if (i < segments)
+        {
+            DrawLine(basePoint, tip, color);
+        }
+
+        prevBase = basePoint;
+    }
+}
+
+void PrimitiveBatch3D::DrawWireCapsule(const XMFLOAT3& p0, const XMFLOAT3& p1, float radius,
+                                        const XMFLOAT4& color, uint32_t segments)
+{
+    XMVECTOR vP0   = XMLoadFloat3(&p0);
+    XMVECTOR vP1   = XMLoadFloat3(&p1);
+    XMVECTOR vAxis = XMVectorSubtract(vP1, vP0);
+    XMVECTOR vDir  = XMVector3Normalize(vAxis);
+
+    // Build two perpendicular vectors to the capsule axis
+    XMFLOAT3 dir;
+    XMStoreFloat3(&dir, vDir);
+    XMVECTOR vRef = (fabsf(dir.y) > 0.9f)
+                    ? XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f)
+                    : XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+    XMVECTOR vRight = XMVector3Normalize(XMVector3Cross(vDir, vRef));
+    XMVECTOR vUp    = XMVector3Cross(vRight, vDir);
+
+    float step = XM_2PI / static_cast<float>(segments);
+
+    // --- Draw circles at p0 and p1, plus 4 connecting lines ---
+    XMFLOAT3 prevP0Circle, prevP1Circle;
+    for (uint32_t i = 0; i <= segments; ++i)
+    {
+        float angle = step * i;
+        XMVECTOR vOffset = XMVectorAdd(
+            XMVectorScale(vRight, cosf(angle) * radius),
+            XMVectorScale(vUp,    sinf(angle) * radius));
+
+        XMFLOAT3 cp0, cp1;
+        XMStoreFloat3(&cp0, XMVectorAdd(vP0, vOffset));
+        XMStoreFloat3(&cp1, XMVectorAdd(vP1, vOffset));
+
+        if (i > 0)
+        {
+            DrawLine(prevP0Circle, cp0, color);
+            DrawLine(prevP1Circle, cp1, color);
+        }
+
+        // 4 connecting lines at cardinal directions (every segments/4)
+        if (segments >= 4 && i < segments && (i % (segments / 4)) == 0)
+        {
+            DrawLine(cp0, cp1, color);
+        }
+
+        prevP0Circle = cp0;
+        prevP1Circle = cp1;
+    }
+
+    // --- Draw hemisphere arcs at each end ---
+    float halfStep = XM_PI / static_cast<float>(segments);
+
+    // Helper lambda: draw a semicircle arc on a given plane at a given endpoint
+    auto drawHemisphereArc = [&](XMVECTOR vCenter, XMVECTOR vTangent, XMVECTOR vAxisDir, float sign)
+    {
+        XMFLOAT3 prev;
+        for (uint32_t i = 0; i <= segments; ++i)
+        {
+            float angle = halfStep * i;  // 0 to PI
+            XMVECTOR vPoint = XMVectorAdd(vCenter,
+                XMVectorAdd(
+                    XMVectorScale(vTangent, cosf(angle) * radius),
+                    XMVectorScale(vAxisDir, sinf(angle) * radius * sign)));
+
+            XMFLOAT3 pt;
+            XMStoreFloat3(&pt, vPoint);
+
+            if (i > 0)
+                DrawLine(prev, pt, color);
+
+            prev = pt;
+        }
+    };
+
+    // p0 hemisphere: arcs in the -axis direction (right and up planes)
+    drawHemisphereArc(vP0, vRight, vDir, -1.0f);
+    drawHemisphereArc(vP0, vUp,    vDir, -1.0f);
+
+    // p1 hemisphere: arcs in the +axis direction (right and up planes)
+    drawHemisphereArc(vP1, vRight, vDir, 1.0f);
+    drawHemisphereArc(vP1, vUp,    vDir, 1.0f);
+}
+
+void PrimitiveBatch3D::DrawWireFrustum(const XMFLOAT4X4& inverseViewProjection, const XMFLOAT4& color)
+{
+    XMMATRIX invVP = XMLoadFloat4x4(&inverseViewProjection);
+
+    // NDC corners: (x, y, z) where z=0 is near, z=1 is far
+    XMFLOAT3 ndcCorners[8] = {
+        { -1.0f, -1.0f, 0.0f }, {  1.0f, -1.0f, 0.0f },
+        {  1.0f,  1.0f, 0.0f }, { -1.0f,  1.0f, 0.0f },
+        { -1.0f, -1.0f, 1.0f }, {  1.0f, -1.0f, 1.0f },
+        {  1.0f,  1.0f, 1.0f }, { -1.0f,  1.0f, 1.0f },
+    };
+
+    // Unproject NDC corners to world space
+    XMFLOAT3 worldCorners[8];
+    for (int i = 0; i < 8; ++i)
+    {
+        XMVECTOR vNDC = XMLoadFloat3(&ndcCorners[i]);
+        XMVECTOR vWorld = XMVector3TransformCoord(vNDC, invVP);
+        XMStoreFloat3(&worldCorners[i], vWorld);
+    }
+
+    // 12 edges: 4 near, 4 far, 4 connecting
+    int edges[][2] = {
+        {0,1},{1,2},{2,3},{3,0}, // near plane
+        {4,5},{5,6},{6,7},{7,4}, // far plane
+        {0,4},{1,5},{2,6},{3,7}, // connecting edges
+    };
+
+    for (auto& e : edges)
+        DrawLine(worldCorners[e[0]], worldCorners[e[1]], color);
+}
+
+void PrimitiveBatch3D::DrawWireCircle(const XMFLOAT3& center, const XMFLOAT3& normal, float radius,
+                                       const XMFLOAT4& color, uint32_t segments)
+{
+    XMVECTOR vCenter = XMLoadFloat3(&center);
+    XMVECTOR vNormal = XMVector3Normalize(XMLoadFloat3(&normal));
+
+    // Build two perpendicular vectors to the normal
+    XMVECTOR vRef = (fabsf(normal.y) > 0.9f)
+                    ? XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f)
+                    : XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+    XMVECTOR vRight = XMVector3Normalize(XMVector3Cross(vNormal, vRef));
+    XMVECTOR vUp    = XMVector3Cross(vRight, vNormal);
+
+    float step = XM_2PI / static_cast<float>(segments);
+
+    XMFLOAT3 prev;
+    for (uint32_t i = 0; i <= segments; ++i)
+    {
+        float angle = step * i;
+        XMVECTOR vOffset = XMVectorAdd(
+            XMVectorScale(vRight, cosf(angle) * radius),
+            XMVectorScale(vUp,    sinf(angle) * radius));
+        XMVECTOR vPoint = XMVectorAdd(vCenter, vOffset);
+
+        XMFLOAT3 pt;
+        XMStoreFloat3(&pt, vPoint);
+
+        if (i > 0)
+            DrawLine(prev, pt, color);
+
+        prev = pt;
+    }
+}
+
+void PrimitiveBatch3D::DrawAxis(const XMFLOAT3& origin, float size, float alpha)
+{
+    // X axis - Red
+    DrawLine(origin, { origin.x + size, origin.y, origin.z },
+             { 1.0f, 0.0f, 0.0f, alpha });
+    // Y axis - Green
+    DrawLine(origin, { origin.x, origin.y + size, origin.z },
+             { 0.0f, 1.0f, 0.0f, alpha });
+    // Z axis - Blue
+    DrawLine(origin, { origin.x, origin.y, origin.z + size },
+             { 0.0f, 0.0f, 1.0f, alpha });
+}
+
 void PrimitiveBatch3D::End()
 {
     if (!m_mappedVertices || m_vertexCount == 0)

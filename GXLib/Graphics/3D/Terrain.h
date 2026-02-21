@@ -50,6 +50,18 @@ public:
     /// @return 地形の高さ（範囲外は端の高さにクランプ）
     float GetHeight(float x, float z) const;
 
+    /// @brief 地形の幅（ワールド単位）を取得する
+    float GetWidth() const { return m_width; }
+
+    /// @brief 地形の奥行き（ワールド単位）を取得する
+    float GetDepth() const { return m_depth; }
+
+    /// @brief グリッド左端のX座標を取得する
+    float GetOriginX() const { return m_originX; }
+
+    /// @brief グリッド上端のZ座標を取得する
+    float GetOriginZ() const { return m_originZ; }
+
     /// @brief 頂点バッファを取得する
     /// @return 頂点バッファ
     const Buffer& GetVertexBuffer() const { return m_vertexBuffer; }

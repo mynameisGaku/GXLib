@@ -6,29 +6,7 @@
 /// DxLibでいうDrawBox/DrawCircle/DrawString/CheckHitKeyはそのまま使える。
 #include "GXEasy.h"
 
-#include <format>
-#include <string>
 #include <random>
-
-// --- UNICODE/ANSI 対応の文字列フォーマットヘルパー ---
-#ifdef UNICODE
-using TChar = wchar_t;
-#else
-using TChar = char;
-#endif
-
-using TString = std::basic_string<TChar>;
-
-/// @brief UNICODE/ANSIの両ビルドで使えるフォーマット関数
-template <class... Args>
-TString FormatT(const TChar* fmt, Args&&... args)
-{
-#ifdef UNICODE
-    return std::vformat(fmt, std::make_wformat_args(std::forward<Args>(args)...));
-#else
-    return std::vformat(fmt, std::make_format_args(std::forward<Args>(args)...));
-#endif
-}
 
 /// @brief 2Dシューティングのメインクラス
 ///

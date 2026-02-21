@@ -24,6 +24,16 @@ void Camera3D::SetOrthographic(float width, float height, float nearZ, float far
     m_farZ   = farZ;
 }
 
+void Camera3D::LookAt(const XMFLOAT3& target)
+{
+    float dx = target.x - m_position.x;
+    float dy = target.y - m_position.y;
+    float dz = target.z - m_position.z;
+    float dist = std::sqrt(dx * dx + dz * dz);
+    SetPitch(-std::atan2(dy, dist));
+    SetYaw(std::atan2(dx, dz));
+}
+
 void Camera3D::SetPitch(float pitch)
 {
     constexpr float maxPitch = XM_PIDIV2 - 0.01f;

@@ -11,6 +11,7 @@
 #include "Input/Keyboard.h"
 #include "Input/Mouse.h"
 #include "Input/Gamepad.h"
+#include "Input/ActionMapping.h"
 
 namespace GX
 {
@@ -70,10 +71,17 @@ public:
     /// @return Gamepadへの参照
     Gamepad& GetGamepad() { return m_gamepad; }
 
+    // --- アクションマッピングAPI ---
+
+    /// @brief アクションマッピングへの参照を取得する
+    /// @return ActionMappingへの参照
+    ActionMapping& GetActionMapping() { return m_actionMapping; }
+
 private:
-    Keyboard m_keyboard;
-    Mouse    m_mouse;
-    Gamepad  m_gamepad;
+    Keyboard      m_keyboard;
+    Mouse         m_mouse;
+    Gamepad       m_gamepad;
+    ActionMapping m_actionMapping;
 };
 
 } // namespace GX

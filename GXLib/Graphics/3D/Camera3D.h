@@ -64,6 +64,10 @@ public:
     /// @param target 注視点の位置
     void SetTarget(const XMFLOAT3& target) { m_target = target; }
 
+    /// @brief 指定ターゲットを注視するようにピッチ・ヨーを設定する
+    /// @param target 注視点のワールド座標
+    void LookAt(const XMFLOAT3& target);
+
     /// @brief ピッチ角を直接設定する（オービットカメラ用）
     /// @param pitch ピッチ角（ラジアン、±89度にクランプ）
     void SetPitch(float pitch);

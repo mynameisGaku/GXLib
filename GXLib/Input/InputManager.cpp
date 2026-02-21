@@ -36,6 +36,9 @@ void InputManager::Update()
     m_keyboard.Update();
     m_mouse.Update();
     m_gamepad.Update();
+
+    // デバイス更新後にアクションマッピングを評価する
+    m_actionMapping.Update(m_keyboard, m_mouse, m_gamepad);
 }
 
 void InputManager::Shutdown()

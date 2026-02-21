@@ -23,6 +23,7 @@
 #include "Graphics/PostEffect/PostEffectPipeline.h"
 #include "Graphics/Resource/RenderTarget.h"
 #include "Graphics/3D/ModelLoader.h"
+#include "Audio/AudioManager.h"
 
 // Panels
 #include "Scene/SceneGraph.h"
@@ -41,6 +42,10 @@
 #include "Panels/ModelInfoPanel.h"
 #include "Panels/SkeletonPanel.h"
 #include "Panels/AssetBrowserPanel.h"
+#include "Panels/IBLPanel.h"
+#include "Panels/ParticlePanel.h"
+#include "Panels/IKPanel.h"
+#include "Panels/AudioPanel.h"
 #include "InfiniteGrid.h"
 
 #include <imgui.h>
@@ -162,6 +167,7 @@ private:
     InfiniteGrid        m_infiniteGrid;     ///< Y=0平面の無限グリッド描画
 
     // --- リソース管理 ---
+    GX::AudioManager    m_audioManager;     ///< オーディオシステム（AudioPanel用）
     GX::ModelLoader     m_modelLoader;      ///< glTF/FBX/OBJ/GXMDモデル読み込み
     GX::MaterialManager m_materialManager;  ///< マテリアルハンドル管理（Renderer3D内部とは別）
     GX::TextureManager  m_textureManager;   ///< テクスチャハンドル管理
@@ -220,6 +226,10 @@ private:
     bool m_showModelInfo      = true;
     bool m_showSkeleton       = false;
     bool m_showAssetBrowser   = true;
+    bool m_showIBL            = false;
+    bool m_showParticles      = false;
+    bool m_showIK             = false;
+    bool m_showAudio          = false;
 
     // --- パネルインスタンス（各パネルは独立クラスで参照渡しで描画） ---
     SceneHierarchyPanel m_sceneHierarchyPanel;
@@ -237,6 +247,10 @@ private:
     ModelInfoPanel      m_modelInfoPanel;
     SkeletonPanel       m_skeletonPanel;
     AssetBrowserPanel   m_assetBrowserPanel;
+    IBLPanel            m_iblPanel;
+    ParticlePanel       m_particlePanel;
+    IKPanel             m_ikPanel;
+    AudioPanel          m_audioPanel;
 
     // --- ドラッグ&ドロップ ---
     std::vector<std::string> m_pendingDropFiles;  ///< WM_DROPFILESで受け取ったファイルパスキュー

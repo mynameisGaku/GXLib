@@ -1,0 +1,1 @@
+gxlib_add_sample(ProfilerShowcase)

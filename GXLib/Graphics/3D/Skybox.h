@@ -48,6 +48,15 @@ public:
     /// @param intensity HDR輝度
     void SetSun(const XMFLOAT3& direction, float intensity);
 
+    /// @brief 天頂色を取得する
+    const XMFLOAT3& GetTopColor() const { return m_topColor; }
+    /// @brief 地平色を取得する
+    const XMFLOAT3& GetBottomColor() const { return m_bottomColor; }
+    /// @brief 太陽方向を取得する
+    const XMFLOAT3& GetSunDirection() const { return m_sunDirection; }
+    /// @brief 太陽輝度を取得する
+    float GetSunIntensity() const { return m_sunIntensity; }
+
     /// @brief スカイボックスを描画する
     /// @param cmdList コマンドリスト
     /// @param frameIndex フレームインデックス（ダブルバッファ用）

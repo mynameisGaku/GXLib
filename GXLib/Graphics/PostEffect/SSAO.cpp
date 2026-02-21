@@ -329,10 +329,9 @@ void SSAO::Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
     cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     cmdList->DrawInstanced(3, 1, 0, 0);
 
-    // ================================================================
-    // 後処理: DepthBuffer を DEPTH_WRITE に戻す
-    // ================================================================
-    depthBuffer.TransitionTo(cmdList, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    // DepthBufferはPIXEL_SHADER_RESOURCE状態のまま返す
+    // 後続エフェクト（SSR, DoF, VolumetricLight等）も読むため、
+    // DEPTH_WRITEへの復帰は呼び出し元（Resolveまたはサンプル）が行う
 }
 
 void SSAO::OnResize(ID3D12Device* device, uint32_t width, uint32_t height)

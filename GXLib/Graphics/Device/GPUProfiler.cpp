@@ -19,6 +19,9 @@ GPUProfiler& GPUProfiler::Instance()
 
 bool GPUProfiler::Initialize(ID3D12Device* device, ID3D12CommandQueue* queue)
 {
+    // 既に初期化済みなら何もしない（シングルトンなので二重初期化を防ぐ）
+    if (m_device) return true;
+
     m_device = device;
 
     // GPUタイムスタンプの周波数を取得（ticks → ミリ秒の変換に使う）
@@ -115,6 +118,7 @@ void GPUProfiler::BeginFrame(ID3D12GraphicsCommandList* cmdList, uint32_t frameI
     auto& fd = m_frameData[frameIndex];
     fd.timestampCount = 0;
     fd.scopes.clear();
+    m_scopeStack.clear();
 
     // フレーム全体の開始タイムスタンプを記録
     uint32_t idx = AllocTimestamp();
@@ -160,11 +164,19 @@ void GPUProfiler::BeginScope(ID3D12GraphicsCommandList* cmdList, const char* nam
     // EndQuery(TIMESTAMP)でGPUパイプラインの現在位置にタイムスタンプを挿入
     cmdList->EndQuery(m_queryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, beginIdx);
 
+    int currentDepth = static_cast<int>(m_scopeStack.size());
+    int parent = m_scopeStack.empty() ? -1 : m_scopeStack.back();
+
     ScopeEntry entry;
-    entry.name       = name;
-    entry.beginIndex = beginIdx;
-    entry.endIndex   = 0xFFFFFFFF; // 未終了マーカー
+    entry.name        = name;
+    entry.beginIndex  = beginIdx;
+    entry.endIndex    = 0xFFFFFFFF; // 未終了マーカー
+    entry.depth       = currentDepth;
+    entry.parentIndex = parent;
+
+    int scopeIndex = static_cast<int>(fd.scopes.size());
     fd.scopes.push_back(entry);
+    m_scopeStack.push_back(scopeIndex);
 }
 
 void GPUProfiler::EndScope(ID3D12GraphicsCommandList* cmdList)
@@ -172,19 +184,15 @@ void GPUProfiler::EndScope(ID3D12GraphicsCommandList* cmdList)
     if (!m_enabled) return;
 
     auto& fd = m_frameData[m_currentFrameIndex];
-    if (fd.scopes.empty()) return;
+    if (m_scopeStack.empty()) return;
 
-    // 後ろから最初の未終了スコープを探してペアリング（ネスト対応）
-    for (int i = static_cast<int>(fd.scopes.size()) - 1; i >= 0; --i)
-    {
-        if (fd.scopes[i].endIndex == 0xFFFFFFFF)
-        {
-            uint32_t endIdx = AllocTimestamp();
-            cmdList->EndQuery(m_queryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, endIdx);
-            fd.scopes[i].endIndex = endIdx;
-            break;
-        }
-    }
+    // スタックのトップがこのEndScopeに対応するスコープ
+    int scopeIndex = m_scopeStack.back();
+    m_scopeStack.pop_back();
+
+    uint32_t endIdx = AllocTimestamp();
+    cmdList->EndQuery(m_queryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, endIdx);
+    fd.scopes[scopeIndex].endIndex = endIdx;
 }
 
 uint32_t GPUProfiler::AllocTimestamp()
@@ -235,7 +243,7 @@ void GPUProfiler::ReadbackResults(uint32_t frameIndex)
         float duration = static_cast<float>(
             static_cast<double>(end - begin) * ticksToMs);
 
-        m_results.push_back({ scope.name, duration });
+        m_results.push_back({ scope.name, duration, scope.depth, scope.parentIndex });
     }
 
     // 書き込み範囲なし（読み取り専用だったことをD3D12に伝える）

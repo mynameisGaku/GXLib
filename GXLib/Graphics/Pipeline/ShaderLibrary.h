@@ -138,6 +138,11 @@ private:
     /// @return 正規化済みパス
     static std::wstring NormalizePath(const std::wstring& path);
 
+    /// @brief HLSLソースファイルの#includeを解析して依存グラフを更新する
+    /// @param hlslPath コンパイルされたHLSLファイルパス
+    /// @note m_mutexロック内から呼ばれるため、内部でロックしない
+    void ScanIncludes(const std::wstring& hlslPath);
+
     Shader m_compiler;                  ///< DXCコンパイラ
     ID3D12Device* m_device = nullptr;   ///< PSO再構築用のデバイス
     std::unordered_map<ShaderKey, ShaderBlob, ShaderKeyHasher> m_cache;  ///< コンパイル結果キャッシュ
@@ -145,6 +150,9 @@ private:
     PSOCallbackID m_nextCallbackID = 1;         ///< 次に発行するコールバックID
     std::string m_lastError;                    ///< 直前のエラーメッセージ
     std::mutex m_mutex;                         ///< マルチスレッドアクセス保護
+
+    /// @brief include依存グラフ（正規化.hlsliファイル名 → それを含む.hlslの正規化フルパスリスト）
+    std::unordered_map<std::wstring, std::vector<std::wstring>> m_includeDeps;
 };
 
 } // namespace GX

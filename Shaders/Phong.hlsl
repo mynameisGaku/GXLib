@@ -80,8 +80,10 @@ PSOutput PSMain(PSInput input)
         Lo += (diffuse + specular) * radiance * shadow;
     }
 
-    // --- アンビエント ---
-    float3 ambient = gAmbientColor * albedo.rgb * ao;
+    // --- アンビエント + IBL ---
+    // Phongモデルではmetallic=0, roughness=gRoughnessとして近似的にIBLを適用
+    float3 iblContrib = EvaluateIBL(N, V, albedo.rgb, 0.0, gRoughness, ao);
+    float3 ambient = iblContrib + gAmbientColor * albedo.rgb * ao;
 
     // --- エミッシブ ---
     float3 emissive = SampleEmissive(input.texcoord);

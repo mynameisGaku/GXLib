@@ -71,6 +71,11 @@ public:
     /// @return バイト単位のストライド
     uint32_t GetStride() const { return m_stride; }
 
+    /// @brief 内部リソースを取得する（SRV作成用）
+    /// @param frameIndex フレームインデックス
+    /// @return ID3D12Resourceポインタ
+    ID3D12Resource* GetResource(uint32_t frameIndex) const { return m_buffers[frameIndex].Get(); }
+
 private:
     std::array<ComPtr<ID3D12Resource>, k_BufferCount> m_buffers; ///< ダブルバッファ用リソース
     uint32_t m_maxSize = 0; ///< 1面あたりの最大サイズ

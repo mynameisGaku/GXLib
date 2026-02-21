@@ -22,27 +22,7 @@
 #include "Graphics/3D/Material.h"
 #include "Graphics/3D/Fog.h"
 
-#include <format>
-#include <string>
 #include <Windows.h>
-
-#ifdef UNICODE
-using TChar = wchar_t;
-#else
-using TChar = char;
-#endif
-
-using TString = std::basic_string<TChar>;
-
-template <class... Args>
-TString FormatT(const TChar* fmt, Args&&... args)
-{
-#ifdef UNICODE
-    return std::vformat(fmt, std::make_wformat_args(std::forward<Args>(args)...));
-#else
-    return std::vformat(fmt, std::make_format_args(std::forward<Args>(args)...));
-#endif
-}
 
 /// @brief ポストエフェクトショーケースのメインクラス
 ///
@@ -252,9 +232,11 @@ public:
         ctx.postEffect.EndScene();
 
         // Resolve: HDR→LDRに変換してバックバッファに出力
+        auto& depthBuffer = ctx.renderer3D.GetDepthBuffer();
+        depthBuffer.TransitionTo(cmd, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         ctx.postEffect.Resolve(ctx.swapChain.GetCurrentRTVHandle(),
-                               ctx.renderer3D.GetDepthBuffer(),
-                               ctx.camera, m_lastDt);
+                               depthBuffer, ctx.camera, m_lastDt);
+        depthBuffer.TransitionTo(cmd, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
         // --- エフェクト一覧のUI描画 ---
         // DxLib互換のDrawBox/DrawStringで簡易UIを構築

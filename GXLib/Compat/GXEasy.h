@@ -4,6 +4,27 @@
 
 #include "Compat/GXLib.h"
 #include <string>
+#include <format>
+
+// --- TCHAR 型定義 + FormatT（全サンプル共通） ---
+#ifdef UNICODE
+using TChar = wchar_t;
+#else
+using TChar = char;
+#endif
+using TString = std::basic_string<TChar>;
+
+/// @brief UNICODE / ANSI 両対応の std::format ラッパー
+/// @note Args は by-value 必須（P2905R2/MSVC14.44 で make_format_args が lvalue 要求）
+template <class... Args>
+TString FormatT(const TChar* fmt, Args... args)
+{
+#ifdef UNICODE
+    return std::vformat(fmt, std::make_wformat_args(args...));
+#else
+    return std::vformat(fmt, std::make_format_args(args...));
+#endif
+}
 
 namespace GXEasy
 {

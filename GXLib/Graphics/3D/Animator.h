@@ -9,6 +9,8 @@
 #include "Graphics/3D/Skeleton.h"
 #include "Graphics/3D/BlendStack.h"
 #include "Graphics/3D/AnimatorStateMachine.h"
+#include "Graphics/3D/FootIK.h"
+#include "Graphics/3D/LookAtIK.h"
 
 namespace GX
 {
@@ -29,6 +31,10 @@ public:
 
     Animator() = default;
     ~Animator() = default;
+    Animator(Animator&&) = default;
+    Animator& operator=(Animator&&) = default;
+    Animator(const Animator&) = delete;
+    Animator& operator=(const Animator&) = delete;
 
     /// @brief スケルトンを設定する（バインドポーズも同時に取得）
     /// @param skeleton 対象スケルトン
@@ -131,6 +137,45 @@ public:
     /// @return 固定中ならtrue
     bool IsRootRotationLocked() const { return m_lockRootRotation; }
 
+    /// @brief FootIKを設定する（所有権を移転）
+    /// @param footIK FootIKインスタンス
+    void SetFootIK(std::unique_ptr<FootIK> footIK) { m_footIK = std::move(footIK); }
+
+    /// @brief LookAtIKを設定する（所有権を移転）
+    /// @param lookAtIK LookAtIKインスタンス
+    void SetLookAtIK(std::unique_ptr<LookAtIK> lookAtIK) { m_lookAtIK = std::move(lookAtIK); }
+
+    /// @brief FootIKを取得する
+    /// @return FootIKへのポインタ（未設定時はnullptr）
+    FootIK* GetFootIK() { return m_footIK.get(); }
+
+    /// @brief LookAtIKを取得する
+    /// @return LookAtIKへのポインタ（未設定時はnullptr）
+    LookAtIK* GetLookAtIK() { return m_lookAtIK.get(); }
+
+    /// @brief IK適用に必要なワールド変換を設定する
+    /// @param worldTransform モデルのワールド変換
+    void SetWorldTransform(const Transform3D& worldTransform) { m_worldTransform = worldTransform; }
+
+    /// @brief FootIK用の地面高さ取得関数を設定する
+    /// @param func 地面高さ取得関数 (x, z) → y
+    void SetGroundHeightFunction(std::function<float(float, float)> func) { m_getGroundHeight = std::move(func); }
+
+    /// @brief LookAtIKのターゲット位置を設定する（ワールド座標）
+    /// @param targetPos ターゲット位置
+    void SetLookAtTarget(const XMFLOAT3& targetPos) { m_lookAtTarget = targetPos; m_lookAtActive = true; }
+
+    /// @brief LookAtIKのブレンド重みを設定する
+    /// @param weight ブレンド重み（0.0=FK、1.0=完全IK）
+    void SetLookAtWeight(float weight) { m_lookAtWeight = weight; }
+
+    /// @brief LookAtIKを無効化する
+    void ClearLookAtTarget() { m_lookAtActive = false; }
+
+    /// @brief ローカル変換行列配列を取得する（IKソルバーの内部用）
+    /// @return ローカル変換行列配列
+    std::vector<XMFLOAT4X4>& GetLocalTransforms() { return m_localTransforms; }
+
 private:
     /// クリップの再生状態
     struct ClipState
@@ -166,6 +211,15 @@ private:
 
     bool m_lockRootPosition = false;
     bool m_lockRootRotation = false;
+
+    // IK
+    std::unique_ptr<FootIK>   m_footIK;
+    std::unique_ptr<LookAtIK> m_lookAtIK;
+    Transform3D               m_worldTransform;
+    std::function<float(float, float)> m_getGroundHeight;
+    XMFLOAT3                  m_lookAtTarget = { 0.0f, 0.0f, 0.0f };
+    float                     m_lookAtWeight = 1.0f;
+    bool                      m_lookAtActive = false;
 
     std::vector<TransformTRS> m_bindPose;       ///< スケルトンのバインドポーズ（TRS分解済み）
     std::vector<TransformTRS> m_poseA;          ///< ブレンド用テンポラリ

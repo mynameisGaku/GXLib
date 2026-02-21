@@ -83,20 +83,20 @@ struct Quaternion : public XMFLOAT4
     /// @return オイラー角 (x=ピッチ, y=ヨー, z=ロール)
     Vector3 ToEuler() const
     {
-        // クォータニオンからピッチ/ヨー/ロールを算出する
-        // 回転を3つの角度(ピッチ・ヨー・ロール)に分解する
-        float sinP = 2.0f * (w * x + y * z);
+        // XMQuaternionRotationRollPitchYaw の逆変換 (ZXY回転順序)
+        // q = Rz(roll) * Rx(pitch) * Ry(yaw) から各軸角度を抽出する
+        float sinP = 2.0f * (w * x - y * z);
         float pitch;
         if (std::abs(sinP) >= 1.0f)
             pitch = std::copysign(MathUtil::PI / 2.0f, sinP);
         else
             pitch = std::asin(sinP);
 
-        float sinYcosP = 2.0f * (w * y - z * x);
+        float sinYcosP = 2.0f * (w * y + x * z);
         float cosYcosP = 1.0f - 2.0f * (x * x + y * y);
         float yaw = std::atan2(sinYcosP, cosYcosP);
 
-        float sinRcosP = 2.0f * (w * z - x * y);
+        float sinRcosP = 2.0f * (w * z + x * y);
         float cosRcosP = 1.0f - 2.0f * (z * z + x * x);
         float roll = std::atan2(sinRcosP, cosRcosP);
 

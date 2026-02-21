@@ -21,6 +21,7 @@ file(GLOB_RECURSE GXLIB_SOURCES
     "Math/*.cpp"        "Math/*.h"
     "Physics/*.cpp"     "Physics/*.h"
     "Compat/*.cpp"      "Compat/*.h"
+    "AI/*.cpp"          "AI/*.h"
     "pch.cpp"           "pch.h"
 )
 

@@ -20,6 +20,8 @@
 #include "Graphics/3D/Terrain.h"
 #include "Graphics/3D/ShaderRegistry.h"
 #include "Graphics/3D/ShaderModelConstants.h"
+#include "Graphics/3D/InstanceBuffer.h"
+#include "Graphics/3D/IBL.h"
 #include "Graphics/Resource/Buffer.h"
 #include "Graphics/Resource/DynamicBuffer.h"
 #include "Graphics/Resource/DepthBuffer.h"
@@ -219,6 +221,20 @@ public:
                            const Animator& animator,
                            const std::vector<bool>& submeshVisibility);
 
+    /// @brief 同一モデルを複数インスタンスで描画する（ドローコール1回）
+    /// @param model 描画するモデル
+    /// @param transforms インスタンスごとの変換配列
+    /// @param count インスタンス数
+    void DrawModelInstanced(const Model& model, const Transform3D* transforms, uint32_t count);
+
+    /// @brief スキンドモデルのインスタンシング描画（同一ポーズ）
+    /// @param model 描画するモデル
+    /// @param transforms インスタンスごとの変換配列
+    /// @param count インスタンス数
+    /// @param animator 共有アニメーション状態
+    void DrawSkinnedModelInstanced(const Model& model, const Transform3D* transforms,
+                                    uint32_t count, const Animator& animator);
+
     /// @brief マテリアルオーバーライドを設定する（全サブメッシュにこのマテリアルを適用）
     /// @param mat オーバーライドするマテリアル（描画後に ClearMaterialOverride で解除すること）
     void SetMaterialOverride(const Material* mat) { m_materialOverride = mat; }
@@ -288,6 +304,10 @@ public:
     /// @brief カスケードシャドウマップを取得する
     /// @return CascadedShadowMapへの参照
     CascadedShadowMap& GetCSM() { return m_csm; }
+
+    /// @brief IBLオブジェクトへの参照を取得する
+    /// @return IBLへの参照
+    IBL& GetIBL() { return m_ibl; }
 
     /// @brief 画面サイズの変更を処理する
     /// @param width 新しい幅（ピクセル）
@@ -404,6 +424,16 @@ private:
     // 冗長バインド防止用 — 前回バインドしたVB/IBリソース
     ID3D12Resource* m_lastBoundVB = nullptr;
     ID3D12Resource* m_lastBoundIB = nullptr;
+
+    // IBL（イメージベースドライティング）
+    IBL m_ibl;
+
+    // インスタンシング描画用
+    InstanceBuffer m_instanceBuffer;
+    uint32_t m_instanceSRVSlot[2] = {0, 0};  ///< テクスチャヒープ内のSRVスロット（ダブルバッファ）
+    bool m_instanceSRVInitialized = false;
+    ComPtr<ID3D12PipelineState> m_psoInstanced;        ///< インスタンシング用PSO（static）
+    ComPtr<ID3D12PipelineState> m_psoSkinnedInstanced;  ///< インスタンシング用PSO（skinned）
 };
 
 } // namespace GX

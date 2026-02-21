@@ -56,6 +56,8 @@ public:
     {
         const char* name;       ///< 区間名
         float durationMs;       ///< 処理時間（ミリ秒）
+        int depth;              ///< ネスト深度（0=トップレベル）
+        int parentIndex;        ///< 親のインデックス（-1=ルート）
     };
 
     /// @brief 前フレームの全区間の計測結果を取得する
@@ -98,6 +100,8 @@ private:
         const char* name;
         uint32_t beginIndex;
         uint32_t endIndex;
+        int depth;              ///< ネスト深度（0=トップレベル）
+        int parentIndex;        ///< 親スコープのインデックス（-1=ルート）
     };
 
     /// 1フレーム分の計測データ
@@ -114,6 +118,8 @@ private:
     uint32_t m_currentFrameIndex = 0;
     uint32_t m_frameCount = 0;
     bool m_enabled = false;
+
+    std::vector<int> m_scopeStack;  ///< アクティブスコープのインデックススタック
 
     /// リードバックバッファから前フレームの結果を読み取る
     void ReadbackResults(uint32_t frameIndex);

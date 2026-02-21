@@ -637,3 +637,77 @@ MATRIX MGetRotZ(float angle);
 /// @param v 移動量ベクトル
 /// @return 平行移動行列
 MATRIX MGetTranslate(VECTOR v);
+
+// ============================================================================
+// 3Dサウンド
+// ============================================================================
+
+/// @brief サウンドの3D位置を設定する
+/// @param pos 3D座標
+/// @param handle サウンドハンドル
+/// @return 成功時 0
+int Set3DPositionSoundMem(VECTOR pos, int handle);
+
+/// @brief サウンドの3D聞こえる範囲（最大距離）を設定する
+/// @param radius 距離
+/// @param handle サウンドハンドル
+/// @return 成功時 0
+int Set3DRadiusSoundMem(float radius, int handle);
+
+/// @brief 3Dリスナーの位置と向きを設定する
+/// @param pos リスナー位置
+/// @param front 前方ベクトル
+/// @param up 上方ベクトル
+/// @return 成功時 0
+int SetListenerPosition(VECTOR pos, VECTOR front, VECTOR up);
+
+// ============================================================================
+// アクションマッピング
+// ============================================================================
+
+/// @brief アクションにキーを割り当てる
+/// @param actionName アクション名
+/// @param keyCode キーコード（KEY_INPUT_* / VK_*）
+/// @return 成功時 0
+int SetActionKey(const char* actionName, int keyCode);
+
+/// @brief アクションにゲームパッドボタンを割り当てる
+/// @param actionName アクション名
+/// @param padButton パッドボタン（PAD_INPUT_*）
+/// @return 成功時 0
+int SetActionButton(const char* actionName, int padButton);
+
+/// @brief アクションが押されているか確認する
+/// @param actionName アクション名
+/// @return 押されている場合 1、それ以外 0
+int IsActionPressed(const char* actionName);
+
+/// @brief アクションがこのフレームで押されたか確認する
+/// @param actionName アクション名
+/// @return 押された場合 1、それ以外 0
+int IsActionTriggered(const char* actionName);
+
+/// @brief アクションの軸値を取得する
+/// @param axisName 軸名
+/// @return 軸値（-1.0〜1.0）
+float GetActionAxis(const char* axisName);
+
+// ============================================================================
+// 2Dパーティクル
+// ============================================================================
+
+/// @brief 2Dパーティクルエフェクトを作成する
+/// @param textureHandle テクスチャハンドル (-1=デフォルト)
+/// @param x 発生位置X
+/// @param y 発生位置Y
+/// @param count バーストする粒子数
+/// @return エミッターハンドル
+int CreateParticle2D(int textureHandle, float x, float y, int count);
+
+/// @brief 全2Dパーティクルを更新する
+/// @return 成功時 0
+int UpdateParticles();
+
+/// @brief 全2Dパーティクルを描画する
+/// @return 成功時 0
+int DrawParticles();
