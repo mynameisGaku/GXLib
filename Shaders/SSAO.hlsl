@@ -14,23 +14,23 @@
 
 cbuffer SSAOConstants : register(b0)
 {
-    float4x4 gProjection;       // 64B
-    float4x4 gInvProjection;    // 64B
-    float4   gSamples[64];     // 1024B
-    float    gRadius;           // 4B
-    float    gBias;             // 4B
-    float    gPower;            // 4B
-    float    gScreenWidth;      // 4B
-    float    gScreenHeight;     // 4B
-    float    gNearZ;            // 4B
-    float    gFarZ;             // 4B
-    float    gPadding;          // 4B
+    float4x4 gProjection;       // プロジェクション行列
+    float4x4 gInvProjection;    // 逆プロジェクション行列
+    float4   gSamples[64];      // 半球サンプルカーネル（接線空間）
+    float    gRadius;           // サンプリング半径
+    float    gBias;             // 深度比較バイアス（セルフオクルージョン防止）
+    float    gPower;            // AO強調指数
+    float    gScreenWidth;      // スクリーン幅
+    float    gScreenHeight;     // スクリーン高さ
+    float    gNearZ;            // ニアクリップ距離
+    float    gFarZ;             // ファークリップ距離
+    float    gPadding;
 };
 
 Texture2D    tDepth  : register(t0);
 SamplerState sPoint  : register(s0);
 
-// ピクセル座標からハッシュベースの疑似乱数回転ベクトルを生成
+/// @brief TBN行列用のランダム回転ベクトルを生成 — ピクセル座標からハッシュで決定論的に生成
 float3 HashRotation(float2 pixelPos)
 {
     // 2つのハッシュ値から回転角を生成
@@ -41,7 +41,7 @@ float3 HashRotation(float2 pixelPos)
     return float3(cos(angle), sin(angle), 0.0);
 }
 
-// 深度値からビュー空間位置を復元
+/// @brief 深度値からビュー空間位置を復元 — 逆プロジェクションでNDC→ビュー空間
 float3 ReconstructViewPos(float2 uv, float depth)
 {
     // NDC座標に変換
@@ -53,6 +53,7 @@ float3 ReconstructViewPos(float2 uv, float depth)
     return viewPos.xyz / viewPos.w;
 }
 
+/// @brief AO生成PS — 64サンプル半球カーネルで遮蔽率を計算
 float4 PSGenerate(FullscreenVSOutput input) : SV_Target
 {
     float2 uv = input.uv;
@@ -131,7 +132,7 @@ float4 PSGenerate(FullscreenVSOutput input) : SV_Target
 
 cbuffer BlurConstants : register(b0)
 {
-    float2 gBlurDirection;  // (1/w, 0) or (0, 1/h)
+    float2 gBlurDirection;  // ブラー方向 (水平: 1/w,0 / 垂直: 0,1/h)
     float2 gBlurPadding;
 };
 
@@ -140,6 +141,7 @@ SamplerState sBlurPoint  : register(s0);
 
 static const float kGaussWeights[5] = { 0.227027, 0.194596, 0.121621, 0.054054, 0.016216 };
 
+/// @brief 水平バイラテラルブラー — 深度差が大きい隣接ピクセルの重みを下げてエッジを保持
 float4 PSBlurH(FullscreenVSOutput input) : SV_Target
 {
     float2 uv = input.uv;
@@ -166,6 +168,7 @@ float4 PSBlurH(FullscreenVSOutput input) : SV_Target
     return float4(result, result, result, 1.0);
 }
 
+/// @brief 垂直バイラテラルブラー — 水平ブラーと同一アルゴリズムの垂直方向版
 float4 PSBlurV(FullscreenVSOutput input) : SV_Target
 {
     float2 uv = input.uv;
@@ -196,6 +199,7 @@ float4 PSBlurV(FullscreenVSOutput input) : SV_Target
 // 合成パス (MultiplyBlend PSOで使用: Result = Dest * SrcColor)
 // ============================================================================
 
+/// @brief AO合成パス — AO値を出力（MultiplyBlend PSOでシーンに乗算合成される）
 float4 PSComposite(FullscreenVSOutput input) : SV_Target
 {
     float ao = tSource.Sample(sBlurPoint, input.uv).r;

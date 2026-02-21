@@ -1,11 +1,13 @@
 /// @file AnimationClip.cpp
 /// @brief アニメーションクリップの実装
+/// キーフレーム補間のコアロジック。位置/スケールは線形補間、回転は球面線形補間(slerp)を使う。
 #include "pch.h"
 #include "Graphics/3D/AnimationClip.h"
 
 namespace GX
 {
 
+/// 指定時刻を含むキーフレームペアのうち、先頭側のインデックスを返す（線形探索）
 template<typename T>
 static uint32_t FindKeyframeIndex(const std::vector<Keyframe<T>>& keys, float time)
 {
@@ -63,7 +65,6 @@ void AnimationClip::SampleTRS(float time, uint32_t jointCount, TransformTRS* out
     if (!outPose) return;
 
     // ベース姿勢があればそれで初期化、無ければ単位姿勢で初期化
-    // 初学者向け: まず「何も動いていない姿勢」を用意し、そこにキーの変化だけを上書きします。
     if (basePose)
     {
         for (uint32_t i = 0; i < jointCount; ++i)
@@ -75,8 +76,7 @@ void AnimationClip::SampleTRS(float time, uint32_t jointCount, TransformTRS* out
             outPose[i] = IdentityTRS();
     }
 
-    // キー付きチャンネルで上書き
-    // 初学者向け: キーがある関節だけ更新し、未指定の関節はベース姿勢のままにします。
+    // キーが定義されたチャンネルだけ上書き（キーが無い関節はベース姿勢のまま）
     for (const auto& channel : m_channels)
     {
         if (channel.jointIndex < 0 || channel.jointIndex >= static_cast<int>(jointCount))

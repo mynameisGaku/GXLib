@@ -1,3 +1,5 @@
+/// @file UDPSocket.cpp
+/// @brief UDPソケット実装 — Winsock2 API ラッパー
 #include "pch.h"
 #include <WinSock2.h>
 #include <ws2tcpip.h>
@@ -8,7 +10,8 @@ namespace GX {
 
 UDPSocket::UDPSocket()
 {
-    // WSA初期化はTCPSocket::EnsureWSAInit()または初回使用で行う想定
+    // UDPソケットはコンストラクタで即ソケットを作成する。
+    // WSAStartupは複数回呼んでも安全（内部参照カウント管理）。
     WSADATA wsaData;
     WSAStartup(MAKEWORD(2, 2), &wsaData);
 

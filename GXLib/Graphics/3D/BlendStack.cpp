@@ -55,8 +55,7 @@ void BlendStack::Update(float deltaTime, uint32_t jointCount,
 {
     if (jointCount == 0) return;
 
-    // バインドポーズで初期化
-    // 初学者向け: まず「立ち姿」から始めて、そこにレイヤーを順に適用します。
+    // バインドポーズで初期化し、各レイヤーを順に上書き/加算していく
     for (uint32_t j = 0; j < jointCount; ++j)
     {
         outPose[j] = bindPose ? bindPose[j] : IdentityTRS();
@@ -106,8 +105,7 @@ void BlendStack::Update(float deltaTime, uint32_t jointCount,
 
             if (layer.mode == AnimBlendMode::Override)
             {
-                // Override: 現在のポーズからレイヤーポーズへ重みで補間
-                // 初学者向け: weight=1なら完全に上書き、0.5なら半々になります。
+                // Override: 現在のポーズからレイヤーポーズへ重みで線形補間
                 outPose[j].translation.x += (m_tempPose[j].translation.x - outPose[j].translation.x) * w;
                 outPose[j].translation.y += (m_tempPose[j].translation.y - outPose[j].translation.y) * w;
                 outPose[j].translation.z += (m_tempPose[j].translation.z - outPose[j].translation.z) * w;
@@ -122,8 +120,7 @@ void BlendStack::Update(float deltaTime, uint32_t jointCount,
             }
             else // Additive
             {
-                // Additive: バインドポーズとの差分を加算
-                // 初学者向け: レイヤーのポーズが「立ち姿」からどれだけ動いたかを追加します。
+                // Additive: レイヤーポーズとバインドポーズの差分を現在のポーズに加算
                 TransformTRS base = bindPose ? bindPose[j] : IdentityTRS();
 
                 outPose[j].translation.x += (m_tempPose[j].translation.x - base.translation.x) * w;

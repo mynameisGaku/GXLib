@@ -1,16 +1,22 @@
 #pragma once
 /// @file PostEffectPanel.h
-/// @brief ImGui panel for controlling GXLib PostEffectPipeline parameters
+/// @brief ポストエフェクトパラメータ制御パネル
+///
+/// Bloom, SSAO, SSR, TAA, DoF, MotionBlur, Outline, VolumetricLight,
+/// ColorGrading, AutoExposure, Tonemapping, FXAA, Vignetteの各エフェクトの
+/// ON/OFFとパラメータをスライダーで調整できる。
 
 namespace GX { class PostEffectPipeline; }
 
-/// @brief ImGui panel that exposes all PostEffectPipeline parameters
+/// @brief PostEffectPipelineの全パラメータを編集するパネル
 class PostEffectPanel
 {
 public:
-    /// Draw the post-effect controls (standalone window).
+    /// @brief ポストエフェクトパネルを独立ウィンドウとして描画する
+    /// @param pipeline パラメータの読み書き先
     void Draw(GX::PostEffectPipeline& pipeline);
 
-    /// Draw only the content (no Begin/End), for embedding in a tabbed container.
+    /// @brief タブコンテナ内埋め込み用（Begin/Endなし）
+    /// @param pipeline パラメータの読み書き先
     void DrawContent(GX::PostEffectPipeline& pipeline);
 };

@@ -142,7 +142,9 @@ bool RTPipeline::CreateStateObject(ID3D12Device5* device)
         return false;
     }
 
-    // State Object: 10 サブオブジェクト
+    // State Object: 10 サブオブジェクト構成
+    // [0] DXILライブラリ → [1] HitGroup → [2-3] ShaderConfig+Association
+    // → [4] PipelineConfig → [5] GlobalRS → [6-9] LocalRS+Association×2
     D3D12_STATE_SUBOBJECT subobjects[10] = {};
 
     // === [0] DXIL Library ===
@@ -269,7 +271,8 @@ bool RTPipeline::CreateStateObject(ID3D12Device5* device)
 
 bool RTPipeline::CreateShaderTable(ID3D12Device5* device)
 {
-    // シェーダーID (32 bytes each)
+    // StateObjectPropertiesからシェーダーID (各32バイト) を取得し、
+    // テーブルバッファに書き込む。Local RSパラメータがないので各レコードは32バイト固定
     void* rayGenID     = m_stateObjectProperties->GetShaderIdentifier(m_rayGenExport.c_str());
     void* missID       = m_stateObjectProperties->GetShaderIdentifier(m_missExport.c_str());
     void* shadowMissID = m_stateObjectProperties->GetShaderIdentifier(m_shadowMissExport.c_str());
@@ -299,7 +302,8 @@ bool RTPipeline::CreateShaderTable(ID3D12Device5* device)
         m_rayGenShaderTable.Unmap();
     }
 
-    // Miss テーブル (2レコード: [0]=Miss, [1]=ShadowMiss)
+    // Miss テーブル (2レコード: [0]=反射Miss, [1]=シャドウMiss)
+    // TraceRay()のMissShaderIndex引数で選択される (0=反射, 1=シャドウ)
     uint32_t missTableSize = AlignUp(m_missRecordSize * 2, k_ShaderTableAlignment);
     if (!m_missShaderTable.CreateUploadBufferEmpty(device, missTableSize))
         return false;

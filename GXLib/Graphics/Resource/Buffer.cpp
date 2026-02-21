@@ -1,5 +1,5 @@
 /// @file Buffer.cpp
-/// @brief バッファ管理の実装
+/// @brief GPUバッファの作成・管理の実装
 #include "pch.h"
 #include "Graphics/Resource/Buffer.h"
 #include "Core/Logger.h"
@@ -12,6 +12,7 @@ bool Buffer::CreateVertexBuffer(ID3D12Device* device, const void* data, uint32_t
     if (!CreateUploadBuffer(device, data, size))
         return false;
 
+    // GPU側が参照するビュー情報を設定
     m_vbv.BufferLocation = m_resource->GetGPUVirtualAddress();
     m_vbv.SizeInBytes    = size;
     m_vbv.StrideInBytes  = stride;
@@ -33,6 +34,7 @@ bool Buffer::CreateIndexBuffer(ID3D12Device* device, const void* data, uint32_t 
 
 bool Buffer::CreateUploadBuffer(ID3D12Device* device, const void* data, uint32_t size)
 {
+    // UPLOADヒープはCPU/GPU両方からアクセス可能なメモリ領域
     D3D12_HEAP_PROPERTIES heapProps = {};
     heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
 
@@ -60,9 +62,9 @@ bool Buffer::CreateUploadBuffer(ID3D12Device* device, const void* data, uint32_t
         return false;
     }
 
-    // CPUからデータを書き込む
+    // Map→memcpy→Unmapの流れでCPUからGPUメモリへデータを転送
     void* mapped = nullptr;
-    D3D12_RANGE readRange = { 0, 0 };
+    D3D12_RANGE readRange = { 0, 0 }; // CPU側からの読み戻しは不要
     hr = m_resource->Map(0, &readRange, &mapped);
     if (FAILED(hr))
     {
@@ -80,6 +82,7 @@ bool Buffer::CreateDefaultBuffer(ID3D12Device* device, uint64_t size,
                                   D3D12_RESOURCE_FLAGS flags,
                                   D3D12_RESOURCE_STATES initialState)
 {
+    // DEFAULTヒープはGPU専用。CPUから直接書き込めないが高速
     D3D12_HEAP_PROPERTIES heapProps = {};
     heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
 
@@ -112,6 +115,7 @@ bool Buffer::CreateDefaultBuffer(ID3D12Device* device, uint64_t size,
 
 bool Buffer::CreateUploadBufferEmpty(ID3D12Device* device, uint64_t size)
 {
+    // データなしのUPLOADバッファ。Map/Unmapで後からデータを書き込む用途
     D3D12_HEAP_PROPERTIES heapProps = {};
     heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
 

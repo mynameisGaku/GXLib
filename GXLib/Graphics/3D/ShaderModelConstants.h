@@ -8,8 +8,10 @@
 namespace GX
 {
 
-/// @brief GPU定数バッファ用のシェーダーモデルパラメータ（b3スロット、256B）
-/// HLSLの ShaderModelCommon.hlsli と完全に一致する必要がある。
+/// @brief GPU定数バッファ用のシェーダーモデルパラメータ（b3スロット、256B固定）
+/// HLSL側の ShaderModelCommon.hlsli の cbuffer レイアウトと完全一致が必須。
+/// 6種類のシェーダーモデル（Standard/Unlit/Toon/Phong/Subsurface/ClearCoat）の
+/// パラメータを256B内に共存させ、Toon用にPhong/SS/CC領域をエイリアスとして再利用する
 struct ShaderModelGPUParams
 {
     // --- 共通 (0..63) ---
@@ -65,7 +67,11 @@ struct ShaderModelGPUParams
 
 static_assert(sizeof(ShaderModelGPUParams) == 256, "ShaderModelGPUParams must be exactly 256 bytes");
 
-/// @brief gxfmt::ShaderModelParams → ShaderModelGPUParams 変換
+/// @brief gxfmt::ShaderModelParams から GPU定数バッファ形式に変換する
+/// @param src アセットパイプラインのパラメータ
+/// @param model シェーダーモデル種別（Toon時はPhong/SS/CC領域にエイリアスを格納）
+/// @param materialFlags テクスチャ有無ビットフラグ
+/// @return GPU送信用の256Bパラメータ
 inline ShaderModelGPUParams ConvertToGPUParams(const gxfmt::ShaderModelParams& src,
                                                 gxfmt::ShaderModel model,
                                                 uint32_t materialFlags)
@@ -105,10 +111,10 @@ inline ShaderModelGPUParams ConvertToGPUParams(const gxfmt::ShaderModelParams& s
     dst.shadowReceiveLevel = src.shadowReceiveLevel;
     dst.rimInsideMask      = src.rimInsideMask;
 
-    // Phong / Subsurface / ClearCoat — Toon aliases when Toon model
+    // Toon はPhong/SS/CC領域をUTS2拡張パラメータのエイリアスとして再利用する
+    // cbuffer 256B制約のためにこの方式を採用している
     if (model == gxfmt::ShaderModel::Toon)
     {
-        // Toon reuses Phong/SS/CC fields as aliases
         dst.specularColor   = { src.toonRimLightDirMask(), src.toonRimFeatherOff(), src.toonHighColorBlendAdd() };
         dst.shininess       = src.toonHighColorOnShadow();
         dst.subsurfaceColor = { src.toonOutlineFarDist(), src.toonOutlineNearDist(), src.toonOutlineBlendBaseColor() };
@@ -130,7 +136,9 @@ inline ShaderModelGPUParams ConvertToGPUParams(const gxfmt::ShaderModelParams& s
     return dst;
 }
 
-/// @brief 後方互換: MaterialConstants → ShaderModelGPUParams 変換（Standard用）
+/// @brief 後方互換: 旧MaterialConstants から ShaderModelGPUParams に変換する（Standard用）
+/// @param legacy 旧形式のマテリアル定数
+/// @return GPU送信用の256Bパラメータ（Standard シェーダーモデル）
 inline ShaderModelGPUParams ConvertFromLegacy(const struct MaterialConstants& legacy)
 {
     ShaderModelGPUParams dst = {};

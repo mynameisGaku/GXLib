@@ -81,23 +81,39 @@ struct StyleRule
 class StyleSheet
 {
 public:
-    /// ファイルからロード
+    /// @brief CSSファイルからスタイルルールを読み込む
+    /// @param path ファイルパス（VFS対応）
+    /// @return 成功なら true
     bool LoadFromFile(const std::string& path);
 
-    /// 文字列からロード
+    /// @brief CSS文字列からスタイルルールを読み込む
+    /// @param source CSS形式の文字列
+    /// @return 成功なら true
     bool LoadFromString(const std::string& source);
 
-    /// 単一ウィジェットにスタイルを適用
+    /// @brief 単一ウィジェットにマッチするルールを適用する
+    /// @param widget 適用対象のウィジェット
     void ApplyTo(Widget* widget) const;
 
-    /// ウィジェットツリー全体に再帰適用
+    /// @brief ウィジェットツリー全体にスタイルを再帰適用する
+    /// @param root ルートウィジェット
     void ApplyToTree(Widget* root) const;
 
-    /// ルール数を取得
+    /// @brief 読み込み済みルール数を取得する
+    /// @return ルール数
     size_t GetRuleCount() const { return m_rules.size(); }
 
-    // --- Apply（GUILoaderのインラインスタイル用） ---
+    // --- Apply（GUILoaderのインラインスタイル用に公開） ---
+
+    /// @brief プロパティ名をkebab-case("flex-direction")からcamelCase("flexDirection")に正規化する
+    /// @param name 正規化前のプロパティ名
+    /// @return 正規化後のプロパティ名
     static std::string NormalizePropertyName(const std::string& name);
+
+    /// @brief プロパティ名と値の文字列からStyleフィールドに直接反映する
+    /// @param style 反映先のスタイル
+    /// @param name プロパティ名（kebab-case / camelCase 両対応）
+    /// @param value プロパティ値の文字列
     static void ApplyProperty(Style& style, const std::string& name, const std::string& value);
 
 private:

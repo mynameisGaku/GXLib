@@ -1,5 +1,5 @@
 /// @file CommandQueue.cpp
-/// @brief コマンドキュー管理の実装
+/// @brief コマンドキューの実装
 #include "pch.h"
 #include "Graphics/Device/CommandQueue.h"
 #include "Core/Logger.h"
@@ -13,7 +13,7 @@ bool CommandQueue::Initialize(ID3D12Device* device, D3D12_COMMAND_LIST_TYPE type
     desc.Type     = type;
     desc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
     desc.Flags    = D3D12_COMMAND_QUEUE_FLAG_NONE;
-    desc.NodeMask = 0;
+    desc.NodeMask = 0; // シングルGPU
 
     HRESULT hr = device->CreateCommandQueue(&desc, IID_PPV_ARGS(&m_queue));
     if (FAILED(hr))
@@ -22,6 +22,7 @@ bool CommandQueue::Initialize(ID3D12Device* device, D3D12_COMMAND_LIST_TYPE type
         return false;
     }
 
+    // キューと一緒にFenceも初期化しておく（Flush等で必要）
     if (!m_fence.Initialize(device))
     {
         GX_LOG_ERROR("Failed to initialize fence for command queue");
@@ -44,6 +45,7 @@ void CommandQueue::ExecuteCommandList(ID3D12CommandList* list)
 
 void CommandQueue::Flush()
 {
+    // Signal発行 → その値に達するまでCPUを停止
     m_fence.WaitForGPU(m_queue.Get());
 }
 

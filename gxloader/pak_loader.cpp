@@ -1,5 +1,5 @@
 /// @file pak_loader.cpp
-/// @brief GXPAK bundle runtime loader implementation
+/// @brief GXPAKバンドルローダーの実装
 
 #include "pak_loader.h"
 #include <cstdio>
@@ -29,14 +29,14 @@ bool PakLoader::Open(const std::string& filePath)
     m_filePath = filePath;
     m_entries.clear();
 
-    // Read TOC from end of file
+    // TOCはファイル末尾に配置されている
     fseek(f, 0, SEEK_END);
     long fileSize = ftell(f);
     (void)fileSize;
 
     _fseeki64(f, static_cast<long long>(header.tocOffset), SEEK_SET);
 
-    // Read TOC entries
+    // TOCエントリを1つずつ読み込む (可変長シリアライズ)
     for (uint32_t i = 0; i < header.entryCount; ++i)
     {
         // Read path length
@@ -105,7 +105,7 @@ std::vector<uint8_t> PakLoader::Read(const std::string& path) const
         fread(rawData.data(), 1, entry.compressedSize, f);
         fclose(f);
 
-        if (entry.compressed)
+        if (entry.compressed) // LZ4圧縮されたエントリを展開
         {
             std::vector<uint8_t> decompressed(entry.originalSize);
             int result = LZ4_decompress_safe(

@@ -1,5 +1,8 @@
 /// @file SceneGraph.cpp
-/// @brief SceneGraph implementation
+/// @brief シーングラフ実装
+///
+/// フリーリスト方式でスロットを再利用する。削除はGPUリソースがインフライト中の
+/// 可能性があるため、_pendingRemovalフラグで遅延し、GPUフラッシュ後に実削除する。
 
 #include "SceneGraph.h"
 

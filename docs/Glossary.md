@@ -28,6 +28,8 @@ GXLib のドキュメントやAPIリファレンスに登場する専門用語�
 | **DXR** | DirectX Raytracing | DirectX 12 のレイトレーシング拡張。光線を飛ばしてリアルな反射や影を計算します。 |
 | **BLAS** | Bottom-Level Acceleration Structure | レイトレーシングで使う加速構造の下位レベル。個々のメッシュの形状データを格納します。 |
 | **TLAS** | Top-Level Acceleration Structure | レイトレーシングで使う加速構造の上位レベル。シーン全体のオブジェクト配置を管理します。 |
+| **State Object** | ステートオブジェクト | DXR のレイトレーシングパイプラインを定義するオブジェクト。RayGen / Miss / ClosestHit シェーダーを含みます。 |
+| **Shader Table** | シェーダーテーブル | レイトレーシングで各シェーダーのエントリポイントとパラメータをまとめたテーブルです。 |
 
 ## グラフィックス技術
 
@@ -56,6 +58,12 @@ GXLib のドキュメントやAPIリファレンスに登場する専門用語�
 | **ColorGrading** | カラーグレーディング | 映像全体の色調を調整する処理。映画のような雰囲気を演出できます。 |
 | **AutoExposure** | 自動露出調整 | 暗いシーンでは明るく、明るいシーンでは暗く自動調整する機能。人間の目の順応を再現します。 |
 | **Render Target** | レンダーターゲット (RT) | 描画結果を書き込むテクスチャです。画面に直接描画する代わりに、このテクスチャに描画してから加工できます。 |
+| **RTGI** | Ray Traced Global Illumination | DXR を使ったグローバルイルミネーション。間接光を計算してシーンの明るさをリアルにします。GXLib では半解像度 + テンポラル蓄積 + A-Trous フィルタで実装しています。 |
+| **Toon Shading** | トゥーンシェーディング（セルシェーディング） | アニメや漫画のような見た目を再現する描画手法。明暗をくっきり分けて平面的に見せます。 |
+| **UTS2** | Unity Toon Shader 2.0 | Unity が公開したトゥーンシェーダーの仕様。GXLib の Toon シェーダーはこの仕様をベースに実装しています（ダブルシェード3ゾーン、リムライト、ハイカラー等）。 |
+| **ShaderModel** | シェーダーモデル | GXLib で定義されたマテリアルの描画方式の種類（PBR, Toon, Phong, Unlit, Subsurface, ClearCoat）。ShaderRegistry が自動的に対応する PSO を選択します。 |
+| **BlendTree** | ブレンドツリー | 複数のアニメーションをパラメータ（速度や方向など）に基づいて自動合成する仕組み。1D（1パラメータ）と 2D（2パラメータ）をサポートしています。 |
+| **A-Trous Filter** | ア・トゥルーフィルタ | ウェーブレットベースの空間フィルタ。RTGI のノイズ除去に使用し、少ない反復で広範囲をぼかせます。 |
 
 ## 空間・物理・数学
 
@@ -79,7 +87,12 @@ GXLib のドキュメントやAPIリファレンスに登場する専門用語�
 | **DIK** | DirectInput Key codes | DirectInput で定義されたキーコード。`KEY_INPUT_SPACE` のような定数で、DXLib 互換 API で使います。 |
 | **Flexbox** | Flexible Box Layout | Web の CSS で使われるレイアウト方式。GXLib の GUI でも採用しており、要素の並び方向・配置・間隔を柔軟に制御できます。 |
 | **glTF** | GL Transmission Format | 3D モデルの標準フォーマット。メッシュ、マテリアル、アニメーションなどを1つのファイルにまとめられます。GXLib の 3D モデル形式です。 |
+| **GXMD** | GXLib Model Data | GXLib 独自のバイナリモデル形式。glTF/FBX/OBJ から gxconv で変換し、gxloader で高速に読み込みます。 |
+| **GXAN** | GXLib Animation Data | GXLib 独自のバイナリアニメーション形式。スケルタルアニメーションデータを格納します。 |
+| **GXPAK** | GXLib Package | 複数のアセットファイルを LZ4 圧縮してまとめたバンドル形式。PakFileProvider で VFS に統合できます。 |
 | **VFS** | Virtual File System (仮想ファイルシステム) | 実ファイルとアーカイブを統一的に扱えるファイルアクセス層。ゲーム配布時にアセットをアーカイブ化しても、コードを変更せずに読み込めます。 |
+| **ImGui** | Dear ImGui | 即時モード GUI ライブラリ。GXModelViewer の UI フレームワークとして使用しています。Docking ブランチ対応。 |
+| **ufbx** | — | 軽量な FBX パーサーライブラリ。gxconv の FBX インポーターで使用しています。 |
 | **XAudio2** | — | Microsoft のオーディオ API。GXLib のサウンド再生基盤です。SE やBGM の再生に使います。 |
 | **DirectWrite** | — | Microsoft のテキストレンダリング API。高品質な文字描画に使います。GXLib のフォントシステムの基盤です。 |
 | **Compat** | Compatibility (互換性) | GXLib の DXLib 互換レイヤー。DXLib と同じ関数名・引数で使えるラッパーAPIです。 |

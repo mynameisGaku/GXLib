@@ -1,6 +1,9 @@
 #pragma once
 /// @file gxmd.h
-/// @brief GXMD binary model format definition
+/// @brief GXMDバイナリモデル形式の定義
+///
+/// .gxmdファイルはメッシュ・マテリアル・スケルトン・アニメーションを
+/// 単一バイナリにまとめた3Dモデル形式。gxconvで生成し、gxloaderで読み込む。
 
 #include "types.h"
 #include "shader_model.h"
@@ -9,212 +12,232 @@ namespace gxfmt
 {
 
 // ============================================================
-// Constants
+// 定数
 // ============================================================
 
-static constexpr uint32_t k_GxmdMagic   = 0x444D5847; // 'GXMD'
-static constexpr uint32_t k_GxmdVersion = 2;
+static constexpr uint32_t k_GxmdMagic   = 0x444D5847; ///< ファイル識別子 'GXMD'
+static constexpr uint32_t k_GxmdVersion = 2;           ///< 現在のフォーマットバージョン
 
 // ============================================================
-// Vertex format flags
+// 頂点フォーマットフラグ
 // ============================================================
 
+/// @brief 頂点に含まれる属性をビットフラグで表す
 enum VertexFormat : uint32_t
 {
-    VF_Position  = 1 << 0,
-    VF_Normal    = 1 << 1,
-    VF_UV0       = 1 << 2,
-    VF_Tangent   = 1 << 3,
-    VF_Joints    = 1 << 4,
-    VF_Weights   = 1 << 5,
-    VF_UV1       = 1 << 6,
-    VF_Color     = 1 << 7,
+    VF_Position  = 1 << 0,  ///< 位置 (float3)
+    VF_Normal    = 1 << 1,  ///< 法線 (float3)
+    VF_UV0       = 1 << 2,  ///< テクスチャ座標0 (float2)
+    VF_Tangent   = 1 << 3,  ///< 接線 (float4, w=従法線の符号)
+    VF_Joints    = 1 << 4,  ///< ボーンインデックス (uint32x4)
+    VF_Weights   = 1 << 5,  ///< ボーンウェイト (float4)
+    VF_UV1       = 1 << 6,  ///< テクスチャ座標1 (float2)
+    VF_Color     = 1 << 7,  ///< 頂点カラー
 
-    VF_Standard  = VF_Position | VF_Normal | VF_UV0 | VF_Tangent,
-    VF_Skinned   = VF_Standard | VF_Joints | VF_Weights,
+    VF_Standard  = VF_Position | VF_Normal | VF_UV0 | VF_Tangent, ///< 標準頂点 (48B)
+    VF_Skinned   = VF_Standard | VF_Joints | VF_Weights,          ///< スキニング頂点 (80B)
 };
 
+/// @brief インデックスバッファのフォーマット
 enum class IndexFormat : uint8_t
 {
-    UInt16 = 0,
-    UInt32 = 1,
+    UInt16 = 0,  ///< 16bit (65535頂点まで)
+    UInt32 = 1,  ///< 32bit
 };
 
+/// @brief プリミティブトポロジー
 enum class PrimitiveTopology : uint8_t
 {
-    TriangleList = 0,
-    TriangleStrip = 1,
+    TriangleList = 0,   ///< 三角形リスト
+    TriangleStrip = 1,  ///< 三角形ストリップ
 };
 
 // ============================================================
-// Vertices
+// 頂点構造体
 // ============================================================
 
-/// Standard vertex (48 bytes) - matches GX::Vertex3D_PBR layout
+/// @brief 標準頂点 (48B) — GX::Vertex3D_PBRとバイナリ互換
 struct VertexStandard
 {
-    float    position[3];
-    float    normal[3];
-    float    uv0[2];
-    float    tangent[4]; // w = bitangent sign
+    float    position[3];  ///< 位置 (xyz)
+    float    normal[3];    ///< 法線 (xyz)
+    float    uv0[2];       ///< テクスチャ座標 (uv)
+    float    tangent[4];   ///< 接線 (xyzw), w=従法線の符号
 };
 
 static_assert(sizeof(VertexStandard) == 48, "VertexStandard must be 48 bytes");
 
-/// Skinned vertex (80 bytes) - matches GX::Vertex3D_Skinned layout
+/// @brief スキニング頂点 (80B) — GX::Vertex3D_Skinnedとバイナリ互換
 struct VertexSkinned
 {
-    float    position[3];
-    float    normal[3];
-    float    uv0[2];
-    float    tangent[4];
-    uint32_t joints[4];   // bone indices
-    float    weights[4];  // bone weights
+    float    position[3];  ///< 位置 (xyz)
+    float    normal[3];    ///< 法線 (xyz)
+    float    uv0[2];       ///< テクスチャ座標 (uv)
+    float    tangent[4];   ///< 接線 (xyzw), w=従法線の符号
+    uint32_t joints[4];    ///< ボーンインデックス (最大4影響)
+    float    weights[4];   ///< ボーンウェイト (合計1.0に正規化済み)
 };
 
 static_assert(sizeof(VertexSkinned) == 80, "VertexSkinned must be 80 bytes");
 
 // ============================================================
-// File Header (128 bytes)
+// ファイルヘッダ (128B)
 // ============================================================
 
+/// @brief GXMDファイルの先頭に配置されるヘッダ (128B固定)
+/// @details 各データチャンクへのオフセットとサイズ情報を保持する。
 struct FileHeader
 {
-    uint32_t magic;               // 0x444D5847
-    uint32_t version;             // 2
-    uint32_t flags;               // reserved
-    uint32_t meshCount;
-    uint32_t materialCount;
-    uint32_t boneCount;
-    uint32_t animationCount;
-    uint32_t blendShapeCount;
+    uint32_t magic;               ///< ファイル識別子 0x444D5847 ('GXMD')
+    uint32_t version;             ///< フォーマットバージョン (現在2)
+    uint32_t flags;               ///< 予約フラグ
+    uint32_t meshCount;           ///< メッシュ数
+    uint32_t materialCount;       ///< マテリアル数
+    uint32_t boneCount;           ///< ボーン数 (0=スケルトンなし)
+    uint32_t animationCount;      ///< アニメーション数
+    uint32_t blendShapeCount;     ///< ブレンドシェイプ数
 
-    uint64_t stringTableOffset;   // from file start
-    uint64_t meshChunkOffset;
-    uint64_t materialChunkOffset;
-    uint64_t vertexDataOffset;
-    uint64_t indexDataOffset;
-    uint64_t boneDataOffset;
-    uint64_t animationDataOffset;
-    uint64_t blendShapeDataOffset;
+    uint64_t stringTableOffset;   ///< 文字列テーブルのファイル先頭からのオフセット
+    uint64_t meshChunkOffset;     ///< MeshChunk配列のオフセット
+    uint64_t materialChunkOffset; ///< MaterialChunk配列のオフセット
+    uint64_t vertexDataOffset;    ///< 頂点データブロックのオフセット
+    uint64_t indexDataOffset;     ///< インデックスデータブロックのオフセット
+    uint64_t boneDataOffset;      ///< BoneData配列のオフセット
+    uint64_t animationDataOffset; ///< アニメーションデータのオフセット
+    uint64_t blendShapeDataOffset;///< ブレンドシェイプデータのオフセット
 
-    uint32_t stringTableSize;     // in bytes
-    uint32_t vertexDataSize;      // in bytes
-    uint32_t indexDataSize;       // in bytes
-    uint8_t  _reserved[20];
+    uint32_t stringTableSize;     ///< 文字列テーブルのバイト数
+    uint32_t vertexDataSize;      ///< 頂点データのバイト数
+    uint32_t indexDataSize;       ///< インデックスデータのバイト数
+    uint8_t  _reserved[20];       ///< 128Bパディング用予約
 };
 
 static_assert(sizeof(FileHeader) == 128, "FileHeader must be 128 bytes");
 
 // ============================================================
-// Chunks
+// チャンク
 // ============================================================
 
+/// @brief メッシュ1つ分のメタ情報
+/// @details 頂点/インデックスデータブロック内のオフセットとサイズ、AABB等を保持する。
 struct MeshChunk
 {
-    uint32_t nameIndex;           // StringTable byte offset
-    uint32_t vertexCount;
-    uint32_t indexCount;
-    uint32_t materialIndex;
-    uint32_t vertexFormatFlags;   // VertexFormat bitmask
-    uint32_t vertexStride;        // bytes per vertex
-    uint64_t vertexOffset;        // offset within vertex data block
-    uint64_t indexOffset;         // offset within index data block
-    IndexFormat     indexFormat;
-    PrimitiveTopology topology;
+    uint32_t nameIndex;           ///< メッシュ名 (文字列テーブルのバイトオフセット)
+    uint32_t vertexCount;         ///< 頂点数
+    uint32_t indexCount;          ///< インデックス数
+    uint32_t materialIndex;       ///< 対応するMaterialChunkのインデックス
+    uint32_t vertexFormatFlags;   ///< 頂点属性のビットマスク (VertexFormat)
+    uint32_t vertexStride;        ///< 1頂点あたりのバイト数
+    uint64_t vertexOffset;        ///< 頂点データブロック内のバイトオフセット
+    uint64_t indexOffset;         ///< インデックスデータブロック内のバイトオフセット
+    IndexFormat     indexFormat;   ///< インデックスフォーマット (16bit/32bit)
+    PrimitiveTopology topology;   ///< プリミティブトポロジー
     uint8_t  _pad[2];
-    float    aabbMin[3];
-    float    aabbMax[3];
+    float    aabbMin[3];          ///< バウンディングボックス最小値
+    float    aabbMax[3];          ///< バウンディングボックス最大値
 };
 
+/// @brief マテリアル1つ分の定義
 struct MaterialChunk
 {
-    uint32_t          nameIndex;     // StringTable byte offset
-    ShaderModel       shaderModel;
-    ShaderModelParams params;        // 256 bytes
+    uint32_t          nameIndex;     ///< マテリアル名 (文字列テーブルのバイトオフセット)
+    ShaderModel       shaderModel;   ///< シェーダーモデル種別
+    ShaderModelParams params;        ///< シェーダーパラメータ (256B)
 };
 
 // ============================================================
-// Skeleton
+// スケルトン
 // ============================================================
 
+/// @brief ボーン1つ分のデータ
+/// @details 逆バインド行列とローカルTRS (バインドポーズ) を保持する。
 struct BoneData
 {
-    uint32_t nameIndex;              // StringTable byte offset
-    int32_t  parentIndex;            // -1 = root
-    float    inverseBindMatrix[16];  // row-major (DirectXMath compatible)
-    float    localTranslation[3];
-    float    localRotation[4];       // quaternion (x,y,z,w)
-    float    localScale[3];
+    uint32_t nameIndex;              ///< ボーン名 (文字列テーブルのバイトオフセット)
+    int32_t  parentIndex;            ///< 親ボーンのインデックス (-1=ルート)
+    float    inverseBindMatrix[16];  ///< 逆バインド行列 (行ベクトル=DirectXMath互換)
+    float    localTranslation[3];    ///< ローカル平行移動
+    float    localRotation[4];       ///< ローカル回転 (クォータニオン x,y,z,w)
+    float    localScale[3];          ///< ローカルスケール
 };
 
 // ============================================================
-// Animation (embedded in GXMD)
+// アニメーション (GXMD内埋め込み)
 // ============================================================
 
+/// @brief アニメーションチャネルのターゲット種別
 enum class AnimChannelTarget : uint8_t
 {
-    Translation = 0,
-    Rotation    = 1,
-    Scale       = 2,
+    Translation = 0,  ///< 平行移動
+    Rotation    = 1,  ///< 回転
+    Scale       = 2,  ///< スケール
 };
 
+/// @brief アニメーション1つ分のヘッダ
 struct AnimationChunk
 {
-    uint32_t nameIndex;         // StringTable byte offset
-    float    duration;          // seconds
-    uint32_t channelCount;
+    uint32_t nameIndex;         ///< アニメーション名 (文字列テーブルのバイトオフセット)
+    float    duration;          ///< 再生時間 (秒)
+    uint32_t channelCount;      ///< チャネル数
     uint32_t _pad;
 };
 
+/// @brief アニメーションチャネルの記述子
+/// @details 1チャネル = 1ボーンの1プロパティ (T/R/S) に対するキーフレーム列
 struct AnimationChannelDesc
 {
-    uint32_t        boneIndex;      // index into BoneData array
-    AnimChannelTarget target;
-    uint8_t         interpolation;  // 0=Linear, 1=Step, 2=CubicSpline
+    uint32_t        boneIndex;      ///< 対象ボーンのインデックス (BoneData配列のインデックス)
+    AnimChannelTarget target;       ///< ターゲット種別 (T/R/S)
+    uint8_t         interpolation;  ///< 補間方法 (0=Linear, 1=Step, 2=CubicSpline)
     uint8_t         _pad[2];
-    uint32_t        keyCount;
-    uint32_t        dataOffset;     // byte offset to key data from anim data start
+    uint32_t        keyCount;       ///< キーフレーム数
+    uint32_t        dataOffset;     ///< キーデータへのバイトオフセット (アニメーションデータ先頭から)
 };
 
+/// @brief float3キーフレーム (平行移動/スケール用)
 struct VectorKey
 {
-    float time;
-    float value[3];
+    float time;       ///< 時刻 (秒)
+    float value[3];   ///< 値 (xyz)
 };
 
+/// @brief クォータニオンキーフレーム (回転用)
 struct QuatKey
 {
-    float time;
-    float value[4]; // x,y,z,w
+    float time;       ///< 時刻 (秒)
+    float value[4];   ///< 値 (x,y,z,w)
 };
 
 // ============================================================
-// Blend Shapes
+// ブレンドシェイプ
 // ============================================================
 
+/// @brief ブレンドシェイプターゲット1つ分のメタ情報
 struct BlendShapeTarget
 {
-    uint32_t nameIndex;         // StringTable byte offset
-    uint32_t meshIndex;
-    uint32_t deltaCount;
-    uint32_t deltaOffset;       // byte offset from blend shape data start
+    uint32_t nameIndex;         ///< ターゲット名 (文字列テーブルのバイトオフセット)
+    uint32_t meshIndex;         ///< 対象メッシュのインデックス
+    uint32_t deltaCount;        ///< デルタ頂点数
+    uint32_t deltaOffset;       ///< デルタデータへのバイトオフセット (ブレンドシェイプデータ先頭から)
 };
 
+/// @brief ブレンドシェイプ1頂点分の差分
 struct BlendShapeDelta
 {
-    uint32_t vertexIndex;
-    float    positionDelta[3];
-    float    normalDelta[3];
+    uint32_t vertexIndex;       ///< 元メッシュの頂点インデックス
+    float    positionDelta[3];  ///< 位置の差分 (xyz)
+    float    normalDelta[3];    ///< 法線の差分 (xyz)
 };
 
 // ============================================================
-// String Table helper
+// 文字列テーブル
 // ============================================================
 
-/// String table: uint32_t byteCount followed by null-terminated UTF-8 strings.
-/// Each nameIndex is a byte offset from the first string byte (after byteCount).
-static constexpr uint32_t k_InvalidStringIndex = 0xFFFFFFFF;
+/// @brief 文字列テーブルの構造:
+///   先頭4B = uint32_t byteCount (テーブル全体のバイト数)
+///   以降 = null終端UTF-8文字列の連結
+///   各nameIndexはbyteCountの直後からのバイトオフセット
+static constexpr uint32_t k_InvalidStringIndex = 0xFFFFFFFF; ///< 文字列未設定を示す値
 
 // ============================================================
 // Binary layout:

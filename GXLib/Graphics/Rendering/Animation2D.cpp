@@ -1,5 +1,8 @@
 /// @file Animation2D.cpp
-/// @brief 2Dアニメーションの実装
+/// @brief Animation2D の実装
+///
+/// 経過時間をタイマーに加算し、現在のコマの表示時間を超えたら次のコマへ進む。
+/// 非ループ時は最終コマで停止し、finished フラグを立てる。
 #include "pch.h"
 #include "Graphics/Rendering/Animation2D.h"
 
@@ -21,6 +24,8 @@ void Animation2D::Update(float deltaTime)
 
     m_timer += deltaTime * m_speed;
 
+    // while ループで処理するのは、deltaTime が大きい場合（低FPS時など）に
+    // 複数コマを一度に飛ばす必要があるため
     while (m_timer >= m_frames[m_currentFrame].duration)
     {
         m_timer -= m_frames[m_currentFrame].duration;

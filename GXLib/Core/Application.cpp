@@ -1,5 +1,5 @@
 /// @file Application.cpp
-/// @brief アプリケーションライフサイクル管理の実装
+/// @brief Application クラスの実装
 #include "pch.h"
 #include "Core/Application.h"
 #include "Core/Logger.h"
@@ -11,6 +11,7 @@ bool Application::Initialize(const ApplicationDesc& desc)
 {
     GX_LOG_INFO("Initializing GXLib Application...");
 
+    // ApplicationDesc → WindowDesc に変換してウィンドウを作成
     WindowDesc windowDesc;
     windowDesc.title  = desc.title;
     windowDesc.width  = desc.width;
@@ -33,6 +34,7 @@ void Application::Run(std::function<void(float)> updateCallback)
 {
     GX_LOG_INFO("Starting main loop...");
 
+    // ProcessMessages() が false を返す ＝ WM_QUIT 受信 ＝ ウィンドウが閉じられた
     while (m_running)
     {
         if (!m_window.ProcessMessages())
@@ -48,7 +50,7 @@ void Application::Run(std::function<void(float)> updateCallback)
             updateCallback(m_timer.GetDeltaTime());
         }
 
-        // ウィンドウタイトルにFPS表示（1秒ごと）
+        // タイトルバーに FPS を表示（デバッグ用、1 秒ごとに更新）
         static float titleUpdateTimer = 0.0f;
         titleUpdateTimer += m_timer.GetDeltaTime();
         if (titleUpdateTimer >= 1.0f)

@@ -184,7 +184,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 GXLib/
 ├── GXLib/          # エンジンライブラリ (.lib) — ゲームの「部品箱」
 │   ├── Core/       # アプリケーション管理、ウィンドウ、タイマー
-│   ├── Graphics/   # 描画 (2D/3D/ポストエフェクト/レイヤー)
+│   ├── Graphics/   # 描画 (2D/3D/ポストエフェクト/レイヤー/レイトレーシング)
 │   ├── Input/      # 入力 (キーボード/マウス/ゲームパッド)
 │   ├── Audio/      # サウンド (効果音/BGM)
 │   ├── GUI/        # UIシステム (XML+CSSで画面メニュー等を構築)
@@ -192,6 +192,10 @@ GXLib/
 │   ├── Math/       # ベクトル/行列/衝突判定 (数学ユーティリティ)
 │   ├── Physics/    # 2D/3D物理演算 (重力・衝突応答)
 │   └── Compat/     # DXLib互換レイヤー (簡易API)
+├── gxformat/       # バイナリ形式定義 (GXMD/GXAN/GXPAK)
+├── gxconv/         # モデルコンバーター (FBX/OBJ/glTF → .gxmd/.gxan)
+├── gxloader/       # ランタイムローダー (静的ライブラリ)
+├── GXModelViewer/  # ImGui ベースの 3D モデルビューア
 ├── Sandbox/        # テストアプリケーション
 ├── Samples/        # サンプルプロジェクト (すぐ動かせるゲーム例)
 ├── Shaders/        # HLSL シェーダー (GPUで動くプログラム)

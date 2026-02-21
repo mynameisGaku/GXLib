@@ -1,3 +1,5 @@
+/// @file WebSocket.cpp
+/// @brief WebSocketクライアント実装 — WinHTTP WebSocket API ラッパー
 #include "pch.h"
 #include <winhttp.h>
 #include "IO/Network/WebSocket.h"
@@ -114,14 +116,12 @@ bool WebSocket::Connect(const std::string& url)
 
 void WebSocket::Close()
 {
-    // Set m_running=false FIRST so ReceiveLoop exits its while loop
+    // 受信スレッドの停止→join→ハンドル解放の順が重要。
+    // ハンドルを先に閉じると受信スレッドでuse-after-freeが起こる。
     m_running.store(false);
 
-    // Join the receive thread BEFORE closing handles to avoid use-after-free
     if (m_receiveThread.joinable())
         m_receiveThread.join();
-
-    // Now safe to close handles since the receive thread has stopped
     if (m_hWebSocket)
     {
         WinHttpWebSocketClose(static_cast<HINTERNET>(m_hWebSocket),
@@ -246,7 +246,7 @@ void WebSocket::ReceiveLoop()
             }
             accumulated.clear();
         }
-        // フラグメントは結合して続行する (初心者向け: 分割フレームに対応)
+        // フラグメント（分割フレーム）の場合はaccumulatedに結合して続行する
     }
 
     m_running.store(false);

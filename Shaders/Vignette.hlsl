@@ -17,6 +17,7 @@ cbuffer VignetteConstants : register(b0)
 Texture2D    tScene  : register(t0);
 SamplerState sLinear : register(s0);
 
+/// @brief ビネット+色収差PS — 画面中心からの距離でR/G/Bをずらし、周辺を減光
 float4 PSMain(FullscreenVSOutput input) : SV_Target
 {
     float2 uv = input.uv;

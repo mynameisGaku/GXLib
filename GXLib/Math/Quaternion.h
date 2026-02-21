@@ -84,7 +84,7 @@ struct Quaternion : public XMFLOAT4
     Vector3 ToEuler() const
     {
         // クォータニオンからピッチ/ヨー/ロールを算出する
-        // 初学者向け: 回転を3つの角度に分解する処理で、数式が続くのはそのため。
+        // 回転を3つの角度(ピッチ・ヨー・ロール)に分解する
         float sinP = 2.0f * (w * x + y * z);
         float pitch;
         if (std::abs(sinP) >= 1.0f)
@@ -179,8 +179,8 @@ struct Quaternion : public XMFLOAT4
     /// @return 正規化された補間結果のクォータニオン
     static Quaternion Lerp(const Quaternion& a, const Quaternion& b, float t)
     {
-        // NLerp（正規化付きの線形補間）
-        // 初学者向け: 線形補間だけだと長さが1からズレるので、最後に正規化して回転として成立させる。
+        // NLerp（正規化付き線形補間）
+        // 線形補間だけでは長さが1からズレるため、最後に正規化して正しい回転にする
         XMFLOAT4 result;
         result.x = a.x + (b.x - a.x) * t;
         result.y = a.y + (b.y - a.y) * t;

@@ -7,10 +7,10 @@
 
 cbuffer RTGICompositeCB : register(b0)
 {
-    float intensity;
-    float debugMode;
-    float fullWidth;
-    float fullHeight;
+    float intensity;   // GI強度
+    float debugMode;   // デバッグ表示 (0=off, 1=GIのみ表示)
+    float fullWidth;   // スクリーン幅
+    float fullHeight;  // スクリーン高さ
 };
 
 Texture2D<float4> g_Scene     : register(t0);
@@ -21,6 +21,7 @@ Texture2D<float4> g_Albedo    : register(t3);
 SamplerState g_LinearClamp : register(s0);
 SamplerState g_PointClamp  : register(s1);
 
+/// @brief GI合成PS — デノイズ済みGI × アルベド × 強度をシーンに加算合成
 float4 PSMain(FullscreenVSOutput input) : SV_Target
 {
     float2 uv = input.uv;

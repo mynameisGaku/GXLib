@@ -10,12 +10,12 @@
 
 cbuffer TAACB : register(b0)
 {
-    float4x4 invViewProjection;
-    float4x4 previousViewProjection;
-    float2   jitterOffset;
-    float    blendFactor;
-    float    screenWidth;
-    float    screenHeight;
+    float4x4 invViewProjection;       // 現フレームの逆VP行列
+    float4x4 previousViewProjection;  // 前フレームのVP行列
+    float2   jitterOffset;            // サブピクセルジッター量（NDC単位）
+    float    blendFactor;             // 履歴のブレンド率 (高いほど安定、低いほど応答性が高い)
+    float    screenWidth;             // スクリーン幅
+    float    screenHeight;            // スクリーン高さ
     float3   padding;
 };
 
@@ -31,6 +31,7 @@ float Luminance(float3 color)
     return dot(color.rgb, float3(0.2126, 0.7152, 0.0722));
 }
 
+/// @brief TAA PS — リプロジェクション + variance clipping + Karisトーンマップブレンド
 float4 PSTAA(FullscreenVSOutput input) : SV_Target
 {
     float2 uv = input.uv;

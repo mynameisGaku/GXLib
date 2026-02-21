@@ -1,6 +1,9 @@
 #pragma once
 /// @file SceneGraph.h
-/// @brief Simple scene graph for GXModelViewer
+/// @brief GXModelViewer用シンプルシーングラフ
+///
+/// エンティティをフラットなvectorで管理する。削除はGPUリソース解放待ちのため
+/// 遅延実行（_pendingRemoval→ProcessPendingRemovals）方式を採用。
 
 #include <string>
 #include <vector>
@@ -11,67 +14,69 @@
 #include "Graphics/3D/Material.h"
 #include "Graphics/3D/Animator.h"
 
-/// @brief A single entity in the scene graph
+/// @brief シーン内の1エンティティ。モデル・トランスフォーム・アニメーション・表示設定を保持。
 struct SceneEntity
 {
-    std::string      name;
-    GX::Transform3D  transform;
-    GX::Model*       model = nullptr;                  // non-owning reference
-    std::unique_ptr<GX::Model> ownedModel;             // ownership for imported models
-    GX::Material     materialOverride;                  // per-entity material override
-    bool             useMaterialOverride = false;
-    int              parentIndex = -1;
-    bool             visible = true;
-    std::string      sourcePath;                       // import元ファイルパス
+    std::string      name;                              ///< エンティティ名（ファイル名から自動設定）
+    GX::Transform3D  transform;                         ///< ワールドトランスフォーム
+    GX::Model*       model = nullptr;                   ///< モデルへの非所有参照
+    std::unique_ptr<GX::Model> ownedModel;              ///< インポートしたモデルの所有権
+    GX::Material     materialOverride;                  ///< エンティティ全体に適用する上書きマテリアル
+    bool             useMaterialOverride = false;       ///< マテリアルオーバーライドを有効にするか
+    int              parentIndex = -1;                  ///< 親エンティティのインデックス（-1=ルート）
+    bool             visible = true;                    ///< 表示ON/OFF
+    std::string      sourcePath;                        ///< インポート元ファイルパス（シーン保存用）
 
-    // アニメーション
-    std::unique_ptr<GX::Animator> animator;
-    int  selectedClipIndex = -1;
+    // --- アニメーション ---
+    std::unique_ptr<GX::Animator> animator;             ///< スキンドモデル用Animator
+    int  selectedClipIndex = -1;                        ///< タイムラインで選択中のクリップインデックス
 
-    // 表示制御
-    std::vector<bool> submeshVisibility;
-    bool showBones = false;
-    bool showWireframe = false;
-    bool _pendingRemoval = false;  // internal: deferred deletion flag
+    // --- 表示制御 ---
+    std::vector<bool> submeshVisibility;                ///< サブメッシュごとの表示ON/OFF
+    bool showBones = false;                             ///< ボーン可視化ON/OFF
+    bool showWireframe = false;                         ///< ワイヤフレーム表示ON/OFF
+    bool _pendingRemoval = false;                       ///< 内部用：遅延削除フラグ
 };
 
-/// @brief Simple flat scene graph (entities stored in a vector)
+/// @brief フラット配列ベースのシーングラフ。フリーリスト方式でスロット再利用。
 class SceneGraph
 {
 public:
-    /// Add a new entity with the given name.
-    /// @return The index of the newly added entity.
+    /// @brief 新しいエンティティを追加する（空きスロットがあれば再利用）
+    /// @param name エンティティ名
+    /// @return 追加されたエンティティのインデックス
     int AddEntity(const std::string& name);
 
-    /// Remove an entity by index (marks slot as removed).
+    /// @brief エンティティを遅延削除する（GPUフラッシュ後にProcessPendingRemovalsで実削除）
+    /// @param index 削除対象のインデックス
     void RemoveEntity(int index);
 
-    /// Get a mutable pointer to the entity at the given index (nullptr if invalid).
+    /// @brief 指定インデックスのエンティティを取得する（無効なら nullptr）
+    /// @param index エンティティインデックス
+    /// @return エンティティへのポインタ、または nullptr
     SceneEntity* GetEntity(int index);
 
-    /// Get a const pointer to the entity at the given index (nullptr if invalid).
+    /// @brief 指定インデックスのエンティティを取得する（const版）
     const SceneEntity* GetEntity(int index) const;
 
-    /// Get the full entity list (including removed slots).
+    /// @brief エンティティ配列全体を取得する（削除済みスロット含む）
     const std::vector<SceneEntity>& GetEntities() const { return m_entities; }
 
-    /// Get the number of entity slots (including removed).
+    /// @brief エンティティスロット数を返す（削除済み含む）
     int GetEntityCount() const { return static_cast<int>(m_entities.size()); }
 
-    /// Check if there are entities waiting to be destroyed (GPU flush needed first).
+    /// @brief 遅延削除待ちのエンティティがあるか
+    /// @return 削除待ちがあればtrue
     bool HasPendingRemovals() const { return !m_pendingRemovals.empty(); }
 
-    /// Actually destroy pending entities. Call AFTER GPU flush.
+    /// @brief 遅延削除待ちのエンティティを実際に破棄する。GPUフラッシュ後に呼ぶこと。
     void ProcessPendingRemovals();
 
-    /// Currently selected entity index (-1 = none).
-    int selectedEntity = -1;
-
-    /// Currently selected bone index (-1 = none). Shared between Hierarchy and Skeleton panels.
-    int selectedBone = -1;
+    int selectedEntity = -1;  ///< 選択中エンティティインデックス（-1=未選択）
+    int selectedBone = -1;    ///< 選択中ボーンインデックス（Hierarchy/Skeletonパネル共有）
 
 private:
-    std::vector<SceneEntity> m_entities;
-    std::vector<int>         m_freeIndices;
-    std::vector<int>         m_pendingRemovals;
+    std::vector<SceneEntity> m_entities;        ///< エンティティ配列
+    std::vector<int>         m_freeIndices;     ///< 再利用可能なスロットインデックス
+    std::vector<int>         m_pendingRemovals; ///< 遅延削除待ちのインデックス
 };

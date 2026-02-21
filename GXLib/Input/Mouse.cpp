@@ -22,6 +22,7 @@ void Mouse::Update()
     m_currentButtons = m_rawButtons;
     m_prevX = m_x;
     m_prevY = m_y;
+    // フレーム内に複数回届いたWM_MOUSEWHEELの合算値を確定し、蓄積をリセット
     m_wheelDelta = m_wheelAccum;
     m_wheelAccum = 0;
 }
@@ -31,6 +32,7 @@ bool Mouse::ProcessMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     switch (msg)
     {
     case WM_MOUSEMOVE:
+        // lParamの下位/上位16bitがクライアント座標。shortキャストでマルチモニタの負座標にも対応
         m_x = static_cast<int>(static_cast<short>(LOWORD(lParam)));
         m_y = static_cast<int>(static_cast<short>(HIWORD(lParam)));
         return true;
@@ -43,6 +45,7 @@ bool Mouse::ProcessMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_MBUTTONUP:   m_rawButtons[MouseButton::Middle] = false; return true;
 
     case WM_MOUSEWHEEL:
+        // WHEEL_DELTA(120)で割ってノッチ単位に変換。1フレーム内の複数イベントを合算する
         m_wheelAccum += GET_WHEEL_DELTA_WPARAM(wParam) / WHEEL_DELTA;
         return true;
     }

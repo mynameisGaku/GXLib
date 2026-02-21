@@ -131,10 +131,10 @@ void DropDown::RenderSelf(UIRenderer& renderer)
         renderer.DrawSolidRect(cx - 1.0f, cy + 4.0f, 2.0f, 2.0f, arrowColor);
     }
 
-    // ポップアップ（全ウィジェット描画後にオーバーレイとして描画）
+    // ポップアップ（DeferDrawで全ウィジェットの描画後にオーバーレイとして描画する。
+    //  ラムダキャプチャのためローカルコピーが必要）
     if (m_open && !m_items.empty())
     {
-        // キャプチャ用のローカルコピー
         float popupX = globalRect.x;
         float popupTop = globalRect.y + headerH;
         float popupH = k_ItemHeight * static_cast<float>(m_items.size());

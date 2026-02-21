@@ -1,17 +1,10 @@
 #pragma once
 /// @file TextRenderer.h
-/// @brief テキストレンダラー — SpriteBatchを利用したテキスト描画
+/// @brief テキスト描画（SpriteBatch + FontManager 連携）
 ///
-/// 【初学者向け解説】
-/// TextRendererは、FontManagerで作成したフォントアトラスと
-/// SpriteBatchの矩形描画機能を組み合わせてテキストを描画します。
-///
-/// 文字列の各文字について：
-/// 1. FontManagerからグリフ情報（アトラス上の位置）を取得
-/// 2. SpriteBatch::DrawRectGraphで該当部分を描画
-/// 3. 次の文字の位置に移動（advance幅分）
-///
-/// DXLibのDrawString/DrawFormatStringに相当する機能です。
+/// DxLibの DrawStringToHandle / DrawFormatStringToHandle に相当するテキスト描画を提供する。
+/// FontManager のアトラステクスチャと SpriteBatch の矩形描画を組み合わせ、
+/// 1文字ずつグリフをアトラスから切り出して並べる仕組み。
 
 #include "pch.h"
 #include "Graphics/Rendering/FontManager.h"
@@ -22,7 +15,7 @@ namespace GX
 
 class SpriteBatch;
 
-/// @brief SpriteBatchベースのテキスト描画クラス
+/// @brief SpriteBatchベースのテキスト描画クラス（DxLibの DrawStringToHandle に相当）
 class TextRenderer
 {
 public:

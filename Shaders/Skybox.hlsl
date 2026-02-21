@@ -3,13 +3,13 @@
 
 cbuffer SkyboxConstants : register(b0)
 {
-    float4x4 gViewProjection;
-    float3   gTopColor;
+    float4x4 gViewProjection; // 回転のみのView × Projection（平行移動除去済み）
+    float3   gTopColor;       // 天頂色
     float    padding1;
-    float3   gBottomColor;
+    float3   gBottomColor;    // 地平線色
     float    padding2;
-    float3   gSunDirection;
-    float    gSunIntensity;
+    float3   gSunDirection;   // 太陽のライト方向（シーンのDirectional Lightと共有）
+    float    gSunIntensity;   // 太陽の輝度
 };
 
 struct VSInput
@@ -23,19 +23,21 @@ struct PSInput
     float3 localPos : TEXCOORD0;
 };
 
+/// @brief スカイボックスVS — z=wで常にデプスバッファの最遠面に配置する
 PSInput VSMain(VSInput input)
 {
     PSInput output;
     output.localPos = input.position;
 
-    // gViewProjectionはCPU側で平行移動を除去済みの (ViewRot * Projection)
+    // 平行移動を除去したViewProjectionでスカイボックスがカメラに追従
     float4 posH = mul(float4(input.position, 1.0f), gViewProjection);
-    // z = w で常に最遠面に描画
+    // z = w にすることで深度が常に1.0になり、全オブジェクトの背後に描画される
     output.posH = posH.xyww;
 
     return output;
 }
 
+/// @brief スカイボックスPS — 高度グラデーション + 太陽ディスク + 地平線の霞み
 float4 PSMain(PSInput input) : SV_Target
 {
     float3 dir = normalize(input.localPos);

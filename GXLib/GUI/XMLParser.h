@@ -44,13 +44,18 @@ struct XMLNode
 class XMLDocument
 {
 public:
-    /// ファイルからロード
+    /// @brief XMLファイルからDOMツリーを読み込む
+    /// @param path ファイルパス（VFS対応）
+    /// @return 成功なら true
     bool LoadFromFile(const std::string& path);
 
-    /// 文字列からロード
+    /// @brief XML文字列からDOMツリーを読み込む
+    /// @param source XML形式の文字列
+    /// @return 成功なら true
     bool LoadFromString(const std::string& source);
 
-    /// ルートノードを取得
+    /// @brief ルートノードを取得する
+    /// @return ルートXMLノード。読み込み前は nullptr
     XMLNode* GetRoot() const { return m_root.get(); }
 
 private:

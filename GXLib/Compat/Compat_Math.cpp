@@ -1,5 +1,5 @@
 /// @file Compat_Math.cpp
-/// @brief 簡易API 数学ユーティリティ関数の実装
+/// @brief 簡易API 数学ユーティリティ関数の実装（VECTOR/MATRIX演算）
 #include "pch.h"
 #include "Compat/GXLib.h"
 #include "Compat/CompatTypes.h"

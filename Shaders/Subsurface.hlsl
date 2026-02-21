@@ -46,6 +46,7 @@ float3 SubsurfaceTransmission(float3 V, float3 L, float3 N,
 // ピクセルシェーダー
 // ============================================================================
 
+/// @brief Subsurfaceピクセルシェーダー — PBR BRDF + ライトラッピング + 背面透過SSS
 PSOutput PSMain(PSInput input)
 {
     // --- アルベド ---

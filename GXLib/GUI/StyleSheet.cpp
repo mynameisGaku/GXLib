@@ -718,6 +718,9 @@ OverflowMode StyleSheet::ParseOverflow(const std::string& v)
 // カスケード適用
 // ============================================================================
 
+// CSSカスケードルール: specificity(詳細度)昇順 → sourceOrder(出現順)昇順でソートし、
+// 後から適用されたプロパティが優先される。擬似クラス(hover/pressed等)は
+// ウィジェットの現在状態に応じて条件付きで適用する。
 void StyleSheet::ApplyTo(Widget* widget) const
 {
     if (!widget) return;

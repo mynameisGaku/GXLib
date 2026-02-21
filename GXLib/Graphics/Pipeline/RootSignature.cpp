@@ -10,6 +10,7 @@ namespace GX
 RootSignatureBuilder& RootSignatureBuilder::AddCBV(uint32_t shaderRegister, uint32_t space,
                                                      D3D12_SHADER_VISIBILITY visibility)
 {
+    // ルートディスクリプタとしてCBVを1つ登録（GPU仮想アドレスを直接渡す方式）
     D3D12_ROOT_PARAMETER1 param = {};
     param.ParameterType             = D3D12_ROOT_PARAMETER_TYPE_CBV;
     param.Descriptor.ShaderRegister = shaderRegister;
@@ -23,6 +24,7 @@ RootSignatureBuilder& RootSignatureBuilder::AddCBV(uint32_t shaderRegister, uint
 RootSignatureBuilder& RootSignatureBuilder::AddSRV(uint32_t shaderRegister, uint32_t space,
                                                      D3D12_SHADER_VISIBILITY visibility)
 {
+    // ルートSRVはGPU仮想アドレスで直接バインド。Texture2D.Sample()には使えない点に注意。
     D3D12_ROOT_PARAMETER1 param = {};
     param.ParameterType             = D3D12_ROOT_PARAMETER_TYPE_SRV;
     param.Descriptor.ShaderRegister = shaderRegister;
@@ -40,7 +42,8 @@ RootSignatureBuilder& RootSignatureBuilder::AddDescriptorTable(D3D12_DESCRIPTOR_
                                                                  D3D12_SHADER_VISIBILITY visibility,
                                                                  D3D12_DESCRIPTOR_RANGE_FLAGS rangeFlags)
 {
-    // unique_ptrで確保してポインタの安定性を保証
+    // unique_ptrで確保してポインタの安定性を保証。
+    // vectorが再確保されてもポインタが無効化されないようにするため。
     auto range = std::make_unique<D3D12_DESCRIPTOR_RANGE1>();
     range->RangeType                         = type;
     range->NumDescriptors                    = numDescriptors;
@@ -113,6 +116,7 @@ RootSignatureBuilder& RootSignatureBuilder::SetFlags(D3D12_ROOT_SIGNATURE_FLAGS 
 
 ComPtr<ID3D12RootSignature> RootSignatureBuilder::Build(ID3D12Device* device)
 {
+    // Version 1.1を使用（1.0より最適化の余地が広い）
     D3D12_VERSIONED_ROOT_SIGNATURE_DESC desc = {};
     desc.Version                    = D3D_ROOT_SIGNATURE_VERSION_1_1;
     desc.Desc_1_1.NumParameters     = static_cast<UINT>(m_parameters.size());
@@ -121,6 +125,7 @@ ComPtr<ID3D12RootSignature> RootSignatureBuilder::Build(ID3D12Device* device)
     desc.Desc_1_1.pStaticSamplers   = m_staticSamplers.empty() ? nullptr : m_staticSamplers.data();
     desc.Desc_1_1.Flags             = m_flags;
 
+    // ルートシグネチャをバイト列にシリアライズしてからデバイスに渡す（DX12の2段階生成）
     ComPtr<ID3DBlob> serializedBlob;
     ComPtr<ID3DBlob> errorBlob;
     HRESULT hr = D3D12SerializeVersionedRootSignature(&desc, &serializedBlob, &errorBlob);

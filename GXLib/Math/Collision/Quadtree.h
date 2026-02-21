@@ -3,11 +3,19 @@
 
 namespace GX {
 
-template <typename T>
 /// @brief クアッドツリー（2D空間分割）テンプレート
+///
+/// 2D空間を4分割して再帰的にオブジェクトを管理する。
+/// 大量の2Dオブジェクトの衝突判定を高速化するのに使う。
+/// テンプレート引数Tはオブジェクトの識別子型。
+template <typename T>
 class Quadtree
 {
 public:
+    /// @brief クアッドツリーを構築する
+    /// @param bounds 管理する空間全体のAABB
+    /// @param maxDepth 最大分割深度（デフォルト: 8）
+    /// @param maxObjects ノードあたりの最大オブジェクト数（超えると分割、デフォルト: 8）
     Quadtree(const AABB2D& bounds, int maxDepth = 8, int maxObjects = 8)
         : m_maxDepth(maxDepth), m_maxObjects(maxObjects)
     {
@@ -15,16 +23,22 @@ public:
         m_root->bounds = bounds;
     }
 
+    /// @brief オブジェクトを挿入する
+    /// @param object 挿入するオブジェクト識別子
+    /// @param bounds オブジェクトのAABB
     void Insert(const T& object, const AABB2D& bounds)
     {
         InsertIntoNode(*m_root, object, bounds, 0);
     }
 
+    /// @brief オブジェクトを削除する
+    /// @param object 削除するオブジェクト識別子
     void Remove(const T& object)
     {
         RemoveFromNode(*m_root, object);
     }
 
+    /// @brief 全オブジェクトを削除する
     void Clear()
     {
         m_root->objects.clear();
@@ -32,11 +46,17 @@ public:
             child.reset();
     }
 
+    /// @brief AABB範囲内のオブジェクトを検索する
+    /// @param area 検索範囲のAABB
+    /// @param results 見つかったオブジェクトの出力先
     void Query(const AABB2D& area, std::vector<T>& results) const
     {
         QueryNode(*m_root, area, results);
     }
 
+    /// @brief 円範囲内のオブジェクトを検索する
+    /// @param area 検索範囲の円
+    /// @param results 見つかったオブジェクトの出力先
     void Query(const Circle& area, std::vector<T>& results) const
     {
         AABB2D circleBounds(
@@ -46,12 +66,16 @@ public:
         QueryNodeCircle(*m_root, area, circleBounds, results);
     }
 
+    /// @brief 衝突の可能性があるオブジェクトペアを全て取得する
+    /// @param pairs 衝突候補ペアの出力先
     void GetPotentialPairs(std::vector<std::pair<T, T>>& pairs) const
     {
         std::vector<std::pair<T, AABB2D>> ancestors;
         GetPairsFromNode(*m_root, ancestors, pairs);
     }
 
+    /// @brief 登録されているオブジェクト数を取得する
+    /// @return 全ノードの合計オブジェクト数
     int GetObjectCount() const
     {
         return CountObjects(*m_root);

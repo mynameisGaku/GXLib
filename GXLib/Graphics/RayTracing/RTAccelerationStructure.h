@@ -1,6 +1,10 @@
 #pragma once
 /// @file RTAccelerationStructure.h
-/// @brief DXR アクセラレーション構造 (BLAS/TLAS) 管理クラス
+/// @brief DXR アクセラレーション構造 (BLAS/TLAS) 管理
+///
+/// DxLibには無い機能。レイトレーシングの高速化に必要な階層構造を管理する。
+/// BLAS (Bottom-Level) はメッシュ単位のジオメトリ、TLAS (Top-Level) は
+/// シーン全体のインスタンス配置を表す。TLASはフレーム毎に再構築する。
 
 #include "pch.h"
 #include "Graphics/Resource/Buffer.h"
@@ -8,11 +12,14 @@
 namespace GX
 {
 
-/// @brief DXR アクセラレーション構造を管理するクラス
-/// BLASの構築・キャッシュとTLASのフレーム毎の再構築を担当
+/// @brief BLAS/TLASの構築とキャッシュを管理するアクセラレーション構造クラス
+///
+/// BLASはメッシュ毎に一度構築してキャッシュし、TLASはフレーム毎にインスタンスリストから
+/// 再構築する。RTReflectionsとRTGIの両方がこのクラスを内部で使っている。
 class RTAccelerationStructure
 {
 public:
+    /// TLASに追加できるインスタンスの最大数
     static constexpr uint32_t k_MaxInstances = 512;
 
     RTAccelerationStructure() = default;

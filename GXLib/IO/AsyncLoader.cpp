@@ -35,6 +35,8 @@ uint32_t AsyncLoader::Load(const std::string& path,
     return id;
 }
 
+// 完了キューをswapで一括取得し、ロックの外でコールバックを発火する。
+// これによりコールバック内からLoad()を呼んでもデッドロックしない。
 void AsyncLoader::Update()
 {
     std::vector<std::shared_ptr<LoadRequest>> completed;

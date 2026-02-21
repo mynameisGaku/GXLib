@@ -13,6 +13,8 @@
 namespace GX
 {
 
+/// Halton準乱数列: 低不一致性を持つ準乱数で、ランダムよりも均一にピクセル内を
+/// カバーする。基数2と3の組み合わせで2D準乱数を生成 (TAAの標準手法)
 float TAA::Halton(int index, int base)
 {
     float f = 1.0f;
@@ -162,7 +164,8 @@ void TAA::Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
                    RenderTarget& srcHDR, RenderTarget& destHDR,
                    DepthBuffer& depth, const Camera3D& camera)
 {
-    // 初回フレーム: srcHDR を destHDR と historyRT にコピーしてリターン
+    // 初回フレーム: 履歴RTが空なのでTAAブレンドはできない。
+    // srcHDRをそのまま出力とし、履歴RTにもコピーして次フレーム以降に備える
     if (!m_hasHistory || !m_hasPreviousVP)
     {
         srcHDR.TransitionTo(cmdList, D3D12_RESOURCE_STATE_COPY_SOURCE);

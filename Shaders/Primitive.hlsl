@@ -25,7 +25,7 @@ struct PSInput
     float4 color : COLOR;       // 頂点カラー
 };
 
-// 頂点シェーダー
+/// @brief プリミティブVS — スクリーン座標を正射影行列で変換
 PSInput VSMain(VSInput input)
 {
     PSInput output;
@@ -34,7 +34,7 @@ PSInput VSMain(VSInput input)
     return output;
 }
 
-// ピクセルシェーダー
+/// @brief プリミティブPS — 頂点カラーをそのまま出力
 float4 PSMain(PSInput input) : SV_Target
 {
     return input.color;

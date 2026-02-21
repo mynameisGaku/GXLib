@@ -1,17 +1,15 @@
 #pragma once
 /// @file Bloom.h
-/// @brief Bloomポストエフェクト
+/// @brief Bloomポストエフェクト (光の滲み)
 ///
-/// 【初学者向け解説】
-/// Bloomとは、明るい部分が光り輝いているように見せるエフェクトです。
-/// 現実のカメラで強い光を撮影すると周囲に光が滲むのと同じ現象を再現します。
+/// DxLibには無い機能。明るい部分から光が溢れ出すような表現を追加する。
+/// 閾値以上の明部を抽出し、段階的に縮小→ブラー→拡大合成することで
+/// 自然な光の広がりを作る。MIPチェーンは5レベル (1/2〜1/32解像度)。
 ///
-/// 処理の流れ：
-/// 1. 閾値抽出: HDRシーンから明るい部分だけを取り出す（→ mip[0]）
-/// 2. ダウンサンプル: 段階的に解像度を下げる（1/2→1/4→1/8→1/16→1/32）
-/// 3. Gaussianブラー: 各レベルで水平→垂直ブラー
-/// 4. アップサンプル合成: 小さいレベルから順に大きいレベルに加算
-/// 5. 最終合成: HDRシーンにブルーム結果をアディティブブレンドで描画
+/// 処理の流れ:
+/// 1. 閾値抽出 (HDR → mip[0]) → 2. ダウンサンプル (1/2→1/4→...→1/32)
+/// 3. Gaussianブラー (各レベルで水平→垂直) → 4. アップサンプル加算合成 (小→大)
+/// 5. 最終合成 (HDRシーン + Bloom結果をアディティブブレンド)
 
 #include "pch.h"
 #include "Graphics/Resource/RenderTarget.h"
@@ -21,42 +19,55 @@
 namespace GX
 {
 
-/// Bloom定数バッファ
+/// Bloom定数バッファ (閾値・強度・テクセルサイズ)
 struct BloomConstants
 {
-    float    threshold;
-    float    intensity;
-    float    texelSizeX;
-    float    texelSizeY;
+    float    threshold;    ///< この輝度以上のピクセルだけ抽出
+    float    intensity;    ///< 最終合成時の明るさ倍率
+    float    texelSizeX;   ///< 1.0 / テクスチャ幅
+    float    texelSizeY;   ///< 1.0 / テクスチャ高さ
 };
 
-/// @brief Bloomエフェクト
+/// @brief 明部の光の滲みを再現するBloomエフェクト
+///
+/// HDRシーンの明るい部分を抽出し、MIPチェーンを使ったダウンサンプル+ブラー+
+/// アップサンプルで自然な光の広がりを作り、最終的にシーンにアディティブ合成する。
 class Bloom
 {
 public:
+    /// MIPレベル数。5段階で1/2〜1/32解像度まで縮小する
     static constexpr uint32_t k_MaxMipLevels = 5;
 
     Bloom() = default;
     ~Bloom() = default;
 
-    /// 初期化
+    /// @brief 初期化。MIP RT・PSO・定数バッファを作成する
+    /// @param device D3D12デバイス
+    /// @param width 画面幅
+    /// @param height 画面高さ
+    /// @return 成功でtrue
     bool Initialize(ID3D12Device* device, uint32_t width, uint32_t height);
 
-    /// Bloom実行
-    /// hdrRT: HDRシーン（SRV状態で渡す）
-    /// destRT: 出力先（RTV状態にしてhdrRTの内容+Bloomを書き込む）
+    /// @brief Bloomの全パスを実行する
+    /// @param cmdList コマンドリスト
+    /// @param frameIndex ダブルバッファ用フレームインデックス
+    /// @param hdrRT 入力HDRシーン (SRV状態)
+    /// @param destRT 出力先。hdrRTの内容にBloom結果が加算されて書き込まれる
     void Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
                  RenderTarget& hdrRT, RenderTarget& destRT);
 
+    /// @brief 閾値を設定。この輝度以上のピクセルだけBloomの対象になる
     void SetThreshold(float threshold) { m_threshold = threshold; }
     float GetThreshold() const { return m_threshold; }
 
+    /// @brief Bloom合成時の強度。大きいほど光が強く滲む
     void SetIntensity(float intensity) { m_intensity = intensity; }
     float GetIntensity() const { return m_intensity; }
 
     void SetEnabled(bool enabled) { m_enabled = enabled; }
     bool IsEnabled() const { return m_enabled; }
 
+    /// @brief 画面リサイズ時にMIP RTを再生成する
     void OnResize(ID3D12Device* device, uint32_t width, uint32_t height);
 
 private:

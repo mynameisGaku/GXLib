@@ -1,5 +1,8 @@
 /// @file InfiniteGrid.cpp
-/// @brief Shader-based infinite grid implementation
+/// @brief シェーダーベース無限グリッドの実装
+///
+/// InfiniteGrid.hlslのVS/PSをフルスクリーン三角形(Draw(3,1,0,0))で描画する。
+/// アルファブレンド+深度書き込みありで、シーンのオブジェクトと正しく交差する。
 
 #include "InfiniteGrid.h"
 #include "Graphics/Pipeline/PipelineState.h"

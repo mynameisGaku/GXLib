@@ -1,5 +1,5 @@
 /// @file converter.cpp
-/// @brief Conversion orchestrator implementation
+/// @brief 変換処理オーケストレーターの実装
 
 #include "converter.h"
 #include "intermediate/scene.h"
@@ -23,6 +23,7 @@
 namespace gxconv
 {
 
+/// パスから小文字化した拡張子を取得する (".obj", ".fbx"等)
 static std::string GetExtension(const std::string& path)
 {
     size_t dot = path.find_last_of('.');
@@ -32,6 +33,7 @@ static std::string GetExtension(const std::string& path)
     return ext;
 }
 
+/// パスの拡張子を差し替える
 static std::string ChangeExtension(const std::string& path, const std::string& newExt)
 {
     size_t dot = path.find_last_of('.');
@@ -198,7 +200,7 @@ int Converter::Run(const ConvertOptions& options)
         return 1;
     }
 
-    // Apply CLI overrides
+    // CLIオプションによるシェーダーモデル上書き
     if (options.hasShaderModelOverride)
     {
         for (auto& mat : scene.materials)

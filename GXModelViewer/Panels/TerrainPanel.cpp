@@ -1,5 +1,5 @@
 /// @file TerrainPanel.cpp
-/// @brief ImGui panel for terrain editing (placeholder)
+/// @brief テレイン編集パネル実装（プレースホルダー）
 
 #include "TerrainPanel.h"
 #include <imgui.h>

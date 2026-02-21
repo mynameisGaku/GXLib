@@ -453,27 +453,108 @@ int SetModelScale(int handle, VECTOR scale);
 int SetModelRotation(int handle, VECTOR rotation);
 
 // --- 3Dモデル: マテリアル/シェーダー ---
+
+/// @brief モデルのサブメッシュ数を取得する
+/// @param handle モデルハンドル
+/// @return サブメッシュ数（失敗時 -1）
 int GetModelSubMeshCount(int handle);
+
+/// @brief 指定サブメッシュに割り当てられたマテリアルハンドルを取得する
+/// @param handle モデルハンドル
+/// @param subMeshIndex サブメッシュのインデックス
+/// @return マテリアルハンドル（失敗時 -1）
 int GetModelSubMeshMaterial(int handle, int subMeshIndex);
+
+/// @brief 指定サブメッシュのマテリアルを差し替える
+/// @param handle モデルハンドル
+/// @param subMeshIndex サブメッシュのインデックス
+/// @param materialHandle 設定するマテリアルハンドル
+/// @return 成功時 0、失敗時 -1
 int SetModelSubMeshMaterial(int handle, int subMeshIndex, int materialHandle);
+
+/// @brief 指定サブメッシュのシェーダーを差し替える
+/// @param handle モデルハンドル
+/// @param subMeshIndex サブメッシュのインデックス
+/// @param shaderHandle 設定するシェーダーハンドル
+/// @return 成功時 0、失敗時 -1
 int SetModelSubMeshShader(int handle, int subMeshIndex, int shaderHandle);
 
+/// @brief モデルが持つマテリアルの数を取得する
+/// @param handle モデルハンドル
+/// @return マテリアル数（失敗時 -1）
 int GetModelMaterialCount(int handle);
+
+/// @brief モデルが持つマテリアルのハンドルを取得する
+/// @param handle モデルハンドル
+/// @param materialIndex マテリアルのインデックス
+/// @return マテリアルハンドル（失敗時 -1）
 int GetModelMaterialHandle(int handle, int materialIndex);
 
+/// @brief 新しいマテリアルを作成する
+/// @return マテリアルハンドル（失敗時 -1）
 int CreateMaterial();
+
+/// @brief マテリアルを削除する
+/// @param materialHandle 削除するマテリアルハンドル
+/// @return 成功時 0
 int DeleteMaterial(int materialHandle);
+
+/// @brief マテリアルのパラメータを設定する（PBR：アルベド/メタリック/ラフネス等）
+/// @param materialHandle マテリアルハンドル
+/// @param param 設定パラメータ構造体へのポインタ
+/// @return 成功時 0、失敗時 -1
 int SetMaterialParam(int materialHandle, const GX_MATERIAL_PARAM* param);
+
+/// @brief マテリアルのテクスチャスロットにテクスチャを設定する
+/// @param materialHandle マテリアルハンドル
+/// @param slot テクスチャスロット（GX_MATERIAL_TEX_ALBEDO 等）
+/// @param textureHandle テクスチャハンドル
+/// @return 成功時 0、失敗時 -1
 int SetMaterialTexture(int materialHandle, int slot, int textureHandle);
+
+/// @brief マテリアルにカスタムシェーダーを設定する
+/// @param materialHandle マテリアルハンドル
+/// @param shaderHandle シェーダーハンドル
+/// @return 成功時 0、失敗時 -1
 int SetMaterialShader(int materialHandle, int shaderHandle);
 
+/// @brief カスタムマテリアルシェーダーを作成する
+/// @param vsPath 頂点シェーダーファイルのパス
+/// @param psPath ピクセルシェーダーファイルのパス
+/// @return シェーダーハンドル（失敗時 -1）
 int CreateMaterialShader(const TCHAR* vsPath, const TCHAR* psPath);
 
 // --- 3Dモデル: アニメーション ---
+
+/// @brief モデルが持つアニメーションクリップの数を取得する
+/// @param handle モデルハンドル
+/// @return アニメーション数（失敗時 -1）
 int GetModelAnimationCount(int handle);
+
+/// @brief 指定アニメーションを再生する
+/// @param handle モデルハンドル
+/// @param animIndex アニメーションのインデックス
+/// @param loop TRUE でループ再生
+/// @return 成功時 0、失敗時 -1
 int PlayModelAnimation(int handle, int animIndex, int loop);
+
+/// @brief 現在のアニメーションから指定アニメーションにクロスフェードする
+/// @param handle モデルハンドル
+/// @param animIndex 遷移先アニメーションのインデックス
+/// @param duration クロスフェードの所要時間（秒）
+/// @param loop TRUE でループ再生
+/// @return 成功時 0、失敗時 -1
 int CrossFadeModelAnimation(int handle, int animIndex, float duration, int loop);
+
+/// @brief アニメーション再生を停止する
+/// @param handle モデルハンドル
+/// @return 成功時 0、失敗時 -1
 int StopModelAnimation(int handle);
+
+/// @brief アニメーションを1フレーム分進める（毎フレーム呼ぶ）
+/// @param handle モデルハンドル
+/// @param deltaTime 経過時間（秒）
+/// @return 成功時 0、失敗時 -1
 int UpdateModelAnimation(int handle, float deltaTime);
 
 // ============================================================================

@@ -43,6 +43,8 @@ int SetCameraNearFar(float nearZ, float farZ)
 // ============================================================================
 // モデル
 // ============================================================================
+// ハンドルベースのモデル管理。フリーリストから再利用するか新規割り当て。
+// スケルトン付きモデルの場合はAnimatorも初期化してバインドポーズを適用する。
 int LoadModel(const TCHAR* filePath)
 {
     auto& ctx = Ctx::Instance();
@@ -81,6 +83,7 @@ int DeleteModel(int handle)
     return 0;
 }
 
+// スキンメッシュならDrawSkinnedModel、スタティックメッシュならDrawModelを使い分ける
 int DrawModel(int handle)
 {
     auto& ctx = Ctx::Instance();

@@ -32,14 +32,15 @@ void ShaderHotReload::OnShaderFileChanged(const std::string& path)
 {
     if (!IsShaderFile(path)) return;
 
-    // std::string → std::wstring 変換
+    // FileWatcherはUTF-8のstd::stringで通知するので、ShaderLibrary用にwstringに変換
     int len = MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, nullptr, 0);
     std::wstring wpath(len - 1, L'\0');
     MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, wpath.data(), len);
 
     {
+        // ワーカースレッドから呼ばれるのでロック必須
         std::lock_guard<std::mutex> lock(m_pendingMutex);
-        // 重複排除
+        // 同じファイルが短時間に何度も通知されることがあるので重複排除
         bool found = false;
         for (auto& existing : m_pendingChanges)
         {
@@ -68,10 +69,10 @@ bool ShaderHotReload::IsShaderFile(const std::string& path)
 
 void ShaderHotReload::Update(float deltaTime)
 {
-    // FileWatcherのコールバックをメインスレッドで発火
+    // FileWatcherの変更通知をメインスレッド側で処理
     m_watcher.Update();
 
-    // pending変更があるか確認
+    // 新しい変更があればデバウンスタイマーをリセット
     {
         std::lock_guard<std::mutex> lock(m_pendingMutex);
         if (!m_pendingChanges.empty())
@@ -83,11 +84,11 @@ void ShaderHotReload::Update(float deltaTime)
 
     if (!m_hasPending) return;
 
-    // デバウンスタイマー
+    // デバウンス待機中 — エディタの連続保存が落ち着くまで待つ
     m_debounceTimer -= deltaTime;
     if (m_debounceTimer > 0.0f) return;
 
-    // デバウンス完了 — リロード実行
+    // デバウンス完了。変更リストを取り出してリロード実行
     std::vector<std::wstring> changes;
     {
         std::lock_guard<std::mutex> lock(m_pendingMutex);
@@ -99,11 +100,11 @@ void ShaderHotReload::Update(float deltaTime)
 
     GX_LOG_INFO("ShaderHotReload: Reloading %zu shader(s)...", changes.size());
 
-    // GPU完了待ち（PSO置換の安全性確保）
+    // GPUがまだ旧PSOで描画中かもしれないので、完了を待ってから置き換える
     if (m_cmdQueue)
         m_cmdQueue->Flush();
 
-    // 各ファイルのキャッシュ無効化 + PSO再構築
+    // ShaderLibraryのキャッシュ無効化 → 登録済みPSORebuilderの実行
     bool allSuccess = true;
     for (auto& path : changes)
     {
@@ -121,6 +122,7 @@ void ShaderHotReload::Update(float deltaTime)
     }
     else
     {
+        // エラーメッセージを保持しておき、オーバーレイ等で表示する
         m_errorMessage = ShaderLibrary::Instance().GetLastError();
         GX_LOG_ERROR("ShaderHotReload: Some shaders failed to reload");
     }

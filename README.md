@@ -10,25 +10,28 @@ https://mynameisgaku.github.io/GXLib/
 
 - **DirectX 12 ネイティブ** — D3D12 によるローレベル GPU 制御
 - **2D 描画** — SpriteBatch / PrimitiveBatch / SpriteSheet / Animation2D / Camera2D
-- **3D レンダリング** — PBR (物理ベースレンダリング) シェーダー / glTF・FBX・OBJ モデル / スケルタルアニメーション / アニメーションブレンド / Terrain (地形)
+- **3D レンダリング** — PBR (物理ベースレンダリング) / UTS2 Toon (セルシェーディング, 3ゾーン, スムース法線アウトライン) / Phong / Subsurface / ClearCoat / glTF・FBX・OBJ・GXMD モデル / スケルタルアニメーション / アニメーションブレンド / Terrain (地形)
+- **DXR レイトレーシング** — RTReflections (DXR 反射, SSR 排他) / RTGI (グローバルイルミネーション, 半解像度 + テンポラル蓄積 + A-Trous フィルタ)
+- **シェーダーモデル** — ShaderRegistry (6 ShaderModel x static/skinned = 14 PSO 自動管理) / ShaderModelConstants (256B 共通 cbuffer)
 - **シャドウ** — CSM (Cascaded Shadow Maps, カスケードシャドウマップ, 4分割) / Spot Shadow / Point Shadow (6面キューブ)
 - **ポストエフェクト** — HDR (高ダイナミックレンジ) / Bloom (光のにじみ) / Tonemapping (Reinhard/ACES/Uncharted2) / FXAA (高速アンチエイリアシング) / Vignette (周辺減光) / ChromaticAberration (色収差) / ColorGrading (色調調整) / SSAO (環境遮蔽) / DoF (被写界深度) / MotionBlur (動きボケ) / SSR (スクリーン空間反射) / Outline (輪郭線) / VolumetricLight (光の筋) / TAA (テンポラルAA) / AutoExposure (自動露出)
 - **レイヤーシステム** — RenderLayer / LayerStack / LayerCompositor / MaskScreen
 - **GUI** — Flexbox レイアウト / CSS スタイルシート / XML 宣言的 UI / 17 種ウィジェット
-- **アニメーション** — Animator (クロスフェード) / Humanoid リターゲット
+- **アニメーション** — Animator (クロスフェード) / BlendStack (8レイヤー Override/Additive) / BlendTree (1D/2D) / AnimatorStateMachine (トリガー + 遷移) / Humanoid リターゲット
 - **テキスト** — DirectWrite ラスタライズ / Unicode フルサポート (日本語対応)
 - **入力** — Keyboard / Mouse / Gamepad (XInput)
 - **オーディオ** — XAudio2 (SE + BGM / フェード / ループ)
-- **ファイル I/O** — VFS (仮想ファイルシステム) / 暗号化アーカイブ (AES-256 + LZ4) / 非同期ロード / ファイル監視
+- **ファイル I/O** — VFS (仮想ファイルシステム) / 暗号化アーカイブ (AES-256 + LZ4) / GXPAK バンドル (PakFileProvider) / 非同期ロード / ファイル監視
 - **ネットワーク** — TCP / UDP / HTTP (sync + async) / WebSocket
 - **動画** — Media Foundation による動画デコード / テクスチャ描画
 - **数学** — Vector2/3/4 / Matrix4x4 / Quaternion (四元数) / Color (DirectXMath ラッパー)
 - **衝突判定** — 2D (AABB / Circle / Polygon / SAT) / 3D (Sphere / AABB / OBB / Ray / Frustum)
 - **空間分割** — Quadtree (四分木) / Octree (八分木) / BVH (境界ボリューム階層)
 - **物理** — 2D カスタム物理エンジン / 3D Jolt Physics ラッパー / MeshCollider (Static・Convex・Skinned)
-- **マテリアル/シェーダー** — ランタイム差し替え (材質パラメータ・テクスチャ・シェーダー)
+- **アセットパイプライン** — gxformat (GXMD/GXAN/GXPAK バイナリ形式) / gxconv (OBJ/FBX/glTF → .gxmd/.gxan コンバーター) / gxloader (ランタイムローダー, ボーンマッチング) / gxpak (LZ4 圧縮バンドルツール)
+- **マテリアル/シェーダー** — ランタイム差し替え (材質パラメータ・テクスチャ・シェーダー) / マテリアルオーバーライド
 - **DXLib 互換** — GXLib.h ヘッダー 1 つで DXLib 風の簡易 API を提供
-- **開発ツール** — シェーダーホットリロード / GPU タイムスタンププロファイラー / JSON 設定保存
+- **開発ツール** — シェーダーホットリロード / GPU タイムスタンププロファイラー / JSON 設定保存 / GXModelViewer (ImGui Docking ベース 3D モデルビューア)
 
 ## 必要環境
 
@@ -80,21 +83,30 @@ GXLib/
 │   │   ├── Pipeline/       # RootSignature, PipelineState, Shader, ShaderLibrary
 │   │   ├── Resource/       # Texture, TextureManager, Buffer, RenderTarget, DepthBuffer
 │   │   ├── Rendering/      # SpriteBatch, PrimitiveBatch, FontManager, TextRenderer
-│   │   ├── 3D/             # Renderer3D, Camera3D, Model, Animator, Humanoid, Skybox, Terrain
+│   │   ├── 3D/             # Renderer3D, Camera3D, Model, Animator, ShaderRegistry, Skybox, Terrain
 │   │   ├── Layer/          # RenderLayer, LayerStack, LayerCompositor, MaskScreen
-│   │   └── PostEffect/     # PostEffectPipeline, Bloom, SSAO, SSR, DoF, TAA, ...
+│   │   ├── PostEffect/     # PostEffectPipeline, Bloom, SSAO, SSR, DoF, TAA, ...
+│   │   └── RayTracing/     # RTAccelerationStructure, RTPipeline, RTReflections, RTGI
 │   ├── Input/              # Keyboard, Mouse, Gamepad, InputManager
 │   ├── Audio/              # AudioDevice, Sound, SoundPlayer, MusicPlayer
 │   ├── GUI/                # Widget, UIContext, UIRenderer, StyleSheet, GUILoader
 │   │   └── Widgets/        # Panel, Button, TextInput, Slider, DropDown, ...
-│   ├── IO/                 # FileSystem, Archive, AsyncLoader, FileWatcher
+│   ├── IO/                 # FileSystem, Archive, PakFileProvider, AsyncLoader, FileWatcher
 │   │   └── Network/        # TCPSocket, UDPSocket, HTTPClient, WebSocket
 │   ├── Movie/              # MoviePlayer
 │   ├── Math/               # Vector2/3/4, Matrix4x4, Quaternion, Color, Random
 │   │   └── Collision/      # Collision2D/3D, Quadtree, Octree, BVH
 │   ├── Physics/            # PhysicsWorld2D, PhysicsWorld3D (Jolt), RigidBody2D/3D, MeshCollider
 │   ├── Compat/             # DXLib 互換レイヤー (GXLib.h)
-│   └── ThirdParty/         # stb_image, cgltf, nlohmann/json, LZ4
+│   └── ThirdParty/         # stb_image, cgltf, nlohmann/json, LZ4, ufbx
+├── gxformat/               # バイナリ形式定義 (GXMD/GXAN/GXPAK, ヘッダーオンリー)
+├── gxconv/                 # CLI モデルコンバーター (OBJ/FBX/glTF → .gxmd/.gxan)
+├── gxloader/               # ランタイムローダー (静的ライブラリ, ボーンマッチング)
+├── gxpak/                  # CLI バンドルツール (pack/unpack/list .gxpak)
+├── GXModelViewer/          # ImGui Docking ベース 3D モデルビューア
+│   ├── Panels/             # SceneHierarchy, Property, Lighting, PostEffect, Skybox, ...
+│   ├── Scene/              # SceneGraph, SceneSerializer
+│   └── ThirdParty/         # imgui, imguizmo, imnodes, implot, ImGuiFileDialog
 ├── Sandbox/                # テストアプリケーション
 ├── Samples/                # サンプルプロジェクト
 │   ├── Shooting2D/         # 2D シューティングゲーム
@@ -102,7 +114,7 @@ GXLib/
 │   ├── Walkthrough3D/      # 3D ウォークスルー
 │   ├── GUIMenuDemo/        # GUI メニューデモ
 │   └── PostEffectShowcase/ # ポストエフェクト一覧
-├── Shaders/                # HLSL シェーダーファイル
+├── Shaders/                # HLSL シェーダーファイル (PBR, Toon, UTS2, Phong, ...)
 ├── Assets/                 # ランタイムアセット (CSS, XML, ...)
 ├── Tests/                  # Google Test ユニットテスト
 ├── docs/                   # ドキュメント
@@ -184,8 +196,9 @@ spriteBatch.End();
 
 ```
 Scene → HDR RT (高ダイナミックレンジ レンダーターゲット)
+     → [RTGI (DXR グローバルイルミネーション)]
      → [SSAO (環境遮蔽)]
-     → [SSR (スクリーン空間反射)]
+     → [RT/SSR (DXR レイトレーシング反射 / スクリーン空間反射, 排他)]
      → [VolumetricLight (光の筋)]
      → [Bloom (光のにじみ)]
      → [DoF (被写界深度)]
@@ -245,7 +258,13 @@ CSS + XML による宣言的 UI を提供します。
 | [LZ4](https://github.com/lz4/lz4) | 高速圧縮 | BSD-2 |
 | [Jolt Physics](https://github.com/jrouwe/JoltPhysics) | 3D 物理エンジン | MIT |
 | [Google Test](https://github.com/google/googletest) | ユニットテスト | BSD-3 |
-| [FBX SDK](https://www.autodesk.com/developer-network/platform-technologies/fbx-sdk) | FBX/OBJ 読み込み | Autodesk FBX SDK License |
+| [ufbx](https://github.com/bqqbarbhg/ufbx) | FBX パーサー (gxconv) | MIT |
+| [tinyobjloader](https://github.com/tinyobjloader/tinyobjloader) | OBJ パーサー (gxconv) | MIT |
+| [Dear ImGui](https://github.com/ocornut/imgui) | GXModelViewer UI (Docking) | MIT |
+| [ImGuizmo](https://github.com/CedricGuillemet/ImGuizmo) | 3D ギズモ | MIT |
+| [ImPlot](https://github.com/epezent/implot) | グラフ描画 | MIT |
+| [ImNodes](https://github.com/Nelarius/imnodes) | ノードエディタ | MIT |
+| [FBX SDK](https://www.autodesk.com/developer-network/platform-technologies/fbx-sdk) | FBX/OBJ 読み込み (オプション) | Autodesk FBX SDK License |
 
 ## ドキュメント
 

@@ -5,30 +5,29 @@
 /// SDF（Signed Distance Function）を使って角丸、枠線、影を
 /// ピクセルシェーダーだけで描画する。
 
-// 定数バッファ
 cbuffer UIRectCB : register(b0)
 {
-    float4x4 cb_projection;
-    float2   cb_rectSize;
-    float    cb_cornerRadius;
-    float    cb_borderWidth;
-    float4   cb_fillColor;
-    float4   cb_borderColor;
-    float2   cb_shadowOffset;
-    float    cb_shadowBlur;
-    float    cb_shadowAlpha;
-    float    cb_opacity;
+    float4x4 cb_projection;       // 正射影行列
+    float2   cb_rectSize;         // 矩形のサイズ（ピクセル単位）
+    float    cb_cornerRadius;     // 角丸の半径
+    float    cb_borderWidth;      // 枠線の幅
+    float4   cb_fillColor;        // 塗りつぶし色
+    float4   cb_borderColor;      // 枠線色
+    float2   cb_shadowOffset;     // ドロップシャドウのオフセット
+    float    cb_shadowBlur;       // シャドウのぼかし半径
+    float    cb_shadowAlpha;      // シャドウの不透明度
+    float    cb_opacity;          // ウィジェット全体の不透明度
     float3   cb_pad;
-    float4   cb_gradientColor;
-    float2   cb_gradientDir;
-    float    cb_gradientEnabled;
+    float4   cb_gradientColor;    // グラデーション終了色
+    float2   cb_gradientDir;      // グラデーション方向ベクトル
+    float    cb_gradientEnabled;  // グラデーション有効フラグ
     float    cb_pad2;
-    float2   cb_effectCenter;
-    float    cb_effectTime;
-    float    cb_effectDuration;
-    float    cb_effectStrength;
-    float    cb_effectWidth;
-    float    cb_effectType;
+    float2   cb_effectCenter;     // リップルエフェクトの中心（UV空間）
+    float    cb_effectTime;       // エフェクト経過時間
+    float    cb_effectDuration;   // エフェクト持続時間
+    float    cb_effectStrength;   // エフェクトの強度
+    float    cb_effectWidth;      // リップルリングの幅
+    float    cb_effectType;       // エフェクト種類 (0=なし, 1=リップル)
     float    cb_pad3;
 };
 
@@ -47,6 +46,8 @@ struct VSOutput
 // ============================================================================
 // 頂点シェーダー
 // ============================================================================
+
+/// @brief UI矩形VS — ピクセル座標を正射影で変換し、ローカルUVをPSに渡す
 VSOutput VSMain(VSInput input)
 {
     VSOutput o;
@@ -72,6 +73,8 @@ float sdRoundedBox(float2 p, float2 b, float r)
 // ============================================================================
 // ピクセルシェーダー
 // ============================================================================
+
+/// @brief UI矩形PS — SDFで角丸・枠線・影を計算し、グラデーション・リップルも適用
 float4 PSMain(VSOutput input) : SV_Target
 {
     float2 halfSize = cb_rectSize * 0.5;

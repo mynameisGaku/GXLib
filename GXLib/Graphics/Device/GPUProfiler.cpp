@@ -1,8 +1,9 @@
 /// @file GPUProfiler.cpp
 /// @brief GPU タイムスタンプ プロファイラの実装
 ///
-/// D3D12 Query Heap (TIMESTAMP) + ダブルバッファリングリードバック。
-/// BeginFrame で前フレーム結果を読み取り、EndFrame で ResolveQueryData。
+/// D3D12のQuery Heap (TIMESTAMP) を使ってGPU側の処理時間を計測する。
+/// BeginFrameで前フレーム結果を読み取り、EndFrameでResolveQueryDataを発行。
+/// ダブルバッファリングのリードバックにより、GPUストールを回避している。
 #include "pch.h"
 #include "Graphics/Device/GPUProfiler.h"
 #include "Core/Logger.h"
@@ -20,7 +21,7 @@ bool GPUProfiler::Initialize(ID3D12Device* device, ID3D12CommandQueue* queue)
 {
     m_device = device;
 
-    // タイムスタンプ周波数取得 (ticks/sec)
+    // GPUタイムスタンプの周波数を取得（ticks → ミリ秒の変換に使う）
     HRESULT hr = queue->GetTimestampFrequency(&m_timestampFrequency);
     if (FAILED(hr) || m_timestampFrequency == 0)
     {
@@ -28,7 +29,7 @@ bool GPUProfiler::Initialize(ID3D12Device* device, ID3D12CommandQueue* queue)
         return false;
     }
 
-    // クエリヒープ作成
+    // タイムスタンプ記録用のQuery Heapを作成
     D3D12_QUERY_HEAP_DESC heapDesc = {};
     heapDesc.Type  = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
     heapDesc.Count = k_MaxTimestamps;
@@ -39,15 +40,14 @@ bool GPUProfiler::Initialize(ID3D12Device* device, ID3D12CommandQueue* queue)
         return false;
     }
 
-    // リードバックバッファ (k_MaxTimestamps * sizeof(uint64_t) per frame)
+    // リードバックバッファ: GPU上のクエリ結果をCPUが読めるメモリに転送する先
     uint64_t bufferSize = k_MaxTimestamps * sizeof(uint64_t);
-    // 256バイトアライメント
-    bufferSize = (bufferSize + 255) & ~255ULL;
+    bufferSize = (bufferSize + 255) & ~255ULL; // D3D12は256バイトアライメントが必要
 
     for (uint32_t i = 0; i < k_BufferCount; ++i)
     {
         D3D12_HEAP_PROPERTIES heapProps = {};
-        heapProps.Type = D3D12_HEAP_TYPE_READBACK;
+        heapProps.Type = D3D12_HEAP_TYPE_READBACK; // CPUから読み取り可能なヒープ
 
         D3D12_RESOURCE_DESC resDesc = {};
         resDesc.Dimension        = D3D12_RESOURCE_DIMENSION_BUFFER;
@@ -69,7 +69,6 @@ bool GPUProfiler::Initialize(ID3D12Device* device, ID3D12CommandQueue* queue)
         }
     }
 
-    // フレームデータ初期化
     for (uint32_t i = 0; i < k_BufferCount; ++i)
     {
         m_frameData[i].timestampCount = 0;
@@ -106,7 +105,7 @@ void GPUProfiler::BeginFrame(ID3D12GraphicsCommandList* cmdList, uint32_t frameI
         return;
     }
 
-    // 前フレームの結果をリードバック (WaitForValue済みなので安全)
+    // 前フレームの結果をリードバック（Fence待ち済みなので安全に読める）
     if (m_frameCount >= k_BufferCount)
     {
         ReadbackResults(frameIndex);
@@ -117,7 +116,7 @@ void GPUProfiler::BeginFrame(ID3D12GraphicsCommandList* cmdList, uint32_t frameI
     fd.timestampCount = 0;
     fd.scopes.clear();
 
-    // フレーム全体の開始タイムスタンプ
+    // フレーム全体の開始タイムスタンプを記録
     uint32_t idx = AllocTimestamp();
     cmdList->EndQuery(m_queryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, idx);
 }
@@ -136,7 +135,7 @@ void GPUProfiler::EndFrame(ID3D12GraphicsCommandList* cmdList)
     uint32_t idx = AllocTimestamp();
     cmdList->EndQuery(m_queryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, idx);
 
-    // クエリ結果をリードバックバッファにコピー
+    // ResolveQueryData: クエリヒープの結果をリードバックバッファにGPU上でコピー
     if (fd.timestampCount > 0)
     {
         cmdList->ResolveQueryData(
@@ -158,12 +157,13 @@ void GPUProfiler::BeginScope(ID3D12GraphicsCommandList* cmdList, const char* nam
     auto& fd = m_frameData[m_currentFrameIndex];
     uint32_t beginIdx = AllocTimestamp();
 
+    // EndQuery(TIMESTAMP)でGPUパイプラインの現在位置にタイムスタンプを挿入
     cmdList->EndQuery(m_queryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, beginIdx);
 
     ScopeEntry entry;
     entry.name       = name;
     entry.beginIndex = beginIdx;
-    entry.endIndex   = 0xFFFFFFFF; // 未設定
+    entry.endIndex   = 0xFFFFFFFF; // 未終了マーカー
     fd.scopes.push_back(entry);
 }
 
@@ -174,7 +174,7 @@ void GPUProfiler::EndScope(ID3D12GraphicsCommandList* cmdList)
     auto& fd = m_frameData[m_currentFrameIndex];
     if (fd.scopes.empty()) return;
 
-    // 最後の未終了スコープを探す (後方検索)
+    // 後ろから最初の未終了スコープを探してペアリング（ネスト対応）
     for (int i = static_cast<int>(fd.scopes.size()) - 1; i >= 0; --i)
     {
         if (fd.scopes[i].endIndex == 0xFFFFFFFF)
@@ -192,7 +192,7 @@ uint32_t GPUProfiler::AllocTimestamp()
     auto& fd = m_frameData[m_currentFrameIndex];
     if (fd.timestampCount >= k_MaxTimestamps)
     {
-        // オーバーフロー: 最後のスロットを再利用
+        // オーバーフロー時は最後のスロットを再利用（計測精度は落ちるが安全）
         return k_MaxTimestamps - 1;
     }
     return fd.timestampCount++;
@@ -207,7 +207,7 @@ void GPUProfiler::ReadbackResults(uint32_t frameIndex)
     if (fd.timestampCount < 2)
         return;
 
-    // リードバックバッファをマップ
+    // リードバックバッファをCPUメモリにマップして結果を読む
     D3D12_RANGE readRange = { 0, fd.timestampCount * sizeof(uint64_t) };
     void* mapped = nullptr;
     HRESULT hr = m_readbackBuffer[frameIndex]->Map(0, &readRange, &mapped);
@@ -217,16 +217,16 @@ void GPUProfiler::ReadbackResults(uint32_t frameIndex)
     const uint64_t* timestamps = static_cast<const uint64_t*>(mapped);
     double ticksToMs = 1000.0 / static_cast<double>(m_timestampFrequency);
 
-    // フレーム全体の時間 (最初と最後のタイムスタンプ)
+    // フレーム全体の時間（先頭と末尾のタイムスタンプの差分）
     uint64_t frameBegin = timestamps[0];
     uint64_t frameEnd   = timestamps[fd.timestampCount - 1];
     m_frameGPUTimeMs = static_cast<float>(
         static_cast<double>(frameEnd - frameBegin) * ticksToMs);
 
-    // 各スコープの結果
+    // 各スコープの時間を計算
     for (const auto& scope : fd.scopes)
     {
-        if (scope.endIndex == 0xFFFFFFFF) continue;
+        if (scope.endIndex == 0xFFFFFFFF) continue; // 未終了スコープはスキップ
         if (scope.beginIndex >= fd.timestampCount) continue;
         if (scope.endIndex >= fd.timestampCount) continue;
 
@@ -238,6 +238,7 @@ void GPUProfiler::ReadbackResults(uint32_t frameIndex)
         m_results.push_back({ scope.name, duration });
     }
 
+    // 書き込み範囲なし（読み取り専用だったことをD3D12に伝える）
     D3D12_RANGE writeRange = { 0, 0 };
     m_readbackBuffer[frameIndex]->Unmap(0, &writeRange);
 }

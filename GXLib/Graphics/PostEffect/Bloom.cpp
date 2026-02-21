@@ -213,8 +213,8 @@ void Bloom::Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
         DrawFullscreen(cmdList, m_blurVPSO.Get(), m_mipRT[i], m_blurTempRT[i], tw, th);
     }
 
-    // 4. Upsample chain: 小→大にアディティブ合成
-    // mipRT[4]をmipRT[3]に加算、mipRT[3]をmipRT[2]に加算、...
+    // 4. Upsample chain: 最小ミップから最大ミップへ逆順にアディティブ合成。
+    // 低ミップの広いブラーが上位に伝播し、マルチスケールBloomの柔らかな光条を生む
     for (int i = k_MaxMipLevels - 1; i > 0; --i)
     {
         float tw = 1.0f / static_cast<float>(m_mipWidths[i]);

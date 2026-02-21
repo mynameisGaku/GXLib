@@ -46,7 +46,7 @@ int RTAccelerationStructure::BuildBLAS(ID3D12GraphicsCommandList4* cmdList,
     geomDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
     geomDesc.Triangles.VertexBuffer.StartAddress  = vb->GetGPUVirtualAddress();
     geomDesc.Triangles.VertexBuffer.StrideInBytes  = vertexStride;
-    geomDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT; // Position先頭12B
+    geomDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT; // 頂点先頭12Bがfloat3 Position
     geomDesc.Triangles.VertexCount  = vertexCount;
     geomDesc.Triangles.IndexBuffer  = ib->GetGPUVirtualAddress();
     geomDesc.Triangles.IndexFormat  = indexFormat;
@@ -160,7 +160,8 @@ void RTAccelerationStructure::BuildTLAS(ID3D12GraphicsCommandList4* cmdList, uin
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo = {};
     m_device->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &prebuildInfo);
 
-    // バッファが足りなければ再作成
+    // TLASバッファは毎フレーム再ビルドするが、サイズが足りている限り再利用する。
+    // インスタンス数が増えてprebuildInfoが大きくなった場合のみ再作成
     if (!m_tlasResult[bufIdx].GetResource() ||
         m_tlasResult[bufIdx].GetResource()->GetDesc().Width < prebuildInfo.ResultDataMaxSizeInBytes)
     {

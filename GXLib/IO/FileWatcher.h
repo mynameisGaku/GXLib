@@ -12,7 +12,9 @@ namespace GX {
 class FileWatcher
 {
 public:
+    /// @brief 停止イベントを作成する
     FileWatcher();
+    /// @brief 全監視を停止しリソースを解放する
     ~FileWatcher();
 
     /// @brief ディレクトリの変更監視を開始する

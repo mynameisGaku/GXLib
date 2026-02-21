@@ -82,8 +82,7 @@ void BlendTree::Evaluate1D(float time, uint32_t jointCount,
                              const TransformTRS* bindPose,
                              TransformTRS* outPose) const
 {
-    // ノードをthresholdでソートしたインデックス配列を作成
-    // 初学者向け: 閾値順に並べて、パラメータがどの2つの間にあるか探します。
+    // ノードをthreshold昇順でソートし、パラメータ値が収まる区間を探す
     std::vector<uint32_t> sorted(m_nodes.size());
     for (uint32_t i = 0; i < static_cast<uint32_t>(m_nodes.size()); ++i)
         sorted[i] = i;
@@ -140,8 +139,7 @@ void BlendTree::Evaluate2D(float time, uint32_t jointCount,
                              const TransformTRS* bindPose,
                              TransformTRS* outPose) const
 {
-    // 2Dブレンド: パラメータ位置から最も近い3ノードを見つけてバリセントリックブレンド
-    // 初学者向け: 三角形の3頂点で囲んだ中の位置に応じて3つのアニメを混ぜます。
+    // 2Dブレンド: パラメータ位置に最も近い3ノードをバリセントリック座標で重み付け合成
 
     // 各ノードの距離を計算
     struct DistEntry { uint32_t index; float dist; };
@@ -271,8 +269,7 @@ void BlendTree::Evaluate2D(float time, uint32_t jointCount,
         for (uint32_t i = 0; i < jointCount; ++i)
             m_tempC[i] = bindPose ? bindPose[i] : IdentityTRS();
 
-    // 3ウェイブレンド: A*w0 + B*w1 + C*w2
-    // 初学者向け: まずAとBをブレンドし、その結果とCをブレンドします。
+    // 3ウェイブレンド: 回転は段階的slerp、位置/スケールは加重平均
     for (uint32_t i = 0; i < jointCount; ++i)
     {
         // Translation: 加重平均

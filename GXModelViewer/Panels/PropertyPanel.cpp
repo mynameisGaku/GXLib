@@ -1,5 +1,9 @@
 /// @file PropertyPanel.cpp
-/// @brief Property panel implementation
+/// @brief プロパティインスペクタパネル実装
+///
+/// 選択エンティティの名前、トランスフォーム、ギズモ設定、マテリアル編集、
+/// レンダリングオプションをCollapsingHeaderで分類表示する。
+/// マテリアル編集ではShaderModelParamsとMaterialConstantsの両方を同期更新する。
 
 #include "PropertyPanel.h"
 #include <imgui.h>

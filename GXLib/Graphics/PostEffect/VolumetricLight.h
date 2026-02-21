@@ -1,9 +1,10 @@
 #pragma once
 /// @file VolumetricLight.h
-/// @brief ボリューメトリックライト（ゴッドレイ）ポストエフェクト
+/// @brief ボリューメトリックライト (ゴッドレイ/光の筋)
 ///
-/// GPU Gems 3 のスクリーン空間ラディアルブラー方式で、
-/// ディレクショナルライトからのゴッドレイ（光の筋）を合成する。
+/// DxLibには無い機能。太陽光が大気中の粒子に散乱して見える「光の筋」を再現する。
+/// GPU Gems 3のスクリーン空間ラディアルブラー方式を採用。
+/// 太陽のスクリーン座標に向かって放射状にサンプリングすることで光条を生成する。
 
 #include "pch.h"
 #include "Graphics/Resource/RenderTarget.h"
@@ -30,19 +31,35 @@ struct VolumetricLightConstants
     float    sunVisible;       // offset 44: 太陽可視性 (0-1)
 };  // 48B → 256-align
 
-/// @brief ボリューメトリックライト（ゴッドレイ）エフェクト
+/// @brief 太陽光の放射状散乱を再現するゴッドレイエフェクト
+///
+/// ライト方向からスクリーン上の太陽位置を計算し、各ピクセルから太陽に向かう
+/// ラディアルブラーで光の筋を生成する。深度バッファで遮蔽判定も行う。
 class VolumetricLight
 {
 public:
     VolumetricLight() = default;
     ~VolumetricLight() = default;
 
+    /// @brief 初期化。PSO・SRVヒープ・定数バッファを作成する
+    /// @param device D3D12デバイス
+    /// @param width 画面幅
+    /// @param height 画面高さ
+    /// @return 成功でtrue
     bool Initialize(ID3D12Device* device, uint32_t width, uint32_t height);
 
+    /// @brief ゴッドレイを生成してHDRシーンに合成する
+    /// @param cmdList コマンドリスト
+    /// @param frameIndex ダブルバッファ用フレームインデックス
+    /// @param srcHDR 入力HDRシーン
+    /// @param destHDR 出力先HDR RT
+    /// @param depth 深度バッファ (遮蔽判定に使う)
+    /// @param camera カメラ (太陽スクリーン座標の計算に使う)
     void Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
                  RenderTarget& srcHDR, RenderTarget& destHDR,
                  DepthBuffer& depth, const Camera3D& camera);
 
+    /// @brief 画面リサイズ対応
     void OnResize(ID3D12Device* device, uint32_t width, uint32_t height);
 
     // --- 有効/無効 ---
@@ -76,11 +93,12 @@ public:
     void SetIntensity(float v) { m_intensity = v; }
     float GetIntensity() const { return m_intensity; }
 
-    // 太陽位置を毎フレーム計算 (enabled に関係なく呼ぶ)
+    /// @brief 太陽のスクリーン座標と可視性を更新する (毎フレーム、enabled無関係に呼ぶ)
     void UpdateSunInfo(const Camera3D& camera);
 
-    // デバッグ情報
+    /// @brief 最後に計算した太陽の可視性 (0〜1)
     float GetLastSunVisible() const { return m_lastSunVisible; }
+    /// @brief 最後に計算した太陽のスクリーンUV座標
     XMFLOAT2 GetLastSunScreenPos() const { return m_lastSunScreenPos; }
 
 private:

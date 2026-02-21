@@ -50,6 +50,7 @@ float EvaluateClearCoat(float3 N, float3 V, float3 L,
 // ピクセルシェーダー
 // ============================================================================
 
+/// @brief ClearCoatピクセルシェーダー — ベースPBR + クリアコート層の2レイヤー合成
 PSOutput PSMain(PSInput input)
 {
     // --- アルベド ---

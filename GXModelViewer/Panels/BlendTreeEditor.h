@@ -1,14 +1,17 @@
 #pragma once
 /// @file BlendTreeEditor.h
-/// @brief Blend tree parameter editor panel
+/// @brief ブレンドツリーパラメータ編集・可視化パネル
+///
+/// 1Dブレンドツリーは数直線上にノード閾値を表示し、三角形で現在パラメータを示す。
+/// 2Dブレンドツリーは散布図上にノード位置を表示し、ドラッグでパラメータを操作できる。
 
 namespace GX { class BlendTree; }
 
-/// @brief ImGui panel for editing blend tree parameters and visualizing nodes
+/// @brief BlendTree（1D/2D）のパラメータ編集と視覚化を行うパネル
 class BlendTreeEditor
 {
 public:
-    /// Draw the blend tree editor panel.
-    /// @param blendTree The blend tree to edit (may be nullptr).
+    /// @brief ブレンドツリーエディタパネルを描画する
+    /// @param blendTree 編集対象のブレンドツリー（nullptrの場合は無効表示）
     void Draw(GX::BlendTree* blendTree);
 };

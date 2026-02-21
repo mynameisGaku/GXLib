@@ -14,7 +14,8 @@ bool RenderTarget::Create(ID3D12Device* device, uint32_t width, uint32_t height,
     m_format = format;
     m_currentState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 
-    // レンダーターゲット用リソースを作成
+    // ALLOW_RENDER_TARGETフラグを付けてリソースを作成
+    // clearValueを設定しておくと、ClearRenderTargetView時にドライバが最適化できる
     D3D12_RESOURCE_DESC texDesc = {};
     texDesc.Dimension        = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
     texDesc.Width            = width;
@@ -50,7 +51,7 @@ bool RenderTarget::Create(ID3D12Device* device, uint32_t width, uint32_t height,
         return false;
     }
 
-    // RTV用ディスクリプタヒープ
+    // RTV用ヒープ（non-shader-visible、CPU側からの書き込み先設定に使う）
     if (!m_rtvHeap.Initialize(device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1, false))
         return false;
 
@@ -61,7 +62,7 @@ bool RenderTarget::Create(ID3D12Device* device, uint32_t width, uint32_t height,
 
     device->CreateRenderTargetView(m_resource.Get(), &rtvDesc, m_rtvHeap.GetCPUHandle(0));
 
-    // SRV用ディスクリプタヒープ（shader-visible）
+    // SRV用ヒープ（shader-visible、描画結果をテクスチャとして読むために必要）
     if (!m_srvHeap.Initialize(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1, true))
         return false;
 
@@ -93,6 +94,7 @@ void RenderTarget::TransitionTo(ID3D12GraphicsCommandList* cmdList, D3D12_RESOUR
     if (m_currentState == newState)
         return;
 
+    // m_currentStateを追跡することで、外部が現在のステートを知らなくても正しくバリアを発行できる
     D3D12_RESOURCE_BARRIER barrier = {};
     barrier.Type                   = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
     barrier.Transition.pResource   = m_resource.Get();

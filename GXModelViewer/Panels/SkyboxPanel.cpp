@@ -1,5 +1,8 @@
 /// @file SkyboxPanel.cpp
-/// @brief ImGui panel for Skybox settings
+/// @brief スカイボックスパネル実装
+///
+/// プロシージャルスカイの上下カラー・太陽方向/強度を編集し、
+/// 変更時にSkybox::SetColors/SetSunで即座に反映する。
 
 #include "SkyboxPanel.h"
 #include <imgui.h>

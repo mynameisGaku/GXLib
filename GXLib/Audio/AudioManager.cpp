@@ -25,6 +25,7 @@ bool AudioManager::Initialize()
 
 int AudioManager::AllocateHandle()
 {
+    // フリーリストに解放済みハンドルがあれば再利用する
     if (!m_freeHandles.empty())
     {
         int handle = m_freeHandles.back();
@@ -32,6 +33,7 @@ int AudioManager::AllocateHandle()
         return handle;
     }
 
+    // 新規割り当て。必要に応じてエントリ配列を拡張する
     int handle = m_nextHandle++;
     if (handle >= static_cast<int>(m_entries.size()))
     {
@@ -42,7 +44,7 @@ int AudioManager::AllocateHandle()
 
 int AudioManager::LoadSound(const std::wstring& filePath)
 {
-    // キャッシュチェック
+    // 同一パスが既に読み込み済みならキャッシュからハンドルを返す（二重読み込み防止）
     auto it = m_pathCache.find(filePath);
     if (it != m_pathCache.end())
     {
@@ -119,8 +121,8 @@ void AudioManager::FadeOutMusic(float seconds)
 
 void AudioManager::SetSoundVolume(int handle, float volume)
 {
-    // ハンドル単位の音量は個別Voiceでは制御しにくいので、
-    // Play時のvolumeパラメータで対応
+    // SE用のSourceVoiceはPlay()のたびに新規作成されるため、
+    // 既存ハンドルからの音量変更は困難。Play()のvolumeパラメータで代用する。
     (void)handle;
     (void)volume;
 }
@@ -132,12 +134,14 @@ void AudioManager::SetMasterVolume(float volume)
 
 void AudioManager::Update(float deltaTime)
 {
+    // BGMのフェード音量補間と、SE再生済みVoiceの解放を行う
     m_musicPlayer.Update(deltaTime);
     m_soundPlayer.CleanupFinishedVoices();
 }
 
 void AudioManager::Shutdown()
 {
+    // 破棄順序: BGM停止 → 全エントリ解放 → デバイス破棄
     m_musicPlayer.Stop();
     m_entries.clear();
     m_pathCache.clear();
@@ -153,6 +157,7 @@ void AudioManager::ReleaseSound(int handle)
 
     auto& entry = m_entries[handle];
 
+    // パスキャッシュからも削除して、次回LoadSoundで再読み込みできるようにする
     if (!entry.filePath.empty())
     {
         m_pathCache.erase(entry.filePath);
@@ -160,7 +165,7 @@ void AudioManager::ReleaseSound(int handle)
     }
 
     entry.sound.reset();
-    m_freeHandles.push_back(handle);
+    m_freeHandles.push_back(handle);  // ハンドルをフリーリストへ返却
 }
 
 } // namespace GX

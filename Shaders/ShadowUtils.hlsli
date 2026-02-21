@@ -1,3 +1,7 @@
+// シャドウマップ計算ユーティリティ
+// CSM (Cascaded Shadow Maps)、スポットライトシャドウ、ポイントライトシャドウ
+// の3種類のシャドウマッピングを5x5 PCFフィルタリングで提供する。
+
 /// @file ShadowUtils.hlsli
 /// @brief シャドウマップサンプリング・カスケード選択ユーティリティ
 
@@ -7,23 +11,25 @@
 #define NUM_CASCADES 4
 
 // シャドウマップテクスチャ（t8-t13）
-Texture2D      tShadowMap0  : register(t8);
-Texture2D      tShadowMap1  : register(t9);
-Texture2D      tShadowMap2  : register(t10);
-Texture2D      tShadowMap3  : register(t11);
-Texture2D      tSpotShadow  : register(t12);
-Texture2DArray tPointShadow : register(t13);
+Texture2D      tShadowMap0  : register(t8);  // CSMカスケード0（最近距離）
+Texture2D      tShadowMap1  : register(t9);  // CSMカスケード1
+Texture2D      tShadowMap2  : register(t10); // CSMカスケード2
+Texture2D      tShadowMap3  : register(t11); // CSMカスケード3（最遠距離）
+Texture2D      tSpotShadow  : register(t12); // スポットライトシャドウマップ
+Texture2DArray tPointShadow : register(t13); // ポイントライト6面キューブシャドウ
 
-// 比較サンプラー（s2）
+// 比較サンプラー（深度比較付き、PCFのハードウェアフィルタリング用）
 SamplerComparisonState sShadowCmp : register(s2);
 
-// PCFサンプリング半径スケール（ペナンブラ幅）
+// PCFサンプリング半径スケール（大きいほどソフトシャドウが広がる）
 static const float k_ShadowSoftness = 2.0f;
 
 // ============================================================================
-// PCFフィルタリング（5x5カーネル）
+// PCFフィルタリング（5x5カーネル = 25サンプル）
+// SampleCmpLevelZeroでハードウェア深度比較を行い、平均して柔らかい影を生成。
 // ============================================================================
 
+/// @brief 5x5 PCFシャドウフィルタ — テクセル単位でオフセットして25回比較サンプリング
 float SampleShadowMapPCF(Texture2D shadowMap, float3 shadowCoord, float shadowMapSize)
 {
     float texelSize = k_ShadowSoftness / shadowMapSize;
@@ -46,8 +52,10 @@ float SampleShadowMapPCF(Texture2D shadowMap, float3 shadowCoord, float shadowMa
 }
 
 // ============================================================================
-// Texture2DArray用PCFフィルタリング（5x5カーネル、CSMと同品質）
+// Texture2DArray用PCFフィルタリング（ポイントライトのキューブ面に使用）
 // ============================================================================
+
+/// @brief 5x5 PCFシャドウフィルタ（配列スライス版）— キューブ面境界マージン付き
 float SampleShadowArrayPCF(Texture2DArray shadowArray, float3 shadowCoord,
                              uint arraySlice, float shadowMapSize)
 {
@@ -75,8 +83,11 @@ float SampleShadowArrayPCF(Texture2DArray shadowArray, float3 shadowCoord,
 }
 
 // ============================================================================
-// カスケード選択 + シャドウ計算
+// CSMカスケード選択 + シャドウ計算
+// ビュー空間Zからカスケードを選択し、ライト空間に変換してPCFサンプリング。
 // ============================================================================
+
+/// @brief CSMシャドウファクター — viewZでカスケードを選び、PCFフィルタしたシャドウ値を返す
 float ComputeCascadedShadow(float3 posW, float viewZ,
                              float4x4 lightVP[NUM_CASCADES],
                              float cascadeSplits[NUM_CASCADES],
@@ -122,6 +133,8 @@ float ComputeCascadedShadow(float3 posW, float viewZ,
 // ============================================================================
 // スポットライトシャドウ計算
 // ============================================================================
+
+/// @brief スポットライトシャドウ — ライトVP変換してPCFサンプリング
 float ComputeSpotShadow(float3 posW, float4x4 spotLightVP, float shadowMapSize)
 {
     float4 shadowPos = mul(float4(posW, 1.0f), spotLightVP);
@@ -142,12 +155,14 @@ float ComputeSpotShadow(float3 posW, float4x4 spotLightVP, float shadowMapSize)
 }
 
 // ============================================================================
-// ポイントライトシャドウ計算
+// ポイントライトシャドウ計算（全方向キューブマップ方式）
 // ============================================================================
+
+/// @brief ポイントライトシャドウ — 支配軸でキューブ面を選択しPCFサンプリング
 float ComputePointShadow(float3 posW, float3 lightPos,
                            float4x4 faceVP[6], float shadowMapSize)
 {
-    // 支配軸で面選択
+    // 支配軸（最大成分の軸）でキューブマップの面を決定
     float3 diff = posW - lightPos;
     float3 absDiff = abs(diff);
 

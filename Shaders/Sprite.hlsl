@@ -32,7 +32,7 @@ struct PSInput
     float4 color : COLOR;       // 頂点カラー
 };
 
-// 頂点シェーダー: スクリーン座標を正射影行列で変換
+/// @brief スプライトVS — スクリーン座標を正射影行列でクリップ座標に変換
 PSInput VSMain(VSInput input)
 {
     PSInput output;
@@ -42,7 +42,7 @@ PSInput VSMain(VSInput input)
     return output;
 }
 
-// ピクセルシェーダー: テクスチャカラー × 頂点カラー
+/// @brief スプライトPS — テクスチャ色と頂点カラーを乗算して出力
 float4 PSMain(PSInput input) : SV_Target
 {
     return tex.Sample(smp, input.uv) * input.color;

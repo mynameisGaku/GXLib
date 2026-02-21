@@ -1,9 +1,10 @@
 #pragma once
 /// @file LayerCompositor.h
-/// @brief レイヤーコンポジター
+/// @brief レイヤーコンポジター (合成器)
 ///
-/// Z-order順にレイヤーをフルスクリーン描画で合成し、バックバッファに出力する。
-/// ブレンドモード別のPSO、マスク対応のPSOを保持する。
+/// DxLibには直接対応する機能が無い。LayerStackの全レイヤーをZ-order順に
+/// フルスクリーン三角形で合成してバックバッファに出力する。
+/// ブレンドモード別のPSO (Alpha/Add/Sub/Mul/Screen/None) とマスク対応PSOを保持。
 
 #include "pch.h"
 #include "Graphics/Layer/LayerStack.h"
@@ -14,30 +15,41 @@
 namespace GX
 {
 
-/// @brief 合成用定数バッファ
+/// @brief レイヤー合成用定数バッファ
 struct CompositeConstants
 {
-    float opacity;
-    float hasMask;
+    float opacity;    ///< レイヤーの不透明度 (0〜1)
+    float hasMask;    ///< マスク使用フラグ (1.0でマスクあり)
     float padding[2];
 };
 
-/// @brief レイヤーコンポジター
+/// @brief 全レイヤーをブレンドモード別にバックバッファへ合成するコンポジター
+///
+/// ブレンドモード毎に専用PSOを保持し、マスク付きレイヤーは2テクスチャ入力の
+/// 専用PSOで描画する。フルスクリーン三角形 (SV_VertexID、VB不要) で合成。
 class LayerCompositor
 {
 public:
     LayerCompositor() = default;
     ~LayerCompositor() = default;
 
-    /// 初期化
+    /// @brief 初期化。全ブレンドモードのPSO・マスク用SRVヒープを作成する
+    /// @param device D3D12デバイス
+    /// @param w 画面幅
+    /// @param h 画面高さ
+    /// @return 成功でtrue
     bool Initialize(ID3D12Device* device, uint32_t w, uint32_t h);
 
-    /// 全レイヤーをZ-order順に合成してバックバッファに描画
+    /// @brief 全レイヤーをZ-order順に合成してバックバッファに描画する
+    /// @param cmdList コマンドリスト
+    /// @param frameIndex ダブルバッファ用フレームインデックス
+    /// @param backBufferRTV バックバッファのRTVハンドル
+    /// @param layerStack 合成対象のレイヤースタック
     void Composite(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
                    D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
                    LayerStack& layerStack);
 
-    /// リサイズ
+    /// @brief 画面リサイズ対応
     void OnResize(ID3D12Device* device, uint32_t w, uint32_t h);
 
 private:

@@ -2,16 +2,12 @@
 /// @file RenderTarget.h
 /// @brief オフスクリーンレンダーターゲット
 ///
-/// 【初学者向け解説】
-/// RenderTargetは、画面に直接描画するのではなく、一旦テクスチャに描画するための
-/// 仕組みです。DXLibのMakeScreen()に相当します。
+/// DxLibの MakeScreen() で作成する描画先に相当するクラス。
+/// 画面に直接描画するのではなく、一旦テクスチャに描画し、
+/// その結果をポストエフェクトやミニマップなどに使う。
 ///
-/// 用途：
-/// - ポストエフェクト（ブラー、モザイクなど）
-/// - ミニマップの描画
-/// - シーンの合成
-///
-/// 描画先をRenderTargetに切り替え → 描画 → 元に戻す → テクスチャとして利用
+/// HDRパイプラインではR16G16B16A16_FLOATフォーマットを使用する。
+/// リソースステート管理のため、TransitionTo()を通じてバリアを発行すること。
 
 #include "pch.h"
 #include "Graphics/Device/DescriptorHeap.h"
@@ -20,48 +16,73 @@ namespace GX
 {
 
 /// @brief オフスクリーンレンダーターゲット
+///
+/// RTV（書き込み用ビュー）とSRV（読み取り用ビュー）の両方を内部に持つ。
+/// 描画先として使った後、テクスチャとしてシェーダーから参照できる。
 class RenderTarget
 {
 public:
     RenderTarget() = default;
     ~RenderTarget() = default;
 
-    /// レンダーターゲットを作成
+    /// @brief レンダーターゲットを作成する
+    /// @param device D3D12デバイス
+    /// @param width テクスチャの幅（ピクセル）
+    /// @param height テクスチャの高さ（ピクセル）
+    /// @param format テクスチャフォーマット（HDR用にR16G16B16A16_FLOATを指定可能）
+    /// @return 成功時true
     bool Create(ID3D12Device* device,
                 uint32_t width, uint32_t height,
                 DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM);
 
-    /// レンダーターゲットのRTVハンドルを取得
+    /// @brief RTV（Render Target View）のCPUハンドルを取得する
+    /// @return 描画先として設定するためのCPUディスクリプタハンドル
     D3D12_CPU_DESCRIPTOR_HANDLE GetRTVHandle() const;
 
-    /// SRVのGPUハンドルを取得（テクスチャとして読む時用）
+    /// @brief SRV（Shader Resource View）のGPUハンドルを取得する
+    /// @return テクスチャとしてシェーダーにバインドするためのGPUハンドル
     D3D12_GPU_DESCRIPTOR_HANDLE GetSRVGPUHandle() const;
 
-    /// リソースを取得
+    /// @brief 内部のID3D12Resourceを取得する
+    /// @return リソースポインタ
     ID3D12Resource* GetResource() const { return m_resource.Get(); }
 
+    /// @brief テクスチャの幅を取得する
+    /// @return ピクセル単位の幅
     uint32_t GetWidth() const { return m_width; }
+
+    /// @brief テクスチャの高さを取得する
+    /// @return ピクセル単位の高さ
     uint32_t GetHeight() const { return m_height; }
+
+    /// @brief テクスチャフォーマットを取得する
+    /// @return DXGI_FORMAT値
     DXGI_FORMAT GetFormat() const { return m_format; }
 
-    /// SRVヒープを取得（外部からディスクリプタヒープをバインドするため）
+    /// @brief SRV用のディスクリプタヒープを取得する
+    /// @return SRVヒープへの参照
     DescriptorHeap& GetSRVHeap() { return m_srvHeap; }
 
-    /// 現在のリソースステートを取得
+    /// @brief 現在のリソースステートを取得する
+    /// @return D3D12のリソースステート
     D3D12_RESOURCE_STATES GetCurrentState() const { return m_currentState; }
 
-    /// リソースステートを設定（外部でバリアを発行した後に呼ぶ）
+    /// @brief リソースステートを外部から設定する（外部でバリアを発行した場合に同期用）
+    /// @param state 新しいリソースステート
     void SetCurrentState(D3D12_RESOURCE_STATES state) { m_currentState = state; }
 
-    /// リソースバリアを発行してステート遷移
-    /// @note 外部から直接 D3D12 バリアを発行すると m_currentState と実際のステートが
-    ///       不整合になります。ステート遷移には必ずこのメソッドを使用してください。
+    /// @brief リソースバリアを発行してステートを遷移させる
+    ///
+    /// 直接D3D12バリアを発行するとm_currentStateとの不整合が起きるため、
+    /// ステート遷移には必ずこのメソッドを使うこと。
+    /// @param cmdList コマンドリスト
+    /// @param newState 遷移先のリソースステート
     void TransitionTo(ID3D12GraphicsCommandList* cmdList, D3D12_RESOURCE_STATES newState);
 
 private:
     ComPtr<ID3D12Resource> m_resource;
-    DescriptorHeap         m_rtvHeap;
-    DescriptorHeap         m_srvHeap;
+    DescriptorHeap         m_rtvHeap;  ///< RTV用ヒープ（1スロット）
+    DescriptorHeap         m_srvHeap;  ///< SRV用shader-visibleヒープ（1スロット）
     uint32_t    m_width  = 0;
     uint32_t    m_height = 0;
     DXGI_FORMAT m_format = DXGI_FORMAT_R8G8B8A8_UNORM;

@@ -1,23 +1,27 @@
 #pragma once
 /// @file SceneSerializer.h
-/// @brief Scene save/load to JSON
+/// @brief シーンのJSON保存/読み込み
+///
+/// エンティティの名前、Transform、マテリアルオーバーライド、モデルパスを
+/// nlohmann/jsonでシリアライズ/デシリアライズする。モデル自体のリロードは
+/// アプリケーション側(GXModelViewerApp)で行う。
 
 #include "SceneGraph.h"
 #include <string>
 
-/// @brief Serializes/deserializes a SceneGraph to/from JSON files
+/// @brief SceneGraphをJSONファイルに保存/復元するシリアライザ
 class SceneSerializer
 {
 public:
-    /// Save the scene to a JSON file.
-    /// @param scene The scene graph to serialize.
-    /// @param filePath Output file path.
-    /// @return true on success.
+    /// @brief シーンをJSONファイルに保存する
+    /// @param scene 保存対象のシーングラフ
+    /// @param filePath 出力先ファイルパス
+    /// @return 成功時true
     static bool SaveToFile(const SceneGraph& scene, const std::string& filePath);
 
-    /// Load a scene from a JSON file.
-    /// @param scene The scene graph to populate (existing entities are cleared by adding new ones).
-    /// @param filePath Input file path.
-    /// @return true on success.
+    /// @brief JSONファイルからシーンを読み込む（エンティティが追加される）
+    /// @param scene 読み込み先のシーングラフ
+    /// @param filePath 入力ファイルパス
+    /// @return 成功時true
     static bool LoadFromFile(SceneGraph& scene, const std::string& filePath);
 };

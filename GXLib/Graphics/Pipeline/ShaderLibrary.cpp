@@ -39,16 +39,16 @@ ShaderBlob ShaderLibrary::GetShaderVariant(const std::wstring& filePath,
 {
     std::lock_guard<std::mutex> lock(m_mutex);
 
+    // ファイルパス + エントリポイント + ターゲット + defines の組み合わせでキャッシュを引く
     ShaderKey key{ filePath, entryPoint, target, defines };
 
-    // キャッシュヒット確認
     auto it = m_cache.find(key);
     if (it != m_cache.end() && it->second.valid)
     {
         return it->second;
     }
 
-    // コンパイル
+    // キャッシュミス — 実際にコンパイルを実行
     ShaderBlob blob;
     if (defines.empty())
     {
@@ -97,7 +97,8 @@ bool ShaderLibrary::InvalidateFile(const std::wstring& filePath)
 
     std::wstring normalizedPath = NormalizePath(filePath);
 
-    // .hlsli の場合は全キャッシュクリア（include依存追跡は省略）
+    // .hlsliはヘッダファイルなのでどのシェーダーが依存しているか分からない。
+    // include依存グラフの追跡は省略し、安全策として全キャッシュをクリアする。
     bool isInclude = false;
     if (normalizedPath.size() > 6)
     {
@@ -123,13 +124,14 @@ bool ShaderLibrary::InvalidateFile(const std::wstring& filePath)
         }
     }
 
-    // 登録済みPSORebuilderを呼び出し
+    // 登録済みPSO再構築コールバックを呼び出す。
+    // .hlsli変更時は依存が不明なので全コールバック、.hlsl変更時は該当ファイルのみ。
+    // 一部が失敗しても残りは試行する（画面が壊れるよりは部分的にでも更新した方がよい）。
     bool allSuccess = true;
     m_lastError.clear();
 
     for (auto& entry : m_rebuilders)
     {
-        // .hlsli変更時は全rebuilder呼び出し、.hlsl変更時は該当ファイルのみ
         bool shouldRebuild = isInclude || (entry.shaderPath == normalizedPath);
         if (!shouldRebuild) continue;
 
@@ -139,7 +141,6 @@ bool ShaderLibrary::InvalidateFile(const std::wstring& filePath)
             m_lastError = m_compiler.GetLastError();
             GX_LOG_ERROR("ShaderLibrary: PSO rebuild failed (ID=%u)", entry.id);
             allSuccess = false;
-            // 最初の失敗のみ記録して続行（他のPSOも試みる）
         }
     }
 
@@ -157,13 +158,12 @@ void ShaderLibrary::Shutdown()
 
 std::wstring ShaderLibrary::NormalizePath(const std::wstring& path)
 {
+    // パス比較を安定させるため、区切り文字と大文字小文字を統一する
     std::wstring result = path;
-    // バックスラッシュ → スラッシュ
     for (auto& c : result)
     {
         if (c == L'\\') c = L'/';
     }
-    // 小文字化
     for (auto& c : result)
     {
         c = towlower(c);

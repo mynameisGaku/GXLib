@@ -1,5 +1,9 @@
 /// @file TextureBrowser.cpp
-/// @brief Texture browser panel implementation
+/// @brief テクスチャブラウザパネル実装
+///
+/// TextureManager内の全ハンドルをスキャンし、有効なテクスチャをImageButtonで
+/// グリッド表示する。GPU SRVハンドルをImTextureIDとして使用。
+/// 選択時は拡大プレビューとフォーマット情報を表示する。
 
 #include "TextureBrowser.h"
 #include <imgui.h>

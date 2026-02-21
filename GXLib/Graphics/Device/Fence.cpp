@@ -25,6 +25,7 @@ bool Fence::Initialize(ID3D12Device* device)
         return false;
     }
 
+    // GPU完了時にシグナルされるWindowsイベントを作成
     m_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
     if (!m_event)
     {
@@ -38,6 +39,8 @@ bool Fence::Initialize(ID3D12Device* device)
 
 uint64_t Fence::Signal(ID3D12CommandQueue* queue)
 {
+    // フェンス値を+1してからGPU側にSignalを送る
+    // GPUがこのSignal地点まで処理を終えると、フェンスの完了値がこの値になる
     m_fenceValue++;
     HRESULT hr = queue->Signal(m_fence.Get(), m_fenceValue);
     if (FAILED(hr))
@@ -49,6 +52,7 @@ uint64_t Fence::Signal(ID3D12CommandQueue* queue)
 
 void Fence::WaitForValue(uint64_t value)
 {
+    // GPUがまだ指定値に達していなければ、イベント待機でCPUを止める
     if (m_fence->GetCompletedValue() < value)
     {
         m_fence->SetEventOnCompletion(value, m_event);
@@ -58,6 +62,7 @@ void Fence::WaitForValue(uint64_t value)
 
 void Fence::WaitForGPU(ID3D12CommandQueue* queue)
 {
+    // Signal + WaitForValueの一括呼び出し
     uint64_t value = Signal(queue);
     WaitForValue(value);
 }

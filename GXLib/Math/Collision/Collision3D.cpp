@@ -90,8 +90,7 @@ bool TestPointInAABB(const Vector3& point, const AABB3D& aabb)
 
 bool TestOBBVsOBB(const OBB& a, const OBB& b)
 {
-    // 分離軸定理（SAT）で判定
-    // 初学者向け: 2つの箱を分離できる軸が1つでもあれば「非衝突」です。
+    // 分離軸定理（SAT）: 2つの箱を分離できる軸が1つでも見つかれば非衝突
     Vector3 d = b.center - a.center;
     float ha[3] = { a.halfExtents.x, a.halfExtents.y, a.halfExtents.z };
     float hb[3] = { b.halfExtents.x, b.halfExtents.y, b.halfExtents.z };
@@ -239,8 +238,7 @@ bool RaycastAABB(const Ray& ray, const AABB3D& aabb, float& outT)
 
 bool RaycastTriangle(const Ray& ray, const Triangle& tri, float& outT, float& outU, float& outV)
 {
-    // Moller-Trumbore法（レイと三角形の交差）
-    // 初学者向け: 三角形を2つの辺で表し、面内座標(u,v)で内外判定します。
+    // Moller-Trumbore法: 三角形の2辺と面内座標(u,v)でレイの交差を判定する
     Vector3 edge1 = tri.v1 - tri.v0;
     Vector3 edge2 = tri.v2 - tri.v0;
     Vector3 h = ray.direction.Cross(edge2);
@@ -282,7 +280,7 @@ bool RaycastPlane(const Ray& ray, const Plane& plane, float& outT)
 
 bool RaycastOBB(const Ray& ray, const OBB& obb, float& outT)
 {
-    // レイをOBBのローカル空間へ変換
+    // レイをOBBのローカル空間に変換し、AABBとしてレイキャストする
     Vector3 d = ray.origin - obb.center;
     Vector3 localOrigin(d.Dot(obb.axes[0]), d.Dot(obb.axes[1]), d.Dot(obb.axes[2]));
     Vector3 localDir(ray.direction.Dot(obb.axes[0]), ray.direction.Dot(obb.axes[1]), ray.direction.Dot(obb.axes[2]));

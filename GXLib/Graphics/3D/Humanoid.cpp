@@ -30,8 +30,7 @@ static std::string NormalizeBoneName(const std::string& name)
             out.push_back(c);
     }
 
-    // よくある接頭辞を除去
-    // 初学者向け: DCCツール由来の名前差を吸収して「同じ骨」を見つけやすくします。
+    // DCCツール由来の接頭辞を除去（Mixamo, Blender Armature, 3dsMax Bip等）
     const char* prefixes[] = { "mixamorig", "armature", "bip001", "bip", "rig" };
     for (const char* p : prefixes)
     {
@@ -265,8 +264,7 @@ void HumanoidRetargeter::RetargetLocalPose(const TransformTRS* sourcePose,
         const TransformTRS& srcAnim = sourcePose[srcIndex];
         const TransformTRS& dstBind = m_targetBindPose[dstIndex];
 
-        // 回転の差分
-        // 初学者向け: 元の「基準姿勢」から、どれだけ回転したかを取り出します。
+        // 回転の差分転写: delta = inv(srcBind) * srcAnim → dstBind * delta
         XMVECTOR qBind = XMLoadFloat4(&srcBind.rotation);
         XMVECTOR qAnim = XMLoadFloat4(&srcAnim.rotation);
         XMVECTOR qDelta = XMQuaternionMultiply(XMQuaternionInverse(qBind), qAnim);
@@ -274,8 +272,7 @@ void HumanoidRetargeter::RetargetLocalPose(const TransformTRS* sourcePose,
         XMFLOAT4 dstRot;
         XMStoreFloat4(&dstRot, XMQuaternionNormalize(qDst));
 
-        // 位置の差分（骨の長さ比でスケール補正）
-        // 初学者向け: 体格が違うモデルでも自然に動くように、長さ比で移動量を調整します。
+        // 位置の差分（ボーン長の比率でスケール補正し、体格差を吸収）
         XMFLOAT3 deltaPos = {
             srcAnim.translation.x - srcBind.translation.x,
             srcAnim.translation.y - srcBind.translation.y,

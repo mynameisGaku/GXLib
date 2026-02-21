@@ -5,6 +5,7 @@
 
 namespace GX { namespace GUI {
 
+// ウィジェットのCSS transformプロパティからアフィン変換を構築する
 static Transform2D BuildLocalTransform(const Widget& widget, const Style& style)
 {
     float tx = style.translateX;
@@ -28,6 +29,7 @@ static Transform2D BuildLocalTransform(const Widget& widget, const Style& style)
     return t;
 }
 
+// ルートからwidgetまでのtransformを合成してワールド変換行列を得る
 static Transform2D BuildWorldTransform(const Widget* widget)
 {
     std::vector<const Widget*> chain;
@@ -44,6 +46,7 @@ static Transform2D BuildWorldTransform(const Widget* widget)
     return world;
 }
 
+// スクリーン座標をウィジェットのローカル座標に変換する（ワールド変換の逆行列を適用）
 static XMFLOAT2 ComputeLocalPoint(const Widget* widget, float x, float y)
 {
     if (!widget)
@@ -53,6 +56,7 @@ static XMFLOAT2 ComputeLocalPoint(const Widget* widget, float x, float y)
     return TransformPoint(inv, x, y);
 }
 
+// 座標(x,y)にあるウィジェットを再帰的に探す。子の上にあるものが優先（後方の子＝手前）
 static Widget* HitTestInternal(Widget* widget, float x, float y,
                                const Transform2D& parent, XMFLOAT2* outLocal)
 {
@@ -500,8 +504,7 @@ UIContext::WidgetSize UIContext::MeasureWidget(Widget* widget, float maxWidth, f
     float w = style.width.IsAuto()  ? 0.0f : style.width.Resolve(maxWidth);
     float h = style.height.IsAuto() ? 0.0f : style.height.Resolve(maxHeight);
 
-    // リーフウィジェットの内容サイズ（intrinsic size）
-    // 初学者向け: 文字サイズなど「中身の自然な大きさ」を使います。
+    // リーフウィジェットの内容サイズ（テキスト幅/画像サイズなど中身の自然な大きさ）
     if (w <= 0.0f) w = widget->GetIntrinsicWidth();
     if (h <= 0.0f) h = widget->GetIntrinsicHeight();
 
@@ -727,7 +730,6 @@ void UIContext::LayoutWidget(Widget* widget, float posX, float posY,
         float mce = isColumn ? cs.margin.right   : cs.margin.bottom; // cross-end
 
         // 主軸方向のマージンをカーソルに加算
-        // 初学者向け: 子の配置位置を「マージン込み」で進めます。
         cursor += mms;
 
         // align-items（Stretch は交差軸 Auto の場合のみ有効）

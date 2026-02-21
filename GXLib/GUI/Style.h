@@ -48,8 +48,8 @@ struct StyleLength
 // 色
 // ============================================================================
 
-/// @brief RGBA色（0.0〜1.0のfloat）
-/// 初学者向け: 0が暗く、1が最大の明るさ（アルファは透明度）です。
+/// @brief RGBA色（各成分は 0.0~1.0 の float）
+/// r/g/b は赤/緑/青の明るさ（0=なし, 1=最大）、a は不透明度（0=透明, 1=不透明）
 struct StyleColor
 {
     float r = 0.0f, g = 0.0f, b = 0.0f, a = 1.0f;
@@ -57,7 +57,9 @@ struct StyleColor
     StyleColor() = default;
     StyleColor(float r, float g, float b, float a = 1.0f) : r(r), g(g), b(b), a(a) {}
 
-    /// "#RRGGBB" または "#RRGGBBAA" 形式を解析する
+    /// @brief "#RRGGBB" または "#RRGGBBAA" 形式の16進数カラー文字列を解析する
+    /// @param hex "#FF8800" のようなカラー文字列
+    /// @return パース結果のStyleColor
     static StyleColor FromHex(const std::string& hex)
     {
         StyleColor c;
@@ -91,6 +93,8 @@ struct StyleColor
         return c;
     }
 
+    /// @brief 完全に透明かどうかを判定する
+    /// @return アルファが0以下なら true
     bool IsTransparent() const { return a <= 0.0f; }
 };
 
@@ -108,7 +112,9 @@ struct StyleEdges
     StyleEdges(float v, float h) : top(v), right(h), bottom(v), left(h) {}
     StyleEdges(float t, float r, float b, float l) : top(t), right(r), bottom(b), left(l) {}
 
+    /// @brief 左右の合計値を返す
     float HorizontalTotal() const { return left + right; }
+    /// @brief 上下の合計値を返す
     float VerticalTotal() const { return top + bottom; }
 };
 
@@ -116,19 +122,26 @@ struct StyleEdges
 // テキスト揃え
 // ============================================================================
 
+/// @brief テキストの水平方向の揃え
 enum class TextAlign { Left, Center, Right };
+/// @brief テキストの垂直方向の揃え
 enum class VAlign { Top, Center, Bottom };
+/// @brief UIエフェクトの種類（ボタン押下時のリップル等）
 enum class UIEffectType { None, Ripple };
 
 // ============================================================================
-// フレックスボックス
-// 初学者向け: 子要素を横/縦に並べるためのレイアウト設定です。
+// フレックスボックス（子要素を横/縦に並べるレイアウト方式。CSSのFlexboxと同等）
 // ============================================================================
 
+/// @brief 子要素の並び方向。Row=横並び、Column=縦並び
 enum class FlexDirection { Row, Column };
+/// @brief 主軸方向の配置。Start=先頭詰め、Center=中央、End=末尾詰め、SpaceBetween=均等配置
 enum class JustifyContent { Start, Center, End, SpaceBetween, SpaceAround };
+/// @brief 交差軸方向の揃え。Stretch=親の幅いっぱいに引き伸ばす
 enum class AlignItems { Start, Center, End, Stretch };
+/// @brief 配置方式。Relative=通常フロー、Absolute=親のコンテンツ領域基準で絶対配置
 enum class PositionType { Relative, Absolute };
+/// @brief はみ出し時の挙動。Visible=表示、Hidden=クリップ、Scroll=スクロール可能にクリップ
 enum class OverflowMode { Visible, Hidden, Scroll };
 
 // ============================================================================
@@ -136,6 +149,8 @@ enum class OverflowMode { Visible, Hidden, Scroll };
 // ============================================================================
 
 /// @brief ウィジェットの計算済みスタイル
+/// CSSのプロパティに対応するフィールドを持つ。
+/// StyleSheetから自動計算されるか、コードから直接設定する。
 struct Style
 {
     // --- サイズ ---
@@ -214,11 +229,17 @@ struct Style
 // スタイル補助関数（アニメーション用）
 // ============================================================================
 
+/// @brief 2つのfloat値がほぼ等しいか判定する（スタイル遷移の変化検出用）
 inline bool NearlyEqual(float a, float b, float eps = 1e-4f)
 {
     return std::fabs(a - b) <= eps;
 }
 
+/// @brief 2つの色を線形補間する
+/// @param a 開始色
+/// @param b 終了色
+/// @param t 補間係数（0.0=a, 1.0=b）
+/// @return 補間結果の色
 inline StyleColor LerpColor(const StyleColor& a, const StyleColor& b, float t)
 {
     return {
@@ -229,6 +250,7 @@ inline StyleColor LerpColor(const StyleColor& a, const StyleColor& b, float t)
     };
 }
 
+/// @brief 2つのスタイルの視覚的プロパティが等しいか判定する（遷移の変化検出用）
 inline bool VisualEquals(const Style& a, const Style& b)
 {
     return NearlyEqual(a.backgroundColor.r, b.backgroundColor.r) &&
@@ -270,6 +292,11 @@ inline bool VisualEquals(const Style& a, const Style& b)
            NearlyEqual(a.imageUVSpeedY, b.imageUVSpeedY);
 }
 
+/// @brief 2つのスタイルの視覚的プロパティを線形補間する（transitionDurationによるアニメーション用）
+/// @param from 開始スタイル
+/// @param to 終了スタイル
+/// @param t 補間係数（0.0=from, 1.0=to）
+/// @return 補間結果のスタイル（レイアウト系プロパティは to の値を採用）
 inline Style LerpVisual(const Style& from, const Style& to, float t)
 {
     Style out = to; // レイアウト系は target を採用

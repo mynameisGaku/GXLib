@@ -1,5 +1,5 @@
 /// @file anim_loader.cpp
-/// @brief GXAN animation runtime loader implementation
+/// @brief GXANアニメーションローダーの実装
 
 #include "anim_loader.h"
 #include <cstdio>
@@ -8,6 +8,7 @@
 namespace gxloader
 {
 
+/// 文字列テーブルからオフセット指定で文字列を読み取る
 static std::string ReadString(const uint8_t* stringData, uint32_t stringSize, uint32_t offset)
 {
     if (offset == gxfmt::k_InvalidStringIndex || offset >= stringSize)
@@ -15,6 +16,7 @@ static std::string ReadString(const uint8_t* stringData, uint32_t stringSize, ui
     return std::string(reinterpret_cast<const char*>(stringData + offset));
 }
 
+/// ヘッダ検証→文字列テーブル→チャネル記述子→キーデータの順で読み込む
 std::unique_ptr<LoadedGxan> LoadGxanFromMemory(const uint8_t* data, size_t size)
 {
     if (size < sizeof(gxfmt::GxanHeader))

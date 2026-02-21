@@ -1,62 +1,55 @@
 #pragma once
 /// @file Timer.h
-/// @brief 高精度タイマークラス
+/// @brief フレーム間のデルタタイム・FPS を計測する高精度タイマー
 ///
-/// 【初学者向け解説】
-/// ゲームでは「前のフレームから何秒経ったか」（デルタタイム）が重要です。
-/// キャラクターの移動速度やアニメーションをフレームレートに依存させないために、
-/// 経過時間を正確に測定する必要があります。
-///
-/// このTimerクラスは、WindowsのQueryPerformanceCounter（高精度カウンタ）を使い、
-/// マイクロ秒レベルの精度で時間を測定します。
-///
-/// 使い方：
-/// 1. Reset()でタイマーを初期化
-/// 2. 毎フレームTick()を呼ぶ
-/// 3. GetDeltaTime()で前フレームからの経過時間を取得
-/// 4. GetFPS()で現在のフレームレートを取得
+/// DxLib の GetNowCount() / WaitTimer() に相当する時間計測機能を提供する。
+/// 内部では QueryPerformanceCounter を使っており、マイクロ秒精度で計測できる。
+/// 毎フレーム Tick() を呼ぶとデルタタイムと FPS が自動更新される。
 
 #include "pch.h"
 
 namespace GX
 {
 
-/// @brief QueryPerformanceCounterベースの高精度タイマー
+/// @brief QueryPerformanceCounter ベースの高精度タイマー
+/// DxLib の GetNowCount() はミリ秒単位だが、こちらは float 秒で返す。
 class Timer
 {
 public:
-    /// @brief コンストラクタ（パフォーマンスカウンタの周波数を取得する）
+    /// @brief コンストラクタ。カウンタ周波数の取得と Reset() を行う
     Timer();
 
-    /// @brief タイマーをリセットする（ゲーム開始時に呼ぶ）
+    /// @brief タイマーを初期状態に戻す
+    /// アプリ起動時や、シーン切り替え時などに呼ぶ。
     void Reset();
 
-    /// @brief フレームごとに呼び出してデルタタイムを更新する
+    /// @brief 1 フレーム分の時間を計測する
+    /// 毎フレーム先頭で呼ぶこと。デルタタイム・総経過時間・FPS が更新される。
     void Tick();
 
     /// @brief 前フレームからの経過時間を取得する
-    /// @return デルタタイム（秒）
+    /// @return デルタタイム（秒）。移動量の計算などに使う
     float GetDeltaTime() const { return m_deltaTime; }
 
-    /// @brief ゲーム開始からの総経過時間を取得する
-    /// @return 総経過時間（秒）
+    /// @brief Reset() からの総経過時間を取得する
+    /// @return 経過時間（秒、double 精度）
     double GetTotalTime() const { return m_totalTime; }
 
-    /// @brief 現在のフレームレートを取得する
-    /// @return FPS（フレーム毎秒）
+    /// @brief 現在の FPS（1 秒ごとに更新）を取得する
+    /// @return フレームレート
     float GetFPS() const { return m_fps; }
 
 private:
-    LARGE_INTEGER m_frequency;
-    LARGE_INTEGER m_lastTime;
-    LARGE_INTEGER m_startTime;
+    LARGE_INTEGER m_frequency;   ///< カウンタ周波数（1 秒あたりのカウント数）
+    LARGE_INTEGER m_lastTime;    ///< 前回 Tick() 時のカウンタ値
+    LARGE_INTEGER m_startTime;   ///< Reset() 時のカウンタ値（総経過時間の基準）
 
-    float  m_deltaTime  = 0.0f;
-    double m_totalTime  = 0.0;
-    float  m_fps        = 0.0f;
+    float  m_deltaTime  = 0.0f;  ///< 直近フレームのデルタタイム（秒）
+    double m_totalTime  = 0.0;   ///< Reset() からの総経過時間（秒）
+    float  m_fps        = 0.0f;  ///< 直近 1 秒間の平均 FPS
 
-    int    m_frameCount = 0;
-    float  m_elapsed    = 0.0f;
+    int    m_frameCount = 0;     ///< FPS 計算用フレームカウンタ
+    float  m_elapsed    = 0.0f;  ///< FPS 計算用経過秒数
 };
 
 } // namespace GX

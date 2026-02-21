@@ -27,6 +27,8 @@ int LoadSoundMem(const TCHAR* filePath)
     return Ctx::Instance().audioManager.LoadSound(ToWString(filePath));
 }
 
+// GX_PLAYTYPE_LOOPの場合はBGMチャネル（PlayMusic）で再生する。
+// GX_PLAYTYPE_NORMALとGX_PLAYTYPE_BACKはどちらもSE再生（PlaySound）に統一。
 int PlaySoundMem(int handle, int playType, int resumeFlag)
 {
     (void)resumeFlag;
@@ -54,6 +56,7 @@ int DeleteSoundMem(int handle)
     return 0;
 }
 
+// DxLibの音量は0〜255の整数。GXLibは0.0〜1.0のfloatなので変換する。
 int ChangeVolumeSoundMem(int volume, int handle)
 {
     float vol = volume / 255.0f;

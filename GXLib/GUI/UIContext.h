@@ -18,50 +18,73 @@ class InputManager;
 
 namespace GX { namespace GUI {
 
-/// @brief GUI コンテキスト
+/// @brief GUIシステムの中心となるコンテキストクラス
+/// ウィジェットツリーの管理、Flexboxレイアウト計算、入力イベントのディスパッチ、
+/// フォーカス管理を一括して行う。DxLibにはGUI機能がないため独自実装。
 class UIContext
 {
 public:
     UIContext() = default;
     ~UIContext() = default;
 
-    /// 初期化
+    /// @brief 初期化する
+    /// @param renderer GUI描画用レンダラー
+    /// @param screenWidth スクリーン幅（ピクセル）
+    /// @param screenHeight スクリーン高さ（ピクセル）
+    /// @return 成功なら true
     bool Initialize(UIRenderer* renderer, uint32_t screenWidth, uint32_t screenHeight);
 
-    /// ルートウィジェットを設定
+    /// @brief ルートウィジェットを設定する。以前のルートは破棄される
+    /// @param root ルートとなるウィジェットツリー
     void SetRoot(std::unique_ptr<Widget> root);
 
-    /// ルートウィジェットを取得
+    /// @brief ルートウィジェットを取得する
+    /// @return ルートウィジェット。未設定なら nullptr
     Widget* GetRoot() const { return m_root.get(); }
 
-    /// IDでウィジェットを検索
+    /// @brief IDでウィジェットをツリー全体から検索する
+    /// @param id 検索するID文字列
+    /// @return 見つかったウィジェット。なければ nullptr
     Widget* FindById(const std::string& id);
 
-    /// フレーム更新（入力→イベント→レイアウト→アニメーション）
+    /// @brief フレーム更新。入力処理→イベントディスパッチ→レイアウト計算→アニメーション更新の順に実行
+    /// @param deltaTime 前フレームからの経過時間（秒）
+    /// @param input 入力マネージャー
     void Update(float deltaTime, InputManager& input);
 
-    /// 描画
+    /// @brief ウィジェットツリーを描画する
     void Render();
 
-    /// WM_CHARメッセージ処理（Window::AddMessageCallbackから呼ばれる）
+    /// @brief WM_CHARメッセージを処理する（Window::AddMessageCallbackから呼ぶ）
+    /// @param ch 入力された文字
+    /// @return 処理された場合 true
     bool ProcessCharMessage(wchar_t ch);
 
-    /// フォーカスウィジェットを設定
+    /// @brief キーボードフォーカスを指定ウィジェットに設定する
+    /// @param widget フォーカス先。nullptr でフォーカス解除
     void SetFocus(Widget* widget);
 
-    /// フォーカスウィジェットを取得
+    /// @brief 現在フォーカスを持つウィジェットを取得する
+    /// @return フォーカス中のウィジェット。なければ nullptr
     Widget* GetFocusedWidget() const { return m_focusedWidget; }
 
-    /// スタイルシートを設定（ツリー全体に自動適用）
+    /// @brief スタイルシートを設定する。Update時にツリー全体へ自動適用される
+    /// @param sheet 適用するスタイルシート
     void SetStyleSheet(StyleSheet* sheet);
 
-    /// スクリーンサイズ更新
+    /// @brief スクリーンサイズ変更時に呼ぶ。レイアウトの再計算をトリガーする
+    /// @param width 新しいスクリーン幅
+    /// @param height 新しいスクリーン高さ
     void OnResize(uint32_t width, uint32_t height);
 
-    /// デザイン解像度を設定（GUI座標空間の基準解像度）
+    /// @brief デザイン解像度を設定する。GUI座標空間の基準となる仮想解像度で、
+    ///        実際のスクリーンサイズとの比率でスケーリングされる（レターボックス対応）
+    /// @param width デザイン幅（0で無効化）
+    /// @param height デザイン高さ（0で無効化）
     void SetDesignResolution(uint32_t width, uint32_t height);
 
-    /// UIRendererを取得
+    /// @brief UIRendererを取得する
+    /// @return UIRenderer のポインタ
     UIRenderer* GetRenderer() const { return m_renderer; }
 
 private:

@@ -1,5 +1,5 @@
 /// @file Window.cpp
-/// @brief Win32ウィンドウ管理の実装
+/// @brief Window クラスの実装
 #include "pch.h"
 #include "Core/Window.h"
 #include "Core/Logger.h"
@@ -21,7 +21,7 @@ bool Window::Initialize(const WindowDesc& desc)
     m_width  = desc.width;
     m_height = desc.height;
 
-    // ウィンドウクラスを登録
+    // ウィンドウクラス登録。CS_HREDRAW | CS_VREDRAW でリサイズ時に全体再描画。
     WNDCLASSEXW wc = {};
     wc.cbSize        = sizeof(WNDCLASSEXW);
     wc.style         = CS_HREDRAW | CS_VREDRAW;
@@ -36,7 +36,7 @@ bool Window::Initialize(const WindowDesc& desc)
         return false;
     }
 
-    // クライアント領域のサイズからウィンドウ全体のサイズを計算
+    // クライアント領域サイズ → タイトルバー等を含むウィンドウ全体サイズに変換
     RECT rect = { 0, 0, static_cast<LONG>(m_width), static_cast<LONG>(m_height) };
     AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, FALSE);
 
@@ -49,7 +49,7 @@ bool Window::Initialize(const WindowDesc& desc)
     int posX = (screenWidth  - windowWidth)  / 2;
     int posY = (screenHeight - windowHeight) / 2;
 
-    // ウィンドウを作成
+    // lpCreateParams に this を渡し、WM_CREATE で GWLP_USERDATA に格納する
     m_hwnd = CreateWindowExW(
         0,
         L"GXLibWindowClass",
@@ -60,7 +60,7 @@ bool Window::Initialize(const WindowDesc& desc)
         nullptr,
         nullptr,
         GetModuleHandle(nullptr),
-        this    // WndProcにthisポインタを渡す
+        this
     );
 
     if (!m_hwnd)
@@ -78,6 +78,8 @@ bool Window::Initialize(const WindowDesc& desc)
 
 bool Window::ProcessMessages()
 {
+    // PeekMessage でキューに溜まったメッセージを全部処理する（ノンブロッキング）。
+    // GetMessage と違い、メッセージがなくても即座に返るのでゲームループ向き。
     MSG msg = {};
     while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
     {
@@ -111,6 +113,8 @@ void Window::SetTitle(const std::wstring& title)
 
 LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+    // WM_CREATE 時に CreateWindowEx の lpCreateParams (= this) を GWLP_USERDATA に保存。
+    // 以降のメッセージで GetWindowLongPtr から Window* を復元できる。
     if (msg == WM_CREATE)
     {
         auto createStruct = reinterpret_cast<CREATESTRUCTW*>(lParam);
@@ -121,13 +125,13 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
 
     auto window = reinterpret_cast<Window*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
 
-    // 登録されたメッセージコールバックを呼び出す（Input等が利用）
+    // 登録されたコールバックにメッセージを転送（InputManager 等が利用）
     if (window)
     {
         for (auto& callback : window->m_messageCallbacks)
         {
             if (callback(hwnd, msg, wParam, lParam))
-                break;  // 処理済み（ただしWindowの処理は続行）
+                break;  // true を返したら以降のコールバックはスキップ
         }
     }
 
@@ -135,6 +139,7 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
     {
     case WM_SIZE:
     {
+        // 最小化時は幅・高さ 0 になるのでスキップ（SwapChain リサイズで 0 は不正）
         if (window && wParam != SIZE_MINIMIZED)
         {
             uint32_t width  = LOWORD(lParam);

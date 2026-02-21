@@ -1,26 +1,22 @@
 #pragma once
 /// @file TerrainPanel.h
-/// @brief ImGui panel for terrain editing (placeholder)
+/// @brief テレイン編集パネル（プレースホルダー）
+///
+/// ハイトマップ読み込み、高さスケール、スプラットテクスチャ4層、LODレベルの
+/// UIを用意している。実際のTerrainオブジェクトにはまだ接続されていない。
 
 #include <string>
 
-/// @brief ImGui panel for terrain parameters (placeholder UI, not wired to actual terrain)
+/// @brief テレイン設定のプレースホルダーUI（将来的にTerrainクラスと接続予定）
 class TerrainPanel
 {
 public:
-    /// Draw the terrain editing panel.
+    /// @brief テレインパネルを描画する
     void Draw();
 
 private:
-    // Heightmap
-    std::string m_heightmapPath;
-
-    // Parameters
-    float m_heightScale = 10.0f;
-
-    // Splat texture layers (4 layers)
-    std::string m_splatTextures[4];
-
-    // LOD
-    int m_lodLevel = 3;
+    std::string m_heightmapPath;       ///< ハイトマップファイルパス
+    float m_heightScale = 10.0f;       ///< 高さスケール倍率
+    std::string m_splatTextures[4];    ///< スプラットマップのテクスチャ（4レイヤー）
+    int m_lodLevel = 3;                ///< LODレベル（0=最低〜6=最高）
 };

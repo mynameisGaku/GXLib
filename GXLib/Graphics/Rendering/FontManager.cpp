@@ -1,5 +1,9 @@
 ﻿/// @file FontManager.cpp
-/// @brief フォントマネージャーの実装（DirectWriteのラスタライズ + テクスチャアトラス）
+/// @brief FontManager の実装
+///
+/// DirectWrite + Direct2D + WIC を使い、文字を1つずつビットマップにラスタライズして
+/// アトラステクスチャに配置する。アトラスは2048x2048固定で、左上から右へ詰めていき、
+/// 行が溢れたら次の行へ移る。GPUへの転送は FlushAtlasUpdates() でまとめて行う。
 #include "pch.h"
 #include "Graphics/Rendering/FontManager.h"
 #include "Core/Logger.h"
@@ -15,6 +19,8 @@ bool FontManager::Initialize(ID3D12Device* device, TextureManager* textureManage
     m_device = device;
     m_textureManager = textureManager;
 
+    // WIC や DirectWrite は COM ベースなので先に初期化が必要。
+    // 既に別の場所で初期化済み（S_FALSE / RPC_E_CHANGED_MODE）の場合はそれで問題ない。
     HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     if (hr == S_OK)
     {
@@ -123,7 +129,8 @@ int FontManager::CreateFont(const std::wstring& fontName, int fontSize, bool bol
         return -1;
     }
 
-    // フォントのメトリクスから行間とベースラインを計算（余白を最小化）
+    // フォントのメトリクス（ascent/descent/capHeight）から行間とベースラインを計算。
+    // DirectWrite のデフォルト行間は lineGap 込みで広すぎるため、ascent+descent のみで再設定する。
     {
         ComPtr<IDWriteFontCollection> fontCollection;
         if (SUCCEEDED(m_dwriteFactory->GetSystemFontCollection(&fontCollection)))
@@ -333,7 +340,7 @@ bool FontManager::RasterizeGlyph(FontEntry& entry, wchar_t ch)
         return false;
     }
 
-    // アトラスへコピー（BGRA → RGBA の順に並べ替え）
+    // WIC の出力は BGRA だが、GPU テクスチャは RGBA なので並べ替える
     for (int y = 0; y < glyphH; ++y)
     {
         for (int x = 0; x < glyphW; ++x)
@@ -414,14 +421,15 @@ const GlyphInfo* FontManager::GetGlyphInfo(int fontHandle, wchar_t ch)
     if (!entry.valid)
         return nullptr;
 
-    // グリフ未登録ならラスタライズし、GPU転送が必要になる
+    // 未登録の文字（主に漢字）はここで初めてラスタライズされる。
+    // CPU側アトラスに書き込み、dirty フラグを立てておき、
+    // フレーム末尾の FlushAtlasUpdates() でまとめてGPU転送する。
     auto it = entry.glyphs.find(ch);
     if (it == entry.glyphs.end())
     {
         if (!RasterizeGlyph(entry, ch))
             return nullptr;
 
-        // dirtyフラグを立てて後でまとめて転送（FlushAtlasUpdates）
         entry.atlasDirty = true;
 
         it = entry.glyphs.find(ch);

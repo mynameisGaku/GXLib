@@ -1,3 +1,5 @@
+/// @file TCPSocket.cpp
+/// @brief TCPソケット実装 — Winsock2 API ラッパー
 #include "pch.h"
 #include <WinSock2.h>
 #include <ws2tcpip.h>
@@ -8,6 +10,7 @@ namespace GX {
 
 bool TCPSocket::s_wsaInitialized = false;
 
+// Winsock2の初期化は全TCPSocketで共有。最初の1回だけ呼ばれる。
 void TCPSocket::EnsureWSAInit()
 {
     if (!s_wsaInitialized)
@@ -105,6 +108,7 @@ void TCPSocket::SetNonBlocking(bool nonBlocking)
     ioctlsocket(m_socket, FIONBIO, &mode);
 }
 
+// selectでタイムアウト0のポーリング。読み取り可能データの有無を非ブロッキングで確認する。
 bool TCPSocket::HasData() const
 {
     if (m_socket == INVALID_SOCKET) return false;

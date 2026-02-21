@@ -1,18 +1,15 @@
 #pragma once
 /// @file SpriteBatch.h
-/// @brief スプライトバッチ — 2Dスプライト描画エンジン
+/// @brief 2Dスプライト描画バッチ
 ///
-/// 【初学者向け解説】
-/// SpriteBatchは、2D画像（スプライト）を効率よく描画するためのクラスです。
-/// DXLibのDrawGraph/DrawRotaGraph等に相当する機能を提供します。
+/// DxLibの DrawGraph / DrawRotaGraph / DrawExtendGraph 等に相当する2D画像描画を提供する。
+/// 内部では同一テクスチャ・同一ブレンドモードのスプライトをバッチ化し、
+/// DrawCall回数を最小限に抑えて効率よく描画する。
 ///
-/// 「バッチ」とは、複数のスプライトをまとめて1回のDrawCallで描画する仕組みです。
-/// GPUへのDrawCall回数が少ないほどパフォーマンスが良くなります。
-///
-/// 使い方：
-/// 1. Begin() — バッチ開始
-/// 2. DrawGraph() / DrawRotaGraph() 等 — スプライトを登録
-/// 3. End() — バッチ終了＆実際の描画
+/// 使い方:
+///   1. Begin()  -- バッチ開始
+///   2. DrawGraph() / DrawRotaGraph() 等 -- スプライトを登録
+///   3. End()    -- 蓄積したスプライトをGPUに発行
 
 #include "pch.h"
 #include "Graphics/Resource/DynamicBuffer.h"

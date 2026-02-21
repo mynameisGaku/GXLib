@@ -2,46 +2,46 @@
 /// @file Sound.h
 /// @brief WAVファイル読み込み・PCMデータ管理
 ///
-/// 【初学者向け解説】
-/// WAV（Waveform Audio）は最も基本的な音声ファイル形式です。
-/// 構造はシンプルで：
-/// - RIFFヘッダー: ファイル識別子
-/// - fmtチャンク: 音声フォーマット情報（サンプルレート、ビット数等）
-/// - dataチャンク: 実際のPCM音声データ
-///
-/// PCM（Pulse Code Modulation）はデジタル音声の生データです。
-/// 圧縮されていないので、そのままXAudio2のSourceVoiceに渡せます。
+/// DxLibのLoadSoundMemで読み込まれるサウンドデータに相当する。
+/// WAVファイルを読み込み、非圧縮のPCMデータとフォーマット情報をメモリに保持する。
+/// 保持したデータはSoundPlayer（SE再生）やMusicPlayer（BGM再生）から参照される。
 
 #include "pch.h"
 
 namespace GX
 {
 
-/// @brief WAVファイルのPCMデータを保持するクラス
+/// @brief WAVファイルから読み込んだPCMデータを保持するクラス（DxLibのサウンドハンドルの実体）
 class Sound
 {
 public:
     Sound() = default;
     ~Sound() = default;
 
-    /// WAVファイルを読み込む
+    /// @brief WAVファイルを読み込み、PCMデータとフォーマット情報を取得する
+    /// @param filePath WAVファイルのパス（ワイド文字列）
+    /// @return 読み込み成功ならtrue
     bool LoadFromFile(const std::wstring& filePath);
 
-    /// PCMデータへのポインタ
+    /// @brief PCMデータの先頭ポインタを取得する
+    /// @return PCMバイト列へのポインタ
     const uint8_t* GetData() const { return m_pcmData.data(); }
 
-    /// PCMデータサイズ（バイト）
+    /// @brief PCMデータのサイズをバイト単位で取得する
+    /// @return データサイズ（バイト）
     uint32_t GetDataSize() const { return static_cast<uint32_t>(m_pcmData.size()); }
 
-    /// WAVフォーマット情報
+    /// @brief WAVのフォーマット情報を取得する（サンプルレート、チャンネル数、ビット数等）
+    /// @return WAVEFORMATEX構造体への参照
     const WAVEFORMATEX& GetFormat() const { return m_format; }
 
-    /// 有効なデータを持っているか
+    /// @brief 有効なPCMデータを保持しているか判定する
+    /// @return データが読み込み済みならtrue
     bool IsValid() const { return !m_pcmData.empty(); }
 
 private:
-    std::vector<uint8_t> m_pcmData;
-    WAVEFORMATEX         m_format = {};
+    std::vector<uint8_t> m_pcmData;   ///< WAVから読み込んだ非圧縮PCMデータ
+    WAVEFORMATEX         m_format = {}; ///< サンプルレート・チャンネル数・ビット深度等
 };
 
 } // namespace GX

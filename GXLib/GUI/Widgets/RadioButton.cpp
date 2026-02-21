@@ -20,6 +20,7 @@ void RadioButton::SetSelected(bool selected)
     }
 }
 
+// 同じ親パネル内の他のRadioButtonを全て非選択にする（相互排他）
 void RadioButton::DeselectSiblings()
 {
     Widget* parent = GetParent();

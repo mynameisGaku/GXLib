@@ -1,5 +1,5 @@
 /// @file GxmdModelLoader.cpp
-/// @brief GXMD model loader adapter - converts gxloader::LoadedModel to GX::Model
+/// @brief GXMDモデルローダーの実装 — gxloader::LoadedModel から GX::Model への変換
 
 #include "pch.h"
 #include "GxmdModelLoader.h"
@@ -12,7 +12,7 @@
 #include <model_loader.h>
 #include <filesystem>
 
-// Verify vertex layout compatibility
+// gxfmt と GXLib の頂点レイアウトがバイナリ互換であることを保証（memcpyで直接コピー可能）
 static_assert(sizeof(gxfmt::VertexStandard) == sizeof(GX::Vertex3D_PBR),
     "VertexStandard(48B) must match Vertex3D_PBR(48B)");
 static_assert(sizeof(gxfmt::VertexSkinned) == sizeof(GX::Vertex3D_Skinned),
@@ -93,7 +93,7 @@ std::unique_ptr<Model> GxmdModelLoader::LoadFromGxmd(const std::wstring& filePat
             break;
         }
 
-        // Clear stale string table offsets (these are meaningless at runtime)
+        // GXMDバイナリの文字列テーブルオフセットはランタイムでは無意味なのでクリア
         for (int t = 0; t < 8; ++t)
             mat.shaderParams.textureNames[t] = -1;
 
@@ -214,7 +214,7 @@ std::unique_ptr<Model> GxmdModelLoader::LoadFromGxmd(const std::wstring& filePat
             sizeof(Vertex3D_PBR));
     }
 
-    // Indices - always convert to uint32 for GPU
+    // インデックスは常にuint32に統一（GXMDは16bit/32bit混在の可能性あり）
     if (loaded->uses16BitIndices)
     {
         cpuData.indices.resize(loaded->indices16.size());
@@ -313,7 +313,7 @@ std::unique_ptr<Model> GxmdModelLoader::LoadFromGxmd(const std::wstring& filePat
         clip.SetName(srcAnim.name);
         clip.SetDuration(srcAnim.duration);
 
-        // Group channels by joint index (merge T/R/S into single AnimationChannel)
+        // GXMDではT/R/Sが別チャネルとして格納されるため、ジョイント単位にマージする
         std::unordered_map<uint32_t, AnimationChannel> channelMap;
 
         for (auto& srcCh : srcAnim.channels)

@@ -23,7 +23,7 @@ static GX::BlendMode ConvertBlendMode(int mode)
     }
 }
 
-/// スプライトバッチに現在のブレンドモード・描画色を適用
+/// 描画前に毎回呼んで現在のブレンドモード・描画色をSpriteBatchに反映する
 static void ApplyDrawState()
 {
     auto& ctx = Ctx::Instance();

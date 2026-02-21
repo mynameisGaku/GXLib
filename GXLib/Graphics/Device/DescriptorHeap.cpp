@@ -1,5 +1,5 @@
 /// @file DescriptorHeap.cpp
-/// @brief ディスクリプタヒープ管理の実装
+/// @brief ディスクリプタヒープの実装
 #include "pch.h"
 #include "Graphics/Device/DescriptorHeap.h"
 #include "Core/Logger.h"
@@ -18,6 +18,7 @@ bool DescriptorHeap::Initialize(ID3D12Device* device,
     D3D12_DESCRIPTOR_HEAP_DESC desc = {};
     desc.Type           = type;
     desc.NumDescriptors = numDescriptors;
+    // SHADER_VISIBLEはCBV_SRV_UAVとSAMPLERのみ有効。RTV/DSVには指定しない
     desc.Flags          = shaderVisible
         ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
         : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
@@ -30,6 +31,7 @@ bool DescriptorHeap::Initialize(ID3D12Device* device,
         return false;
     }
 
+    // ディスクリプタ1つ分のサイズはGPU依存なのでAPI経由で取得する
     m_descriptorSize = device->GetDescriptorHandleIncrementSize(type);
     m_currentIndex = 0;
 
@@ -38,7 +40,7 @@ bool DescriptorHeap::Initialize(ID3D12Device* device,
 
 uint32_t DescriptorHeap::AllocateIndex()
 {
-    // フリーリストに空きがあればそこから再利用
+    // フリーリストに空きがあればそこから再利用（テクスチャ解放→再ロード等のケース）
     if (!m_freeList.empty())
     {
         uint32_t index = m_freeList.back();
@@ -74,7 +76,7 @@ void DescriptorHeap::Free(uint32_t index)
         return;
     }
 
-    // 二重解放検出
+    // 同じインデックスの二重解放を検出（デバッグ用）
     for (uint32_t freeIdx : m_freeList)
     {
         if (freeIdx == index)
@@ -89,6 +91,7 @@ void DescriptorHeap::Free(uint32_t index)
 
 D3D12_CPU_DESCRIPTOR_HANDLE DescriptorHeap::GetCPUHandle(uint32_t index) const
 {
+    // ヒープ先頭 + (インデックス * ディスクリプタサイズ) でハンドルを計算
     D3D12_CPU_DESCRIPTOR_HANDLE handle = m_heap->GetCPUDescriptorHandleForHeapStart();
     handle.ptr += static_cast<SIZE_T>(index) * m_descriptorSize;
     return handle;

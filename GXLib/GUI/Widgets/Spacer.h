@@ -7,7 +7,8 @@
 
 namespace GX { namespace GUI {
 
-/// @brief 空白スペーサー（描画なし、SetSize で intrinsic size 制御）
+/// @brief 空白スペーサー（描画なし、レイアウト上の余白確保に使う）
+/// SetSizeで指定した幅/高さ分のスペースを確保する。flexGrowと組み合わせると可変スペースにもなる。
 class Spacer : public Widget
 {
 public:
@@ -16,6 +17,9 @@ public:
 
     WidgetType GetType() const override { return WidgetType::Spacer; }
 
+    /// @brief スペーサーのサイズを設定する
+    /// @param w 幅（ピクセル）
+    /// @param h 高さ（ピクセル）
     void SetSize(float w, float h) { m_width = w; m_height = h; }
 
     float GetIntrinsicWidth() const override { return m_width; }

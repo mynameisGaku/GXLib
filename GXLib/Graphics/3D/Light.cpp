@@ -42,6 +42,7 @@ LightData Light::CreateSpot(const XMFLOAT3& position, const XMFLOAT3& direction,
     light.range     = range;
     light.color     = color;
     light.intensity = intensity;
+    // 半角をcos値に変換して格納（シェーダー側でdot比較するため）
     light.spotAngle = cosf(XMConvertToRadians(spotAngleDeg * 0.5f));
 
     XMVECTOR dir = XMVector3Normalize(XMLoadFloat3(&direction));

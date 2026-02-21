@@ -102,7 +102,7 @@ void FileWatcher::WatchLoop()
                 handles.push_back(entry->overlapped.hEvent);
         }
 
-        // 初心者向け: 複数イベントを待ち、通知されたイベントの位置が返る
+        // 停止イベントまたはいずれかの監視イベントのシグナルを待つ
         DWORD waitResult = WaitForMultipleObjects(
             static_cast<DWORD>(handles.size()),
             handles.data(),

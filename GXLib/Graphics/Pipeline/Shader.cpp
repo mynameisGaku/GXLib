@@ -9,6 +9,7 @@ namespace GX
 
 bool Shader::Initialize()
 {
+    // DXCのCOMオブジェクトを生成。dxcompiler.dllがexeと同じ場所に必要。
     HRESULT hr = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&m_utils));
     if (FAILED(hr))
     {
@@ -42,7 +43,8 @@ ShaderBlob Shader::CompileFromFile(const std::wstring& filePath,
         return result;
     }
 
-    // コンパイル引数
+    // DXCコンパイル引数を組み立てる
+    // Debugビルドではデバッグ情報(-Zi)と最適化無効(-Od)、Releaseでは最大最適化(-O3)
     std::vector<LPCWSTR> arguments;
     arguments.push_back(filePath.c_str());
     arguments.push_back(L"-E");
@@ -57,7 +59,7 @@ ShaderBlob Shader::CompileFromFile(const std::wstring& filePath,
     arguments.push_back(L"-O3");
 #endif
 
-    // ファイルのディレクトリをインクルードパスに追加
+    // HLSLファイルと同じディレクトリをインクルードパスに追加（#include解決用）
     std::wstring dirPath = filePath;
     auto lastSlash = dirPath.find_last_of(L"/\\");
     if (lastSlash != std::wstring::npos)
@@ -72,7 +74,7 @@ ShaderBlob Shader::CompileFromFile(const std::wstring& filePath,
     sourceBuffer.Size     = sourceBlob->GetBufferSize();
     sourceBuffer.Encoding = DXC_CP_ACP;
 
-    // インクルードハンドラを作成
+    // デフォルトインクルードハンドラ（#include "..."のファイル解決）
     ComPtr<IDxcIncludeHandler> includeHandler;
     m_utils->CreateDefaultIncludeHandler(&includeHandler);
 
@@ -85,7 +87,6 @@ ShaderBlob Shader::CompileFromFile(const std::wstring& filePath,
         IID_PPV_ARGS(&compileResult)
     );
 
-    // エラー確認
     ComPtr<IDxcBlobUtf8> errors;
     compileResult->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&errors), nullptr);
     if (errors && errors->GetStringLength() > 0)
@@ -118,7 +119,6 @@ ShaderBlob Shader::CompileFromFile(const std::wstring& filePath,
     ShaderBlob result;
     m_lastError.clear();
 
-    // ファイルを読み込む
     ComPtr<IDxcBlobEncoding> sourceBlob;
     HRESULT hr = m_utils->LoadFile(filePath.c_str(), nullptr, &sourceBlob);
     if (FAILED(hr))
@@ -128,7 +128,6 @@ ShaderBlob Shader::CompileFromFile(const std::wstring& filePath,
         return result;
     }
 
-    // コンパイル引数
     std::vector<LPCWSTR> arguments;
     arguments.push_back(filePath.c_str());
     arguments.push_back(L"-E");
@@ -143,7 +142,6 @@ ShaderBlob Shader::CompileFromFile(const std::wstring& filePath,
     arguments.push_back(L"-O3");
 #endif
 
-    // ファイルのディレクトリをインクルードパスに追加
     std::wstring dirPath = filePath;
     auto lastSlash = dirPath.find_last_of(L"/\\");
     if (lastSlash != std::wstring::npos)
@@ -153,7 +151,8 @@ ShaderBlob Shader::CompileFromFile(const std::wstring& filePath,
     arguments.push_back(L"-I");
     arguments.push_back(dirPath.c_str());
 
-    // #define引数を構築
+    // -D NAME=VALUE 形式のマクロ定義引数を構築
+    // defineStrsはポインタの生存期間を引数リストより長く保つ必要がある
     std::vector<std::wstring> defineStrs;
     for (auto& [name, value] : defines)
     {
@@ -213,10 +212,12 @@ ShaderBlob Shader::CompileFromFile(const std::wstring& filePath,
 
 ShaderBlob Shader::CompileLibrary(const std::wstring& filePath)
 {
+    // DXR用シェーダーライブラリのコンパイル。
+    // lib_6_3ターゲットではエントリポイントを指定せず、
+    // HLSL内の[shader("raygeneration")]等でマークされた関数が自動エクスポートされる。
     ShaderBlob result;
     m_lastError.clear();
 
-    // ファイルを読み込む
     ComPtr<IDxcBlobEncoding> sourceBlob;
     HRESULT hr = m_utils->LoadFile(filePath.c_str(), nullptr, &sourceBlob);
     if (FAILED(hr))
@@ -226,7 +227,7 @@ ShaderBlob Shader::CompileLibrary(const std::wstring& filePath)
         return result;
     }
 
-    // ライブラリコンパイル引数（エントリポイントなし）
+    // エントリポイントなし（-Eフラグを付けてはいけない）
     std::vector<LPCWSTR> arguments;
     arguments.push_back(filePath.c_str());
     arguments.push_back(L"-T");

@@ -120,8 +120,9 @@ bool LayerCompositor::CreatePipelines(ID3D12Device* device)
     m_psoMul = buildNoMaskPSO([](PipelineStateBuilder& b) { b.SetMultiplyBlend(); });
     if (!m_psoMul) return false;
 
-    // スクリーン合成: 1 - (1-Src) * (1-Dest) = Src + Dest - Src*Dest
-    // 近似式: SrcBlend=ONE, DestBlend=INV_SRC_COLOR
+    // スクリーン合成: 数学的には 1 - (1-Src)*(1-Dest)。
+    // D3D12では正確にこの式を1パスで表現できないが、
+    // SrcBlend=ONE, DestBlend=INV_SRC_COLOR で近似可能
     m_psoScreen = buildNoMaskPSO([](PipelineStateBuilder& b)
     {
         D3D12_BLEND_DESC bd = {};

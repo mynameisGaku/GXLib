@@ -615,8 +615,7 @@ static std::unique_ptr<Model> LoadFromGLTF(const std::wstring& filePath,
 }
 
 // -----------------------------------------------------------------------------
-// FBX/OBJローダー（FBX SDK）
-// 初学者向け: FBX読み込みは外部SDKに依存するため、ビルド設定で有効/無効が変わります。
+// FBX/OBJローダー（FBX SDK、FBXSDK_SHARED 定義時のみ有効）
 // -----------------------------------------------------------------------------
 
 #if defined(FBXSDK_SHARED)
@@ -1203,9 +1202,8 @@ static std::unique_ptr<Model> LoadFromFBX(const std::wstring& filePath,
     }
     importer->Destroy();
 
-    // 座標系と単位系を変換
-    // FbxAxisSystem::ConvertScene は RotZ(-180°) をルートに追加しY軸を反転させるため使用しない
-    // RH→LH変換はZ反転で手動処理する
+    // FbxAxisSystem::ConvertScene はルートに RotZ(-180°) を追加してY軸を反転させるため使用不可
+    // RH→LH変換は頂点・ボーンのZ成分を反転する方式で手動処理する
     FbxAxisSystem origAxisSystem = scene->GetGlobalSettings().GetAxisSystem();
     bool needAxisConversion = (origAxisSystem != FbxAxisSystem::DirectX);
 
@@ -1253,8 +1251,7 @@ static std::unique_ptr<Model> LoadFromFBX(const std::wstring& filePath,
     {
         CollectFbxSkeletonNodes(scene->GetRootNode(), jointNodes, jointMap);
 
-        // クラスター参照の関節が漏れないように追加
-        // 初学者向け: スキニングは「クラスター」と呼ばれる関節参照を使うため、未登録を補います。
+        // クラスター参照の関節がeSkeleton属性を持たない場合があるため、漏れ分を補完
         for (const auto& item : meshItems)
         {
             const int skinCount = item.mesh->GetDeformerCount(FbxDeformer::eSkin);

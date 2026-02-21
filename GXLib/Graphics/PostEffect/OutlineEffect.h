@@ -1,9 +1,10 @@
 #pragma once
 /// @file OutlineEffect.h
-/// @brief エッジ検出アウトラインポストエフェクト
+/// @brief ポストエフェクト方式のエッジ検出アウトライン
 ///
-/// 深度バッファから法線を再構成し、Sobel エッジ検出で
-/// アウトラインを合成する。Forward+ (GBuffer無し) 環境向け。
+/// DxLibには無い機能。深度と法線の不連続をSobelフィルタで検出し、
+/// イラスト風の輪郭線をシーンに合成する。GBuffer不要のForward+環境対応。
+/// Toonシェーダーのスムース法線アウトラインとは別のアプローチ。
 
 #include "pch.h"
 #include "Graphics/Resource/RenderTarget.h"
@@ -30,33 +31,53 @@ struct OutlineConstants
     XMFLOAT4 lineColor;        // offset 96 (RGBA)
 };  // 112B → 256-align
 
-/// @brief エッジ検出アウトラインエフェクト
+/// @brief 深度/法線エッジ検出でアウトラインを合成するポストエフェクト
+///
+/// 深度バッファから法線を再構成し、Sobelフィルタで深度・法線の急変点を検出。
+/// HDRシーンにアウトライン色を乗せて出力する。
 class OutlineEffect
 {
 public:
     OutlineEffect() = default;
     ~OutlineEffect() = default;
 
+    /// @brief 初期化。PSO・SRVヒープ・定数バッファを作成する
+    /// @param device D3D12デバイス
+    /// @param width 画面幅
+    /// @param height 画面高さ
+    /// @return 成功でtrue
     bool Initialize(ID3D12Device* device, uint32_t width, uint32_t height);
 
+    /// @brief アウトラインを検出してHDRシーンに合成する
+    /// @param cmdList コマンドリスト
+    /// @param frameIndex ダブルバッファ用フレームインデックス
+    /// @param srcHDR 入力HDRシーン
+    /// @param destHDR 出力先HDR RT
+    /// @param depth 深度バッファ (エッジ検出に使う)
+    /// @param camera カメラ (逆射影行列の取得に使う)
     void Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
                  RenderTarget& srcHDR, RenderTarget& destHDR,
                  DepthBuffer& depth, const Camera3D& camera);
 
+    /// @brief 画面リサイズ対応
     void OnResize(ID3D12Device* device, uint32_t width, uint32_t height);
 
     void SetEnabled(bool enabled) { m_enabled = enabled; }
     bool IsEnabled() const { return m_enabled; }
 
+    /// @brief 深度エッジの検出閾値。小さいほど敏感
     void SetDepthThreshold(float t) { m_depthThreshold = t; }
     float GetDepthThreshold() const { return m_depthThreshold; }
 
+    /// @brief 法線エッジの検出閾値。小さいほど敏感
     void SetNormalThreshold(float t) { m_normalThreshold = t; }
     float GetNormalThreshold() const { return m_normalThreshold; }
 
+    /// @brief アウトライン強度
     void SetIntensity(float i) { m_intensity = i; }
     float GetIntensity() const { return m_intensity; }
 
+    /// @brief アウトライン色 (RGBA)
     void SetLineColor(const XMFLOAT4& color) { m_lineColor = color; }
     const XMFLOAT4& GetLineColor() const { return m_lineColor; }
 

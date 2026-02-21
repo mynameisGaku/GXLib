@@ -1,5 +1,8 @@
 /// @file ModelInfoPanel.cpp
-/// @brief Model information panel implementation
+/// @brief モデル情報パネル実装
+///
+/// CPUDataから頂点数/インデックス数/バッファサイズを算出し、
+/// 全頂点からAABBを計算して表示する。アニメーション一覧はBulletTextで列挙。
 
 #include "ModelInfoPanel.h"
 #include <imgui.h>

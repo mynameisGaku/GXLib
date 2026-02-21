@@ -1,5 +1,5 @@
 /// @file Logger.cpp
-/// @brief ログシステム実装
+/// @brief Logger クラスの実装
 #include "pch.h"
 #include "Core/Logger.h"
 #include <cstdio>
@@ -7,6 +7,8 @@
 
 namespace GX
 {
+
+// Info / Warn / Error は可変長引数を va_list に変換して共通の Log() に委譲する
 
 void Logger::Info(const char* format, ...)
 {
@@ -34,7 +36,6 @@ void Logger::Error(const char* format, ...)
 
 void Logger::Log(LogLevel level, const char* format, va_list args)
 {
-    // ログレベルに応じたプレフィックス
     const char* prefix = "";
     switch (level)
     {
@@ -43,18 +44,16 @@ void Logger::Log(LogLevel level, const char* format, va_list args)
     case LogLevel::Error: prefix = "[ERROR] "; break;
     }
 
-    // メッセージをフォーマット
     char buffer[2048];
     vsnprintf(buffer, sizeof(buffer), format, args);
 
-    // 最終出力文字列を構築
     char output[2048 + 64];
     snprintf(output, sizeof(output), "%s%s\n", prefix, buffer);
 
-    // Visual Studioの出力ウィンドウに表示
+    // OutputDebugStringA は VS の「出力」ウィンドウに表示される
     OutputDebugStringA(output);
 
-    // コンソールにも表示
+    // コンソールアプリとしてアタッチされていれば標準出力にも出る
     printf("%s", output);
 }
 

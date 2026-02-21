@@ -13,6 +13,8 @@ void Gamepad::Initialize()
 
 void Gamepad::Update()
 {
+    // 全4スロットをポーリング。未接続のパッドにもXInputGetStateを呼ぶ必要がある
+    // （ホットプラグで途中接続を検出するため）
     for (int i = 0; i < k_MaxPads; ++i)
     {
         auto& pad = m_pads[i];
@@ -70,7 +72,8 @@ float Gamepad::ApplyStickDeadZone(short value, short maxVal) const
     if (normalized > -k_StickDeadZone && normalized < k_StickDeadZone)
         return 0.0f;
 
-    // デッドゾーン外の値を0〜1に再マッピング
+    // デッドゾーン外の値を0〜1に再マッピングして、境界でジャンプしないようにする。
+    // デッドゾーン閾値の位置が0.0、最大値が1.0になるように線形補間。
     float sign = (normalized > 0.0f) ? 1.0f : -1.0f;
     float absVal = fabsf(normalized);
     float remapped = (absVal - k_StickDeadZone) / (1.0f - k_StickDeadZone);
@@ -79,6 +82,7 @@ float Gamepad::ApplyStickDeadZone(short value, short maxVal) const
 
 float Gamepad::ApplyTriggerDeadZone(BYTE value) const
 {
+    // トリガーは0〜255の片方向入力。デッドゾーン以下はカットし、残りを0〜1に再マッピング
     float normalized = static_cast<float>(value) / 255.0f;
     if (normalized < k_TriggerDeadZone)
         return 0.0f;

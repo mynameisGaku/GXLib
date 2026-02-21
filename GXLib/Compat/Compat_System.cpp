@@ -51,6 +51,7 @@ int SetGraphMode(int width, int height, int colorBitNum)
     return 0;
 }
 
+// 0xFFRRGGBB形式のカラー値を生成。アルファは常に0xFF（不透明）。
 unsigned int GetColor(int r, int g, int b)
 {
     return 0xFF000000u
@@ -70,6 +71,7 @@ int SetDrawScreen(int screen)
     return 0;
 }
 
+// フォントアトラスの遅延GPU転送をここで行ってからフレームを開始する
 int ClearDrawScreen()
 {
     auto& ctx = Ctx::Instance();

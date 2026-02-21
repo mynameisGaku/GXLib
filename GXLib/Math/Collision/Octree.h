@@ -3,11 +3,20 @@
 
 namespace GX {
 
-template <typename T>
 /// @brief オクツリー（3D空間分割）テンプレート
+///
+/// 3D空間を8分割して再帰的にオブジェクトを管理する。
+/// 大量の3Dオブジェクトの衝突判定やカリングを高速化するのに使う。
+/// 視錐台クエリにも対応しており、描画カリングにも利用可能。
+/// テンプレート引数Tはオブジェクトの識別子型。
+template <typename T>
 class Octree
 {
 public:
+    /// @brief オクツリーを構築する
+    /// @param bounds 管理する空間全体のAABB
+    /// @param maxDepth 最大分割深度（デフォルト: 8）
+    /// @param maxObjects ノードあたりの最大オブジェクト数（超えると分割、デフォルト: 8）
     Octree(const AABB3D& bounds, int maxDepth = 8, int maxObjects = 8)
         : m_maxDepth(maxDepth), m_maxObjects(maxObjects)
     {
@@ -15,16 +24,22 @@ public:
         m_root->bounds = bounds;
     }
 
+    /// @brief オブジェクトを挿入する
+    /// @param object 挿入するオブジェクト識別子
+    /// @param bounds オブジェクトのAABB
     void Insert(const T& object, const AABB3D& bounds)
     {
         InsertIntoNode(*m_root, object, bounds, 0);
     }
 
+    /// @brief オブジェクトを削除する
+    /// @param object 削除するオブジェクト識別子
     void Remove(const T& object)
     {
         RemoveFromNode(*m_root, object);
     }
 
+    /// @brief 全オブジェクトを削除する
     void Clear()
     {
         m_root->objects.clear();
@@ -32,11 +47,17 @@ public:
             child.reset();
     }
 
+    /// @brief AABB範囲内のオブジェクトを検索する
+    /// @param area 検索範囲のAABB
+    /// @param results 見つかったオブジェクトの出力先
     void Query(const AABB3D& area, std::vector<T>& results) const
     {
         QueryNode(*m_root, area, results);
     }
 
+    /// @brief 球範囲内のオブジェクトを検索する
+    /// @param area 検索範囲の球
+    /// @param results 見つかったオブジェクトの出力先
     void Query(const Sphere& area, std::vector<T>& results) const
     {
         AABB3D sphereBounds(
@@ -46,11 +67,16 @@ public:
         QueryNodeSphere(*m_root, area, sphereBounds, results);
     }
 
+    /// @brief 視錐台内のオブジェクトを検索する（カリング用）
+    /// @param frustum 検索範囲の視錐台
+    /// @param results 見つかったオブジェクトの出力先
     void Query(const Frustum& frustum, std::vector<T>& results) const
     {
         QueryNodeFrustum(*m_root, frustum, results);
     }
 
+    /// @brief 衝突の可能性があるオブジェクトペアを全て取得する
+    /// @param pairs 衝突候補ペアの出力先
     void GetPotentialPairs(std::vector<std::pair<T, T>>& pairs) const
     {
         std::vector<std::pair<T, AABB3D>> ancestors;

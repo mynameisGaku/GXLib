@@ -6,8 +6,7 @@ namespace GX { namespace GUI {
 
 void Slider::SetValue(float v)
 {
-    // ステップにスナップ
-    // 初学者向け: 例えば step=0.1 なら 0.0, 0.1, 0.2 ... に丸めます。
+    // ステップにスナップ（step=0.1 なら 0.0, 0.1, 0.2 ... に丸まる）
     if (m_step > 0.0f)
         v = std::round(v / m_step) * m_step;
 

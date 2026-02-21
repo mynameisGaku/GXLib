@@ -3,18 +3,18 @@
 
 cbuffer ObjectConstants : register(b0)
 {
-    float4x4 world;
-    float4x4 worldInverseTranspose;
+    float4x4 world;                 // ワールド変換行列
+    float4x4 worldInverseTranspose; // 未使用（レイアウト互換のため維持）
 };
 
 cbuffer ShadowPassConstants : register(b1)
 {
-    float4x4 lightViewProjection;
+    float4x4 lightViewProjection;   // ライト視点のVP行列
 };
 
 cbuffer BoneConstants : register(b4)
 {
-    float4x4 gBones[128];
+    float4x4 gBones[128];           // ボーン行列（スキンドモデル用）
 };
 
 struct VSInput
@@ -34,6 +34,7 @@ struct PSInput
     float4 posH : SV_Position;
 };
 
+/// @brief シャドウマップ生成VS — ライトVP行列でクリップ空間に変換（スキニング対応）
 PSInput VSMain(VSInput input)
 {
     PSInput output;
@@ -61,8 +62,7 @@ PSInput VSMain(VSInput input)
     return output;
 }
 
-// ピクセルシェーダーは不要（深度書き込みのみ）
-// ただしNull PSではコンパイルエラーになるため空PSを定義
+/// @brief 空PS — 深度書き込みのみ（Null PSだとコンパイルエラーのため定義が必要）
 void PSMain(PSInput input)
 {
     // 深度値のみ書き込み（カラー出力なし）

@@ -231,8 +231,7 @@ void Animator::Update(float deltaTime)
     switch (m_mode)
     {
     case AnimMode::BlendStack:
-        // BlendStackモード: レイヤースタックがポーズを計算
-        // 初学者向け: 複数レイヤーを重ねてブレンドしたポーズを取得します。
+        // BlendStackモード: 全レイヤーの合成結果を取得
         if (m_blendStack)
         {
             m_blendStack->Update(deltaTime, jointCount, bindPose, m_localPose.data());
@@ -240,8 +239,7 @@ void Animator::Update(float deltaTime)
         break;
 
     case AnimMode::StateMachine:
-        // StateMachineモード: ステートマシンがポーズを計算
-        // 初学者向け: 現在の状態に応じたアニメーションポーズを取得します。
+        // StateMachineモード: 状態遷移に基づいたポーズを取得
         if (m_stateMachine)
         {
             m_stateMachine->Update(deltaTime, jointCount, bindPose, m_localPose.data());
@@ -296,8 +294,7 @@ void Animator::Update(float deltaTime)
         XMStoreFloat4x4(&m_localTransforms[i], S * R * T);
     }
 
-    // グローバル変換とボーン行列を作成
-    // 初学者向け: ローカル→グローバルに変換した後、スキニング用の行列にまとめます。
+    // ローカル→グローバル変換し、逆バインドポーズを適用してスキニング用行列を生成
     m_skeleton->ComputeGlobalTransforms(m_localTransforms.data(), m_globalTransforms.data());
     uint32_t boneCount = (std::min)(jointCount, BoneConstants::k_MaxBones);
     m_skeleton->ComputeBoneMatrices(m_globalTransforms.data(), m_boneConstants.boneMatrices);

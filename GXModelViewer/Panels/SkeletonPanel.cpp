@@ -1,5 +1,9 @@
 /// @file SkeletonPanel.cpp
-/// @brief Bone hierarchy panel implementation
+/// @brief スケルトンパネル実装
+///
+/// 上半分にジョイントツリー、下半分に選択ボーンの詳細を表示する。
+/// ローカルTRS（クォータニオンからオイラー角に変換）、ワールド座標、
+/// ワールド変換行列、ローカル回転行列、逆バインド行列をそれぞれ折りたたみで表示。
 
 #include "SkeletonPanel.h"
 #include <imgui.h>
@@ -14,7 +18,7 @@
 
 static constexpr float k_RadToDeg = 180.0f / XM_PI;
 
-/// Convert quaternion to Euler angles (degrees) for display
+/// クォータニオンをZYX規約のオイラー角（度数法）に変換する（表示用）
 static void QuatToEuler(const XMFLOAT4& q, float& pitch, float& yaw, float& roll)
 {
     // ZYX convention

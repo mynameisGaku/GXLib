@@ -5,6 +5,8 @@
 
 namespace GX { namespace GUI {
 
+// ウィジェットのCSS transformプロパティ(translate/rotate/scale)からアフィン変換行列を構築する。
+// pivot基準で変換するため、Pivot座標への移動→変換→逆移動の手順を踏む。
 static Transform2D BuildLocalTransform(const Widget& widget, const Style& style)
 {
     float tx = style.translateX;
@@ -102,6 +104,7 @@ bool Widget::OnEvent(const UIEvent& event)
     if (event.type == UIEventType::MouseDown)
     {
         const Style& style = GetRenderStyle();
+        // マウスダウン時にリップルエフェクトを開始（クリック位置を中心に波紋が広がる）
         if (style.effectType == UIEffectType::Ripple &&
             globalRect.width > 0.0f && globalRect.height > 0.0f)
         {
@@ -226,7 +229,7 @@ void Widget::UpdateStyleTransition(float deltaTime, const Style& targetStyle)
         return;
     }
 
-    // Smoothstep で少し滑らかに
+    // Smoothstep補間で滑らかなスタイル遷移を実現
     float eased = t * t * (3.0f - 2.0f * t);
     m_renderStyle = LerpVisual(m_startStyle, targetStyle, eased);
 }

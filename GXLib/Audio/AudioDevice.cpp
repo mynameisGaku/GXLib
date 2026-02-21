@@ -14,7 +14,8 @@ AudioDevice::~AudioDevice()
 
 bool AudioDevice::Initialize()
 {
-    // COMを初期化（XAudio2に必要）
+    // XAudio2はCOMベースのAPIなので、事前にCoInitializeExが必要。
+    // S_FALSE（他所で初期化済み）の場合はCoUninitializeの呼び出し義務がないのでフラグを立てない。
     HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     if (SUCCEEDED(hr))
     {
@@ -22,7 +23,6 @@ bool AudioDevice::Initialize()
     }
     else if (hr == S_FALSE)
     {
-        // 既に初期化済み — 問題なし
         m_comInitialized = false;
     }
     else
@@ -53,6 +53,8 @@ bool AudioDevice::Initialize()
 
 void AudioDevice::Shutdown()
 {
+    // 破棄順序: MasteringVoice → XAudio2エンジン → COM
+    // MasteringVoiceはXAudio2が所有するのでDestroyVoice()で手動解放
     if (m_masterVoice)
     {
         m_masterVoice->DestroyVoice();

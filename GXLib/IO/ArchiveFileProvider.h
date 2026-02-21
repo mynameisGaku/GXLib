@@ -24,9 +24,13 @@ public:
     bool Open(const std::string& archivePath, const std::string& password = "");
 
     /// @brief ファイルの存在を確認する
+    /// @param path アーカイブ内パス
+    /// @return 存在すればtrue
     bool Exists(const std::string& path) const override;
 
     /// @brief ファイルを読み込む
+    /// @param path アーカイブ内パス
+    /// @return ファイルデータ（失敗時はIsValid()==false）
     FileData Read(const std::string& path) const override;
 
     /// @brief 書き込みは非サポート (常にfalse)

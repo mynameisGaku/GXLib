@@ -8,17 +8,17 @@
 
 cbuffer SSRCB : register(b0)
 {
-    float4x4 projection;
-    float4x4 invProjection;
-    float4x4 view;
-    float maxDistance;
-    float stepSize;
-    int   maxSteps;
-    float thickness;
-    float intensity;
-    float screenWidth;
-    float screenHeight;
-    float nearZ;
+    float4x4 projection;    // プロジェクション行列
+    float4x4 invProjection; // 逆プロジェクション行列
+    float4x4 view;          // ビュー行列（法線ワールド→ビュー変換用）
+    float maxDistance;       // レイの最大到達距離
+    float stepSize;          // (未使用 — ピクセル単位ステップに変更済み)
+    int   maxSteps;          // レイマーチング最大ステップ数
+    float thickness;         // ヒット判定の深度厚み閾値
+    float intensity;         // 反射の強度
+    float screenWidth;       // スクリーン幅
+    float screenHeight;      // スクリーン高さ
+    float nearZ;             // ニアクリップ距離
 };
 
 Texture2D<float4> gScene  : register(t0);
@@ -27,6 +27,7 @@ Texture2D<float4> gNormal : register(t2);
 SamplerState gLinearSampler : register(s0);
 SamplerState gPointSampler  : register(s1);
 
+/// @brief 深度値からビュー空間位置を復元
 float3 ReconstructViewPos(float2 uv, float depth)
 {
     float2 ndc = uv * float2(2.0, -2.0) + float2(-1.0, 1.0);
@@ -34,7 +35,7 @@ float3 ReconstructViewPos(float2 uv, float depth)
     return vp.xyz / vp.w;
 }
 
-// 深度バッファ値 → ビュー空間Z (安価版)
+/// @brief 深度バッファ値からビュー空間Zだけを取得（位置復元より安価）
 float ViewZFromDepth(float d)
 {
     float4 vp = mul(float4(0, 0, d, 1.0), invProjection);
@@ -43,12 +44,14 @@ float ViewZFromDepth(float d)
 
 // (ReconstructViewNormal削除 — GBuffer法線を直接使用)
 
+/// @brief 画面端フェード — 画面端10%の領域で反射を滑らかにフェードアウト
 float ScreenEdgeFade(float2 uv)
 {
     float2 f = smoothstep(0.0, 0.1, uv) * (1.0 - smoothstep(0.9, 1.0, uv));
     return f.x * f.y;
 }
 
+/// @brief SSR PS — DDAレイマーチング + バイナリ精緻化 + Fresnelブレンド
 float4 PSSSR(FullscreenVSOutput input) : SV_Target
 {
     float2 uv = input.uv;

@@ -340,8 +340,8 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
     m_volumetricLight.UpdateSunInfo(camera);
 
     // ========================================
-    // HDRチェーン: hdrRT → [SSAO] → [Bloom] → [DoF] → [MotionBlur] → [ColorGrading] → currentHDR
-    // 初心者向け: ping-pongで入力/出力RTを交互に切り替え、上書きを避ける
+    // HDRチェーン: ping-pongパターンで入力/出力RTを交互に切り替える
+    // 同じRTを同時にSRV(入力)とRTV(出力)に使えないため、2枚のRTを交互に使用
     // ========================================
     RenderTarget* currentHDR = &m_hdrRT;
 
@@ -414,8 +414,8 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
         m_motionBlur.Execute(m_cmdList, m_frameIndex, *currentHDR, *dest, depthBuffer, camera);
         currentHDR = dest;
     }
-    // 前フレームVP行列を保存（次フレームのMotionBlurで使用）
-    // Execute の後に呼ぶ（先に呼ぶと今フレームのVPで上書きされ速度=0になる）
+    // 前フレームVP行列を保存 — Executeの後に呼ぶこと
+    // 先に呼ぶと今フレームと前フレームのVPが同じになり、速度ベクトルが常にゼロになってしまう
     m_motionBlur.UpdatePreviousVP(camera);
 
     // アウトライン (HDR空間, MotionBlurの後)

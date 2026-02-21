@@ -35,7 +35,7 @@ void TabView::SetActiveTab(int index)
 
 void TabView::Update(float deltaTime)
 {
-    // アクティブタブの子のみ visible にする
+    // アクティブタブに対応する子だけをvisibleにして、非アクティブタブの子は非表示にする
     auto& children = GetChildren();
     for (int i = 0; i < static_cast<int>(children.size()); ++i)
     {

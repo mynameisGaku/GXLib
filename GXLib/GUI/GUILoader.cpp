@@ -606,7 +606,8 @@ std::unique_ptr<Widget> GUILoader::BuildWidget(const XMLNode* node)
         }
     }
 
-    // --- その他の属性 → インラインスタイル ---
+    // --- その他の属性 → インラインスタイルとして直接適用 ---
+    // id/class/onClick等の特殊属性以外は全てCSSプロパティとして解釈する
     for (const auto& [attrName, attrValue] : node->attributes)
     {
         // 特殊属性はスキップ

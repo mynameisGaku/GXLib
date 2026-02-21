@@ -268,8 +268,8 @@ bool MoviePlayer::DecodeNextFrame(GraphicsDevice& device)
         return false;
     }
 
-    // Media FoundationのRGB32はBGRAかつ上下反転なので、RGBA上向きに変換する。
-    // 初心者向け: 画像の並び順が違うため、そのままだと色や上下がずれる。
+    // Media FoundationのRGB32はBGRAかつボトムアップ配列のため、
+    // RGBA＋トップダウン配列に並べ替えて変換する
     std::vector<uint8_t> rgba(m_width * m_height * 4);
     for (uint32_t y = 0; y < m_height; ++y)
     {
@@ -293,6 +293,8 @@ bool MoviePlayer::DecodeNextFrame(GraphicsDevice& device)
     if (!m_texManager)
         return false;
 
+    // テクスチャの作成または更新。毎フレームGPUリソースを再作成しているため
+    // パフォーマンスは最適ではないが、実装が単純で信頼性が高い。
     if (m_textureHandle < 0)
     {
         m_textureHandle = m_texManager->CreateTextureFromMemory(
@@ -300,7 +302,6 @@ bool MoviePlayer::DecodeNextFrame(GraphicsDevice& device)
     }
     else
     {
-        // 旧テクスチャを解放して作り直す（簡単だが少し重い）
         m_texManager->ReleaseTexture(m_textureHandle);
         m_textureHandle = m_texManager->CreateTextureFromMemory(
             rgba.data(), m_width, m_height);

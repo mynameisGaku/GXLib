@@ -284,7 +284,7 @@ void UIRenderer::DrawRectInternal(float x, float y, float w, float h,
     if (opacity <= 0.0f) return;
     if (fillColor.a <= 0.0f && borderWidth <= 0.0f && shadowAlpha <= 0.0f) return;
 
-    // デザイン座標 → スクリーン座標に変換
+    // デザイン座標 → スクリーン座標に変換（GUIスケーリング + レターボックスオフセット）
     x = x * m_guiScale + m_guiOffsetX;
     y = y * m_guiScale + m_guiOffsetY;
     w *= m_guiScale;

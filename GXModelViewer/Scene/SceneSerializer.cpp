@@ -1,5 +1,9 @@
 /// @file SceneSerializer.cpp
-/// @brief Scene save/load to JSON implementation
+/// @brief シーンJSON保存/読み込み実装
+///
+/// nlohmann/jsonを使用。version=1フォーマット。
+/// エンティティごとにname, visible, parentIndex, transform(TRS), materialOverride,
+/// modelPath(インポート元パス)を保存する。モデル実体の復元はアプリ側で行う。
 
 #include "SceneSerializer.h"
 #include <json.hpp>
@@ -8,7 +12,7 @@
 using json = nlohmann::json;
 
 // ============================================================
-// Helpers: Transform3D <-> JSON
+// Transform3D <-> JSON 変換ヘルパー
 // ============================================================
 static json SerializeTransform(const GX::Transform3D& transform)
 {
@@ -51,7 +55,7 @@ static void DeserializeTransform(GX::Transform3D& transform, const json& j)
 }
 
 // ============================================================
-// Helpers: Material override <-> JSON
+// MaterialConstants <-> JSON 変換ヘルパー
 // ============================================================
 static json SerializeMaterial(const GX::Material& mat)
 {

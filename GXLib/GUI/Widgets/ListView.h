@@ -9,7 +9,9 @@ namespace GX { namespace GUI {
 
 class UIRenderer;
 
-/// @brief リストビュー（スクロール可能なアイテム選択リスト）
+/// @brief リストビューウィジェット（スクロール可能なアイテム選択リスト）
+/// 文字列リストを表示し、クリックでアイテムを選択できる。
+/// マウスホイールでスクロールし、スクロールバーも自動表示される。
 class ListView : public Widget
 {
 public:
@@ -18,13 +20,28 @@ public:
 
     WidgetType GetType() const override { return WidgetType::ListView; }
 
+    /// @brief アイテムリストを設定する（設定すると選択がリセットされる）
+    /// @param items アイテムの文字列配列（UTF-8）
     void SetItems(const std::vector<std::string>& items);
+
+    /// @brief 選択中のインデックスを設定する
+    /// @param index 選択インデックス（-1で未選択）
     void SetSelectedIndex(int index);
+
+    /// @brief 選択中のインデックスを取得する
+    /// @return 選択インデックス（-1=未選択）
     int GetSelectedIndex() const { return m_selectedIndex; }
 
+    /// @brief フォントハンドルを設定する
+    /// @param handle FontManagerで取得したハンドル
     void SetFontHandle(int handle) { m_fontHandle = handle; }
+
+    /// @brief フォントハンドルを取得する
+    /// @return フォントハンドル
     int GetFontHandle() const { return m_fontHandle; }
 
+    /// @brief UIRendererを設定する
+    /// @param renderer GUI描画用レンダラー
     void SetRenderer(UIRenderer* renderer) { m_renderer = renderer; }
 
     float GetIntrinsicWidth() const override { return 200.0f; }

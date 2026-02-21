@@ -1,5 +1,20 @@
 ﻿/// @file Samples/PostEffectShowcase/main.cpp
 /// @brief ポストエフェクトをON/OFFして試すサンプル。
+///
+/// GXLibのPostEffectPipelineに搭載された10種類のエフェクトを
+/// 数字キーで個別にON/OFFして効果を確認できるデモ。
+///
+/// エフェクト一覧:
+///   1: Bloom       - 高輝度部分のにじみ
+///   2: SSAO        - スクリーンスペースの環境遮蔽
+///   3: FXAA        - 高速アンチエイリアシング
+///   4: Vignette    - 画面周辺の暗影
+///   5: ColorGrad   - 色補正（コントラスト/彩度/色温度）
+///   6: DoF         - 被写界深度（ピンボケ）
+///   7: MotionBlur  - モーションブラー
+///   8: SSR         - スクリーンスペース反射
+///   9: Outline     - アウトライン検出
+///   0: TAA         - テンポラルアンチエイリアシング
 #include "GXEasy.h"
 #include "Compat/CompatContext.h"
 #include "Graphics/3D/MeshData.h"
@@ -29,9 +44,14 @@ TString FormatT(const TChar* fmt, Args&&... args)
 #endif
 }
 
+/// @brief ポストエフェクトショーケースのメインクラス
+///
+/// Walkthrough3Dと同じ3Dシーンをベースに、
+/// ポストエフェクトのON/OFFを数字キーで操作できるようにしたもの。
 class PostEffectApp : public GXEasy::App
 {
 public:
+    /// @brief ウィンドウ設定（VSync有効）
     GXEasy::AppConfig GetConfig() const override
     {
         GXEasy::AppConfig config;
@@ -45,6 +65,7 @@ public:
         return config;
     }
 
+    /// @brief シーン初期化（ポストエフェクトの初期ON/OFF設定含む）
     void Start() override
     {
         auto& ctx = GX_Internal::CompatContext::Instance();
@@ -52,9 +73,11 @@ public:
         auto& camera = ctx.camera;
         auto& postFX = ctx.postEffect;
 
-        // シャドウパスをこのサンプルでは回さないため、シャドウは無効化しておく
         renderer.SetShadowEnabled(false);
 
+        // --- ポストエフェクトの初期設定 ---
+        // Bloom/SSAO/FXAA/Vignette/ColorGradは最初からON。
+        // 残りはOFFにしておき、キー操作で切り替えて効果を確認する。
         postFX.SetTonemapMode(GX::TonemapMode::ACES);
         postFX.GetBloom().SetEnabled(true);
         postFX.GetSSAO().SetEnabled(true);
@@ -67,6 +90,7 @@ public:
         postFX.GetOutline().SetEnabled(false);
         postFX.GetTAA().SetEnabled(false);
 
+        // メッシュ生成（Walkthrough3Dと同一構成）
         m_planeMesh    = renderer.CreateGPUMesh(GX::MeshGenerator::CreatePlane(30.0f, 30.0f, 30, 30));
         m_cubeMesh     = renderer.CreateGPUMesh(GX::MeshGenerator::CreateBox(1.0f, 1.0f, 1.0f));
         m_sphereMesh   = renderer.CreateGPUMesh(GX::MeshGenerator::CreateSphere(0.5f, 32, 16));
@@ -119,11 +143,12 @@ public:
         camera.Rotate(0.3f, 0.0f);
     }
 
+    /// @brief カメラ操作 + エフェクト切り替え
     void Update(float dt) override
     {
         auto& ctx = GX_Internal::CompatContext::Instance();
         auto& camera = ctx.camera;
-        auto& kb = ctx.inputManager.GetKeyboard();
+        auto& kb = ctx.inputManager.GetKeyboard();   // トリガー入力（IsKeyTriggered）用
         auto& mouse = ctx.inputManager.GetMouse();
 
         m_totalTime += dt;
@@ -153,11 +178,13 @@ public:
             m_lastMY = my;
         }
 
+        // R: 自動回転モード（エフェクトの効果を眺めるのに便利）
         if (m_autoRotate)
         {
             camera.Rotate(0.0f, 0.4f * dt);
         }
 
+        // WASD/QE: カメラ移動
         float speed = m_cameraSpeed * dt;
         if (CheckHitKey(KEY_INPUT_LSHIFT)) speed *= 3.0f;
         if (CheckHitKey(KEY_INPUT_W)) camera.MoveForward(speed);
@@ -167,7 +194,9 @@ public:
         if (CheckHitKey(KEY_INPUT_E)) camera.MoveUp(speed);
         if (CheckHitKey(KEY_INPUT_Q)) camera.MoveUp(-speed);
 
-        // キー入力でエフェクトを切り替える
+        // --- エフェクト切り替え ---
+        // 数字キー1〜0で対応するエフェクトをトグル。
+        // IsKeyTriggered（トリガー入力）を使って1回の押下で1回だけ切り替わるようにする。
         const int keys[k_NumEffects] = {
             '1', '2', '3', '4', '5',
             '6', '7', '8', '9', '0'
@@ -182,6 +211,10 @@ public:
             m_autoRotate = !m_autoRotate;
     }
 
+    /// @brief 3Dシーン描画 + エフェクトリストUI
+    ///
+    /// 描画フローはWalkthrough3Dとほぼ同一だが、
+    /// DepthBufferの手動遷移はResolve内部で行われる（サンプルによる差異）。
     void Draw() override
     {
         auto& ctx = GX_Internal::CompatContext::Instance();
@@ -190,6 +223,7 @@ public:
 
         ctx.FlushAll();
 
+        // HDR RTに3Dシーンを描画
         ctx.postEffect.BeginScene(cmd, frameIndex,
                                   ctx.renderer3D.GetDepthBuffer().GetDSVHandle(),
                                   ctx.camera);
@@ -217,11 +251,13 @@ public:
         ctx.renderer3D.End();
         ctx.postEffect.EndScene();
 
+        // Resolve: HDR→LDRに変換してバックバッファに出力
         ctx.postEffect.Resolve(ctx.swapChain.GetCurrentRTVHandle(),
                                ctx.renderer3D.GetDepthBuffer(),
                                ctx.camera, m_lastDt);
 
-        // UI描画
+        // --- エフェクト一覧のUI描画 ---
+        // DxLib互換のDrawBox/DrawStringで簡易UIを構築
         float panelX = 10.0f;
         float panelY = 10.0f;
         float panelW = 320.0f;
@@ -288,6 +324,7 @@ private:
     GX::Transform3D m_pillarTransforms[k_NumPillars];
     GX::Material    m_pillarMat;
 
+    /// @brief 指定インデックスのエフェクトが有効かどうかを返す
     bool IsEffectEnabled(int idx) const
     {
         auto& fx = GX_Internal::CompatContext::Instance().postEffect;
@@ -307,6 +344,7 @@ private:
         }
     }
 
+    /// @brief 指定インデックスのエフェクトをトグルする
     void ToggleEffect(int idx)
     {
         auto& fx = GX_Internal::CompatContext::Instance().postEffect;
@@ -327,6 +365,7 @@ private:
     }
 };
 
+// エントリーポイント
 GX_EASY_APP(PostEffectApp)
 
 

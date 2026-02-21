@@ -24,11 +24,9 @@ void MusicPlayer::Play(const Sound& sound, bool loop, float volume)
     if (!m_audioDevice || !m_audioDevice->GetXAudio2() || !sound.IsValid())
         return;
 
-    // 現在再生中なら停止
+    // BGMは同時に1曲だけなので、現在再生中なら先に停止する
     Stop();
 
-    // ソースボイスを作成
-    // 初学者向け: 再生用の「音声チャンネル」をXAudio2に作ってもらいます。
     WAVEFORMATEX format = sound.GetFormat();
     HRESULT hr = m_audioDevice->GetXAudio2()->CreateSourceVoice(&m_voice, &format);
     if (FAILED(hr))
@@ -68,7 +66,7 @@ void MusicPlayer::Stop()
     if (m_voice)
     {
         m_voice->Stop(0);
-        m_voice->FlushSourceBuffers();
+        m_voice->FlushSourceBuffers();   // サブミット済みバッファを全てクリア
         m_voice->DestroyVoice();
         m_voice = nullptr;
     }
@@ -116,6 +114,7 @@ void MusicPlayer::FadeIn(float seconds)
         return;
     }
 
+    // 音量0からスタートし、毎秒 (targetVolume / seconds) ずつ上げていく
     m_currentVolume = 0.0f;
     if (m_voice) m_voice->SetVolume(0.0f);
     m_fadeSpeed = m_targetVolume / seconds;
@@ -130,6 +129,7 @@ void MusicPlayer::FadeOut(float seconds)
         return;
     }
 
+    // 現在の音量から0まで下げる。完了後にStop()を自動呼び出しする
     m_fadeSpeed = -(m_currentVolume / seconds);
     m_stopAfterFade = true;
 }

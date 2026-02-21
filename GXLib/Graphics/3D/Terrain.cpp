@@ -10,12 +10,11 @@ namespace GX
 {
 
 // ============================================================================
-// 簡易ハッシュベースのノイズ関数
+// sinベースの簡易ノイズ関数（FBMの基底として使用）
 // ============================================================================
 
 static float Hash(float x, float z)
 {
-    // 簡易ハッシュ（sin ベース）
     float h = sinf(x * 127.1f + z * 311.7f) * 43758.5453f;
     return h - floorf(h);
 }
@@ -43,7 +42,7 @@ static float SmoothNoise(float x, float z)
 
 float Terrain::ProceduralHeight(float x, float z)
 {
-    // 複数オクターブのFBMノイズ
+    // 5オクターブFBM (Fractional Brownian Motion): 振幅を半減・周波数を倍増しながら重ね合わせ
     float height = 0.0f;
     float amplitude = 1.0f;
     float frequency = 0.02f;

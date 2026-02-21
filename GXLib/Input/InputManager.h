@@ -2,16 +2,10 @@
 /// @file InputManager.h
 /// @brief 入力システム統合マネージャー
 ///
-/// 【初学者向け解説】
-/// InputManagerは、キーボード・マウス・ゲームパッドの3つの入力デバイスを
-/// まとめて管理するクラスです。
-/// DXLib互換のAPI（CheckHitKey, GetMouseInput等）も提供します。
-///
-/// 使い方：
-/// 1. Initialize(window) — ウィンドウにメッセージコールバックを登録
-/// 2. 毎フレーム Update() — 全入力デバイスの状態を更新
-/// 3. CheckHitKey() 等で入力を取得
-/// 4. Shutdown() — 終了処理
+/// キーボード・マウス・ゲームパッドの3デバイスをまとめて管理する。
+/// DxLibではCheckHitKeyやGetMousePointなどがグローバル関数として提供されるが、
+/// GXLibではこのクラスに集約している。DxLib互換のAPIも用意しているので、
+/// DxLibからの移行も容易。
 
 #include "pch.h"
 #include "Input/Keyboard.h"
@@ -23,42 +17,57 @@ namespace GX
 
 class Window;
 
-/// @brief 入力システム統合管理クラス
+/// @brief キーボード・マウス・ゲームパッドを統合管理するクラス
 class InputManager
 {
 public:
     InputManager() = default;
     ~InputManager() = default;
 
-    /// 初期化（Windowにメッセージコールバックを登録）
+    /// @brief 入力システムを初期化し、ウィンドウにメッセージコールバックを登録する
+    /// @param window メッセージを受け取るウィンドウ
     void Initialize(Window& window);
 
-    /// フレーム更新（全入力デバイスを更新）
+    /// @brief 全入力デバイスのフレーム更新を行う。毎フレーム1回呼ぶこと
     void Update();
 
-    /// 終了処理
+    /// @brief 終了処理を行う
     void Shutdown();
 
     // --- キーボードAPI ---
+
+    /// @brief Keyboardオブジェクトへの参照を取得する。トリガー判定等はこちらを使う
+    /// @return Keyboardへの参照
     Keyboard& GetKeyboard() { return m_keyboard; }
 
-    /// DXLib互換: キーが押されているか (1=押されている, 0=離されている)
+    /// @brief キーが押されているか判定する（DxLibのCheckHitKey互換）
+    /// @param keyCode 仮想キーコード（VK_UP, VK_SPACEなど）
+    /// @return 1=押されている、0=離されている
     int CheckHitKey(int keyCode) const;
 
     // --- マウスAPI ---
+
+    /// @brief Mouseオブジェクトへの参照を取得する。トリガー判定等はこちらを使う
+    /// @return Mouseへの参照
     Mouse& GetMouse() { return m_mouse; }
 
-    /// DXLib互換: マウスボタン入力を取得（ビットフラグ）
-    /// MOUSE_INPUT_LEFT=1, MOUSE_INPUT_RIGHT=2, MOUSE_INPUT_MIDDLE=4
+    /// @brief マウスボタン入力をビットフラグで取得する（DxLibのGetMouseInput互換）
+    /// @return ビットフラグ: bit0=左(1), bit1=右(2), bit2=中(4)
     int GetMouseInput() const;
 
-    /// DXLib互換: マウス座標を取得
+    /// @brief マウス座標を取得する（DxLibのGetMousePoint互換）
+    /// @param x X座標の格納先（nullptrで省略可）
+    /// @param y Y座標の格納先（nullptrで省略可）
     void GetMousePoint(int* x, int* y) const;
 
-    /// マウスホイール回転量を取得
+    /// @brief マウスホイール回転量を取得する（DxLibのGetMouseWheelRotVol互換）
+    /// @return 回転ノッチ数。正=上回転、負=下回転
     int GetMouseWheel() const;
 
     // --- ゲームパッドAPI ---
+
+    /// @brief Gamepadオブジェクトへの参照を取得する
+    /// @return Gamepadへの参照
     Gamepad& GetGamepad() { return m_gamepad; }
 
 private:

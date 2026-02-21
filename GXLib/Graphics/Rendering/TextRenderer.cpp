@@ -1,5 +1,8 @@
 /// @file TextRenderer.cpp
-/// @brief テキストレンダラーの実装
+/// @brief TextRenderer の実装
+///
+/// 文字列を1文字ずつ走査し、FontManager からグリフ情報（アトラス上のUV矩形）を取得して
+/// SpriteBatch::DrawRectGraph で描画する。改行文字は行送り処理を行う。
 #include "pch.h"
 #include "Graphics/Rendering/TextRenderer.h"
 #include "Graphics/Rendering/SpriteBatch.h"
@@ -23,7 +26,8 @@ void TextRenderer::DrawString(int fontHandle, float x, float y, const std::wstri
     if (atlasHandle < 0)
         return;
 
-    // 色をfloat4に変換してSpriteBatchに設定
+    // 0xAARRGGBB形式の色を float4 に変換し、SpriteBatch の描画色として設定。
+    // SpriteBatch は頂点カラーとしてこの色を乗算するため、文字色が反映される。
     float a = static_cast<float>((color >> 24) & 0xFF) / 255.0f;
     float r = static_cast<float>((color >> 16) & 0xFF) / 255.0f;
     float g = static_cast<float>((color >> 8) & 0xFF) / 255.0f;
@@ -82,6 +86,8 @@ void TextRenderer::DrawStringTransformed(int fontHandle, float x, float y,
                                          const std::wstring& text, uint32_t color,
                                          const Transform2D& transform)
 {
+    // 各グリフの4隅を Transform2D で変換してから DrawRectModiGraph で描画する。
+    // これにより文字列全体に回転・拡縮・移動を適用できる。
     if (!m_spriteBatch || !m_fontManager)
         return;
 
@@ -152,6 +158,7 @@ void TextRenderer::DrawStringTransformed(int fontHandle, float x, float y,
 
 void TextRenderer::DrawFormatString(int fontHandle, float x, float y, uint32_t color, const wchar_t* format, ...)
 {
+    // printf 形式の可変引数をバッファに展開してから DrawString に委譲する
     wchar_t buffer[1024];
 
     va_list args;
@@ -167,12 +174,14 @@ int TextRenderer::GetStringWidth(int fontHandle, const std::wstring& text)
     if (!m_fontManager)
         return 0;
 
+    // 各文字の advance（次の文字への水平移動量）を合算して描画幅を計算する。
+    // 改行が含まれる場合は1行目の幅のみを返す。
     float width = 0.0f;
 
     for (wchar_t ch : text)
     {
         if (ch == L'\n')
-            break;  // 1行目の幅のみ
+            break;
 
         const GlyphInfo* glyph = m_fontManager->GetGlyphInfo(fontHandle, ch);
         if (glyph)

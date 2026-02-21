@@ -1,11 +1,16 @@
 ﻿/// @file Samples/Shooting2D/main.cpp
 /// @brief 2Dシューティング。左右移動と射撃を体験するサンプル。
+///
+/// GXEasy::Appを継承して、DxLibのMainLoop相当の処理を
+/// Start/Update/Drawの3メソッドに分けて書く構成になっている。
+/// DxLibでいうDrawBox/DrawCircle/DrawString/CheckHitKeyはそのまま使える。
 #include "GXEasy.h"
 
 #include <format>
 #include <string>
 #include <random>
 
+// --- UNICODE/ANSI 対応の文字列フォーマットヘルパー ---
 #ifdef UNICODE
 using TChar = wchar_t;
 #else
@@ -14,6 +19,7 @@ using TChar = char;
 
 using TString = std::basic_string<TChar>;
 
+/// @brief UNICODE/ANSIの両ビルドで使えるフォーマット関数
 template <class... Args>
 TString FormatT(const TChar* fmt, Args&&... args)
 {
@@ -24,30 +30,41 @@ TString FormatT(const TChar* fmt, Args&&... args)
 #endif
 }
 
+/// @brief 2Dシューティングのメインクラス
+///
+/// GXEasy::Appを継承し、Start/Update/Drawを実装するだけで
+/// ゲームループが回る。DxLibでいうProcessMessage+ScreenFlipは
+/// フレームワーク側が自動で行う。
 class ShootingApp : public GXEasy::App
 {
 public:
+    /// @brief ウィンドウ設定を返す（DxLibのSetGraphMode相当）
     GXEasy::AppConfig GetConfig() const override
     {
         GXEasy::AppConfig config;
         config.title = L"GXLib Sample: Shooting2D";
         config.width = 1280;
         config.height = 720;
+        // 背景色（DxLibのSetBackgroundColor相当）
         config.bgR = 8;
         config.bgG = 8;
         config.bgB = 20;
         return config;
     }
 
+    /// @brief 初期化（DxLibのDxLib_Init直後にやる処理をここに書く）
     void Start() override
     {
         ResetGame();
     }
 
+    /// @brief 毎フレームの更新処理（入力→ロジック→判定の順）
     void Update(float dt) override
     {
+        // フレーム落ち対策: dtが大きすぎると一瞬でワープするので上限を設ける
         if (dt > 0.1f) dt = 0.1f;
 
+        // ゲームオーバー中はEnterでリスタートのみ受け付ける
         if (m_gameOver)
         {
             if (CheckHitKey(KEY_INPUT_RETURN))
@@ -57,14 +74,16 @@ public:
 
         m_totalTime += dt;
 
-        // プレイヤー移動（左右）
+        // --- プレイヤー移動（左右キー） ---
+        // DxLibのCheckHitKeyでキー押下を検出し、速度×dtで移動量を算出
         float speed = 400.0f * dt;
         if (CheckHitKey(KEY_INPUT_LEFT))  m_playerX -= speed;
         if (CheckHitKey(KEY_INPUT_RIGHT)) m_playerX += speed;
         if (m_playerX < m_playerSize) m_playerX = m_playerSize;
         if (m_playerX > k_ScreenW - m_playerSize) m_playerX = k_ScreenW - m_playerSize;
 
-        // 射撃クールダウン更新
+        // --- 射撃 ---
+        // クールダウンで連射速度を制御。固定長配列でプールしている。
         m_shootCooldown -= dt;
         if (CheckHitKey(KEY_INPUT_SPACE) && m_shootCooldown <= 0.0f
             && m_bulletCount < k_MaxBullets)
@@ -76,7 +95,8 @@ public:
             m_shootCooldown = 0.12f;
         }
 
-        // 弾の更新
+        // --- 弾の移動 ---
+        // 画面外に出たらalive=falseにして無効化
         for (int i = 0; i < m_bulletCount; ++i)
         {
             if (!m_bullets[i].alive) continue;
@@ -85,7 +105,8 @@ public:
                 m_bullets[i].alive = false;
         }
 
-        // 敵の出現
+        // --- 敵の出現 ---
+        // タイマーでスポーン間隔を管理。時間経過でだんだん短くなる。
         m_spawnTimer -= dt;
         if (m_spawnTimer <= 0.0f)
         {
@@ -102,7 +123,8 @@ public:
             if (m_spawnInterval > 0.3f) m_spawnInterval -= 0.02f;
         }
 
-        // 敵の更新
+        // --- 敵の移動 ---
+        // 画面下に到達したらゲームオーバー
         for (int i = 0; i < m_enemyCount; ++i)
         {
             if (!m_enemies[i].alive) continue;
@@ -114,7 +136,8 @@ public:
             }
         }
 
-        // 当たり判定（弾 vs 敵）
+        // --- 当たり判定（弾 vs 敵） ---
+        // 弾（矩形）と敵（円）の交差判定。命中で両方消える。
         for (int i = 0; i < m_bulletCount; ++i)
         {
             if (!m_bullets[i].alive) continue;
@@ -133,17 +156,22 @@ public:
         }
     }
 
+    /// @brief 毎フレームの描画処理
+    ///
+    /// DxLibのDrawBox/DrawCircle/DrawStringで描画する。
+    /// GXEasyではScreenFlipは自動で呼ばれるので不要。
     void Draw() override
     {
+        // 背景（DxLibのDrawBoxで塗りつぶし）
         DrawBox(0, 0, static_cast<int>(k_ScreenW), static_cast<int>(k_ScreenH),
                 GetColor(10, 10, 30), TRUE);
 
-        // プレイヤー描画
+        // プレイヤー（四角で表現）
         DrawBox(static_cast<int>(m_playerX - m_playerSize), static_cast<int>(m_playerY - m_playerSize),
                 static_cast<int>(m_playerX + m_playerSize), static_cast<int>(m_playerY + m_playerSize),
                 GetColor(80, 200, 255), TRUE);
 
-        // 弾
+        // 弾（黄色い小さな矩形）
         for (int i = 0; i < m_bulletCount; ++i)
         {
             if (!m_bullets[i].alive) continue;
@@ -152,7 +180,7 @@ public:
                     GetColor(255, 255, 68), TRUE);
         }
 
-        // 敵
+        // 敵（円で表現、サイズはランダム）
         for (int i = 0; i < m_enemyCount; ++i)
         {
             if (!m_enemies[i].alive) continue;
@@ -177,6 +205,8 @@ public:
     }
 
 private:
+    // --- オブジェクト構造体 ---
+    // aliveフラグで生死管理する単純なプール方式
     struct Bullet
     {
         float x = 0.0f;
@@ -188,15 +218,16 @@ private:
     {
         float x = 0.0f;
         float y = 0.0f;
-        float radius = 0.0f;
-        float speed = 0.0f;
+        float radius = 0.0f;   ///< 敵のサイズ（ランダム）
+        float speed = 0.0f;    ///< 落下速度（時間経過で加速）
         bool alive = false;
     };
 
+    // --- 定数 ---
     static constexpr float k_ScreenW = 1280.0f;
     static constexpr float k_ScreenH = 720.0f;
-    static constexpr int k_MaxBullets = 64;
-    static constexpr int k_MaxEnemies = 32;
+    static constexpr int k_MaxBullets = 64;   ///< 弾の最大数
+    static constexpr int k_MaxEnemies = 32;   ///< 敵の最大数
 
     float m_playerX = k_ScreenW / 2.0f;
     float m_playerY = k_ScreenH - 60.0f;
@@ -212,7 +243,8 @@ private:
     float m_shootCooldown = 0.0f;
     float m_totalTime = 0.0f;
 
-    // 円と矩形の当たり判定（弾 vs 敵）
+    /// @brief 円と矩形の当たり判定
+    /// 矩形上の最近接点を求め、円の中心との距離で判定する。
     static bool HitCircleRect(float cx, float cy, float cr,
                               float rx, float ry, float rw, float rh)
     {
@@ -227,14 +259,16 @@ private:
         return (dx * dx + dy * dy) < (cr * cr);
     }
 
-    std::mt19937 m_rng{ std::random_device{}() };
+    std::mt19937 m_rng{ std::random_device{}() };  ///< 乱数エンジン
 
+    /// @brief 指定範囲の一様乱数を返す
     float RandFloat(float minVal, float maxVal)
     {
         std::uniform_real_distribution<float> dist(minVal, maxVal);
         return dist(m_rng);
     }
 
+    /// @brief ゲーム状態をリセットして最初からやり直す
     void ResetGame()
     {
         m_playerX = k_ScreenW / 2.0f;
@@ -249,5 +283,7 @@ private:
     }
 };
 
+// GX_EASY_APPマクロがWinMainを生成し、ShootingAppをインスタンス化して実行する。
+// DxLibでいうDxLib_Init〜DxLib_End間の処理はフレームワーク内部で行われる。
 GX_EASY_APP(ShootingApp)
 

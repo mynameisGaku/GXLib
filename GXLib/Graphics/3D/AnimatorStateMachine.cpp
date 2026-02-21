@@ -79,12 +79,10 @@ void AnimatorStateMachine::SampleState(const AnimState& state, float time,
 {
     if (state.blendTree)
     {
-        // BlendTreeのfloatパラメータを反映
-        // 初学者向け: ステートマシンが持つパラメータをブレンドツリーに渡します。
+        // ステートマシンのfloatパラメータをBlendTreeに反映
         for (const auto& pair : m_floats)
         {
-            // BlendTreeは非constのSetParameterを持つので、一時的にconst_castを使用
-            // （ステートマシンがblendTreeのオーナーなのでセマンティクス的に安全）
+            // const_cast: SampleStateがconstだがBlendTreeのオーナーはこのステートマシンなので安全
             const_cast<BlendTree*>(state.blendTree)->SetParameter(pair.second);
         }
         state.blendTree->Evaluate(time, jointCount, bindPose, outPose);
@@ -161,8 +159,7 @@ void AnimatorStateMachine::Update(float deltaTime, uint32_t jointCount,
 
     if (m_transitioning)
     {
-        // 遷移中: 両方のステートを進めてクロスフェード
-        // 初学者向け: 前のステートから次のステートへ、徐々に切り替えています。
+        // 遷移中: 現在ステートと次ステートの両方を進めてクロスフェード
         const AnimState* curState = GetCurrentState();
         const AnimState* nxtState = GetState(m_nextState);
 

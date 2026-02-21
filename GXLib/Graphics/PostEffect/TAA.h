@@ -1,10 +1,10 @@
 #pragma once
 /// @file TAA.h
-/// @brief Temporal Anti-Aliasing (TAA) ポストエフェクト
+/// @brief Temporal Anti-Aliasing (時間的アンチエイリアシング)
 ///
-/// 現フレームとリプロジェクションした前フレーム履歴を、
-/// 近傍クランプ付きでブレンドしてサブピクセル情報を蓄積する。
-/// Halton(2,3)ジッターでプロジェクション行列をサブピクセルシフトする。
+/// DxLibには無い機能。毎フレームカメラをサブピクセル単位でずらし(ジッター)、
+/// 前フレームの結果と合成することでMSAA不要のアンチエイリアシングを実現する。
+/// Halton(2,3)数列でジッターパターンを生成し、近傍クランプでゴーストを防ぐ。
 
 #include "pch.h"
 #include "Graphics/Resource/RenderTarget.h"
@@ -29,35 +29,52 @@ struct TAAConstants
     float      padding[3];             // 12B
 };  // 160B → 256-align
 
-/// @brief Temporal Anti-Aliasing エフェクト
+/// @brief ジッター+履歴合成でジャギーを消すTAAエフェクト
+///
+/// 現フレーム(ジッター適用済み)と前フレーム履歴をリプロジェクション+
+/// 近傍クランプ付きでブレンドする。PostEffectPipeline::BeginSceneでジッターが
+/// カメラに自動適用される。
 class TAA
 {
 public:
     TAA() = default;
     ~TAA() = default;
 
+    /// @brief 初期化。履歴RT・PSO・SRVヒープ・定数バッファを作成する
+    /// @param device D3D12デバイス
+    /// @param width 画面幅
+    /// @param height 画面高さ
+    /// @return 成功でtrue
     bool Initialize(ID3D12Device* device, uint32_t width, uint32_t height);
 
-    /// TAA実行: srcHDR → destHDR、完了後 destHDR → historyRT にコピー
+    /// @brief TAAを実行する (srcHDR→destHDR、destHDR→historyRTへコピー)
+    /// @param cmdList コマンドリスト
+    /// @param frameIndex ダブルバッファ用フレームインデックス
+    /// @param srcHDR 入力HDRシーン (ジッター適用済み)
+    /// @param destHDR 出力先HDR RT (AA適用後)
+    /// @param depth 深度バッファ (リプロジェクションに使う)
+    /// @param camera カメラ
     void Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
                  RenderTarget& srcHDR, RenderTarget& destHDR,
                  DepthBuffer& depth, const Camera3D& camera);
 
+    /// @brief 画面リサイズ時に履歴RTを再生成する
     void OnResize(ID3D12Device* device, uint32_t width, uint32_t height);
 
     void SetEnabled(bool enabled) { m_enabled = enabled; }
     bool IsEnabled() const { return m_enabled; }
 
+    /// @brief 履歴のブレンド比率 (0〜1)。大きいほど前フレームの影響が強い
     void SetBlendFactor(float f) { m_blendFactor = f; }
     float GetBlendFactor() const { return m_blendFactor; }
 
-    /// 現フレームのジッターオフセットを取得 (NDC空間)
+    /// @brief 現フレームのジッターオフセットを取得 (NDC空間)
     XMFLOAT2 GetCurrentJitter() const;
 
-    /// 前フレームVP行列を更新（フレーム末に呼ぶ）
+    /// @brief 前フレームのVP行列を保存する。Executeの後に呼ぶこと
     void UpdatePreviousVP(const Camera3D& camera);
 
-    /// フレームカウントを進める
+    /// @brief フレームカウントを進める (ジッターパターンの更新)
     void AdvanceFrame() { m_frameCount++; }
 
     uint32_t GetFrameCount() const { return m_frameCount; }

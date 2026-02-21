@@ -1,32 +1,28 @@
 #pragma once
 /// @file Shader.h
-/// @brief シェーダーコンパイルクラス
+/// @brief DXCコンパイラによるHLSLシェーダーのコンパイル
 ///
-/// 【初学者向け解説】
-/// シェーダーとは、GPU上で動作する小さなプログラムです。
-/// グラフィックス描画には最低でも2種類のシェーダーが必要です：
+/// DxLibでは内蔵シェーダーが自動適用されるが、DX12では自分でHLSLを
+/// コンパイルしてバイトコードを取得する必要がある。
 ///
-/// - 頂点シェーダー（VS）: 3Dの頂点座標を画面上の2D座標に変換する
-/// - ピクセルシェーダー（PS）: 各ピクセルの色を決定する
-///
-/// シェーダーはHLSL（High Level Shading Language）という言語で書き、
-/// DXC（DirectX Shader Compiler）でコンパイルしてGPUが理解できる
-/// バイトコードに変換します。
-///
-/// このクラスはHLSLファイルを読み込み、DXCでコンパイルする機能を提供します。
+/// このクラスはDXC（DirectX Shader Compiler）のラッパーで、
+/// HLSLファイルを読み込み、頂点シェーダー(vs_6_0)やピクセルシェーダー(ps_6_0)、
+/// DXRライブラリ(lib_6_3)にコンパイルする。
+/// コンパイル結果のShaderBlobをPipelineStateBuilderに渡してPSOを構築する。
 
 #include "pch.h"
 
 namespace GX
 {
 
-/// @brief シェーダーコンパイル結果
+/// @brief シェーダーコンパイル結果を保持する構造体
 struct ShaderBlob
 {
-    ComPtr<IDxcBlob> blob;
-    bool             valid = false;
+    ComPtr<IDxcBlob> blob;      ///< コンパイル済みバイトコード
+    bool             valid = false;  ///< コンパイル成功ならtrue
 
-    /// D3D12_SHADER_BYTECODE構造体として取得（PSO設定用）
+    /// @brief PSOに設定するためのD3D12_SHADER_BYTECODE形式で取得する
+    /// @return バイトコード構造体。無効な場合は空のバイトコードを返す
     D3D12_SHADER_BYTECODE GetBytecode() const
     {
         if (!valid || !blob) return { nullptr, 0 };
@@ -34,37 +30,50 @@ struct ShaderBlob
     }
 };
 
-/// @brief DXCを使ったシェーダーコンパイラ
+/// @brief HLSLファイルをDXCでコンパイルするシェーダーコンパイラ
 class Shader
 {
 public:
     Shader() = default;
     ~Shader() = default;
 
-    /// DXCコンパイラを初期化
+    /// @brief DXCコンパイラとユーティリティを初期化する
+    /// @return 成功時true。dxcompiler.dllが見つからない場合等はfalse
     bool Initialize();
 
-    /// HLSLファイルをコンパイル
+    /// @brief HLSLファイルを指定エントリポイント・ターゲットでコンパイルする
+    /// @param filePath HLSLファイルのパス
+    /// @param entryPoint エントリポイント関数名（例: L"VSMain", L"PSMain"）
+    /// @param target ターゲットプロファイル（例: L"vs_6_0", L"ps_6_0"）
+    /// @return コンパイル結果。失敗時はvalid==false
     ShaderBlob CompileFromFile(const std::wstring& filePath,
                                const std::wstring& entryPoint,
                                const std::wstring& target);
 
-    /// HLSLファイルをコンパイル（#define付きバリアント）
+    /// @brief HLSLファイルを#defineマクロ付きでコンパイルする（バリアント生成用）
+    /// @param filePath HLSLファイルのパス
+    /// @param entryPoint エントリポイント関数名
+    /// @param target ターゲットプロファイル
+    /// @param defines マクロ定義のペア（名前, 値）。値が空なら値なし定義
+    /// @return コンパイル結果
     ShaderBlob CompileFromFile(const std::wstring& filePath,
                                const std::wstring& entryPoint,
                                const std::wstring& target,
                                const std::vector<std::pair<std::wstring, std::wstring>>& defines);
 
-    /// HLSLファイルをシェーダーライブラリとしてコンパイル（DXR用、lib_6_3ターゲット）
+    /// @brief HLSLファイルをDXRシェーダーライブラリとしてコンパイルする（lib_6_3ターゲット）
+    /// @param filePath HLSLファイルのパス
+    /// @return コンパイル結果。エントリポイント指定なし（ライブラリ内の全関数がエクスポート対象）
     ShaderBlob CompileLibrary(const std::wstring& filePath);
 
-    /// コンパイルエラーメッセージを取得（直前のCompileFromFileが失敗した場合）
+    /// @brief 直前のコンパイルで発生したエラーメッセージを取得する
+    /// @return エラー文字列。エラーがなければ空文字列
     const std::string& GetLastError() const { return m_lastError; }
 
 private:
-    std::string m_lastError;
-    ComPtr<IDxcCompiler3> m_compiler;
-    ComPtr<IDxcUtils>     m_utils;
+    std::string m_lastError;            ///< 直前のコンパイルエラー
+    ComPtr<IDxcCompiler3> m_compiler;   ///< DXCコンパイラ本体
+    ComPtr<IDxcUtils>     m_utils;      ///< ファイル読み込み等のユーティリティ
 };
 
 } // namespace GX

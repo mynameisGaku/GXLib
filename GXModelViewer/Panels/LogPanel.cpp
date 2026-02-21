@@ -1,5 +1,8 @@
 /// @file LogPanel.cpp
-/// @brief ImGui panel for scrollable log output with level filtering
+/// @brief ログパネル実装
+///
+/// ログエントリをvectorに蓄積し、レベル別の色（Info=灰/Warning=黄/Error=赤）で
+/// 表示する。フィルタトグルボタンでレベルごとに表示を切り替え可能。
 
 #include "LogPanel.h"
 #include <imgui.h>

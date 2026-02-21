@@ -1,5 +1,9 @@
 /// @file GXModelViewerApp.cpp
-/// @brief GXModelViewer application implementation
+/// @brief GXModelViewerアプリケーション実装
+///
+/// 初期化→メインループ→描画の全体フローを管理する。
+/// ImGui DockSpaceレイアウトで複数パネルを配置し、3Dシーンはビューポートウィンドウ内に
+/// LDR RenderTarget経由でImGui::Imageとして表示する。
 
 #include "GXModelViewerApp.h"
 #include "ModelExporter.h"
@@ -42,13 +46,13 @@ bool GXModelViewerApp::Initialize(HINSTANCE hInstance, uint32_t width, uint32_t 
     if (!m_app.Initialize(appDesc))
         return false;
 
-    // Hook ImGui message handler into GXLib's Window message callback system
+    // ImGuiのメッセージハンドラをGXLibのウィンドウコールバックに登録
     m_app.GetWindow().AddMessageCallback([](HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) -> bool {
         LRESULT result = ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam);
         return result != 0;
     });
 
-    // Drag & drop support
+    // WM_DROPFILESによるファイルD&D受付
     DragAcceptFiles(m_app.GetWindow().GetHWND(), TRUE);
     m_app.GetWindow().AddMessageCallback([this](HWND, UINT msg, WPARAM wp, LPARAM) -> bool {
         if (msg == WM_DROPFILES)
@@ -176,7 +180,7 @@ void GXModelViewerApp::InitImGui()
 {
     auto* device = m_graphicsDevice.GetDevice();
 
-    // Create a dedicated SRV descriptor heap for ImGui (shader visible)
+    // ImGui専用のshader-visible SRVヒープ（256エントリ）
     m_imguiSrvHeap.Initialize(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 256, true);
 
     // Create ImGui context
@@ -198,7 +202,7 @@ void GXModelViewerApp::InitImGui()
     // Init Win32 backend
     ImGui_ImplWin32_Init(m_app.GetWindow().GetHWND());
 
-    // Init DX12 backend using the new InitInfo struct
+    // DX12バックエンド初期化（ImGui 1.92.6 InitInfo構造体方式）
     ImGui_ImplDX12_InitInfo initInfo = {};
     initInfo.Device            = device;
     initInfo.CommandQueue      = m_commandQueue.GetQueue();
@@ -227,7 +231,7 @@ void GXModelViewerApp::InitImGui()
 
     ImGui_ImplDX12_Init(&initInfo);
 
-    // Initialize extension contexts
+    // ImPlot/ImNodesコンテキスト作成（Shutdownでは逆順で破棄する）
     ImPlot::CreateContext();
     ImNodes::CreateContext();
 
@@ -259,7 +263,7 @@ void GXModelViewerApp::EndImGuiFrame(ID3D12GraphicsCommandList* cmdList)
 {
     ImGui::Render();
 
-    // Set ImGui's SRV descriptor heap before rendering draw data
+    // ImGuiのSRVヒープをバインドしてから描画データを発行
     ID3D12DescriptorHeap* heaps[] = { m_imguiSrvHeap.GetHeap() };
     cmdList->SetDescriptorHeaps(1, heaps);
 
@@ -870,7 +874,7 @@ void GXModelViewerApp::UpdateUI()
 
 void GXModelViewerApp::ImportModel(const std::string& filePath)
 {
-    // Convert UTF-8 std::string to std::wstring for ModelLoader
+    // ModelLoaderはワイド文字パスを要求するためUTF-8→wstringに変換
     int wlen = MultiByteToWideChar(CP_UTF8, 0, filePath.c_str(), -1, nullptr, 0);
     std::wstring wpath(wlen - 1, L'\0');
     MultiByteToWideChar(CP_UTF8, 0, filePath.c_str(), -1, wpath.data(), wlen);
@@ -1200,7 +1204,7 @@ void GXModelViewerApp::RenderFrame(float deltaTime)
 {
     m_totalTime += deltaTime;
 
-    // Handle viewport resize (deferred from ImGui frame)
+    // ImGuiビューポートサイズ変更を遅延処理（描画前に反映）
     if (m_viewportNeedsResize && m_viewportWidth > 0 && m_viewportHeight > 0)
     {
         m_viewportNeedsResize = false;

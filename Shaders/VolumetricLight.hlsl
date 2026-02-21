@@ -9,15 +9,15 @@
 
 cbuffer VolumetricLightCB : register(b0)
 {
-    float2 sunScreenPos;    // UV空間の太陽位置
-    float  density;         // 散乱密度
-    float  decay;           // 減衰
-    float  weight;          // サンプルウェイト
-    float  exposure;        // 露出
-    int    numSamples;      // サンプル数
-    float  intensity;       // 全体強度
-    float3 lightColor;      // 光の色
-    float  sunVisible;      // 太陽可視性 (0-1)
+    float2 sunScreenPos;    // 太陽のスクリーンUV座標
+    float  density;         // レイの散乱密度（大きいほど光の筋が太い）
+    float  decay;           // ステップごとの減衰率
+    float  weight;          // サンプルの加算ウェイト
+    float  exposure;        // ゴッドレイの露出補正
+    int    numSamples;      // レイマーチのサンプル数
+    float  intensity;       // エフェクト全体の強度
+    float3 lightColor;      // ゴッドレイの色（通常はディレクショナルライト色）
+    float  sunVisible;      // 太陽の可視性 (0=遮蔽, 1=見えている)
 };
 
 Texture2D<float4> gScene : register(t0);
@@ -33,6 +33,7 @@ float Hash(float2 p)
     return frac((p3.x + p3.y) * p3.z);
 }
 
+/// @brief ボリュームライトPS — ジッター付きラディアルブラーでゴッドレイを生成
 float4 PSMain(FullscreenVSOutput input) : SV_Target
 {
     float2 uv = input.uv;

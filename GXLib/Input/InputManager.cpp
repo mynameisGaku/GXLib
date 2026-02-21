@@ -14,14 +14,14 @@ void InputManager::Initialize(Window& window)
     m_mouse.Initialize();
     m_gamepad.Initialize();
 
-    // ウィンドウにメッセージコールバックを登録
+    // ウィンドウのメッセージループにコールバックを登録し、
+    // WM_KEYDOWN / WM_MOUSEMOVE 等を各デバイスクラスに振り分ける。
+    // ゲームパッドはXInputポーリングなのでここでは不要。
     window.AddMessageCallback([this](HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) -> bool
     {
-        // キーボードメッセージ
         if (m_keyboard.ProcessMessage(msg, wParam, lParam))
             return true;
 
-        // マウスメッセージ
         if (m_mouse.ProcessMessage(hwnd, msg, wParam, lParam))
             return true;
 
@@ -50,10 +50,11 @@ int InputManager::CheckHitKey(int keyCode) const
 
 int InputManager::GetMouseInput() const
 {
+    // DxLibと同じビットフラグ配置: LEFT=1, RIGHT=2, MIDDLE=4
     int result = 0;
-    if (m_mouse.IsButtonDown(MouseButton::Left))   result |= 1;  // MOUSE_INPUT_LEFT
-    if (m_mouse.IsButtonDown(MouseButton::Right))  result |= 2;  // MOUSE_INPUT_RIGHT
-    if (m_mouse.IsButtonDown(MouseButton::Middle)) result |= 4;  // MOUSE_INPUT_MIDDLE
+    if (m_mouse.IsButtonDown(MouseButton::Left))   result |= 1;
+    if (m_mouse.IsButtonDown(MouseButton::Right))  result |= 2;
+    if (m_mouse.IsButtonDown(MouseButton::Middle)) result |= 4;
     return result;
 }
 

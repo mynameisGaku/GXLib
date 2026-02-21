@@ -11,12 +11,12 @@
 // ============================================================================
 cbuffer TemporalCB : register(b0)
 {
-    float4x4 prevViewProjection;
-    float4x4 invViewProjection;
-    float    alpha;
-    float    frameCount;
-    float    fullWidth;
-    float    fullHeight;
+    float4x4 prevViewProjection; // 前フレームのVP行列（リプロジェクション用）
+    float4x4 invViewProjection;  // 現フレームの逆VP行列
+    float    alpha;              // テンポラルブレンド率 (小さいほど履歴を重視)
+    float    frameCount;         // 蓄積フレーム数 (初期収束制御用)
+    float    fullWidth;          // フル解像度の幅
+    float    fullHeight;         // フル解像度の高さ
 };
 
 Texture2D<float4> g_CurrentGI  : register(t0);  // 半解像度 (バイリニアアップスケール)
@@ -35,6 +35,7 @@ float3 ReconstructWorldPosition(float2 uv, float depth)
     return worldPos.xyz / worldPos.w;
 }
 
+/// @brief テンポラル蓄積PS — 半解像度GIをアップスケールし、前フレームと混合
 float4 TemporalPS(FullscreenVSOutput input) : SV_Target
 {
     float2 uv = input.uv;
@@ -77,12 +78,12 @@ float4 TemporalPS(FullscreenVSOutput input) : SV_Target
 // ============================================================================
 cbuffer SpatialCB : register(b0)
 {
-    float spatialFullWidth;
-    float spatialFullHeight;
-    float stepWidth;
-    float sigmaDepth;
-    float sigmaNormal;
-    float sigmaColor;
+    float spatialFullWidth;  // フル解像度の幅
+    float spatialFullHeight; // フル解像度の高さ
+    float stepWidth;         // A-Trousのステップ幅 (反復ごとに2倍)
+    float sigmaDepth;        // 深度重みの閾値
+    float sigmaNormal;       // 法線重みの鋭さ
+    float sigmaColor;        // 色差重みの閾値
     float2 _spatialPad;
 };
 
@@ -90,6 +91,7 @@ Texture2D<float4> g_Input   : register(t0);
 Texture2D<float>  g_SDepth  : register(t1);
 Texture2D<float4> g_SNormal : register(t2);
 
+/// @brief A-Trous空間フィルタPS — 深度・法線・色差をエッジ保持重みとしてデノイズ
 float4 SpatialPS(FullscreenVSOutput input) : SV_Target
 {
     float2 uv = input.uv;

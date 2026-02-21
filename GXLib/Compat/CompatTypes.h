@@ -198,25 +198,26 @@ struct MATRIX
 typedef unsigned int COLOR_U8;
 
 // ============================================================================
-// 3Dマテリアル用ヘルパー定数
+// 3Dマテリアル用ヘルパー定数（SetMaterialTexture のスロット番号）
 // ============================================================================
-#define GX_MATERIAL_TEX_ALBEDO       0
-#define GX_MATERIAL_TEX_NORMAL       1
-#define GX_MATERIAL_TEX_METALROUGH   2
-#define GX_MATERIAL_TEX_AO           3
-#define GX_MATERIAL_TEX_EMISSIVE     4
+#define GX_MATERIAL_TEX_ALBEDO       0  ///< アルベド（ベースカラー）テクスチャ
+#define GX_MATERIAL_TEX_NORMAL       1  ///< 法線マップ
+#define GX_MATERIAL_TEX_METALROUGH   2  ///< メタリック/ラフネスマップ
+#define GX_MATERIAL_TEX_AO           3  ///< アンビエントオクルージョンマップ
+#define GX_MATERIAL_TEX_EMISSIVE     4  ///< エミッシブ（発光）マップ
 
+/// @brief PBRマテリアルパラメータ（SetMaterialParam で使用）
 typedef struct GX_MATERIAL_PARAM
 {
-    float albedoR;
-    float albedoG;
-    float albedoB;
-    float albedoA;
-    float metallic;
-    float roughness;
-    float aoStrength;
-    float emissiveStrength;
-    float emissiveR;
-    float emissiveG;
-    float emissiveB;
+    float albedoR;           ///< アルベド色 赤成分（0.0〜1.0）
+    float albedoG;           ///< アルベド色 緑成分（0.0〜1.0）
+    float albedoB;           ///< アルベド色 青成分（0.0〜1.0）
+    float albedoA;           ///< アルベド色 アルファ（0.0〜1.0）
+    float metallic;          ///< メタリック度（0.0=非金属、1.0=金属）
+    float roughness;         ///< ラフネス（0.0=鏡面、1.0=粗い）
+    float aoStrength;        ///< アンビエントオクルージョンの強さ（0.0〜1.0）
+    float emissiveStrength;  ///< 発光の強さ
+    float emissiveR;         ///< 発光色 赤成分
+    float emissiveG;         ///< 発光色 緑成分
+    float emissiveB;         ///< 発光色 青成分
 } GX_MATERIAL_PARAM;

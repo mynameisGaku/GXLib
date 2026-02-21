@@ -15,6 +15,8 @@ void Keyboard::Initialize()
 
 void Keyboard::Update()
 {
+    // 前フレームの状態を保存してからメッセージの生データを現在の状態へ反映。
+    // この2段階管理により、トリガー/リリースの判定が可能になる。
     m_previousState = m_currentState;
     m_currentState = m_rawState;
 }
@@ -24,6 +26,7 @@ bool Keyboard::ProcessMessage(UINT msg, WPARAM wParam, LPARAM lParam)
     int key = static_cast<int>(wParam);
     if (key < 0 || key >= k_KeyCount) return false;
 
+    // WM_SYSKEYDOWNはAltキー同時押し時に発生するので、通常のKEYDOWNと合わせて処理する
     switch (msg)
     {
     case WM_KEYDOWN:
@@ -49,6 +52,7 @@ bool Keyboard::IsKeyDown(int key) const
 bool Keyboard::IsKeyTriggered(int key) const
 {
     if (key < 0 || key >= k_KeyCount) return false;
+    // 今フレーム押されていて、前フレームは押されていなければトリガー成立
     return m_currentState[key] && !m_previousState[key];
 }
 

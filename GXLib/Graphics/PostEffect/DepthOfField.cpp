@@ -186,8 +186,10 @@ bool DepthOfField::CreatePipelines(ID3D12Device* device)
 
 void DepthOfField::UpdateCompositeSRVHeap(RenderTarget& srcHDR, uint32_t frameIndex)
 {
-    // 各RTのリソースに対してSRVを合成用ヒープに直接作成
-    // (shader-visibleヒープからのCopyDescriptorsは不可のため)
+    // 3テクスチャ(sharp+blur+CoC)を1つのDescriptorTableでバインドするため、
+    // 専用shader-visibleヒープにSRVを直接作成する。
+    // D3D12はSetDescriptorHeapsで1つのCBV_SRV_UAVヒープしかバインドできないため、
+    // 各RTの個別ヒープからのCopyDescriptorsSimpleは使えない
     // フレームごとに3スロットずつオフセット (double-buffer)
 
     uint32_t base = frameIndex * 3;

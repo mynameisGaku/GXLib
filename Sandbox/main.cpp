@@ -1,7 +1,16 @@
 /// @file main.cpp
-/// @brief GXLib Phase 10 テストアプリケーション — GPUProfiler
+/// @brief GXLib 統合テストアプリケーション
 ///
-/// HDR浮動小数点RTに3D描画 → PostFX → LDR + GUI オーバーレイ
+/// GXLibの全機能を一つのアプリケーションで動作確認するためのサンドボックス。
+/// GXEasyを使わず、Application/GraphicsDevice/Renderer3D等を
+/// 直接インスタンス化して低レベルから組み上げている。
+///
+/// 描画パイプライン:
+///   ShadowPass(CSM+Spot+Point) → HDR RT(PBR+Skybox) → [DXR RT反射]
+///   → PostFX Resolve(Tonemap/Bloom/SSAO等) → LayerCompositor → バックバッファ
+///
+/// 搭載機能: 3D PBR, CSMシャドウ, PostEffect, Layer/Mask, GUI(XML/CSS),
+///   2D/3D物理(Jolt), ファイル/ネットワーク/ムービー, DXR反射, GPUプロファイラ
 
 #include "pch.h"
 #include "Core/Application.h"
@@ -48,7 +57,7 @@
 #include "GUI/XMLParser.h"
 #include "GUI/GUILoader.h"
 
-// Phase 7: ファイル/ネットワーク/ムービー
+// Phase 7: ファイル/ネットワーク/ムービー（VFS, アーカイブ, 非同期I/O）
 #include "IO/FileSystem.h"
 
 #include "IO/PhysicalFileProvider.h"
@@ -88,38 +97,46 @@
 // ============================================================================
 // グローバル変数
 // ============================================================================
+
+// --- DirectX 12 コアオブジェクト ---
+// GXEasyを使わないため、デバイスからスワップチェーンまで自前管理。
+// DxLibでいうDxLib_Init()が内部でやっていることを手動で行う形。
 static GX::Application       g_app;
-static GX::GraphicsDevice    g_device;
-static GX::CommandQueue      g_commandQueue;
-static GX::CommandList       g_commandList;
-static GX::SwapChain         g_swapChain;
+static GX::GraphicsDevice    g_device;        // ID3D12Device (+DXR用 ID3D12Device5)
+static GX::CommandQueue      g_commandQueue;  // コマンドキュー＋フェンス
+static GX::CommandList       g_commandList;   // コマンドリスト（ダブルバッファ）
+static GX::SwapChain         g_swapChain;     // DXGI SwapChain + RTV
 
-static GX::SpriteBatch       g_spriteBatch;
-static GX::PrimitiveBatch   g_primBatch2D;
-static GX::FontManager       g_fontManager;
-static GX::TextRenderer      g_textRenderer;
-static GX::InputManager      g_inputManager;
+// --- 2D描画 ---
+static GX::SpriteBatch       g_spriteBatch;   // テクスチャ付きスプライト描画
+static GX::PrimitiveBatch   g_primBatch2D;    // 線/矩形/円などのプリミティブ描画
+static GX::FontManager       g_fontManager;   // DirectWriteフォント管理
+static GX::TextRenderer      g_textRenderer;  // テキスト描画（SpriteBatch上）
+static GX::InputManager      g_inputManager;  // キーボード/マウス/ゲームパッド
 
-// 3D関連
-static GX::Renderer3D        g_renderer3D;
-static GX::Camera3D          g_camera;
+// --- 3D描画 ---
+static GX::Renderer3D        g_renderer3D;    // PBR描画 + CSMシャドウ + スカイボックス
+static GX::Camera3D          g_camera;        // 透視投影カメラ
 
-// ポストエフェクトaa
-static GX::PostEffectPipeline g_postEffect;
+// --- ポストエフェクト ---
+static GX::PostEffectPipeline g_postEffect;   // HDR→LDR変換チェーン
 
-// レイヤーシステム
+// --- レイヤーシステム ---
+// SceneレイヤーにPostFX済みの3Dシーン、UIレイヤーにHUD/GUIを描画し、
+// コンポジターで合成してバックバッファに出力する。
 static GX::LayerStack       g_layerStack;
 static GX::LayerCompositor  g_compositor;
 static GX::RenderLayer*     g_sceneLayer = nullptr;  // Z:0, PostFX=true
 static GX::RenderLayer*     g_uiLayer    = nullptr;  // Z:1000
-static GX::MaskScreen       g_maskScreen;
+static GX::MaskScreen       g_maskScreen;             // マスクで一部だけ見せる演出
 static bool                 g_maskDemo   = false;     // マスクデモ表示
 
-// GUI関連
+// --- GUI ---
+// XML+CSSでメニュー画面を構築する（GUIMenuDemoと同様の仕組み）
 static GX::GUI::UIRenderer   g_uiRenderer;
 static GX::GUI::UIContext    g_uiContext;
 static GX::GUI::StyleSheet  g_styleSheet;
-static bool                 g_guiDemo    = false;     // GUIデモ表示
+static bool                 g_guiDemo    = false;     // Uキーで表示トグル
 static int                  g_guiFontHandle = -1;
 static int                  g_guiFontLarge  = -1;
 
@@ -164,7 +181,7 @@ static GX::Material    g_stepMaterial;
 static GX::Transform3D g_cubeTransform;
 static GX::Material    g_cubeMaterial;
 
-// SSRデモ用: ミラーウォール + カラフルオブジェクト
+// SSRデモ用: 鏡面の壁 + その前のカラフルなオブジェクト（反射確認用）
 static GX::GPUMesh     g_mirrorMesh;
 static GX::Transform3D g_mirrorTransform;
 static GX::Material    g_mirrorMaterial;
@@ -238,6 +255,11 @@ static int   g_lastMouseY = 0;
 // シーン描画（シャドウパスとメインパスで共通）
 // ============================================================================
 
+/// @brief 全オブジェクトの描画
+///
+/// シャドウパスとメインパスの両方から呼ばれる。
+/// drawPhysics=falseにするとJolt物理オブジェクトを省略でき、
+/// シャドウパスの定数バッファ消費を節約できる。
 void DrawScene(bool drawPhysics = true)
 {
     // 地面
@@ -312,6 +334,10 @@ void DrawScene(bool drawPhysics = true)
 // 初期化
 // ============================================================================
 
+/// @brief グラフィックスデバイスの初期化（コマンドキュー/リスト/スワップチェーン）
+///
+/// GXEasyではこの処理がApp内部で自動化されているが、
+/// Sandboxでは低レベルAPIを直接呼んで組み立てている。
 bool InitializeGraphics()
 {
     auto* device = g_device.GetDevice();
@@ -332,6 +358,10 @@ bool InitializeGraphics()
     return true;
 }
 
+/// @brief レンダラー群の初期化
+///
+/// 2D描画(SpriteBatch/PrimitiveBatch/Font)、3D描画(Renderer3D)、
+/// PostEffect、Layer/Compositor、MaskScreen、GUIを順に初期化する。
 bool InitializeRenderers()
 {
     auto* device = g_device.GetDevice();
@@ -388,6 +418,10 @@ bool InitializeRenderers()
     return true;
 }
 
+/// @brief シーンの初期化（フォント/GUI/メッシュ/マテリアル/ライト/カメラ/物理）
+///
+/// GXLibの各Phase（フェーズ）で追加された機能を順に初期化している。
+/// 各セクションはPhaseごとにコメントで区切られている。
 bool InitializeScene()
 {
     g_fontHandle = g_fontManager.CreateFont(L"Meiryo", 20);
@@ -839,6 +873,10 @@ bool InitializeScene()
 // 更新
 // ============================================================================
 
+/// @brief 入力処理＋カメラ操作＋機能トグル
+///
+/// 多くのキーバインドで各機能のON/OFFを切り替えられるようにしている。
+/// IsKeyTriggered（トリガー入力）で1回押下ごとに1回だけ反応する。
 void UpdateInput(float deltaTime)
 {
     g_inputManager.Update();
@@ -1052,6 +1090,16 @@ void UpdateInput(float deltaTime)
 // 描画
 // ============================================================================
 
+/// @brief メインの描画関数（毎フレームApplication::Runから呼ばれる）
+///
+/// 処理フロー:
+///   1. 入力更新 + シェーダーホットリロード + 物理ステップ
+///   2. シャドウパス（CSM/Spot/Point）
+///   3. HDR RTに3Dシーン描画（PBR + スカイボックス + デバッグプリミティブ）
+///   4. DXR RT反射（TLAS構築→レイトレ→コンポジット）
+///   5. PostFX Resolve（HDR→LDR: Bloom/SSAO/SSR/FXAA等）→ Sceneレイヤー
+///   6. UIレイヤー（GUI + HUD + プロファイラオーバーレイ）
+///   7. コンポジション → バックバッファ → Present
 void RenderFrame(float deltaTime)
 {
     g_totalTime += deltaTime;
@@ -1070,9 +1118,11 @@ void RenderFrame(float deltaTime)
     if (g_physics3DInit)
         g_physicsWorld3D.Step(deltaTime);
 
-    // フレーム境界: dirty なフォントアトラスをGPUにアップロード
+    // フレーム境界: 新しいグリフが追加された場合、フォントアトラスをGPUにアップロード
     g_fontManager.FlushAtlasUpdates();
 
+    // --- フレーム同期 ---
+    // ダブルバッファリング: 前のフレームのGPU処理が終わるまで待つ
     g_frameIndex = g_swapChain.GetCurrentBackBufferIndex();
     g_commandQueue.GetFence().WaitForValue(g_frameFenceValues[g_frameIndex]);
     g_commandList.Reset(g_frameIndex, nullptr);
@@ -1082,10 +1132,12 @@ void RenderFrame(float deltaTime)
     GX::GPUProfiler::Instance().BeginFrame(cmdList, g_frameIndex);
 
     // === シャドウパス ===
+    // CSM(Cascaded Shadow Maps) + Spot + Point(6面キューブマップ)の3種。
+    // DrawScene(false)で物理オブジェクトを省略してCB枠を節約する。
     GX::GPUProfiler::Instance().BeginScope(cmdList, "Shadow");
     g_renderer3D.UpdateShadow(g_camera);
 
-    // CSMパス (physics objects skip shadow for performance)
+    // CSMパス: カスケードごとにビューポートを変えて描画
     for (uint32_t cascade = 0; cascade < GX::CascadedShadowMap::k_NumCascades; ++cascade)
     {
         g_renderer3D.BeginShadowPass(cmdList, g_frameIndex, cascade);
@@ -1142,6 +1194,9 @@ void RenderFrame(float deltaTime)
     }
 
     // === DXR RT反射: TLASインスタンス登録 ===
+    // BeginFrame()でインスタンスリストをクリアし、
+    // AddInstance()でBLAS+ワールド変換行列のペアを登録していく。
+    // TLASの構築とレイトレーシングDispatchはPostFX内部で行われる。
     if (g_rtReflections && g_rtReflections->IsEnabled())
     {
         g_rtReflections->BeginFrame();
@@ -1514,15 +1569,21 @@ void RenderFrame(float deltaTime)
     // Phase 10: GPU Profiler フレーム終了
     GX::GPUProfiler::Instance().EndFrame(cmdList);
 
+    // --- GPU実行 + Present ---
     g_commandList.Close();
 
     ID3D12CommandList* cmdLists[] = { cmdList };
     g_commandQueue.ExecuteCommandLists(cmdLists, 1);
 
     g_swapChain.Present(false);
+    // フェンス値を記録し、次にこのフレームインデックスが回ってきたときにWaitする
     g_frameFenceValues[g_frameIndex] = g_commandQueue.GetFence().Signal(g_commandQueue.GetQueue());
 }
 
+/// @brief ウィンドウリサイズ時のコールバック
+///
+/// SwapChain/SpriteBatch/Renderer3D/PostEffect/Layer/GUI/Cameraの全てを
+/// 新しいサイズに合わせて再構築する。リソースの再作成が走るのでFlush必須。
 void OnResize(uint32_t width, uint32_t height)
 {
     if (width == 0 || height == 0)
@@ -1543,10 +1604,14 @@ void OnResize(uint32_t width, uint32_t height)
                              g_camera.GetNearZ(), g_camera.GetFarZ());
 }
 
+/// @brief エントリーポイント
+///
+/// GXEasyを使わない場合のWinMainの書き方。
+/// 初期化→メインループ→シャットダウンの全工程を手動で管理する。
 int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
                    _In_ LPSTR lpCmdLine, _In_ int nCmdShow)
 {
-    // Phase 10b: CRTメモリリーク検出 (Debug時のみ)
+    // CRTメモリリーク検出: Debugビルド時にリークがあればOutput窓に出力される
 #ifdef _DEBUG
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
     _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
@@ -1555,13 +1620,16 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 #endif
 
     // --- Phase 7: ファイルシステム初期化 ---
+    // VFS(仮想ファイルシステム)にPhysicalFileProviderをマウントする。
+    // これにより FileSystem::Instance().ReadFile("Assets/...") でファイルにアクセスできる。
     {
         auto physProvider = std::make_shared<GX::PhysicalFileProvider>(".");
         GX::FileSystem::Instance().Mount("", physProvider);
         GX_LOG_INFO("FileSystem: PhysicalFileProvider mounted at root");
     }
 
-    // --- Phase 7: アーカイブデモ（Assetsからテストアーカイブ作成） ---
+    // --- Phase 7: アーカイブデモ ---
+    // .gxarcアーカイブの作成→読み戻し検証。LZ4圧縮+暗号化対応。
     {
         GX::ArchiveWriter writer;
         writer.SetPassword("testkey123");
@@ -1644,7 +1712,9 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
     // Phase 10: GPUプロファイラ
     GX::GPUProfiler::Instance().Initialize(g_device.GetDevice(), g_commandQueue.GetQueue());
 
-    // Phase 11: DXR レイトレーシング反射
+    // --- Phase 11: DXR レイトレーシング反射 ---
+    // Device5(DXR対応デバイス)があればBLASを構築してRT反射を有効にする。
+    // BLASはメッシュごとに1つ構築し、TLASはフレームごとにインスタンス登録する。
     if (g_device.SupportsRaytracing())
     {
         auto* device5 = g_device.GetDevice5();
@@ -1715,8 +1785,13 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
     g_app.GetWindow().SetResizeCallback(OnResize);
     GX_LOG_INFO("=== GXLib Phase 11: DXR Reflections ===");
 
+    // --- メインループ ---
+    // Application::RunはProcessMessage+RenderFrameコールバックをループする。
+    // DxLibでいう while(ProcessMessage()==0){...} にあたる。
     g_app.Run(RenderFrame);
 
+    // --- シャットダウン ---
+    // 逆順に解放する。GPUコマンドが全て完了してからリソースを破棄すること。
     g_physicsWorld3D.Shutdown();
     g_moviePlayer.Close();
     g_postEffect.SetRTReflections(nullptr);
@@ -1731,7 +1806,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
     g_fontManager.Shutdown();
     g_app.Shutdown();
 
-    // Phase 10b: DXGI生存オブジェクトレポート (リーク検出)
+    // DXGI/CRTの生存オブジェクトレポート: 解放忘れがあればOutput窓に一覧が出る
 #ifdef _DEBUG
     GX::GraphicsDevice::ReportLiveObjects();
     _CrtDumpMemoryLeaks();

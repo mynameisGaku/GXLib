@@ -11,6 +11,7 @@ namespace GX
 
 SoundPlayer::~SoundPlayer()
 {
+    // 再生中のVoiceを全て停止・破棄する
     for (auto& av : m_activeVoices)
     {
         if (av.voice)
@@ -35,11 +36,10 @@ void SoundPlayer::Play(const Sound& sound, float volume, float pan)
     // まず終了済みVoiceをクリーンアップ
     CleanupFinishedVoices();
 
-    // コールバック作成
     auto callback = std::make_unique<VoiceCallback>();
 
-    // ソースボイスを作成
-    // 初学者向け: 効果音ごとに「再生用の音声チャンネル」を作ります。
+    // SE再生のたびに新しいSourceVoiceを作成する。
+    // これにより同じ効果音を複数重ねて再生できる。
     IXAudio2SourceVoice* voice = nullptr;
     WAVEFORMATEX format = sound.GetFormat();
 
@@ -69,10 +69,10 @@ void SoundPlayer::Play(const Sound& sound, float volume, float pan)
     // 音量設定
     voice->SetVolume(volume);
 
-    // パン設定（ステレオの場合）
+    // モノラル音源のパン設定。OutputMatrixでL/Rの出力配分を変える。
+    // pan=-1.0で左100%、pan=1.0で右100%、pan=0.0で左右均等。
     if (format.nChannels == 1)
     {
-        // モノラル → ステレオ出力へのパン
         float left  = 0.5f - pan * 0.5f;
         float right = 0.5f + pan * 0.5f;
         float outputMatrix[2] = { left, right };

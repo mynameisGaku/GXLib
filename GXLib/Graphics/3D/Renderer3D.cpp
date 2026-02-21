@@ -67,7 +67,6 @@ bool Renderer3D::Initialize(ID3D12Device* device, ID3D12CommandQueue* cmdQueue,
         return false;
 
     // シャドウパス用CB（各カスケード/面ごとのLightVP、256アライン×11枠: CSM4 + Spot1 + Point6）
-    // 初学者向け: 影用のビュー行列をまとめてGPUへ渡すためのバッファです。
     static constexpr uint32_t k_ShadowCBSlots = 4 + 1 + 6; // CSM + Spot + Point
     if (!m_shadowPassCB.Initialize(device, 256 * k_ShadowCBSlots,
                                     256 * k_ShadowCBSlots))
@@ -170,23 +169,13 @@ bool Renderer3D::CreatePipelineState(ID3D12Device* device)
         return false;
     }
 
-    // ルートシグネチャ
-    // ルートパラメータ 0: b0 ObjectConstants (CBV)
-    // ルートパラメータ 1: b1 FrameConstants  (CBV)
-    // ルートパラメータ 2: b2 LightConstants  (CBV)
-    // ルートパラメータ 3: b3 ShaderModelGPUParams (CBV, 256B)
-    // ルートパラメータ 4: b4 BoneConstants   (CBV)
-    // ルートパラメータ 5: t0 albedo
-    // ルートパラメータ 6: t1 normal
-    // ルートパラメータ 7: t2 met/rough
-    // ルートパラメータ 8: t3 AO
-    // ルートパラメータ 9: t4 emissive
-    // ルートパラメータ10: t5 toonRamp
-    // ルートパラメータ11: t6 subsurfaceMap
-    // ルートパラメータ12: t7 clearCoatMask
-    // ルートパラメータ13: t8-t13 shadow maps
-    // s0: リニアWrapサンプラ
-    // s2: PCF用の比較サンプラ（影のソフト化）
+    // 全シェーダーモデル共通のルートシグネチャ（14パラメータ + 2サンプラ）
+    // b0: ObjectConstants (ワールド行列)       b1: FrameConstants (カメラ・シャドウ・フォグ)
+    // b2: LightConstants (ライト配列)           b3: ShaderModelGPUParams (256B)
+    // b4: BoneConstants (ボーン行列)
+    // t0-t7: テクスチャスロット (albedo/normal/met-rough/AO/emissive/toonRamp/subsurface/clearCoat)
+    // t8-t13: シャドウマップ (CSM×4 + Spot + Point)
+    // s0: リニアWrapサンプラ  s2: PCF比較サンプラ（影のソフト化）
     RootSignatureBuilder rsBuilder;
     m_rootSignature = rsBuilder
         .SetFlags(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT)
@@ -400,9 +389,8 @@ void Renderer3D::BindPipeline(bool skinned, int shaderHandle)
 
 void Renderer3D::BindPipelineForModel(bool skinned, int shaderHandle, gxfmt::ShaderModel model)
 {
+    // PSO選択の優先順位: ワイヤフレーム > シャドウ > カスタムシェーダー > ShaderRegistry > Standard
     ID3D12PipelineState* target = nullptr;
-
-    // ワイヤフレームモード時はShaderModel問わずワイヤフレームPSOにフォールバック
     if (m_wireframeMode && !m_inShadowPass)
     {
         target = skinned ? m_psoSkinnedWireframe.Get() : m_psoWireframe.Get();
@@ -594,8 +582,7 @@ void Renderer3D::BeginSpotShadowPass(ID3D12GraphicsCommandList* cmdList, uint32_
     m_frameIndex = frameIndex;
     m_inShadowPass = true;
 
-    // DEPTH_WRITEへ遷移
-    // 初学者向け: 描画前に「書き込み可能な状態」へ戻す必要があります。
+    // DEPTH_WRITEへ遷移（描画前にリソース状態を書き込み可能にする）
     if (m_spotShadowMap.GetCurrentState() != D3D12_RESOURCE_STATE_DEPTH_WRITE)
     {
         D3D12_RESOURCE_BARRIER barrier = {};
@@ -914,16 +901,15 @@ void Renderer3D::SetLights(const LightData* lights, uint32_t count, const XMFLOA
 
 void Renderer3D::SetMaterial(const Material& material)
 {
-    if (m_inShadowPass) return;  // シャドウパスではマテリアル不要
+    if (m_inShadowPass) return;  // シャドウパスは深度のみ描画するのでマテリアル不要
 
-    // マテリアル定数バッファ更新（リングバッファ方式、256B ShaderModelGPUParams）
+    // マテリアル定数バッファ更新（リングバッファ方式、1マテリアル=256B）
     if (m_materialCBMapped)
     {
         ShaderModelGPUParams gpuParams = ConvertToGPUParams(
             material.shaderParams, material.shaderModel, material.constants.flags);
 
-        // 後方互換: shaderParamsが未設定（ShaderModel::Standard かつ既存APIコール）の場合
-        // MaterialConstantsからの変換を使用
+        // 後方互換: shaderParamsがデフォルト値のままの場合、旧MaterialConstantsから変換
         if (material.shaderModel == gxfmt::ShaderModel::Standard &&
             material.shaderParams.baseColor[0] == 1.0f &&
             material.shaderParams.baseColor[1] == 1.0f &&
@@ -1109,15 +1095,15 @@ void Renderer3D::DrawModel(const Model& model, const Transform3D& transform)
             hasToonSubMesh = true;
     }
 
-    // Toonアウトラインパス（メインパスのみ、シャドウパスではスキップ）
-    // スムース法線ベース1パス描画
+    // Toonアウトラインパス — スムース法線ベースの背面押し出し描画
+    // 通常描画の後にアウトライン用PSOで裏面を拡大描画してアウトライン効果を得る
     if (!m_inShadowPass && hasToonSubMesh && model.GetMesh().HasSmoothNormals())
     {
-        // オブジェクトCBを再バインド（同じオフセット）
+        // 同じオブジェクトCBオフセットを再バインド（同一ワールド行列）
         m_cmdList->SetGraphicsRootConstantBufferView(
             0, m_objectCB.GetGPUVirtualAddress(m_frameIndex) + objectCBOffsetForThisModel);
 
-        // Slot 0 + Slot 1 バインド（スムース法線）
+        // slot 0: メッシュ頂点、slot 1: スムース法線（アウトラインの押し出し方向に使う）
         D3D12_VERTEX_BUFFER_VIEW views[2];
         views[0] = model.GetMesh().GetVertexBuffer().GetVertexBufferView();
         views[1] = model.GetMesh().GetSmoothNormalBufferView();

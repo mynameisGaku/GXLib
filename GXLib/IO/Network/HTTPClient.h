@@ -22,7 +22,9 @@ struct HTTPResponse {
 class HTTPClient
 {
 public:
+    /// @brief WinHTTPセッションを初期化する
     HTTPClient();
+    /// @brief 全非同期スレッドを停止しセッションを閉じる
     ~HTTPClient();
 
     /// @brief 同期GETリクエストを送信する

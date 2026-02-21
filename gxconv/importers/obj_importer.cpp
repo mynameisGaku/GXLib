@@ -1,5 +1,5 @@
 /// @file obj_importer.cpp
-/// @brief OBJ/MTL importer implementation
+/// @brief OBJ/MTLインポーターの実装
 
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tinyobjloader.h"
@@ -14,13 +14,14 @@
 namespace gxconv
 {
 
-/// Determine shader model from MTL illumination model and properties
+/// MTLの照明モデル(illum)とPBRプロパティからシェーダーモデルを推定する
 static gxfmt::ShaderModel DetectShaderModel(const tinyobj::material_t& mat)
 {
-    // Check for PBR extensions (roughness/metallic)
+    // PBR拡張があればStandard (metallic-roughness)
     if (mat.roughness > 0.0f || mat.metallic > 0.0f)
         return gxfmt::ShaderModel::Standard;
 
+    // illumモデルでの判定: 0=Unlit, 1-2=Phong系
     switch (mat.illum)
     {
     case 0:
@@ -33,7 +34,7 @@ static gxfmt::ShaderModel DetectShaderModel(const tinyobj::material_t& mat)
     }
 }
 
-/// Resolve texture path relative to the OBJ file directory
+/// テクスチャパスをOBJファイルディレクトリからの相対パスとして解決する
 static std::string ResolveTexturePath(const std::string& objDir, const std::string& texName)
 {
     if (texName.empty()) return "";
@@ -82,13 +83,13 @@ bool ObjImporter::Import(const std::string& filePath, Scene& outScene)
         dstMat.shaderModel = DetectShaderModel(srcMat);
         dstMat.params = gxfmt::DefaultShaderModelParams(dstMat.shaderModel);
 
-        // Base color from diffuse
+        // ベースカラー: MTLのdiffuse色を使用
         dstMat.params.baseColor[0] = srcMat.diffuse[0];
         dstMat.params.baseColor[1] = srcMat.diffuse[1];
         dstMat.params.baseColor[2] = srcMat.diffuse[2];
-        dstMat.params.baseColor[3] = 1.0f - srcMat.dissolve; // OBJ: dissolve is transparency
+        dstMat.params.baseColor[3] = 1.0f - srcMat.dissolve;
         if (srcMat.dissolve < 1.0f)
-            dstMat.params.baseColor[3] = srcMat.dissolve; // Actually dissolve = opacity
+            dstMat.params.baseColor[3] = srcMat.dissolve; // dissolve = 不透明度
 
         // Alpha mode
         if (srcMat.dissolve < 1.0f)
@@ -136,8 +137,7 @@ bool ObjImporter::Import(const std::string& filePath, Scene& outScene)
         outScene.materials.push_back(std::move(defaultMat));
     }
 
-    // Convert shapes to meshes
-    // Group faces by material within each shape
+    // 各shapeをマテリアル別にサブメッシュに分割して変換
     for (size_t si = 0; si < shapes.size(); ++si)
     {
         const auto& shape = shapes[si];
@@ -159,7 +159,7 @@ bool ObjImporter::Import(const std::string& filePath, Scene& outScene)
                 mesh.name += "_mat" + std::to_string(matId);
             mesh.materialIndex = static_cast<uint32_t>(matId);
 
-            // Vertex dedup map
+            // 頂点重複排除マップ: (位置idx, 法線idx, UVidx) → 出力頂点インデックス
             std::map<std::tuple<int,int,int>, uint32_t> vertexMap;
 
             for (size_t fi : faceIndices)
@@ -200,7 +200,7 @@ bool ObjImporter::Import(const std::string& filePath, Scene& outScene)
                     if (idx.texcoord_index >= 0)
                     {
                         vert.texcoord[0] = attrib.texcoords[2 * idx.texcoord_index + 0];
-                        vert.texcoord[1] = 1.0f - attrib.texcoords[2 * idx.texcoord_index + 1]; // flip V
+                        vert.texcoord[1] = 1.0f - attrib.texcoords[2 * idx.texcoord_index + 1]; // V座標を反転 (OBJ→DX)
                     }
 
                     uint32_t newIdx = static_cast<uint32_t>(mesh.vertices.size());

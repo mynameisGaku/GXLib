@@ -11,7 +11,9 @@ namespace GX {
 class WebSocket
 {
 public:
+    /// @brief デフォルトコンストラクタ
     WebSocket();
+    /// @brief 接続を閉じてリソースを解放する
     ~WebSocket();
 
     /// @brief WebSocketサーバーに接続する

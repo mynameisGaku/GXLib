@@ -6,8 +6,8 @@
 
 cbuffer MaskConstants : register(b0)
 {
-    float4x4 gProjection;
-    float gMaskValue;
+    float4x4 gProjection; // 正射影行列
+    float gMaskValue;     // 書き込むマスク値 (0.0=透過, 1.0=不透明)
     float3 gPadding;
 };
 
@@ -21,6 +21,7 @@ struct PSInput
     float4 pos : SV_Position;
 };
 
+/// @brief マスクVS — スクリーン座標を正射影で変換
 PSInput VSMask(VSInput input)
 {
     PSInput o;
@@ -28,6 +29,7 @@ PSInput VSMask(VSInput input)
     return o;
 }
 
+/// @brief マスクPS — 指定のマスク値をR8_UNORMに書き込む
 float PSMask(PSInput input) : SV_Target
 {
     return gMaskValue;

@@ -17,6 +17,7 @@ bool GraphicsDevice::Initialize(bool enableDebugLayer, bool enableGPUValidation)
         EnableDebugLayer(enableGPUValidation);
     }
 
+    // DXGIファクトリ作成（デバッグ時はデバッグフラグ付き）
     UINT factoryFlags = enableDebugLayer ? DXGI_CREATE_FACTORY_DEBUG : 0;
     HRESULT hr = CreateDXGIFactory2(factoryFlags, IID_PPV_ARGS(&m_factory));
     if (FAILED(hr))
@@ -31,6 +32,7 @@ bool GraphicsDevice::Initialize(bool enableDebugLayer, bool enableGPUValidation)
         return false;
     }
 
+    // Feature Level 12.0でデバイス作成（DX12の最低要件）
     hr = D3D12CreateDevice(
         m_adapter.Get(),
         D3D_FEATURE_LEVEL_12_0,
@@ -49,6 +51,7 @@ bool GraphicsDevice::Initialize(bool enableDebugLayer, bool enableGPUValidation)
     }
 
     // DXR (DirectX Raytracing) 対応チェック
+    // Options5でRaytracingTierを確認し、Tier 1.0以上ならDevice5を取得する
     D3D12_FEATURE_DATA_D3D12_OPTIONS5 options5 = {};
     hr = m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &options5, sizeof(options5));
     if (SUCCEEDED(hr) && options5.RaytracingTier >= D3D12_RAYTRACING_TIER_1_0)
@@ -77,7 +80,7 @@ void GraphicsDevice::EnableDebugLayer(bool gpuValidation)
         debugController->EnableDebugLayer();
         GX_LOG_INFO("D3D12 Debug Layer enabled");
 
-        // GPU-based validation (非常に詳細だが低速)
+        // GPU-based validation: GPUコマンド実行時にも検証する（非常に低速だが詳細）
         if (gpuValidation)
         {
             ComPtr<ID3D12Debug1> debug1;
@@ -103,11 +106,11 @@ void GraphicsDevice::ConfigureInfoQueue()
         return;
     }
 
-    // 重大エラーでブレーク
+    // CORRUPTION/ERRORでデバッガブレーク（致命的な問題をすぐ発見できる）
     infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
     infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
 
-    // 既知の無害メッセージを抑制
+    // クリアバリューの不一致警告は無害なので抑制
     D3D12_MESSAGE_ID denyIds[] = {
         D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
         D3D12_MESSAGE_ID_CLEARDEPTHSTENCILVIEW_MISMATCHINGCLEARVALUE,
@@ -147,6 +150,7 @@ bool GraphicsDevice::SelectAdapter()
 {
     ComPtr<IDXGIAdapter1> adapter;
 
+    // 高性能GPU優先で列挙し、ソフトウェアアダプタ(WARP)はスキップ
     for (UINT i = 0;
         m_factory->EnumAdapterByGpuPreference(i, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,
             IID_PPV_ARGS(&adapter)) != DXGI_ERROR_NOT_FOUND;
@@ -158,6 +162,7 @@ bool GraphicsDevice::SelectAdapter()
         if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
             continue;
 
+        // D3D12デバイスが作れるか事前チェック（nullptr渡しで実際には作らない）
         if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_0,
             __uuidof(ID3D12Device), nullptr)))
         {

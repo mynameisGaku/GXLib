@@ -1,3 +1,5 @@
+/// @file PakFileProvider.cpp
+/// @brief GXPAK バンドルプロバイダー実装 — gxloader::PakLoader への委譲
 #include "pch.h"
 #include "IO/PakFileProvider.h"
 

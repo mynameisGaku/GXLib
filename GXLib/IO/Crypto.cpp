@@ -7,6 +7,8 @@
 
 namespace GX {
 
+// BCrypt API の流れ: アルゴリズムオープン → CBCモード設定 → 対称鍵生成 → 暗号化 → 後片付け
+// BCryptEncryptはIVの内容を破壊するため、2回呼ぶ前にIVをコピーし直す必要がある。
 std::vector<uint8_t> Crypto::Encrypt(const void* data, size_t size,
                                       const uint8_t key[32], const uint8_t iv[16])
 {
@@ -167,6 +169,7 @@ std::array<uint8_t, 32> Crypto::SHA256(const void* data, size_t size)
     return hash;
 }
 
+// OS提供の暗号学的に安全な乱数生成器を使用（IVの生成等に利用）
 void Crypto::GenerateRandomBytes(uint8_t* buffer, size_t size)
 {
     BCryptGenRandom(nullptr, buffer, (ULONG)size, BCRYPT_USE_SYSTEM_PREFERRED_RNG);

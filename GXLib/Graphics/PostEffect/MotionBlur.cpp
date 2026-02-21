@@ -120,7 +120,7 @@ void MotionBlur::Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex
                           RenderTarget& srcHDR, RenderTarget& destHDR,
                           DepthBuffer& depth, const Camera3D& camera)
 {
-    // 初回フレーム（前フレームVPが無い）はスキップ
+    // 初回フレーム: 前フレームVP行列がないと速度ベクトルを計算できないのでスキップ
     if (!m_hasPreviousVP)
         return;
 

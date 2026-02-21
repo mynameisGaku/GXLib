@@ -1,5 +1,5 @@
 /// @file CommandList.cpp
-/// @brief コマンドリスト管理の実装
+/// @brief コマンドリストの実装
 #include "pch.h"
 #include "Graphics/Device/CommandList.h"
 #include "Core/Logger.h"
@@ -9,6 +9,8 @@ namespace GX
 
 bool CommandList::Initialize(ID3D12Device* device, D3D12_COMMAND_LIST_TYPE type)
 {
+    // ダブルバッファリング分のアロケータを作成
+    // GPUが前フレームのアロケータを使用中でも、別のアロケータで次フレームの記録を始められる
     for (uint32_t i = 0; i < k_AllocatorCount; ++i)
     {
         HRESULT hr = device->CreateCommandAllocator(type, IID_PPV_ARGS(&m_allocators[i]));
@@ -30,10 +32,10 @@ bool CommandList::Initialize(ID3D12Device* device, D3D12_COMMAND_LIST_TYPE type)
         return false;
     }
 
-    // DXR用: ID3D12GraphicsCommandList4 を取得（対応していない場合はnull）
+    // DXR用: CommandList4を取得（非対応GPUではnullのまま）
     m_commandList.As(&m_commandList4);
 
-    // 作成直後はOpen状態なのでCloseしておく
+    // D3D12はCreateCommandList直後がOpen状態なので、初回Resetに備えてCloseしておく
     m_commandList->Close();
 
     GX_LOG_INFO("Command List created");
@@ -42,8 +44,11 @@ bool CommandList::Initialize(ID3D12Device* device, D3D12_COMMAND_LIST_TYPE type)
 
 bool CommandList::Reset(uint32_t frameIndex, ID3D12PipelineState* initialPSO)
 {
+    // frameIndexからアロケータを選択（0→allocator[0], 1→allocator[1]）
     uint32_t allocatorIndex = frameIndex % k_AllocatorCount;
 
+    // アロケータのリセット（内部のコマンドメモリを解放する）
+    // GPU側でこのアロケータの命令を実行し終えている必要がある
     HRESULT hr = m_allocators[allocatorIndex]->Reset();
     if (FAILED(hr))
     {

@@ -9,7 +9,9 @@ namespace GX { namespace GUI {
 
 class UIRenderer;
 
-/// @brief タブビュー（タブヘッダー + 子ウィジェットをタブコンテンツとして表示）
+/// @brief タブビューウィジェット
+/// 上部にタブヘッダーを表示し、子ウィジェットをタブコンテンツとして切り替え表示する。
+/// 子ウィジェットの順番がタブの順番に対応する（0番目の子=0番目のタブのコンテンツ）。
 class TabView : public Widget
 {
 public:
@@ -18,13 +20,28 @@ public:
 
     WidgetType GetType() const override { return WidgetType::TabView; }
 
+    /// @brief タブ名のリストを設定する
+    /// @param names タブ名の文字列配列（UTF-8）
     void SetTabNames(const std::vector<std::string>& names);
+
+    /// @brief アクティブタブを切り替える
+    /// @param index タブインデックス
     void SetActiveTab(int index);
+
+    /// @brief アクティブタブのインデックスを取得する
+    /// @return アクティブタブのインデックス
     int GetActiveTab() const { return m_activeTab; }
 
+    /// @brief フォントハンドルを設定する
+    /// @param handle FontManagerで取得したハンドル
     void SetFontHandle(int handle) { m_fontHandle = handle; }
+
+    /// @brief フォントハンドルを取得する
+    /// @return フォントハンドル
     int GetFontHandle() const { return m_fontHandle; }
 
+    /// @brief UIRendererを設定する
+    /// @param renderer GUI描画用レンダラー
     void SetRenderer(UIRenderer* renderer) { m_renderer = renderer; }
 
     float GetIntrinsicWidth() const override { return 300.0f; }

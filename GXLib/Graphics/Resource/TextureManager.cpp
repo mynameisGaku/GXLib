@@ -1,5 +1,5 @@
 /// @file TextureManager.cpp
-/// @brief テクスチャマネージャーの実装
+/// @brief ハンドルベースのテクスチャ管理の実装
 #include "pch.h"
 #include "Graphics/Resource/TextureManager.h"
 #include "Core/Logger.h"
@@ -12,7 +12,7 @@ bool TextureManager::Initialize(ID3D12Device* device, ID3D12CommandQueue* cmdQue
     m_device   = device;
     m_cmdQueue = cmdQueue;
 
-    // Shader-visible な CBV_SRV_UAV ディスクリプタヒープを作成
+    // 全テクスチャのSRVを格納するshader-visibleヒープを1つ作成
     if (!m_srvHeap.Initialize(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, k_MaxTextures, true))
     {
         GX_LOG_ERROR("Failed to create SRV heap for TextureManager");
@@ -26,6 +26,7 @@ bool TextureManager::Initialize(ID3D12Device* device, ID3D12CommandQueue* cmdQue
 
 int TextureManager::AllocateHandle()
 {
+    // 解放済みハンドルがあればそちらを優先再利用
     if (!m_freeHandles.empty())
     {
         int handle = m_freeHandles.back();
@@ -49,7 +50,7 @@ int TextureManager::AllocateHandle()
 
 int TextureManager::LoadTexture(const std::wstring& filePath)
 {
-    // キャッシュチェック
+    // 同一パスのテクスチャはキャッシュから返す（二重読み込み防止）
     auto it = m_pathCache.find(filePath);
     if (it != m_pathCache.end())
     {
@@ -132,7 +133,7 @@ Texture* TextureManager::GetTexture(int handle)
     auto& entry = m_entries[handle];
     if (entry.isRegionOnly)
     {
-        // リージョンハンドルの場合、元テクスチャを返す
+        // リージョンハンドルの場合、元テクスチャの実体を返す
         return GetTexture(entry.region.textureHandle);
     }
     return entry.texture.get();
@@ -162,7 +163,7 @@ void TextureManager::ReleaseTexture(int handle)
 
     auto& entry = m_entries[handle];
 
-    // パスキャッシュから削除
+    // パスキャッシュからも消しておく（同一パスの再読み込みを可能にするため）
     if (!entry.filePath.empty())
     {
         m_pathCache.erase(entry.filePath);
@@ -185,6 +186,7 @@ int TextureManager::CreateRegionHandles(int baseHandle, int allNum, int xNum, in
 
     int firstHandle = -1;
 
+    // 各区画のUV矩形を計算してリージョンハンドルを連番で割り当てる
     for (int i = 0; i < allNum; ++i)
     {
         int col = i % xNum;
@@ -194,12 +196,12 @@ int TextureManager::CreateRegionHandles(int baseHandle, int allNum, int xNum, in
         if (handle < 0)
         {
             GX_LOG_ERROR("TextureManager: Failed to allocate region handle %d/%d", i, allNum);
-            return firstHandle; // return what we have so far (-1 if none)
+            return firstHandle;
         }
         if (firstHandle == -1) firstHandle = handle;
 
         auto& entry = m_entries[handle];
-        entry.texture.reset();
+        entry.texture.reset();     // テクスチャ実体はbaseHandleが持つ
         entry.isRegionOnly = true;
         entry.region.textureHandle = baseHandle;
         entry.region.u0 = (col * xSize) / texWidth;

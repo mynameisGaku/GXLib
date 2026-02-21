@@ -1,17 +1,27 @@
 ﻿/// @file Samples/GUIMenuDemo/main.cpp
 /// @brief GUIメニューのデモ。XML/CSSのホットリロード対応。
+///
+/// GXLibのGUIシステムを使って、ゲームのメインメニューを構築する例。
+///
+/// 特徴:
+///   - XML+CSSでレイアウトを定義（WebフロントエンドのようなUI定義）
+///   - ファイルの更新を監視し、CSSやXMLを変更すると即座に反映される
+///   - Slider/CheckBox/RadioButton/Dialogなどのウィジェットを組み合わせ
+///   - UIRendererはSpriteBatch+TextRenderer上に構築されている
+///
+/// DxLibにはGUI相当のAPIがないため、これはGXLib独自の機能。
 #include "GXEasy.h"
 #include "Compat/CompatContext.h"
 
 #include "Core/Logger.h"
-#include "GUI/GUILoader.h"
-#include "GUI/UIContext.h"
-#include "GUI/UIRenderer.h"
-#include "GUI/StyleSheet.h"
-#include "GUI/Widgets/Dialog.h"
-#include "GUI/Widgets/Slider.h"
-#include "GUI/Widgets/CheckBox.h"
-#include "GUI/Widgets/RadioButton.h"
+#include "GUI/GUILoader.h"             // XMLからウィジェットツリーを構築
+#include "GUI/UIContext.h"             // UIの更新/描画を管理
+#include "GUI/UIRenderer.h"            // UIの描画バックエンド（SpriteBatch上）
+#include "GUI/StyleSheet.h"            // CSSスタイルシート
+#include "GUI/Widgets/Dialog.h"        // モーダルダイアログ
+#include "GUI/Widgets/Slider.h"        // スライダー
+#include "GUI/Widgets/CheckBox.h"      // チェックボックス
+#include "GUI/Widgets/RadioButton.h"   // ラジオボタン
 
 #include <filesystem>
 #include <format>
@@ -35,9 +45,14 @@ TString FormatT(const TChar* fmt, Args&&... args)
 #endif
 }
 
+/// @brief GUIメニューデモのメインクラス
+///
+/// メイン画面と設定画面をMenuScreenで切り替え、
+/// XML+CSSで定義したUIレイアウトをリアルタイムにリロードできる。
 class GUIMenuApp : public GXEasy::App
 {
 public:
+    /// @brief ウィンドウ設定
     GXEasy::AppConfig GetConfig() const override
     {
         GXEasy::AppConfig config;
@@ -50,6 +65,7 @@ public:
         return config;
     }
 
+    /// @brief UIシステムの初期化（UIRenderer/UIContext/フォント/レイアウト）
     void Start() override
     {
         auto& ctx = GX_Internal::CompatContext::Instance();
@@ -61,6 +77,8 @@ public:
         m_designW = ctx.app.GetWindow().GetWidth();
         m_designH = ctx.app.GetWindow().GetHeight();
 
+        // UIRendererはSpriteBatch/TextRendererに依存しており、
+        // デバイスとコマンドキュー+画面サイズで初期化する。
         if (!m_uiRenderer.Initialize(ctx.graphicsDevice.GetDevice(),
                                      ctx.commandQueue.GetQueue(),
                                      m_screenW, m_screenH,
@@ -69,12 +87,15 @@ public:
             GX_LOG_ERROR("UIRenderer initialization failed");
         }
 
+        // UIContextはウィジェットの更新・レイアウト計算・描画を統括する
         if (!m_uiContext.Initialize(&m_uiRenderer, m_screenW, m_screenH))
         {
             GX_LOG_ERROR("UIContext initialization failed");
         }
+        // デザイン解像度を指定すると、画面サイズに応じて自動スケーリングされる
         m_uiContext.SetDesignResolution(m_designW, m_designH);
 
+        // フォント生成（環境依存なので複数フォールバックする）
         m_fontHandle = ctx.fontManager.CreateFont(L"Segoe UI", 22);
         if (m_fontHandle < 0) m_fontHandle = ctx.fontManager.CreateFont(L"MS Gothic", 22);
         if (m_fontHandle < 0) m_fontHandle = ctx.defaultFontHandle;
@@ -82,9 +103,10 @@ public:
         if (m_fontLarge < 0) m_fontLarge = m_fontHandle;
         if (m_fontLarge < 0) m_fontLarge = ctx.defaultFontHandle;
 
+        // GUILoaderのイベント登録→パス解決→初回ロード
         SetupUILoader();
         ResolveUIPaths();
-        ReloadUI(true);
+        ReloadUI(true);  // force=trueで必ず読み込む
 
         // テキスト入力をUIに渡す
         ctx.app.GetWindow().AddMessageCallback([this](HWND, UINT msg, WPARAM wParam, LPARAM) -> bool {
@@ -94,19 +116,23 @@ public:
         });
     }
 
+    /// @brief UI更新（ホットリロード判定+ウィジェット更新+リサイズ対応）
     void Update(float dt) override
     {
         auto& ctx = GX_Internal::CompatContext::Instance();
         m_lastDt = dt;
 
+        // F2: レイアウトデバッグ表示（ウィジェットの矩形を可視化）
         if (CheckHitKey(KEY_INPUT_F2))
             m_debugLayout = !m_debugLayout;
 
+        // F5: UIの強制リロード。それ以外はファイル変更を自動検出してリロード。
         if (CheckHitKey(KEY_INPUT_F5))
             ReloadUI(true);
         else
             ReloadUI(false);
 
+        // ESC: 設定画面→メインに戻る、メイン画面→アプリ終了
         if (CheckHitKey(KEY_INPUT_ESCAPE))
         {
             if (m_currentScreen == MenuScreen::Settings)
@@ -121,6 +147,7 @@ public:
             return;
         }
 
+        // UIコンテキスト更新（マウス/キーボード入力処理+レイアウト再計算）
         m_uiContext.Update(dt, ctx.inputManager);
 
         if (m_debugLayout && !m_layoutLogged)
@@ -158,12 +185,14 @@ public:
         }
     }
 
+    /// @brief UI描画（UIRenderer→UIContext→デバッグ矩形→HUD）
     void Draw() override
     {
         auto& ctx = GX_Internal::CompatContext::Instance();
 
-        // UI描画前に2Dバッチをフラッシュ
+        // GXEasyの2DバッチをFlush（UIRendererがSpriteBatchを使うため先にクリア）
         ctx.FlushAll();
+        // UIRenderer.Begin〜End内でUIContext.Render()を呼ぶ
         m_uiRenderer.Begin(ctx.cmdList, ctx.frameIndex);
         m_uiContext.Render();
         m_uiRenderer.End();
@@ -186,15 +215,18 @@ public:
     }
 
 private:
+    /// メニュー画面の状態
     enum class MenuScreen { Main, Settings, About };
 
-    GX::GUI::UIRenderer m_uiRenderer;
-    GX::GUI::UIContext  m_uiContext;
-    GX::GUI::StyleSheet m_styleSheet;
+    // --- GUIシステムのコアオブジェクト ---
+    GX::GUI::UIRenderer m_uiRenderer;   ///< 描画バックエンド
+    GX::GUI::UIContext  m_uiContext;     ///< 更新・レイアウト・描画管理
+    GX::GUI::StyleSheet m_styleSheet;   ///< CSSスタイル定義
 
     GX::GUI::Dialog* m_aboutDialog = nullptr;
     MenuScreen m_currentScreen = MenuScreen::Main;
 
+    // --- 設定画面の値（UIと双方向バインド） ---
     float m_volume = 0.8f;
     float m_brightness = 0.5f;
     bool  m_fullscreen = false;
@@ -213,28 +245,36 @@ private:
     uint32_t m_lastH = 720;
     float m_lastDt = 0.0f;
 
-    GX::GUI::GUILoader m_uiLoader;
-    std::string m_uiXmlPath = "Assets/ui/guimenu_demo.xml";
-    std::string m_uiCssPath = "Assets/ui/guimenu_demo.css";
-    std::filesystem::file_time_type m_uiXmlTime;
-    std::filesystem::file_time_type m_uiCssTime;
+    // --- ホットリロード関連 ---
+    GX::GUI::GUILoader m_uiLoader;      ///< XMLからUIツリーを構築するローダー
+    std::string m_uiXmlPath = "Assets/ui/guimenu_demo.xml";  ///< UIレイアウトXML
+    std::string m_uiCssPath = "Assets/ui/guimenu_demo.css";  ///< UIスタイルCSS
+    std::filesystem::file_time_type m_uiXmlTime;   ///< 前回のXMLタイムスタンプ
+    std::filesystem::file_time_type m_uiCssTime;   ///< 前回のCSSタイムスタンプ
     bool m_aboutVisible = false;
 
     static constexpr const char* k_UiXmlRelPath = "Assets/ui/guimenu_demo.xml";
     static constexpr const char* k_UiCssRelPath = "Assets/ui/guimenu_demo.css";
 
+    /// @brief GUILoaderの初期設定（フォント登録・イベントバインド・描画コールバック）
+    ///
+    /// GUILoaderはXMLのonClick属性やonChanged属性に対応するC++コールバックを
+    /// RegisterEvent/RegisterValueChangedEventで事前登録しておく仕組み。
     void SetupUILoader()
     {
         m_uiLoader = GX::GUI::GUILoader();
         m_uiLoader.SetRenderer(&m_uiRenderer);
+        // XMLで font="default" / font="title" と指定するとこのフォントが使われる
         m_uiLoader.RegisterFont("default", m_fontHandle);
         m_uiLoader.RegisterFont("title", m_fontLarge);
+        // Canvasウィジェット用の描画コールバック（背景グラデーション）
         m_uiLoader.RegisterDrawCallback("DrawBackground",
             [this](GX::GUI::UIRenderer& renderer, const GX::GUI::LayoutRect& rect)
             {
                 DrawBackground(renderer, rect);
             });
 
+        // --- ボタンイベント ---
         m_uiLoader.RegisterEvent("StartGame", []() { GX_LOG_INFO("Start Game clicked!"); });
         m_uiLoader.RegisterEvent("OpenSettings", [this]() {
             m_currentScreen = MenuScreen::Settings;
@@ -251,6 +291,7 @@ private:
             if (m_aboutDialog) m_aboutDialog->visible = false;
         });
 
+        // --- 設定画面のスライダー/チェックボックス/ラジオボタンのイベント ---
         m_uiLoader.RegisterValueChangedEvent("VolumeChanged", [this](const std::string& v) {
             m_volume = std::stof(v);
             GX_LOG_INFO("Volume: %.2f", m_volume);
@@ -273,6 +314,7 @@ private:
         });
     }
 
+    /// @brief アセットパスの解決（リポジトリルートからの相対パスを絶対パスに変換）
     void ResolveUIPaths()
     {
         m_uiXmlPath = ResolveAssetPath(k_UiXmlRelPath);
@@ -281,6 +323,10 @@ private:
         GX_LOG_INFO("UI CSS: %s", m_uiCssPath.c_str());
     }
 
+    /// @brief UIのリロード（force=trueで強制、falseならファイル変更時のみ）
+    ///
+    /// XML/CSSの更新タイムスタンプを毎フレームチェックし、
+    /// 変更があれば自動的にリロードする（ホットリロード）。
     void ReloadUI(bool force)
     {
         if (force)
@@ -307,6 +353,7 @@ private:
         m_layoutLogged = false;
     }
 
+    /// @brief CSSスタイルシートの読み込み
     bool LoadStyleSheet()
     {
         if (!m_styleSheet.LoadFromFile(m_uiCssPath))
@@ -319,6 +366,7 @@ private:
         return true;
     }
 
+    /// @brief XMLレイアウトの読み込み（ウィジェットツリーを再構築）
     bool LoadUILayout()
     {
         auto root = m_uiLoader.BuildFromFile(m_uiXmlPath);
@@ -333,6 +381,10 @@ private:
         return true;
     }
 
+    /// @brief 現在のMenuScreen状態をUIウィジェットに反映する
+    ///
+    /// メインメニュー/設定画面の可視性切り替えや、
+    /// スライダー値/チェックボックス値のUIへの同期を行う。
     void ApplyUIState()
     {
         if (auto* menuCard = m_uiContext.FindById("menuCard"))
@@ -360,12 +412,14 @@ private:
             m_aboutDialog->visible = m_aboutVisible;
     }
 
+    /// @brief Aboutダイアログを表示する
     void ShowAboutDialog()
     {
         m_aboutVisible = true;
         if (m_aboutDialog) m_aboutDialog->visible = true;
     }
 
+    /// @brief CMakeLists.txtを手がかりにリポジトリルートを探す
     static std::filesystem::path FindRepoRoot()
     {
         std::filesystem::path cur = std::filesystem::current_path();
@@ -380,6 +434,7 @@ private:
         return {};
     }
 
+    /// @brief 相対パスをリポジトリルート基準の絶対パスに解決する
     static std::string ResolveAssetPath(const std::string& relative)
     {
         std::filesystem::path repo = FindRepoRoot();
@@ -397,6 +452,7 @@ private:
         return relative;
     }
 
+    /// @brief ファイルの更新日時が前回と異なるか判定する（ホットリロード用）
     static bool CheckFileChanged(const std::string& path, std::filesystem::file_time_type& lastTime)
     {
         std::error_code ec;
@@ -424,6 +480,7 @@ private:
             outTime = t;
     }
 
+    /// @brief ウィジェットの矩形情報をログに出力する（デバッグ用）
     void LogWidgetRect(const char* id, const char* label)
     {
         auto* w = m_uiContext.FindById(id);
@@ -438,6 +495,7 @@ private:
                     label, r.x, r.y, r.width, r.height, s.backgroundColor.a, s.color.a);
     }
 
+    /// @brief ウィジェットの矩形を枠線で描画する（デバッグ用）
     void DrawWidgetRect(const char* id, uint32_t color)
     {
         auto* w = m_uiContext.FindById(id);
@@ -453,6 +511,10 @@ private:
         DrawBox((int)x1, (int)y1, (int)x2, (int)y2, color, FALSE);
     }
 
+    /// @brief 背景グラデーション描画（Canvasウィジェットのコールバック）
+    ///
+    /// CSSから色と方向を取得し、DrawGradientRectで描画する。
+    /// CanvasはUIRenderer経由で自由な描画ができるウィジェット。
     void DrawBackground(GX::GUI::UIRenderer& renderer, const GX::GUI::LayoutRect& rect)
     {
         GX::GUI::StyleColor top = { 0.17f, 0.23f, 0.45f, 1.0f };
@@ -483,6 +545,7 @@ private:
     }
 };
 
+// エントリーポイント
 GX_EASY_APP(GUIMenuApp)
 
 

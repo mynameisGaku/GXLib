@@ -1,5 +1,8 @@
 /// @file PerformancePanel.cpp
-/// @brief ImGui panel for real-time performance monitoring
+/// @brief パフォーマンスパネル実装
+///
+/// フレームタイムをリングバッファに記録し、Min/Max/Avgを算出。
+/// ImPlot::PlotLineでフレームタイム推移グラフを描画する。
 
 #include "PerformancePanel.h"
 #include <imgui.h>

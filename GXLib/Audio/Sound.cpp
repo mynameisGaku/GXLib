@@ -8,22 +8,22 @@
 namespace GX
 {
 
-/// WAVファイルのチャンクヘッダー
+/// WAVファイル内の各チャンク（fmt, data等）の先頭8バイト
 struct ChunkHeader
 {
-    uint32_t id;
-    uint32_t size;
+    uint32_t id;    ///< 4文字のチャンクID（"fmt " / "data"等）
+    uint32_t size;  ///< チャンクデータのバイトサイズ（ヘッダ自身を含まない）
 };
 
-/// RIFFヘッダー
+/// WAVファイル先頭のRIFFコンテナヘッダー
 struct RiffHeader
 {
-    uint32_t riffId;     // "RIFF"
-    uint32_t fileSize;
-    uint32_t waveId;     // "WAVE"
+    uint32_t riffId;     ///< "RIFF" (リトルエンディアン)
+    uint32_t fileSize;   ///< ファイル全体サイズ - 8
+    uint32_t waveId;     ///< "WAVE"
 };
 
-/// 4文字のタグIDを作成
+/// 4文字のASCII文字列からリトルエンディアンの32bitタグIDを生成する
 static constexpr uint32_t MakeTag(char a, char b, char c, char d)
 {
     return static_cast<uint32_t>(a) | (static_cast<uint32_t>(b) << 8) |
@@ -51,7 +51,7 @@ bool Sound::LoadFromFile(const std::wstring& filePath)
         return false;
     }
 
-    // チャンクを順番に読む
+    // WAVはチャンクの並び順が固定ではないので、順番に走査して"fmt "と"data"を探す
     bool foundFmt = false;
     bool foundData = false;
 
@@ -86,7 +86,7 @@ bool Sound::LoadFromFile(const std::wstring& filePath)
         }
         else
         {
-            // 不明なチャンクはスキップ（2バイトアライメント）
+            // 不明なチャンク（"LIST"等）はスキップ。WAV仕様でチャンクは2バイト境界に揃える
             uint32_t skipSize = chunk.size + (chunk.size % 2);
             file.seekg(skipSize, std::ios::cur);
         }

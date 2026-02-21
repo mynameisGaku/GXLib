@@ -1,5 +1,9 @@
 /// @file SpriteBatch.cpp
-/// @brief スプライトバッチの実装
+/// @brief SpriteBatch の実装
+///
+/// テクスチャが切り替わるか、バッファが満杯になるタイミングで自動的に Flush() が走り、
+/// 蓄積したスプライトをまとめてDrawIndexedInstancedで描画する。
+/// ブレンドモード変更時もPSO切り替えのためにFlushが発生する。
 #include "pch.h"
 #include "Graphics/Rendering/SpriteBatch.h"
 #include "Graphics/Pipeline/RootSignature.h"
@@ -235,11 +239,12 @@ void SpriteBatch::AddQuad(const SpriteVertex& v0, const SpriteVertex& v1,
                            const SpriteVertex& v2, const SpriteVertex& v3,
                            int textureHandle)
 {
-    // テクスチャが変わったらフラッシュ
+    // テクスチャが変わったらFlush（異なるSRVは同一DrawCallで描画できない）
     Texture* tex = m_textureManager.GetTexture(textureHandle);
     if (!tex) return;
 
-    // テクスチャのSRVハンドルで比較（リージョンハンドルでも同じテクスチャならバッチ可能）
+    // リージョンハンドル（SpriteSheetの分割ハンドル）は元テクスチャと同じSRVを使うので、
+    // 実際のテクスチャハンドルで比較してバッチ継続を判定する
     int actualTexHandle = textureHandle;
     const auto& region = m_textureManager.GetRegion(textureHandle);
     if (region.textureHandle >= 0 && region.textureHandle != textureHandle)
@@ -298,7 +303,9 @@ void SpriteBatch::Flush()
     // トポロジ
     m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    // 頂点バッファ（オフセット付き — 前回のFlush分を飛ばす）
+    // 頂点バッファ（オフセット付き）
+    // 1フレーム内で複数回Flushされる場合、前回までの書き込み位置を飛ばして
+    // 今回分だけをGPUに見せる（DynamicBufferは1フレーム分の全頂点を保持している）
     uint32_t vertexOffset = m_vertexWriteOffset * 4 * sizeof(SpriteVertex);
     uint32_t vertexSize   = m_spriteCount * 4 * sizeof(SpriteVertex);
 
@@ -367,13 +374,14 @@ void SpriteBatch::DrawRotaGraph(float cx, float cy, float extRate, float angle,
         h = static_cast<float>(tex->GetHeight());
     }
 
+    // 画像の半分のサイズ × 拡大率 = 中心からの各頂点までの距離
     float hw = w * 0.5f * extRate;
     float hh = h * 0.5f * extRate;
 
     float cosA = cosf(angle);
     float sinA = sinf(angle);
 
-    // 回転変換: 中心からの相対座標を回転
+    // 2D回転: 中心(cx,cy)からの相対座標を角度angleだけ回転させる
     auto rotate = [&](float rx, float ry) -> XMFLOAT2
     {
         return { cx + rx * cosA - ry * sinA,
@@ -498,6 +506,7 @@ void SpriteBatch::DrawRectModiGraph(float x1, float y1, float x2, float y2,
 
 void SpriteBatch::SetBlendMode(BlendMode mode)
 {
+    // ブレンドモード変更はPSO切り替えを伴うため、先にFlushで現バッチを確定する
     if (m_blendMode != mode)
     {
         Flush();

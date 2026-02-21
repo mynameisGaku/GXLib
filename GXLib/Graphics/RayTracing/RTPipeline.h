@@ -1,6 +1,10 @@
 #pragma once
 /// @file RTPipeline.h
 /// @brief DXR レイトレーシング パイプライン (State Object + Shader Table)
+///
+/// DxLibには無い機能。DXRのState Object (レイトレ用PSO) とシェーダーテーブルを
+/// 管理する。シェーダーパスやエクスポート名をパラメータ化しており、
+/// RTReflections用とRTGI用の両方で共通して使える。
 
 #include "pch.h"
 #include "Graphics/Pipeline/Shader.h"
@@ -10,14 +14,25 @@
 namespace GX
 {
 
-/// @brief DXR State Object とシェーダーテーブルを管理するクラス
+/// @brief DXR State Object/シェーダーテーブルを管理するレイトレパイプラインクラス
+///
+/// シェーダーパスやエクスポート名をInitializeの引数で切り替え可能。
+/// デフォルトではRTReflections用のシェーダーが設定される。
 class RTPipeline
 {
 public:
     RTPipeline() = default;
     ~RTPipeline() = default;
 
-    /// @brief パイプラインを初期化 (デフォルト引数でRTReflections互換)
+    /// @brief State Objectとシェーダーテーブルを作成する
+    /// @param device DXR対応デバイス (ID3D12Device5)
+    /// @param shaderPath HLSLファイルのパス
+    /// @param rayGenExport RayGeneration シェーダーのエクスポート名
+    /// @param closestHitExport ClosestHit シェーダーのエクスポート名
+    /// @param missExport Miss シェーダーのエクスポート名
+    /// @param shadowMissExport シャドウレイ用 Miss シェーダーのエクスポート名
+    /// @param hitGroupName ヒットグループ名
+    /// @return 成功でtrue
     bool Initialize(ID3D12Device5* device,
                     const wchar_t* shaderPath = L"Shaders/RTReflections.hlsl",
                     const wchar_t* rayGenExport = L"RayGen",
@@ -26,13 +41,13 @@ public:
                     const wchar_t* shadowMissExport = L"ShadowMiss",
                     const wchar_t* hitGroupName = L"ReflectionHitGroup");
 
-    /// @brief DispatchRays を実行
+    /// @brief レイをディスパッチする
     /// @param cmdList DXR対応コマンドリスト
-    /// @param width ディスパッチ幅
-    /// @param height ディスパッチ高さ
+    /// @param width ディスパッチ幅 (ピクセル)
+    /// @param height ディスパッチ高さ (ピクセル)
     void DispatchRays(ID3D12GraphicsCommandList4* cmdList, uint32_t width, uint32_t height);
 
-    /// @brief ルートシグネチャを取得
+    /// @brief グローバルルートシグネチャを取得
     ID3D12RootSignature* GetGlobalRootSignature() const { return m_globalRS.Get(); }
 
 private:

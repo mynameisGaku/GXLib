@@ -10,7 +10,7 @@
 namespace GX
 {
 
-/// シェーダーモデル→HLSLファイルパス対応表
+/// シェーダーモデル列挙値からHLSLファイルパスを引く対応表
 static const wchar_t* GetShaderPath(gxfmt::ShaderModel model)
 {
     switch (model)
@@ -82,7 +82,7 @@ bool ShaderRegistry::CompileAndCreatePSO(ID3D12Device* device, gxfmt::ShaderMode
         return false;
     }
 
-    // Static PSO
+    // Static PSO（Vertex3D_PBRレイアウト、3RT: HDR + Normal + Albedo）
     PipelineStateBuilder psoBuilder;
     m_psos[idx].pso = psoBuilder
         .SetRootSignature(m_rootSignature)
@@ -97,7 +97,7 @@ bool ShaderRegistry::CompileAndCreatePSO(ID3D12Device* device, gxfmt::ShaderMode
         .SetCullMode(D3D12_CULL_MODE_BACK)
         .Build(device);
 
-    // Skinned PSO
+    // Skinned PSO（Vertex3D_Skinnedレイアウト、SKINNEDマクロ定義でボーンスキニング有効化）
     PipelineStateBuilder psoSkinnedBuilder;
     m_psos[idx].psoSkinned = psoSkinnedBuilder
         .SetRootSignature(m_rootSignature)
@@ -135,7 +135,7 @@ bool ShaderRegistry::CompileToonOutlinePSO(ID3D12Device* device)
         return false;
     }
 
-    // Outline PSO — static (スムース法線ベース、k_Vertex3DPBROutlineLayout使用)
+    // Outline PSO — static: 前面カリング + スムース法線(slot 1)で頂点膨張 + 深度バイアス
     {
         PipelineStateBuilder b;
         m_toonOutline.pso = b

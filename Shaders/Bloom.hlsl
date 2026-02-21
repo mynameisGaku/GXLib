@@ -11,21 +11,21 @@
 
 cbuffer BloomConstants : register(b0)
 {
-    float  gThreshold;
-    float  gIntensity;
-    float2 gTexelSize;    // 1/width, 1/height
+    float  gThreshold;  // 輝度閾値（これ以上の輝度がブルームに寄与）
+    float  gIntensity;  // ブルーム合成時の強度
+    float2 gTexelSize;  // テクセルサイズ (1/width, 1/height)
 };
 
 Texture2D    tSource : register(t0);
 SamplerState sLinear : register(s0);
 
-// --- 輝度 ---
+/// @brief Rec.709輝度 — RGB→輝度変換
 float Luminance(float3 color)
 {
     return dot(color, float3(0.2126f, 0.7152f, 0.0722f));
 }
 
-// --- Threshold Pass ---
+/// @brief 閾値パス — 閾値以上の輝度を持つピクセルだけを抽出
 float4 PSThreshold(FullscreenVSOutput input) : SV_Target
 {
     float3 color = tSource.Sample(sLinear, input.uv).rgb;
@@ -34,7 +34,7 @@ float4 PSThreshold(FullscreenVSOutput input) : SV_Target
     return float4(color * contribution, 1.0f);
 }
 
-// --- Downsample Pass (Karis average: HDRファイアフライ抑制) ---
+/// @brief ダウンサンプル — Karis averageで極端に明るいピクセルのちらつきを抑制
 float4 PSDownsample(FullscreenVSOutput input) : SV_Target
 {
     float2 uv = input.uv;
@@ -55,9 +55,10 @@ float4 PSDownsample(FullscreenVSOutput input) : SV_Target
     return float4(c, 1.0f);
 }
 
-// --- Gaussian Blur 9-tap ---
+// --- Gaussian Blur 9-tap (中心+左右4サンプルずつ) ---
 static const float GW[5] = { 0.227027f, 0.194596f, 0.121622f, 0.054054f, 0.016216f };
 
+/// @brief 水平ガウシアンブラー — 9タップ分離フィルタの水平パス
 float4 PSGaussianBlurH(FullscreenVSOutput input) : SV_Target
 {
     float3 r = tSource.Sample(sLinear, input.uv).rgb * GW[0];
@@ -70,6 +71,7 @@ float4 PSGaussianBlurH(FullscreenVSOutput input) : SV_Target
     return float4(r, 1.0f);
 }
 
+/// @brief 垂直ガウシアンブラー — 9タップ分離フィルタの垂直パス
 float4 PSGaussianBlurV(FullscreenVSOutput input) : SV_Target
 {
     float3 r = tSource.Sample(sLinear, input.uv).rgb * GW[0];
@@ -82,14 +84,13 @@ float4 PSGaussianBlurV(FullscreenVSOutput input) : SV_Target
     return float4(r, 1.0f);
 }
 
-// --- Copy Pass (point-sample for same-size copy) ---
+/// @brief コピーパス — 同一解像度のテクスチャコピー
 float4 PSCopy(FullscreenVSOutput input) : SV_Target
 {
     return float4(tSource.Sample(sLinear, input.uv).rgb, 1.0f);
 }
 
-// --- Additive Pass ---
-// intensity乗算してそのまま出力。PSO側のブレンドステートでアディティブ合成する。
+/// @brief アディティブパス — intensity乗算して出力（PSOのブレンドで加算合成される）
 float4 PSAdditive(FullscreenVSOutput input) : SV_Target
 {
     float3 bloom = tSource.Sample(sLinear, input.uv).rgb;

@@ -200,8 +200,7 @@ void PhysicsWorld2D::ResolveCollision(const ContactInfo2D& contact)
     // 離れている場合は解決しない
     if (velAlongNormal > 0.0f) return;
 
-    // 反発係数（小さい方を採用）
-    // 初学者向け: 0ならほぼ跳ね返らず、1なら強く跳ね返ります。
+    // 反発係数（小さい方を採用）: 0=跳ね返らない、1=完全弾性衝突
     float e = (std::min)(a->restitution, b->restitution);
 
     // 衝撃量（インパルス）の大きさ

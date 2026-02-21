@@ -1,5 +1,8 @@
 /// @file PrimitiveBatch.cpp
-/// @brief プリミティブバッチの実装
+/// @brief PrimitiveBatch の実装
+///
+/// 三角形トポロジ（塗りつぶし図形）と線分トポロジ（枠線）で別々のPSO・頂点バッファを持ち、
+/// End() 時に FlushTriangles → FlushLines の順で描画する。
 #include "pch.h"
 #include "Graphics/Rendering/PrimitiveBatch.h"
 #include "Graphics/Pipeline/RootSignature.h"
@@ -17,12 +20,12 @@ namespace GX
 
 XMFLOAT4 PrimitiveBatch::ColorToFloat4(uint32_t color)
 {
-    // 0xAARRGGBB形式（DXLib互換）
+    // DxLib互換の 0xAARRGGBB 形式を float4 に変換
     float a = ((color >> 24) & 0xFF) / 255.0f;
     float r = ((color >> 16) & 0xFF) / 255.0f;
     float g = ((color >> 8)  & 0xFF) / 255.0f;
     float b = ((color >> 0)  & 0xFF) / 255.0f;
-    // アルファが0の場合は完全不透明として扱う（DXLib互換: 色指定でアルファ省略時）
+    // DxLib では GetColor() がアルファ0を返すので、0 は不透明として扱う
     if (a == 0.0f) a = 1.0f;
     return { r, g, b, a };
 }
@@ -260,11 +263,12 @@ void PrimitiveBatch::DrawOval(float cx, float cy, float rx, float ry, uint32_t c
                                bool fillFlag, int segments)
 {
     XMFLOAT4 col = ColorToFloat4(color);
+    // 円周を segments 分割して多角形近似する
     float angleStep = 2.0f * static_cast<float>(M_PI) / segments;
 
     if (fillFlag)
     {
-        // 扇形の三角形で塗りつぶし
+        // 中心と円周上の隣接2点で扇形三角形を作り、segments個並べて塗りつぶす
         for (int i = 0; i < segments; ++i)
         {
             if (m_triVertexCount + 3 > k_MaxTriangleVertices)
@@ -302,7 +306,7 @@ void PrimitiveBatch::DrawOval(float cx, float cy, float rx, float ry, uint32_t c
 
 void PrimitiveBatch::DrawPixel(float x, float y, uint32_t color)
 {
-    // 1ピクセル = 1x1の塗りつぶし矩形
+    // GPU描画では「1点」を直接打てないので、1x1 の塗りつぶし矩形で代用する
     DrawBox(x, y, x + 1.0f, y + 1.0f, color, true);
 }
 

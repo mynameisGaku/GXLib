@@ -2,8 +2,9 @@
 /// @file RTReflections.h
 /// @brief DXR レイトレーシング反射エフェクト
 ///
-/// SSRと排他的に使用。DXR非対応GPUではSSRにフォールバック。
-/// 内部に RTAccelerationStructure + RTPipeline を所有。
+/// DxLibには無い機能。DXRのハードウェアレイトレーシングで正確な反射を生成する。
+/// SSRと排他的に使用 (Y/Rキーで切替)。DXR非対応GPUではSSRにフォールバック。
+/// 内部にRTAccelerationStructure + RTPipelineを所有し、フル解像度でディスパッチする。
 
 #include "pch.h"
 #include "Graphics/RayTracing/RTAccelerationStructure.h"
@@ -48,14 +49,22 @@ struct RTCompositeConstants
     XMFLOAT4X4 invViewProjection;  // 32
 };  // 96B → fits in 256B slot
 
-/// @brief DXR レイトレーシング反射エフェクトクラス
+/// @brief DXR反射エフェクト。ハードウェアレイトレで正確な映り込みを生成する
+///
+/// BLAS/TLASを毎フレーム構築し、DispatchRaysで反射テクスチャを生成、
+/// フルスクリーン三角形のコンポジットパスでHDRシーンに合成する。
+/// PBRマテリアル情報(albedo/metallic/roughness)をper-instanceデータとして渡す。
 class RTReflections
 {
 public:
     RTReflections() = default;
     ~RTReflections() = default;
 
-    /// @brief 初期化（DXR対応GPUでのみ成功）
+    /// @brief 初期化。DXR対応GPU (ID3D12Device5) でのみ成功する
+    /// @param device DXR対応デバイス
+    /// @param width 画面幅
+    /// @param height 画面高さ
+    /// @return 成功でtrue
     bool Initialize(ID3D12Device5* device, uint32_t width, uint32_t height);
 
     /// @brief BLASを構築（初期化時に全メッシュ分呼ぶ）
@@ -108,14 +117,18 @@ public:
     void SetEnabled(bool enabled) { m_enabled = enabled; }
     bool IsEnabled() const { return m_enabled; }
 
+    /// @brief レイの最大飛距離
     void SetMaxDistance(float d) { m_maxDistance = d; }
     float GetMaxDistance() const { return m_maxDistance; }
 
+    /// @brief 反射の強度
     void SetIntensity(float i) { m_intensity = i; }
     float GetIntensity() const { return m_intensity; }
 
+    /// @brief GBuffer法線RT (外部所有) を設定。コンポジットパスで使用
     void SetNormalRT(RenderTarget* rt) { m_normalRT = rt; }
 
+    /// @brief デバッグ表示モード (0=オフ, 1=反射のみ表示)
     void SetDebugMode(int mode) { m_debugMode = mode; }
     int GetDebugMode() const { return m_debugMode; }
 

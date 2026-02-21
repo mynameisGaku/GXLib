@@ -1,73 +1,72 @@
 #pragma once
 /// @file GraphicsDevice.h
-/// @brief D3D12デバイス初期化クラス
+/// @brief D3D12デバイス初期化・管理クラス
 ///
-/// 【初学者向け解説】
-/// 「デバイス」とは、GPU（グラフィックスカード）を操作するためのインターフェースです。
-/// DirectX 12でグラフィックスを描画するには、まずこのデバイスを作成する必要があります。
-///
-/// 初期化の流れ：
-/// 1. DXGIFactory作成 — GPUを探すための「工場」
-/// 2. アダプタ（GPU）を列挙して最適なものを選択
-/// 3. D3D12Deviceを作成 — これがGPUへの命令窓口
-/// 4. デバッグビルド時はデバッグレイヤーを有効化
-///    （間違った使い方をするとエラーメッセージが出る便利機能）
+/// DxLibではGPUデバイスは内部で自動的に作られるが、DX12では自分で作って管理する。
+/// DXGIファクトリでGPUを探し、D3D12Deviceを作成してリソース生成の起点にする。
+/// DXR(レイトレーシング)対応GPUならID3D12Device5も取得する。
 
 #include "pch.h"
 
 namespace GX
 {
 
-/// @brief D3D12デバイスを管理するクラス
+/// @brief GPU本体を表すクラス（DxLibでは内部で自動管理される）
+///
+/// DX12ではテクスチャやバッファなど、すべてのリソース作成にデバイスが必要。
+/// デバッグビルドではデバッグレイヤーを有効にすると、API誤用を検出してくれる。
 class GraphicsDevice
 {
 public:
     GraphicsDevice() = default;
     ~GraphicsDevice() = default;
 
-    /// @brief D3D12デバイスを初期化する
-    /// @param enableDebugLayer デバッグレイヤーを有効化するかどうか
-    /// @param enableGPUValidation GPU-based validationを有効化するかどうか（非常に遅いが詳細なエラー検出が可能）
-    /// @return 初期化に成功した場合true
+    /// @brief GPUデバイスを初期化する
+    /// @param enableDebugLayer trueでデバッグレイヤーを有効化（API誤用を検出する開発用機能）
+    /// @param enableGPUValidation trueでGPUベース検証を有効化（非常に遅いが詳細なエラー検出が可能）
+    /// @return 成功なら true
     bool Initialize(bool enableDebugLayer = true, bool enableGPUValidation = false);
 
     /// @brief D3D12デバイスを取得する
     /// @return ID3D12Deviceへのポインタ
     ID3D12Device* GetDevice() const { return m_device.Get(); }
 
-    /// @brief DXGIファクトリを取得する
+    /// @brief DXGIファクトリを取得する（GPU列挙やSwapChain作成に使う）
     /// @return IDXGIFactory6へのポインタ
     IDXGIFactory6* GetFactory() const { return m_factory.Get(); }
 
-    /// @brief DXGIアダプタ（GPU）を取得する
+    /// @brief 選択されたGPUアダプタを取得する
     /// @return IDXGIAdapter1へのポインタ
     IDXGIAdapter1* GetAdapter() const { return m_adapter.Get(); }
 
-    /// @brief ID3D12Device5を取得する（DXR用）
-    /// @return ID3D12Device5へのポインタ（DXR非対応時はnullptr）
+    /// @brief DXR対応のDevice5インターフェースを取得する
+    /// @return ID3D12Device5へのポインタ（DXR非対応GPUではnullptr）
     ID3D12Device5* GetDevice5() const { return m_device5.Get(); }
 
-    /// @brief レイトレーシングがサポートされているか
+    /// @brief レイトレーシング(DXR)が使えるかどうか
+    /// @return DXR Tier 1.0以上に対応していれば true
     bool SupportsRaytracing() const { return m_supportsRaytracing; }
 
-    /// @brief DXGI生存オブジェクトをレポートする（シャットダウン後に呼ぶ）
+    /// @brief 解放漏れしたDXGIオブジェクトをOutputDebugStringに出力する
+    ///
+    /// アプリ終了時に呼ぶと、リーク箇所の特定に役立つ。
     static void ReportLiveObjects();
 
 private:
-    /// デバッグレイヤーを有効化
+    /// デバッグレイヤーを有効化（D3D12Debug + オプションでGPUベース検証）
     void EnableDebugLayer(bool gpuValidation);
 
-    /// InfoQueue メッセージフィルタ設定
+    /// InfoQueueのメッセージフィルタを設定し、重大エラーでブレークさせる
     void ConfigureInfoQueue();
 
-    /// 最適なGPUアダプタを選択
+    /// 高性能GPUを自動選択する（ソフトウェアアダプタはスキップ）
     bool SelectAdapter();
 
-    ComPtr<IDXGIFactory6>  m_factory;
-    ComPtr<IDXGIAdapter1>  m_adapter;
-    ComPtr<ID3D12Device>   m_device;
-    ComPtr<ID3D12Device5>  m_device5;
-    bool m_supportsRaytracing = false;
+    ComPtr<IDXGIFactory6>  m_factory;   ///< GPU列挙・SwapChain作成用ファクトリ
+    ComPtr<IDXGIAdapter1>  m_adapter;   ///< 選択されたGPU
+    ComPtr<ID3D12Device>   m_device;    ///< 標準デバイスインターフェース
+    ComPtr<ID3D12Device5>  m_device5;   ///< DXR用拡張インターフェース
+    bool m_supportsRaytracing = false;  ///< DXR対応フラグ
 };
 
 } // namespace GX

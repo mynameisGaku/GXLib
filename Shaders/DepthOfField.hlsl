@@ -14,21 +14,21 @@
 
 cbuffer CoCConstants : register(b0)
 {
-    float4x4 gInvProjection;   // 64B
+    float4x4 gInvProjection;   // 逆プロジェクション行列
     float    gFocalDistance;    // フォーカス距離 (ビュー空間Z)
-    float    gFocalRange;      // フォーカス鮮明範囲
-    float    gCoCScale;        // CoC最大半径 (px)
-    float    gScreenWidth;
-    float    gScreenHeight;
-    float    gNearZ;
-    float    gFarZ;
+    float    gFocalRange;      // フォーカスが鮮明な範囲
+    float    gCoCScale;        // CoC最大半径 (未使用、予約)
+    float    gScreenWidth;     // スクリーン幅
+    float    gScreenHeight;    // スクリーン高さ
+    float    gNearZ;           // ニアクリップ距離
+    float    gFarZ;            // ファークリップ距離
     float    gPadding;
 };
 
 Texture2D    tDepth  : register(t0);
 SamplerState sPoint  : register(s0);
 
-// 深度値からリニアビュー空間Zを計算
+/// @brief 深度値からリニアビュー空間Zを計算 — NDC→ビュー空間に逆投影
 float LinearizeDepth(float depth)
 {
     // NDC→ビュー空間Z
@@ -37,6 +37,7 @@ float LinearizeDepth(float depth)
     return viewPos.z / viewPos.w;
 }
 
+/// @brief CoC生成PS — 深度からフォーカス距離との差を計算し、ボケ量を決定
 float4 PSCoC(FullscreenVSOutput input) : SV_Target
 {
     float depth = tDepth.Sample(sPoint, input.uv).r;
@@ -83,6 +84,7 @@ static const float kGaussWeights[7] = {
     0.0026 / kGaussWeightSum    // ±6
 };
 
+/// @brief DoF水平ブラー — 13タップガウシアン分離フィルタ
 float4 PSBlurH(FullscreenVSOutput input) : SV_Target
 {
     float2 uv = input.uv;
@@ -99,6 +101,7 @@ float4 PSBlurH(FullscreenVSOutput input) : SV_Target
     return result;
 }
 
+/// @brief DoF垂直ブラー — 13タップガウシアン分離フィルタ
 float4 PSBlurV(FullscreenVSOutput input) : SV_Target
 {
     float2 uv = input.uv;
@@ -132,6 +135,7 @@ Texture2D tCoC     : register(t2);   // CoC map (full-res R16_FLOAT)
 SamplerState sCompLinear : register(s0);  // ブラー画像のアップサンプル用
 SamplerState sCompPoint  : register(s1);  // シャープ/CoC のポイントサンプル用
 
+/// @brief DoF合成PS — CoC値に基づいてシャープ画像とブラー画像をlerp合成
 float4 PSComposite(FullscreenVSOutput input) : SV_Target
 {
     float2 uv = input.uv;

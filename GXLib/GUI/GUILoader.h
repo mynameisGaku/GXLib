@@ -18,31 +18,45 @@ class UIRenderer;
 class GUILoader
 {
 public:
-    /// UIRenderer を設定（TextWidget/Button の内容サイズ計算用）
-    /// 初学者向け: 文字サイズから自然な幅・高さを決めるために使います。
+    /// @brief UIRendererを設定する（TextWidget/Buttonの内容サイズ計算に使う）
+    /// @param renderer GUI描画用レンダラー
     void SetRenderer(UIRenderer* renderer);
 
-    /// フォント名 → フォントハンドルの登録
+    /// @brief フォント名とフォントハンドルを対応付けて登録する
+    /// @param name XMLの font 属性で指定する名前
+    /// @param fontHandle FontManagerで取得したハンドル
     void RegisterFont(const std::string& name, int fontHandle);
 
-    /// イベント名 → ハンドラの登録
+    /// @brief イベント名とハンドラ関数を対応付けて登録する
+    /// @param name XMLの onClick/onHover等で指定する名前
+    /// @param handler 呼び出されるコールバック
     void RegisterEvent(const std::string& name, std::function<void()> handler);
 
-    /// テクスチャ名 → テクスチャハンドルの登録
+    /// @brief テクスチャ名とテクスチャハンドルを対応付けて登録する
+    /// @param name XMLの src 属性で指定する名前
+    /// @param textureHandle TextureManagerで取得したハンドル
     void RegisterTexture(const std::string& name, int textureHandle);
 
-    /// 値変更イベント名 → ハンドラの登録
+    /// @brief 値変更イベント名とハンドラを対応付けて登録する（Slider/CheckBox/DropDown等用）
+    /// @param name XMLの onValueChanged 属性で指定する名前
+    /// @param handler 値変更時に呼ばれるコールバック（引数は値の文字列表現）
     void RegisterValueChangedEvent(const std::string& name,
                                     std::function<void(const std::string&)> handler);
 
-    /// 描画コールバック名 → ハンドラの登録（Canvas用）
+    /// @brief 描画コールバック名とハンドラを対応付けて登録する（Canvas用）
+    /// @param name XMLの onDraw 属性で指定する名前
+    /// @param handler 描画時に呼ばれるコールバック
     void RegisterDrawCallback(const std::string& name,
                                std::function<void(UIRenderer&, const LayoutRect&)> handler);
 
-    /// XML ファイルからウィジェットツリーを構築
+    /// @brief XMLファイルからウィジェットツリーを構築する
+    /// @param xmlPath XMLファイルのパス
+    /// @return 構築されたルートウィジェット。失敗時は nullptr
     std::unique_ptr<Widget> BuildFromFile(const std::string& xmlPath);
 
-    /// XMLDocument からウィジェットツリーを構築
+    /// @brief パース済みXMLDocumentからウィジェットツリーを構築する
+    /// @param doc XMLドキュメント
+    /// @return 構築されたルートウィジェット。失敗時は nullptr
     std::unique_ptr<Widget> BuildFromDocument(const XMLDocument& doc);
 
 private:

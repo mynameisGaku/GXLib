@@ -22,6 +22,7 @@ float Luminance(float3 color)
     return dot(color, float3(0.2126f, 0.7152f, 0.0722f));
 }
 
+/// @brief カラーグレーディングPS — 露出・コントラスト・彩度・色温度を順次適用
 float4 PSMain(FullscreenVSOutput input) : SV_Target
 {
     float3 color = tScene.Sample(sLinear, input.uv).rgb;

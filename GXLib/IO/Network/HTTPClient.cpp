@@ -1,3 +1,5 @@
+/// @file HTTPClient.cpp
+/// @brief HTTPクライアント実装 — WinHTTP API ラッパー
 #include "pch.h"
 #include <winhttp.h>
 #include "IO/Network/HTTPClient.h"
@@ -36,7 +38,7 @@ void HTTPClient::SetTimeout(int timeoutMs)
     m_timeoutMs = timeoutMs;
 }
 
-// URLを構成要素に分解する
+// URLをホスト/パス/ポート/HTTPS判定に分解する（WinHTTP用）
 static bool ParseURL(const std::string& url,
                       std::wstring& host, std::wstring& path,
                       uint16_t& port, bool& isHttps)
@@ -201,7 +203,7 @@ HTTPResponse HTTPClient::Post(const std::string& url, const std::string& body,
 void HTTPClient::GetAsync(const std::string& url,
                             std::function<void(HTTPResponse)> callback)
 {
-    // Remove finished threads before adding a new one
+    // 完了済みスレッドを除去してからワーカースレッドを追加する
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_threads.erase(
@@ -224,7 +226,7 @@ void HTTPClient::PostAsync(const std::string& url, const std::string& body,
                              const std::string& contentType,
                              std::function<void(HTTPResponse)> callback)
 {
-    // Remove finished threads before adding a new one
+    // 完了済みスレッドを除去してからワーカースレッドを追加する
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_threads.erase(

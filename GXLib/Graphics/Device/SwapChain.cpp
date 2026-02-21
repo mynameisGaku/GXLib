@@ -1,5 +1,5 @@
 /// @file SwapChain.cpp
-/// @brief スワップチェーン管理の実装
+/// @brief スワップチェーンの実装
 #include "pch.h"
 #include "Graphics/Device/SwapChain.h"
 #include "Graphics/Device/Fence.h"
@@ -21,14 +21,15 @@ bool SwapChain::Initialize(IDXGIFactory6* factory,
     swapChainDesc.Height      = m_height;
     swapChainDesc.Format      = m_format;
     swapChainDesc.Stereo      = FALSE;
-    swapChainDesc.SampleDesc  = { 1, 0 };
+    swapChainDesc.SampleDesc  = { 1, 0 };  // MSAAなし（DX12ではResolveで別途対応する流儀）
     swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     swapChainDesc.BufferCount = k_BufferCount;
     swapChainDesc.Scaling     = DXGI_SCALING_STRETCH;
-    swapChainDesc.SwapEffect  = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    swapChainDesc.SwapEffect  = DXGI_SWAP_EFFECT_FLIP_DISCARD; // フリップモデル（DX12必須）
     swapChainDesc.AlphaMode   = DXGI_ALPHA_MODE_UNSPECIFIED;
     swapChainDesc.Flags       = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
+    // SwapChain1を作ってからSwapChain4にキャスト
     ComPtr<IDXGISwapChain1> swapChain1;
     HRESULT hr = factory->CreateSwapChainForHwnd(
         queue, desc.hwnd, &swapChainDesc,
@@ -48,10 +49,10 @@ bool SwapChain::Initialize(IDXGIFactory6* factory,
         return false;
     }
 
-    // Alt+Enterフルスクリーン切り替えを無効化
+    // Alt+Enterによるフルスクリーン切り替えを無効化（自前で制御するため）
     factory->MakeWindowAssociation(desc.hwnd, DXGI_MWA_NO_ALT_ENTER);
 
-    // RTV用ヒープ作成
+    // バックバッファのRTVを作成
     if (!m_rtvHeap.Initialize(device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, k_BufferCount))
     {
         GX_LOG_ERROR("Failed to create RTV heap for swap chain");
@@ -66,7 +67,7 @@ bool SwapChain::Initialize(IDXGIFactory6* factory,
 
 void SwapChain::Present(bool vsync)
 {
-    UINT syncInterval = vsync ? 1 : 0;
+    UINT syncInterval = vsync ? 1 : 0;  // 0=即座にフリップ, 1=VSync待ち
     UINT flags = 0;
     m_swapChain->Present(syncInterval, flags);
 }
@@ -77,7 +78,7 @@ bool SwapChain::Resize(ID3D12Device* device, uint32_t width, uint32_t height,
     if (width == 0 || height == 0)
         return false;
 
-    // GPU同期: バックバッファ解放前にGPUの描画完了を待つ
+    // バックバッファはGPU使用中に解放できないので、先に完了を待つ
     if (queue && fence)
     {
         fence->WaitForGPU(queue);
@@ -86,6 +87,7 @@ bool SwapChain::Resize(ID3D12Device* device, uint32_t width, uint32_t height,
     m_width  = width;
     m_height = height;
 
+    // 既存バックバッファの参照を解放してからResizeBuffers
     for (auto& buffer : m_backBuffers)
         buffer.Reset();
 
@@ -100,6 +102,7 @@ bool SwapChain::Resize(ID3D12Device* device, uint32_t width, uint32_t height,
         return false;
     }
 
+    // 新しいバッファに対してRTVを再作成
     CreateRenderTargetViews(device);
     GX_LOG_INFO("Swap Chain resized: %dx%d", width, height);
     return true;
@@ -126,7 +129,9 @@ void SwapChain::CreateRenderTargetViews(ID3D12Device* device)
 {
     for (uint32_t i = 0; i < k_BufferCount; ++i)
     {
+        // SwapChainが持つバッファのCOMポインタを取得
         m_swapChain->GetBuffer(i, IID_PPV_ARGS(&m_backBuffers[i]));
+        // RTVを作成（nullptrでデフォルト設定 = バッファのフォーマットに合わせる）
         device->CreateRenderTargetView(
             m_backBuffers[i].Get(), nullptr, m_rtvHeap.GetCPUHandle(i)
         );

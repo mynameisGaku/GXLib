@@ -1,5 +1,8 @@
 /// @file SpriteSheet.cpp
-/// @brief スプライトシートの実装
+/// @brief SpriteSheet の実装
+///
+/// テクスチャを1枚だけロードし、TextureManager のリージョンハンドル機能で
+/// UV矩形を分割する。テクスチャ実体は1枚だけなのでVRAM効率が良い。
 #include "pch.h"
 #include "Graphics/Rendering/SpriteSheet.h"
 #include "Core/Logger.h"
@@ -13,7 +16,7 @@ bool SpriteSheet::LoadDivGraph(TextureManager& textureManager,
                                 int xSize, int ySize,
                                 int* handleArray)
 {
-    // まず1枚のテクスチャとしてロード
+    // 元画像を1枚のテクスチャとしてGPUにロード
     int baseHandle = textureManager.LoadTexture(filePath);
     if (baseHandle < 0)
     {
@@ -21,7 +24,8 @@ bool SpriteSheet::LoadDivGraph(TextureManager& textureManager,
         return false;
     }
 
-    // UV矩形ハンドルを作成
+    // グリッド分割に応じたUV矩形ハンドルを一括作成
+    // 各ハンドルは baseHandle と同じテクスチャを参照しつつ、異なるUV範囲を持つ
     int firstHandle = textureManager.CreateRegionHandles(baseHandle, allNum, xNum, yNum, xSize, ySize);
     if (firstHandle < 0)
     {
@@ -29,7 +33,7 @@ bool SpriteSheet::LoadDivGraph(TextureManager& textureManager,
         return false;
     }
 
-    // ハンドル配列に書き込み
+    // 連番ハンドルをユーザの配列にコピー
     for (int i = 0; i < allNum; ++i)
     {
         handleArray[i] = firstHandle + i;

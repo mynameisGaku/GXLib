@@ -39,14 +39,15 @@ struct ObjectConstants
 /// @brief 1フレームあたりの最大オブジェクト数
 static constexpr uint32_t k_MaxObjectsPerFrame = 512;
 
-/// @brief フレーム定数バッファ（b1スロット）— カメラ・シャドウ・フォグ情報をGPUに送る
+/// @brief フレーム定数バッファ（b1スロット、1008B）
+/// カメラ行列、CSM/スポット/ポイントシャドウ、フォグ情報を1フレームに1回GPUに送る
 struct FrameConstants
 {
-    XMFLOAT4X4 view;
-    XMFLOAT4X4 projection;
-    XMFLOAT4X4 viewProjection;
-    XMFLOAT3   cameraPosition;
-    float      time;
+    XMFLOAT4X4 view;              ///< ビュー行列（転置済み）
+    XMFLOAT4X4 projection;        ///< 射影行列（転置済み、TAAジッター適用済み）
+    XMFLOAT4X4 viewProjection;    ///< ビュー射影行列（転置済み）
+    XMFLOAT3   cameraPosition;    ///< カメラのワールド座標
+    float      time;              ///< 経過時間（秒）
     // CSMシャドウ関連
     XMFLOAT4X4 lightVP[ShadowConstants::k_NumCascades];
     float      cascadeSplits[ShadowConstants::k_NumCascades];
@@ -81,7 +82,7 @@ static_assert(offsetof(FrameConstants, spotLightVP) == 528, "spotLightVP offset 
 static_assert(offsetof(FrameConstants, pointLightVP) == 608, "pointLightVP offset mismatch");
 static_assert(sizeof(FrameConstants) == 1008, "FrameConstants size mismatch");
 
-/// @brief GPU上のメッシュデータ（頂点バッファ + インデックスバッファ）
+/// @brief GPU上の簡易メッシュ（Renderer3D::CreateGPUMesh で MeshData から変換して使う）
 struct GPUMesh
 {
     Buffer   vertexBuffer;   ///< 頂点バッファ
@@ -89,8 +90,7 @@ struct GPUMesh
     uint32_t indexCount = 0; ///< インデックス数
 };
 
-/// @brief カスタムマテリアル用シェーダー設定
-/// 初学者向け: 既定のPBR以外のシェーダーを差し替える時に使います。
+/// @brief カスタムマテリアル用シェーダー記述（PBR以外のシェーダーを差し替える場合に使う）
 struct ShaderProgramDesc
 {
     std::wstring vsPath;
@@ -100,7 +100,9 @@ struct ShaderProgramDesc
     std::vector<std::pair<std::wstring, std::wstring>> defines;
 };
 
-/// @brief 3Dレンダラークラス
+/// @brief 3Dレンダラー（DxLibの MV1DrawModel 内部処理に相当する3D描画エンジン）
+/// PBR/Toon/Phong等のシェーダーモデルPSO管理、CSM/スポット/ポイントシャドウ、
+/// フォグ、スカイボックス、ワイヤフレーム描画、マテリアルオーバーライドに対応する
 class Renderer3D
 {
 public:
@@ -155,7 +157,8 @@ public:
     /// @param face キューブマップの面インデックス
     void EndPointShadowPass(uint32_t face);
 
-    /// @brief シャドウパス中かどうかを返す
+    /// @brief シャドウパス中かどうかを返す（シャドウパス中はマテリアル設定を省略する）
+    /// @return シャドウパス中ならtrue
     bool IsInShadowPass() const { return m_inShadowPass; }
 
     /// @brief メインレンダリングパスのフレームを開始する
@@ -216,14 +219,19 @@ public:
                            const Animator& animator,
                            const std::vector<bool>& submeshVisibility);
 
-    /// @brief マテリアルオーバーライドを設定する（全サブメッシュに適用）
+    /// @brief マテリアルオーバーライドを設定する（全サブメッシュにこのマテリアルを適用）
+    /// @param mat オーバーライドするマテリアル（描画後に ClearMaterialOverride で解除すること）
     void SetMaterialOverride(const Material* mat) { m_materialOverride = mat; }
 
     /// @brief マテリアルオーバーライドを解除する
     void ClearMaterialOverride() { m_materialOverride = nullptr; }
 
-    /// @brief ワイヤフレームモードの設定
+    /// @brief ワイヤフレーム描画モードを設定する
+    /// @param enabled trueでワイヤフレーム表示
     void SetWireframeMode(bool enabled);
+
+    /// @brief ワイヤフレームモードかどうかを取得する
+    /// @return ワイヤフレームモードならtrue
     bool IsWireframeMode() const { return m_wireframeMode; }
 
     /// @brief フレームの描画を終了する
@@ -287,9 +295,13 @@ public:
     void OnResize(uint32_t width, uint32_t height);
 
 private:
+    /// メイン描画PSOとルートシグネチャを作成する（PBR + ワイヤフレーム）
     bool CreatePipelineState(ID3D12Device* device);
+    /// シャドウ描画用PSOとルートシグネチャを作成する（深度のみ）
     bool CreateShadowPipelineState(ID3D12Device* device);
+    /// 描画パイプラインをバインドする（Standard用の簡易版）
     void BindPipeline(bool skinned, int shaderHandle);
+    /// シェーダーモデルに応じた適切なPSOをバインドする
     void BindPipelineForModel(bool skinned, int shaderHandle, gxfmt::ShaderModel model);
 
     ID3D12Device*              m_device    = nullptr;
@@ -347,16 +359,16 @@ private:
     // マテリアルマネージャー
     MaterialManager m_materialManager;
 
-    // 定数バッファ（ダブルバッファ）
-    DynamicBuffer m_objectCB;     // b0: per-object (ring buffer)
-    uint8_t*      m_objectCBMapped = nullptr;  // Map中のポインタ
-    uint32_t      m_objectCBOffset = 0;        // リングバッファオフセット
-    DynamicBuffer m_frameCB;      // b1: per-frame
-    DynamicBuffer m_lightCB;      // b2: lights
-    DynamicBuffer m_materialCB;   // b3: material (ring buffer)
+    // 定数バッファ（全てDynamicBufferでダブルバッファリング）
+    DynamicBuffer m_objectCB;     ///< b0: オブジェクト定数（リングバッファ、最大512描画/フレーム）
+    uint8_t*      m_objectCBMapped = nullptr;  ///< Map中のポインタ
+    uint32_t      m_objectCBOffset = 0;        ///< リングバッファ書き込みオフセット
+    DynamicBuffer m_frameCB;      ///< b1: フレーム定数（カメラ・シャドウ・フォグ）
+    DynamicBuffer m_lightCB;      ///< b2: ライト定数（最大16灯）
+    DynamicBuffer m_materialCB;   ///< b3: マテリアル定数（リングバッファ、256B/マテリアル）
     uint8_t*      m_materialCBMapped = nullptr;
     uint32_t      m_materialCBOffset = 0;
-    DynamicBuffer m_boneCB;       // b4: bone matrices (skinned)
+    DynamicBuffer m_boneCB;       ///< b4: ボーン行列（スキニングメッシュ用）
 
     // 現在のライト状態
     LightConstants m_currentLights = {};

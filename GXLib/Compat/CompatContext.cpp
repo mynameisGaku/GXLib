@@ -149,6 +149,8 @@ int CompatContext::ProcessMessage()
     return 0;
 }
 
+// SpriteBatchとPrimitiveBatchは排他的（同時にBeginできない）。
+// Ensure系メソッドが必要なバッチに自動切替する。
 void CompatContext::EnsureSpriteBatch()
 {
     if (!frameActive) return;
@@ -192,6 +194,7 @@ void CompatContext::FlushAll()
     activeBatch = ActiveBatch::None;
 }
 
+// DxLibのClearDrawScreen相当。コマンドリストのリセットからレンダーターゲット設定まで。
 void CompatContext::BeginFrame()
 {
     if (frameActive) return;
@@ -236,6 +239,7 @@ void CompatContext::BeginFrame()
     frameActive = true;
 }
 
+// DxLibのScreenFlip相当。バッチのフラッシュ→バリア遷移→コマンド実行→Present。
 void CompatContext::EndFrame()
 {
     if (!frameActive) return;

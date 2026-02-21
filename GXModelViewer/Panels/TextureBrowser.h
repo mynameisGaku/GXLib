@@ -1,18 +1,21 @@
 #pragma once
 /// @file TextureBrowser.h
-/// @brief Texture browser panel with grid thumbnails
+/// @brief グリッドサムネイル付きテクスチャブラウザパネル
+///
+/// TextureManagerに読み込まれた全テクスチャをサムネイルグリッドで表示し、
+/// 選択するとサイズ・フォーマット・プレビューの詳細を確認できる。
 
 #include "Graphics/Resource/TextureManager.h"
 
-/// @brief ImGui panel for browsing and inspecting loaded textures
+/// @brief 読み込み済みテクスチャの閲覧・検査パネル
 class TextureBrowser
 {
 public:
-    /// Draw the texture browser panel.
-    /// @param texManager The texture manager to browse.
+    /// @brief テクスチャブラウザパネルを描画する
+    /// @param texManager テクスチャ一覧の取得元
     void Draw(GX::TextureManager& texManager);
 
 private:
-    int m_selectedHandle = -1;      ///< Currently selected texture handle
-    float m_thumbnailSize = 64.0f;  ///< Thumbnail display size
+    int m_selectedHandle = -1;      ///< 選択中のテクスチャハンドル（-1=未選択）
+    float m_thumbnailSize = 64.0f;  ///< サムネイル表示サイズ（ピクセル）
 };

@@ -1,5 +1,8 @@
 /// @file TimelinePanel.cpp
-/// @brief Animation timeline panel implementation
+/// @brief タイムラインパネル実装
+///
+/// クリップ選択コンボ、トランスポートボタン（巻戻し/再生/停止）、
+/// タイムスクラブスライダー、速度プリセット(0.25x〜4x)、ルートロック制御を表示する。
 
 #include "TimelinePanel.h"
 #include <imgui.h>

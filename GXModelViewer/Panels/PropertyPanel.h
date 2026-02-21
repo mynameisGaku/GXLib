@@ -1,6 +1,9 @@
 #pragma once
 /// @file PropertyPanel.h
-/// @brief Property inspector panel for selected entities
+/// @brief 選択エンティティのプロパティインスペクタパネル
+///
+/// トランスフォーム、モデルマテリアル（直接編集）、マテリアルオーバーライド、
+/// ギズモ設定、レンダリングオプション（ボーン表示/ワイヤフレーム）を提供する。
 
 #include "Scene/SceneGraph.h"
 #include "Graphics/3D/Material.h"
@@ -8,33 +11,43 @@
 #include <imgui.h>
 #include "ImGuizmo.h"
 
-/// @brief ImGui panel that displays and edits properties of the selected entity
+/// @brief 選択エンティティのプロパティ（Transform/Material/Gizmo等）を編集するパネル
 class PropertyPanel
 {
 public:
-    /// Draw the property panel (standalone window — without gizmo controls).
+    /// @brief プロパティパネルを独立ウィンドウとして描画する
+    /// @param scene シーングラフ（選択エンティティの取得に使用）
+    /// @param matManager マテリアルハンドルからマテリアルを参照
+    /// @param texManager テクスチャ管理（将来のテクスチャプレビュー用）
+    /// @param gizmoOp ギズモ操作モード（移動/回転/拡縮）の参照
+    /// @param gizmoMode 座標空間（ワールド/ローカル）の参照
+    /// @param useSnap スナップON/OFFの参照
+    /// @param snapT 移動スナップ値の参照
+    /// @param snapR 回転スナップ値の参照
+    /// @param snapS スケールスナップ値の参照
     void Draw(SceneGraph& scene, GX::MaterialManager& matManager, GX::TextureManager& texManager,
               ImGuizmo::OPERATION& gizmoOp, ImGuizmo::MODE& gizmoMode,
               bool& useSnap, float& snapT, float& snapR, float& snapS);
 
-    /// Draw only the content (no Begin/End), for embedding in a tabbed container.
+    /// @brief タブコンテナ内埋め込み用（Begin/Endなし）
     void DrawContent(SceneGraph& scene, GX::MaterialManager& matManager, GX::TextureManager& texManager,
                      ImGuizmo::OPERATION& gizmoOp, ImGuizmo::MODE& gizmoMode,
                      bool& useSnap, float& snapT, float& snapR, float& snapS);
 
 private:
-    /// Draw the transform editing section.
+    /// @brief Transform（Position/Rotation/Scale）の編集UI
     void DrawTransformSection(SceneEntity& entity);
 
-    /// Draw the material override section.
+    /// @brief マテリアルオーバーライド（エンティティ全体に適用する上書きマテリアル）の編集UI
     void DrawMaterialOverrideSection(SceneEntity& entity);
 
-    /// Draw the model's actual materials (direct editing).
+    /// @brief モデル本体のサブメッシュ別マテリアルを直接編集するUI
     void DrawModelMaterials(SceneEntity& entity, GX::MaterialManager& matManager);
 
-    /// Draw shader-model-specific parameters.
+    /// @brief シェーダーモデル固有パラメータの編集UI（Toon/Phong/Subsurface/ClearCoat等）
+    /// @param params 編集対象のパラメータ構造体
+    /// @param model 現在のシェーダーモデル種別
     void DrawShaderModelParams(gxfmt::ShaderModelParams& params, gxfmt::ShaderModel model);
 
-    // Name edit buffer
-    char m_nameBuffer[256] = {};
+    char m_nameBuffer[256] = {};  ///< エンティティ名編集バッファ
 };

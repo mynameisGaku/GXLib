@@ -7,8 +7,7 @@ namespace GX {
 
 bool Polygon2D::Contains(const Vector2& point) const
 {
-    // 巻き数アルゴリズム
-    // 初学者向け: 点の周りを辺が何回「回り込むか」で内外を判定します。
+    // 巻き数アルゴリズム: 点の周りを辺が何回回り込むかで内外を判定する
     int winding = 0;
     size_t n = vertices.size();
     for (size_t i = 0; i < n; ++i)
@@ -90,8 +89,7 @@ bool TestPointInPolygon(const Vector2& point, const Polygon2D& polygon)
 
 bool TestLinevsAABB(const Line2D& line, const AABB2D& aabb)
 {
-    // パラメトリック線分とAABBの交差判定（スラブ法）
-    // 初学者向け: 各軸ごとに交差区間[tmin,tmax]を絞っていきます。
+    // スラブ法: 各軸ごとに交差区間[tmin,tmax]を絞り込んでいく
     Vector2 d = line.end - line.start;
     float tmin = 0.0f, tmax = 1.0f;
 
@@ -225,7 +223,7 @@ HitResult2D IntersectAABBvsCircle(const AABB2D& aabb, const Circle& circle)
     }
     else
     {
-        // 円中心がAABB内部にある場合は、最小押し出し方向を求める
+        // 円の中心がAABB内部にめり込んでいる場合、最も浅い方向へ押し出す
         float dLeft   = circle.center.x - aabb.min.x;
         float dRight  = aabb.max.x - circle.center.x;
         float dBottom = circle.center.y - aabb.min.y;
@@ -307,7 +305,7 @@ bool SweepCirclevsCircle(const Circle& a, const Vector2& velA,
                           const Circle& b, const Vector2& velB,
                           float& outT)
 {
-    // 相対速度で考える（bを固定してaを動かす）
+    // bを固定してaの相対速度でレイキャストする（ミンコフスキー和）
     Vector2 relVel = velA - velB;
     Circle expanded(b.center, a.radius + b.radius);
 

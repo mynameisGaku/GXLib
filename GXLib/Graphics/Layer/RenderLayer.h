@@ -1,9 +1,10 @@
 #pragma once
 /// @file RenderLayer.h
-/// @brief 描画レイヤークラス
+/// @brief 描画レイヤー (個別の描画面)
 ///
-/// 各レイヤーは独自のLDR RenderTarget (RGBA8) を保持し、
-/// 合成時にZ-order順にバックバッファに描画される。
+/// DxLibのMakeScreen()に相当する機能。各レイヤーは独自のLDR RenderTarget (RGBA8) を保持し、
+/// Begin/Endで描画先を切り替えて独立した画面に描画できる。
+/// Z-order順でLayerCompositorが合成する。ブレンドモード・不透明度・マスク対応。
 
 #include "pch.h"
 #include "Graphics/Resource/RenderTarget.h"
@@ -11,31 +12,41 @@
 namespace GX
 {
 
-/// @brief レイヤーのブレンドモード
+/// @brief レイヤー合成時のブレンドモード
 enum class LayerBlendMode { Alpha, Add, Sub, Mul, Screen, None };
 
-/// @brief 描画レイヤー
+/// @brief 個別の描画面を管理する描画レイヤー
+///
+/// DxLibのMakeScreen()+SetDrawScreen()に相当する機能。
+/// LDR RenderTargetを保持し、Begin/Endの間に描画した内容がこのレイヤーに蓄積される。
 class RenderLayer
 {
 public:
     RenderLayer() = default;
     ~RenderLayer() = default;
 
-    /// レイヤーを作成
+    /// @brief レイヤーを作成する
+    /// @param device D3D12デバイス
+    /// @param name レイヤーの識別名
+    /// @param zOrder 合成順序 (小さいほど先=奥に描画)
+    /// @param width レイヤー幅
+    /// @param height レイヤー高さ
+    /// @return 成功でtrue
     bool Create(ID3D12Device* device, const std::string& name,
                 int32_t zOrder, uint32_t width, uint32_t height);
 
-    /// レイヤーへの描画開始（RT遷移 + OMSet + Viewport/Scissor）
+    /// @brief このレイヤーへの描画を開始する (RTをRTV状態に遷移、OMSetを発行)
+    /// @param cmdList コマンドリスト
     void Begin(ID3D12GraphicsCommandList* cmdList);
 
-    /// レイヤーへの描画終了（RT → SRV遷移）
+    /// @brief このレイヤーへの描画を終了する (RTをSRV状態に遷移)
     void End();
 
-    /// レイヤーをクリア（a=0で透明クリア）
+    /// @brief レイヤーをクリアする (a=0で完全透明)
     void Clear(ID3D12GraphicsCommandList* cmdList,
                float r = 0.0f, float g = 0.0f, float b = 0.0f, float a = 0.0f);
 
-    /// リサイズ
+    /// @brief 画面リサイズ時にRTを再生成する
     void OnResize(ID3D12Device* device, uint32_t w, uint32_t h);
 
     // --- プロパティ ---
@@ -51,7 +62,8 @@ public:
     bool IsPostFXEnabled() const { return m_postFXEnabled; }
     void SetPostFXEnabled(bool e) { m_postFXEnabled = e; }
 
-    // --- マスク ---
+    // --- マスク (DxLibのCreateMaskScreenに相当) ---
+    /// @brief マスクレイヤーを設定する。マスクの白部分のみが表示される
     void SetMask(RenderLayer* mask) { m_mask = mask; }
     RenderLayer* GetMask() const { return m_mask; }
     bool HasMask() const { return m_mask != nullptr; }

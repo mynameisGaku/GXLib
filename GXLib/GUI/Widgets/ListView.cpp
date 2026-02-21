@@ -104,6 +104,7 @@ void ListView::RenderSelf(UIRenderer& renderer)
 
     renderer.PushScissor(globalRect);
 
+    // 画面内に見えるアイテムだけを描画する（仮想スクロール）
     float viewH = globalRect.height;
     int firstVisible = static_cast<int>(scrollOffsetY / k_ItemHeight);
     int lastVisible = static_cast<int>((scrollOffsetY + viewH) / k_ItemHeight);

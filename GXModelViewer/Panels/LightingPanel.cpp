@@ -1,5 +1,8 @@
 /// @file LightingPanel.cpp
-/// @brief Lighting panel implementation
+/// @brief ライティングパネル実装
+///
+/// ライト種別(Directional/Point/Spot)ごとに適切なパラメータ（方向/位置/範囲/
+/// スポット角度等）を表示・編集する。変更があれば自動でRenderer3Dに反映。
 
 #include "LightingPanel.h"
 #include <imgui.h>

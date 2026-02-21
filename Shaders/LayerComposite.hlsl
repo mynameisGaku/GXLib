@@ -8,8 +8,8 @@
 
 cbuffer CompositeConstants : register(b0)
 {
-    float gOpacity;
-    float gHasMask; // PSO分岐のためシェーダー内では未使用（CBレイアウト維持用）
+    float gOpacity;   // レイヤーの透明度
+    float gHasMask;   // マスク有無フラグ (PSO分岐用、シェーダー内では未使用)
     float2 gPadding;
 };
 
@@ -17,7 +17,7 @@ Texture2D tLayer : register(t0);
 Texture2D tMask  : register(t1);
 SamplerState sLinear : register(s0);
 
-// マスクなし合成
+/// @brief マスクなしレイヤー合成 — アルファにOpacityを乗算して出力
 float4 PSComposite(FullscreenVSOutput input) : SV_Target
 {
     float4 color = tLayer.Sample(sLinear, input.uv);
@@ -25,7 +25,7 @@ float4 PSComposite(FullscreenVSOutput input) : SV_Target
     return color;
 }
 
-// マスクあり合成
+/// @brief マスクあり合成 — Opacity * マスク値でアルファを制御
 float4 PSCompositeMasked(FullscreenVSOutput input) : SV_Target
 {
     float4 color = tLayer.Sample(sLinear, input.uv);

@@ -1,7 +1,7 @@
 /// @file Texture.cpp
-/// @brief テクスチャリソース管理の実装
+/// @brief GPUテクスチャリソースの読み込みと管理の実装
 
-// stb_image の実装をここで定義
+// stb_imageの実装はプロジェクト全体で1箇所だけ定義する
 #define STB_IMAGE_IMPLEMENTATION
 #include "ThirdParty/stb_image.h"
 
@@ -18,12 +18,12 @@ bool Texture::LoadFromFile(ID3D12Device* device,
                            DescriptorHeap* srvHeap,
                            uint32_t srvIndex)
 {
-    // wstring → string 変換（stb_imageはchar*パスのみ対応）
+    // stb_imageはchar*パスのみ対応なのでwstring→UTF-8変換
     int pathLen = WideCharToMultiByte(CP_UTF8, 0, filePath.c_str(), -1, nullptr, 0, nullptr, nullptr);
     std::string pathUtf8(pathLen - 1, '\0');
     WideCharToMultiByte(CP_UTF8, 0, filePath.c_str(), -1, pathUtf8.data(), pathLen, nullptr, nullptr);
 
-    // stb_imageで画像を読み込み（4チャンネルRGBA強制）
+    // 4チャンネルRGBAを強制して読み込み
     int width, height, channels;
     unsigned char* pixels = stbi_load(pathUtf8.c_str(), &width, &height, &channels, 4);
     if (!pixels)
@@ -68,7 +68,7 @@ bool Texture::UploadToGPU(ID3D12Device* device,
     m_format = DXGI_FORMAT_R8G8B8A8_UNORM;
     m_srvIndex = srvIndex;
 
-    // DEFAULTヒープにテクスチャリソースを作成
+    // DEFAULTヒープにテクスチャリソースを作成（GPU専用、シェーダーから読める）
     D3D12_RESOURCE_DESC texDesc = {};
     texDesc.Dimension        = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
     texDesc.Width            = width;
@@ -98,13 +98,13 @@ bool Texture::UploadToGPU(ID3D12Device* device,
         return false;
     }
 
-    // UPLOADヒープにステージングバッファを作成
-    // テクスチャのアップロード行ピッチは256バイトアライメントが必要
+    // D3D12のテクスチャアップロードは行ピッチ256Bアライメントが必須
     const uint32_t bytesPerPixel = 4;
     const uint32_t rowPitch = (width * bytesPerPixel + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1)
                               & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1);
     const uint64_t uploadSize = static_cast<uint64_t>(rowPitch) * height;
 
+    // UPLOADヒープにステージングバッファを作成（CPUからGPUへの中継）
     D3D12_HEAP_PROPERTIES uploadHeap = {};
     uploadHeap.Type = D3D12_HEAP_TYPE_UPLOAD;
 
@@ -133,7 +133,8 @@ bool Texture::UploadToGPU(ID3D12Device* device,
         return false;
     }
 
-    // ステージングバッファにピクセルデータを書き込み
+    // ステージングバッファにピクセルデータを書き込む
+    // 行ごとにコピーが必要（ソースとアライメント後のピッチが異なるため）
     void* mapped = nullptr;
     D3D12_RANGE readRange = { 0, 0 };
     hr = uploadBuffer->Map(0, &readRange, &mapped);
@@ -151,7 +152,7 @@ bool Texture::UploadToGPU(ID3D12Device* device,
     }
     uploadBuffer->Unmap(0, nullptr);
 
-    // コマンドアロケータとコマンドリストを作成してコピーコマンドを記録
+    // テクスチャコピー専用のコマンドリストを作成して実行する
     ComPtr<ID3D12CommandAllocator> cmdAlloc;
     hr = device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&cmdAlloc));
     if (FAILED(hr))
@@ -168,7 +169,7 @@ bool Texture::UploadToGPU(ID3D12Device* device,
         return false;
     }
 
-    // CopyTextureRegionでUPLOAD→DEFAULTにコピー
+    // CopyTextureRegionでUPLOAD→DEFAULTヒープにコピー
     D3D12_TEXTURE_COPY_LOCATION dst = {};
     dst.pResource        = m_resource.Get();
     dst.Type             = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
@@ -186,7 +187,7 @@ bool Texture::UploadToGPU(ID3D12Device* device,
 
     cmdList->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
 
-    // リソースバリア: COPY_DEST → PIXEL_SHADER_RESOURCE
+    // コピー完了後、シェーダーから読めるステートに遷移
     D3D12_RESOURCE_BARRIER barrier = {};
     barrier.Type                   = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
     barrier.Transition.pResource   = m_resource.Get();
@@ -197,11 +198,12 @@ bool Texture::UploadToGPU(ID3D12Device* device,
 
     cmdList->Close();
 
-    // コマンド実行
+    // コマンド実行してフェンスで完了を待つ
+    // （アップロード用の一時リソースはこの関数のスコープで破棄されるため、
+    //   GPUのコピーが完了するまでここでブロックする必要がある）
     ID3D12CommandList* lists[] = { cmdList.Get() };
     cmdQueue->ExecuteCommandLists(1, lists);
 
-    // フェンスで完了待ち
     ComPtr<ID3D12Fence> fence;
     hr = device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
     if (FAILED(hr))
@@ -221,7 +223,7 @@ bool Texture::UploadToGPU(ID3D12Device* device,
     WaitForSingleObject(event, INFINITE);
     CloseHandle(event);
 
-    // SRV（Shader Resource View）を作成
+    // SRV（Shader Resource View）を作成 — これによりシェーダーからテクスチャを参照可能になる
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.Format                        = m_format;
     srvDesc.ViewDimension                 = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -240,6 +242,7 @@ bool Texture::UpdatePixels(ID3D12Device* device,
                             const void* pixels,
                             uint32_t width, uint32_t height)
 {
+    // サイズ不一致ではリソースの再作成が必要になるため非対応
     if (!m_resource || width != m_width || height != m_height)
     {
         GX_LOG_ERROR("UpdatePixels: resource null or size mismatch (%ux%u vs %ux%u)",
@@ -252,7 +255,6 @@ bool Texture::UpdatePixels(ID3D12Device* device,
                               & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1);
     const uint64_t uploadSize = static_cast<uint64_t>(rowPitch) * height;
 
-    // UPLOADヒープにステージングバッファを作成
     D3D12_HEAP_PROPERTIES uploadHeap = {};
     uploadHeap.Type = D3D12_HEAP_TYPE_UPLOAD;
 
@@ -276,7 +278,6 @@ bool Texture::UpdatePixels(ID3D12Device* device,
         return false;
     }
 
-    // ステージングバッファにピクセルデータを書き込み
     void* mapped = nullptr;
     D3D12_RANGE readRange = { 0, 0 };
     hr = uploadBuffer->Map(0, &readRange, &mapped);
@@ -294,7 +295,6 @@ bool Texture::UpdatePixels(ID3D12Device* device,
     }
     uploadBuffer->Unmap(0, nullptr);
 
-    // コマンドアロケータとコマンドリストを作成
     ComPtr<ID3D12CommandAllocator> cmdAlloc;
     hr = device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&cmdAlloc));
     if (FAILED(hr))
@@ -311,7 +311,7 @@ bool Texture::UpdatePixels(ID3D12Device* device,
         return false;
     }
 
-    // PIXEL_SHADER_RESOURCE → COPY_DEST
+    // 既存テクスチャを更新するため、ステートを一時的にCOPY_DESTに変更
     D3D12_RESOURCE_BARRIER barrier = {};
     barrier.Type                   = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
     barrier.Transition.pResource   = m_resource.Get();
@@ -320,7 +320,6 @@ bool Texture::UpdatePixels(ID3D12Device* device,
     barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
     cmdList->ResourceBarrier(1, &barrier);
 
-    // CopyTextureRegionでUPLOAD→DEFAULTにコピー
     D3D12_TEXTURE_COPY_LOCATION dst = {};
     dst.pResource        = m_resource.Get();
     dst.Type             = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
@@ -338,18 +337,16 @@ bool Texture::UpdatePixels(ID3D12Device* device,
 
     cmdList->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
 
-    // COPY_DEST → PIXEL_SHADER_RESOURCE
+    // コピー後、シェーダーから読めるステートに戻す
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
     barrier.Transition.StateAfter  = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
     cmdList->ResourceBarrier(1, &barrier);
 
     cmdList->Close();
 
-    // コマンド実行
     ID3D12CommandList* lists[] = { cmdList.Get() };
     cmdQueue->ExecuteCommandLists(1, lists);
 
-    // フェンスで完了待ち
     ComPtr<ID3D12Fence> fence;
     hr = device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
     if (FAILED(hr))

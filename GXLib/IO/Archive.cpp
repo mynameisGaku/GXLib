@@ -62,8 +62,7 @@ bool Archive::Open(const std::string& filePath, const std::string& password)
         m_key = Crypto::SHA256(password.c_str(), password.size());
     }
 
-    // 初心者向け: TOC(目次)には各ファイルのパス・位置・サイズが入っている
-    // TOCデータを読む
+    // TOCデータを読む（各ファイルのパス・オフセット・サイズが格納されている）
     std::vector<uint8_t> tocData(tocSize);
     file.read(reinterpret_cast<char*>(tocData.data()), tocSize);
 

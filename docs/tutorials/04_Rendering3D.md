@@ -9,8 +9,10 @@ PBR (Physically Based Rendering, 物理ベースレンダリング)、カメラ�
 - ライティング（太陽光、点光源、スポットライト）
 - PBR マテリアル（金属度・粗さによるリアルな質感表現）
 - プリミティブメッシュの生成と描画
-- glTF モデルの読み込みとスケルタルアニメーション
+- glTF / GXMD モデルの読み込みとスケルタルアニメーション
+- シェーダーモデル（PBR, Toon, Phong 等）の切り替え
 - ポストエフェクト（画面全体の映像加工）
+- DXR レイトレーシング反射 / RTGI
 
 ## 前提知識
 
@@ -172,14 +174,14 @@ renderer.DrawMesh(
 renderer.EndScene();                // シーン描画の終了
 ```
 
-### glTF モデル
+### glTF / GXMD モデル
 
 ```cpp
 #include "Graphics/3D/Model.h"
 
 // glTF モデルの読み込み
 auto model = GX::ModelLoader::LoadFromFile(
-    "Assets/models/character.gltf", // モデルファイルパス
+    "Assets/models/character.gltf", // モデルファイルパス (glTF または GXMD)
     device,                         // GraphicsDevice (GPU デバイス)
     texManager                      // TextureManager (テクスチャ管理)
 );
@@ -273,7 +275,7 @@ skybox.Draw(cmdList, camera);
 
 ### モデルが表示されない
 
-- glTF 形式 (.gltf / .glb) か確認（.fbx, .obj, .x, .mv1 は LoadModel では非対応）
+- glTF 形式 (.gltf / .glb) または GXMD 形式 (.gxmd) か確認（.fbx, .obj, .x, .mv1 は LoadModel では非対応。gxconv で変換可能）
 - ファイルパスが正しいか確認
 - カメラの位置がモデルと同じ場所になっていないか確認（離れた位置から見る必要がある）
 - ニアクリップ / ファークリップの範囲にモデルが入っているか確認
@@ -289,6 +291,80 @@ skybox.Draw(cmdList, camera);
 - `postFX.Begin()` と `postFX.Resolve()` で 3D 描画を挟んでいるか確認
 - `Resolve()` に `depthBuffer` と `camera` を渡しているか確認（SSAO, DoF に必要）
 - HDR レンダリングが有効か確認
+
+## シェーダーモデル
+
+GXLib は PBR 以外にも複数のシェーダーモデル（描画方式）をサポートしています。
+Material の `shaderModel` を変更するだけで、PSO（描画設定）が自動的に切り替わります。
+
+```cpp
+// マテリアルのシェーダーモデルを指定
+material.shaderModel = GX::ShaderModel::PBR;         // 物理ベースレンダリング（デフォルト）
+material.shaderModel = GX::ShaderModel::Toon;        // トゥーンシェーディング（UTS2 ベース）
+material.shaderModel = GX::ShaderModel::Phong;       // Phong シェーディング
+material.shaderModel = GX::ShaderModel::Unlit;       // ライティングなし（UI 用等）
+material.shaderModel = GX::ShaderModel::Subsurface;  // サブサーフェス散乱（肌、蝋等）
+material.shaderModel = GX::ShaderModel::ClearCoat;   // クリアコート（車の塗装等）
+```
+
+> **ShaderRegistry について**
+>
+> ShaderRegistry は 6 種類のシェーダーモデル x static/skinned = 14 PSO を一括管理します。
+> Material の shaderModel フィールドに応じて適切な PSO が自動選択されるため、
+> ユーザーが PSO を手動で切り替える必要はありません。
+> Toon シェーダーはアウトライン描画用の追加パスを自動で実行します。
+
+### Toon シェーダー（UTS2 ベース）
+
+Toon シェーダーは UTS2 (Unity Toon Shader 2.0) をベースにした、アニメ調の描画方式です。
+ダブルシェード（3ゾーン遷移: ベース色 → 1st シェード → 2nd シェード）、リムライト、
+ハイカラー、スムース法線ベースのアウトラインを備えています。
+
+```cpp
+material.shaderModel = GX::ShaderModel::Toon;
+
+// Toon 固有パラメータは ShaderModelParams 経由で設定
+auto& params = material.shaderParams;
+params.shadeColor()     = {0.6f, 0.3f, 0.3f};   // 1st シェード色
+params.shade2ndColor()  = {0.3f, 0.15f, 0.15f};  // 2nd シェード色
+params.outlineWidth()   = 0.002f;                 // アウトライン幅
+params.outlineColor()   = {0.1f, 0.05f, 0.05f};  // アウトライン色
+```
+
+## アセットパイプライン
+
+GXLib には独自のバイナリモデル形式 (.gxmd / .gxan) と変換ツールがあります。
+
+```bash
+# FBX → GXMD/GXAN 変換
+gxconv input.fbx -o output.gxmd
+
+# 複数アセットを GXPAK にバンドル
+gxpak pack bundle.gxpak Assets/
+
+# GXPAK の内容一覧
+gxpak list bundle.gxpak
+```
+
+ランタイムでは gxloader を使って高速に読み込み、PakFileProvider で VFS に統合できます。
+
+## DXR レイトレーシング
+
+DXR 対応 GPU では、ハードウェアレイトレーシングによる高品質な反射と
+グローバルイルミネーションを利用できます。
+
+- **RTReflections** — DXR レイトレーシング反射（Y キーでトグル、SSR と排他）
+- **RTGI** — グローバルイルミネーション（G キーでトグル、半解像度 + テンポラル蓄積 + A-Trous フィルタ）
+
+> **注意**: DXR は ID3D12Device5 対応 GPU が必要です。非対応 GPU では SSR にフォールバックしてください。
+
+## アニメーションブレンド
+
+Animator に加え、高度なアニメーション制御が利用できます。
+
+- **BlendStack** — 最大 8 レイヤーの Override/Additive ブレンド
+- **BlendTree** — 1D/2D パラメータによるアニメーション自動合成
+- **AnimatorStateMachine** — トリガーと遷移条件によるステートマシン
 
 ## 次のステップ
 

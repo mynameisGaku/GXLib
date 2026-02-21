@@ -10,7 +10,9 @@ namespace GX {
 class TCPSocket
 {
 public:
+    /// @brief Winsockの初期化を行う
     TCPSocket();
+    /// @brief ソケットを閉じる
     ~TCPSocket();
 
     /// @brief サーバーに接続する

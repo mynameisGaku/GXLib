@@ -160,7 +160,7 @@ void MaskScreen::DrawCircle(ID3D12GraphicsCommandList* cmdList, uint32_t frameIn
 {
     SetupPipeline(cmdList, frameIndex, value);
 
-    // 円 = 三角形ファン (N角形)
+    // 円 = 中心頂点から放射状に三角形を並べるファン方式 (64セグメント)
     static constexpr int k_Segments = 64;
     struct Vertex { float x, y; };
     Vertex verts[k_Segments * 3];

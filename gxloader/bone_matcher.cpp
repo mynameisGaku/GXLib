@@ -1,5 +1,5 @@
 /// @file bone_matcher.cpp
-/// @brief Bone name matching implementation
+/// @brief ボーン名マッチングの実装
 
 #include "bone_matcher.h"
 #include <algorithm>
@@ -16,9 +16,9 @@ static std::string ToLower(const std::string& s)
     return result;
 }
 
+/// Mixamo/Blender等の共通プレフィックスを除去する
 static std::string StripPrefix(const std::string& name)
 {
-    // Strip common prefixes: "mixamorig:", "armature|", "Armature_"
     const char* prefixes[] = {
         "mixamorig:", "armature|", "armature_", "armature:", "root|"
     };
@@ -33,9 +33,9 @@ static std::string StripPrefix(const std::string& name)
     return name;
 }
 
+/// Blenderの重複名サフィックス (".001", ".002"等) を除去する
 static std::string StripNumericSuffix(const std::string& name)
 {
-    // Strip ".001", ".002", etc.
     if (name.size() >= 4 && name[name.size() - 4] == '.')
     {
         bool allDigits = true;
@@ -60,14 +60,14 @@ std::string NormalizeBoneName(const std::string& name)
 int MatchBoneName(const std::string& animBoneName,
                   const std::vector<std::string>& skeletonBoneNames)
 {
-    // Level 1: Exact match
+    // レベル1: 完全一致
     for (size_t i = 0; i < skeletonBoneNames.size(); ++i)
     {
         if (animBoneName == skeletonBoneNames[i])
             return static_cast<int>(i);
     }
 
-    // Level 2: Case-insensitive
+    // レベル2: 大文字小文字無視
     std::string animLower = ToLower(animBoneName);
     for (size_t i = 0; i < skeletonBoneNames.size(); ++i)
     {
@@ -75,7 +75,7 @@ int MatchBoneName(const std::string& animBoneName,
             return static_cast<int>(i);
     }
 
-    // Level 3: Strip prefixes + case-insensitive
+    // レベル3: プレフィックス除去 + 大文字小文字無視
     std::string animStripped = ToLower(StripPrefix(animBoneName));
     for (size_t i = 0; i < skeletonBoneNames.size(); ++i)
     {
@@ -84,7 +84,7 @@ int MatchBoneName(const std::string& animBoneName,
             return static_cast<int>(i);
     }
 
-    // Level 4: Strip numeric suffixes + step 3
+    // レベル4: 数値サフィックス除去 + レベル3
     std::string animNorm = NormalizeBoneName(animBoneName);
     for (size_t i = 0; i < skeletonBoneNames.size(); ++i)
     {

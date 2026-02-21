@@ -1,5 +1,9 @@
 /// @file AssetBrowserPanel.cpp
-/// @brief Project folder browser panel implementation
+/// @brief アセットブラウザパネル実装
+///
+/// std::filesystemでディレクトリを列挙し、フォルダ→アルファベット順でソート表示。
+/// [D]=ディレクトリ, [M]=モデル, [A]=アニメーションのアイコンプレフィクス付き。
+/// ファイルをSelectableでダブルクリックするとインポート、DragDropSourceでD&D対応。
 
 #include "AssetBrowserPanel.h"
 #include "GXModelViewerApp.h"

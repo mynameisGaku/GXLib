@@ -1,5 +1,9 @@
 ﻿/// @file Samples/Platformer2D/main.cpp
 /// @brief 2Dプラットフォーマー。ジャンプでコインを集めるサンプル。
+///
+/// GXEasyの2D描画APIだけで横スクロールアクションを実装する例。
+/// DxLibのDrawBox/DrawCircle/DrawString/CheckHitKeyで
+/// 重力・ジャンプ・接地判定・カメラ追従を自前実装している。
 #include "GXEasy.h"
 
 #include <format>
@@ -13,6 +17,7 @@ using TChar = char;
 
 using TString = std::basic_string<TChar>;
 
+/// @brief UNICODE/ANSI両対応のフォーマット関数
 template <class... Args>
 TString FormatT(const TChar* fmt, Args&&... args)
 {
@@ -23,9 +28,15 @@ TString FormatT(const TChar* fmt, Args&&... args)
 #endif
 }
 
+/// @brief 2Dプラットフォーマーのメインクラス
+///
+/// 簡易的な物理（重力+接地判定）と横スクロールカメラを
+/// 自前で実装している。GXLibのPhysicsWorld2Dを使えば
+/// もっと本格的な2D物理が使えるが、ここでは仕組みの理解のため手動実装。
 class PlatformerApp : public GXEasy::App
 {
 public:
+    /// @brief ウィンドウ設定
     GXEasy::AppConfig GetConfig() const override
     {
         GXEasy::AppConfig config;
@@ -38,26 +49,30 @@ public:
         return config;
     }
 
+    /// @brief レベルデータの構築（ステージ配置）
     void Start() override
     {
         BuildLevel();
     }
 
+    /// @brief 毎フレームの更新（移動→重力→接地→ジャンプ→コイン→カメラ）
     void Update(float dt) override
     {
         if (dt > 0.1f) dt = 0.1f;
 
-        // 左右移動
+        // --- 左右移動 ---
         float move = 0.0f;
         if (CheckHitKey(KEY_INPUT_LEFT))  move -= k_PlayerSpeed;
         if (CheckHitKey(KEY_INPUT_RIGHT)) move += k_PlayerSpeed;
         m_playerX += move * dt;
 
-        // 重力
+        // --- 重力 ---
+        // 速度に重力加速度を加算し、位置を更新（オイラー法）
         m_playerVY += k_Gravity * dt;
         m_playerY += m_playerVY * dt;
 
-        // 床との当たり判定（接地）
+        // --- 床との当たり判定（接地） ---
+        // プレイヤーの足元（m_playerY）が床の上端に乗ったら接地
         m_onGround = false;
         for (int i = 0; i < m_platformCount; ++i)
         {
@@ -74,14 +89,16 @@ public:
             }
         }
 
-        // ジャンプ
+        // --- ジャンプ ---
+        // 接地中にスペースキーで上方向に速度を与える
         if (m_onGround && CheckHitKey(KEY_INPUT_SPACE))
         {
             m_playerVY = k_JumpVel;
             m_onGround = false;
         }
 
-        // コイン取得
+        // --- コイン取得判定 ---
+        // プレイヤー中心とコイン中心の距離で円形判定
         for (int i = 0; i < m_coinCount; ++i)
         {
             if (!m_coins[i].alive) continue;
@@ -94,17 +111,20 @@ public:
             }
         }
 
-        // カメラ追従（スクロール）
+        // --- カメラ追従 ---
+        // プレイヤーを画面中央に追従させる横スクロール。左端でクランプ。
         m_camX = m_playerX - k_ScreenW * 0.5f;
         if (m_camX < 0.0f) m_camX = 0.0f;
     }
 
+    /// @brief 描画（地形→コイン→プレイヤーの順、カメラオフセット適用）
     void Draw() override
     {
         DrawBox(0, 0, static_cast<int>(k_ScreenW), static_cast<int>(k_ScreenH),
                 GetColor(30, 40, 60), TRUE);
 
-        // 地形
+        // --- 地形描画 ---
+        // カメラオフセット(m_camX)を引いてスクロール表現
         for (int i = 0; i < m_platformCount; ++i)
         {
             const Platform& p = m_platforms[i];
@@ -127,7 +147,8 @@ public:
             DrawCircle(cx, cy, 10, coinEdge, FALSE);
         }
 
-        // プレイヤー描画
+        // --- プレイヤー描画 ---
+        // 体（青い矩形）+ 目（白い矩形2つ）で簡易キャラクター
         float px = m_playerX - m_camX;
         float py = m_playerY - m_camY;
         float hw = k_PlayerW * 0.5f;
@@ -154,23 +175,25 @@ public:
     }
 
 private:
+    // --- 構造体 ---
     struct Platform
     {
-        float x, y, w, h;
+        float x, y, w, h;       ///< ワールド座標での位置とサイズ
         unsigned int color;
     };
 
     struct Coin
     {
         float x, y;
-        bool alive = true;
+        bool alive = true;      ///< 取得済みならfalse
     };
 
+    // --- 定数 ---
     static constexpr float k_ScreenW = 1280.0f;
     static constexpr float k_ScreenH = 720.0f;
-    static constexpr float k_Gravity = 800.0f;
-    static constexpr float k_JumpVel = -450.0f;
-    static constexpr float k_PlayerSpeed = 300.0f;
+    static constexpr float k_Gravity = 800.0f;      ///< 重力加速度（px/s^2）
+    static constexpr float k_JumpVel = -450.0f;      ///< ジャンプ初速（上方向なので負）
+    static constexpr float k_PlayerSpeed = 300.0f;    ///< 横移動速度（px/s）
     static constexpr float k_PlayerW = 28.0f;
     static constexpr float k_PlayerH = 40.0f;
     static constexpr int k_MaxPlatforms = 16;
@@ -191,6 +214,7 @@ private:
     Coin m_coins[k_MaxCoins];
     int m_coinCount = 0;
 
+    /// @brief 足場をプールに追加する
     void AddPlatform(float x, float y, float w, float h, unsigned int color)
     {
         if (m_platformCount >= k_MaxPlatforms) return;
@@ -198,6 +222,7 @@ private:
         p.x = x; p.y = y; p.w = w; p.h = h; p.color = color;
     }
 
+    /// @brief コインをプールに追加する
     void AddCoin(float x, float y)
     {
         if (m_coinCount >= k_MaxCoins) return;
@@ -205,14 +230,17 @@ private:
         c.x = x; c.y = y; c.alive = true;
     }
 
+    /// @brief レベルデータの構築（地面+足場+コインの配置）
+    ///
+    /// 実際のゲームではファイルから読むが、ここでは手書きで配置している。
     void BuildLevel()
     {
         m_platformCount = 0;
         m_coinCount = 0;
         m_collected = 0;
 
-        unsigned int ground = GetColor(60, 90, 60);
-        unsigned int plat = GetColor(80, 80, 120);
+        unsigned int ground = GetColor(60, 90, 60);  // 地面の色
+        unsigned int plat = GetColor(80, 80, 120);    // 足場の色
 
         AddPlatform(-200.0f, 500.0f, 3000.0f, 40.0f, ground);
         AddPlatform(200.0f, 380.0f, 180.0f, 20.0f, plat);
@@ -244,6 +272,7 @@ private:
     }
 };
 
+// エントリーポイント: GX_EASY_APPマクロがWinMainを生成する
 GX_EASY_APP(PlatformerApp)
 
 

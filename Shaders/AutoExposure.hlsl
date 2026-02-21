@@ -14,7 +14,7 @@ cbuffer AutoExposureCB : register(b0)
 Texture2D<float4> gInput : register(t0);
 SamplerState gLinearSampler : register(s0);
 
-/// HDR → log(luminance)
+/// @brief 対数輝度変換 — HDRシーンのピクセル輝度をlog空間に変換して出力
 float PSLogLuminance(FullscreenVSOutput input) : SV_Target
 {
     float4 color = gInput.Sample(gLinearSampler, input.uv);
@@ -26,9 +26,8 @@ float PSLogLuminance(FullscreenVSOutput input) : SV_Target
     return log(max(luminance, 0.0001));
 }
 
-/// バイリニアダウンサンプル (4テクセル平均)
-/// 入力RTの中心を4テクセル分サンプリングするだけで
-/// バイリニアフィルタが自動的に4テクセル平均を返す
+/// @brief バイリニアダウンサンプル — バイリニアフィルタで4テクセル平均を取得
+/// RTサイズを段階的に縮小して最終的に1x1にし、シーン平均輝度を求める。
 float PSDownsample(FullscreenVSOutput input) : SV_Target
 {
     return gInput.Sample(gLinearSampler, input.uv).r;

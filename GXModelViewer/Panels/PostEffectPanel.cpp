@@ -1,5 +1,8 @@
 /// @file PostEffectPanel.cpp
-/// @brief ImGui panel for controlling GXLib PostEffectPipeline parameters
+/// @brief ポストエフェクトパネル実装
+///
+/// 各エフェクトをCollapsingHeaderで分類し、ON/OFFチェックボックスと
+/// パラメータスライダーを提供する。変更は即座にPipelineオブジェクトに反映される。
 
 #include "PostEffectPanel.h"
 #include <imgui.h>

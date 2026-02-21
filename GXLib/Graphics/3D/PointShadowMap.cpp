@@ -9,8 +9,7 @@ namespace GX
 
 bool PointShadowMap::Create(ID3D12Device* device, DescriptorHeap* srvHeap, uint32_t srvIndex)
 {
-    // Texture2DArray（6スライス）でキューブシャドウを表現
-    // 初学者向け: キューブマップは6面のテクスチャ配列として扱います。
+    // Texture2DArray（6スライス）でキューブシャドウを表現（CubeMapではなくArrayを使う）
     D3D12_RESOURCE_DESC desc = {};
     desc.Dimension          = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
     desc.Width              = k_Size;

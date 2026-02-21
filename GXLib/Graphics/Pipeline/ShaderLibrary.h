@@ -1,11 +1,12 @@
 #pragma once
 /// @file ShaderLibrary.h
-/// @brief シェーダーライブラリ — コンパイル結果キャッシュ + バリアント管理 + PSO再構築登録
+/// @brief コンパイル済みシェーダーの一元管理とPSO再構築コールバック
 ///
-/// 全シェーダーの一元管理を行います。
-/// - コンパイル結果のキャッシュ（同じシェーダーの再コンパイル防止）
-/// - #define ベースのバリアント管理
-/// - ホットリロード時のPSO再構築コールバック登録
+/// DxLibでは内蔵シェーダーが自動管理されるが、DX12では自前でキャッシュする。
+/// このクラスはシングルトンで以下を担当する:
+/// - コンパイル済みシェーダーのキャッシュ（同じ組み合わせの再コンパイル防止）
+/// - #defineバリアントの管理（SKINNED有無等、同一HLSLから異なるPSO用にコンパイル）
+/// - ホットリロード連携: ファイル変更時にキャッシュを無効化し、登録済みPSO再構築を実行
 
 #include "pch.h"
 #include "Graphics/Pipeline/Shader.h"
@@ -13,19 +14,19 @@
 namespace GX
 {
 
-/// @brief PSO再構築コールバックID
+/// @brief PSO再構築コールバックを識別するID。UnregisterPSORebuilderで解除に使う
 using PSOCallbackID = uint32_t;
 
-/// @brief PSO再構築コールバック型（成功でtrue、失敗でfalse）
+/// @brief PSO再構築コールバックの型。デバイスを受け取り、成功でtrue/失敗でfalseを返す
 using PSORebuilder = std::function<bool(ID3D12Device*)>;
 
-/// @brief シェーダーキー（ファイル+エントリ+ターゲット+定義）
+/// @brief キャッシュ検索用のシェーダー識別キー（ファイル+エントリポイント+ターゲット+マクロ定義）
 struct ShaderKey
 {
-    std::wstring filePath;
-    std::wstring entryPoint;
-    std::wstring target;
-    std::vector<std::pair<std::wstring, std::wstring>> defines;
+    std::wstring filePath;      ///< HLSLファイルパス
+    std::wstring entryPoint;    ///< エントリポイント関数名
+    std::wstring target;        ///< ターゲットプロファイル（vs_6_0等）
+    std::vector<std::pair<std::wstring, std::wstring>> defines;  ///< #defineマクロ定義
 
     bool operator==(const ShaderKey& other) const
     {
@@ -36,9 +37,12 @@ struct ShaderKey
     }
 };
 
-/// @brief ShaderKeyのハッシュ関数
+/// @brief ShaderKeyをunordered_mapで使うためのハッシュ関数オブジェクト
 struct ShaderKeyHasher
 {
+    /// @brief ShaderKeyのハッシュ値を計算する（boost::hash_combine方式）
+    /// @param key ハッシュ対象のキー
+    /// @return ハッシュ値
     size_t operator()(const ShaderKey& key) const
     {
         size_t h = std::hash<std::wstring>{}(key.filePath);
@@ -53,42 +57,66 @@ struct ShaderKeyHasher
     }
 };
 
-/// @brief シェーダーライブラリ（シングルトン）
+/// @brief コンパイル済みシェーダーのキャッシュとPSO再構築コールバックを管理するシングルトン
 class ShaderLibrary
 {
 public:
+    /// @brief シングルトンインスタンスを取得する
+    /// @return ShaderLibraryの唯一のインスタンス
     static ShaderLibrary& Instance();
 
-    /// 初期化
+    /// @brief DXCコンパイラを初期化し、デバイスを記憶する
+    /// @param device D3D12デバイス（PSO再構築時に使用）
+    /// @return 初期化成功ならtrue
     bool Initialize(ID3D12Device* device);
 
-    /// シェーダー取得（キャッシュヒットまたはコンパイル）
+    /// @brief シェーダーを取得する（キャッシュにあればそれを返し、なければコンパイルする）
+    /// @param filePath HLSLファイルパス
+    /// @param entryPoint エントリポイント関数名
+    /// @param target ターゲットプロファイル
+    /// @return コンパイル済みシェーダー
     ShaderBlob GetShader(const std::wstring& filePath,
                          const std::wstring& entryPoint,
                          const std::wstring& target);
 
-    /// シェーダーバリアント取得（#define付き）
+    /// @brief #define付きシェーダーバリアントを取得する
+    /// @param filePath HLSLファイルパス
+    /// @param entryPoint エントリポイント関数名
+    /// @param target ターゲットプロファイル
+    /// @param defines マクロ定義のペア
+    /// @return コンパイル済みシェーダー
     ShaderBlob GetShaderVariant(const std::wstring& filePath,
                                 const std::wstring& entryPoint,
                                 const std::wstring& target,
                                 const std::vector<std::pair<std::wstring, std::wstring>>& defines);
 
-    /// PSO再構築コールバック登録（戻り値のIDで解除可能）
+    /// @brief シェーダーファイルに対するPSO再構築コールバックを登録する
+    /// @param shaderPath 監視対象のHLSLファイルパス
+    /// @param callback ファイル変更時に呼ばれる再構築関数
+    /// @return 登録ID（解除時に使用）
     PSOCallbackID RegisterPSORebuilder(const std::wstring& shaderPath, PSORebuilder callback);
 
-    /// PSO再構築コールバック解除
+    /// @brief 登録済みのPSO再構築コールバックを解除する
+    /// @param id RegisterPSORebuilderの戻り値
     void UnregisterPSORebuilder(PSOCallbackID id);
 
-    /// 指定ファイルのキャッシュを無効化し、登録済みPSORebuilderを呼び出す
-    /// @return 全PSO再構築が成功したかどうか
+    /// @brief 指定ファイルのキャッシュを無効化し、登録済みPSO再構築コールバックを実行する
+    /// @param filePath 変更されたHLSLファイルパス
+    /// @return 全PSO再構築が成功すればtrue
     bool InvalidateFile(const std::wstring& filePath);
 
-    /// エラー状態
+    /// @brief コンパイルエラーが発生しているかどうか
+    /// @return エラーがあればtrue
     bool HasError() const { return !m_lastError.empty(); }
+
+    /// @brief 直前のエラーメッセージを取得する
+    /// @return エラー文字列
     const std::string& GetLastError() const { return m_lastError; }
+
+    /// @brief エラー状態をクリアする
     void ClearError() { m_lastError.clear(); }
 
-    /// 終了処理
+    /// @brief キャッシュとコールバックを全て解放する
     void Shutdown();
 
 private:
@@ -97,24 +125,26 @@ private:
     ShaderLibrary(const ShaderLibrary&) = delete;
     ShaderLibrary& operator=(const ShaderLibrary&) = delete;
 
-    /// PSO再構築登録エントリ
+    /// PSO再構築コールバックの登録情報
     struct RebuilderEntry
     {
-        PSOCallbackID id;
-        std::wstring  shaderPath;
-        PSORebuilder  callback;
+        PSOCallbackID id;           ///< 登録ID
+        std::wstring  shaderPath;   ///< 正規化済みファイルパス
+        PSORebuilder  callback;     ///< 再構築関数
     };
 
-    /// ファイルパスの正規化（バックスラッシュ→スラッシュ、小文字化）
+    /// @brief ファイルパスを正規化する（バックスラッシュ→スラッシュ、小文字化）
+    /// @param path 元のパス
+    /// @return 正規化済みパス
     static std::wstring NormalizePath(const std::wstring& path);
 
-    Shader m_compiler;
-    ID3D12Device* m_device = nullptr;
-    std::unordered_map<ShaderKey, ShaderBlob, ShaderKeyHasher> m_cache;
-    std::vector<RebuilderEntry> m_rebuilders;
-    PSOCallbackID m_nextCallbackID = 1;
-    std::string m_lastError;
-    std::mutex m_mutex;
+    Shader m_compiler;                  ///< DXCコンパイラ
+    ID3D12Device* m_device = nullptr;   ///< PSO再構築用のデバイス
+    std::unordered_map<ShaderKey, ShaderBlob, ShaderKeyHasher> m_cache;  ///< コンパイル結果キャッシュ
+    std::vector<RebuilderEntry> m_rebuilders;   ///< PSO再構築コールバック一覧
+    PSOCallbackID m_nextCallbackID = 1;         ///< 次に発行するコールバックID
+    std::string m_lastError;                    ///< 直前のエラーメッセージ
+    std::mutex m_mutex;                         ///< マルチスレッドアクセス保護
 };
 
 } // namespace GX

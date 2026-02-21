@@ -7,7 +7,9 @@
 
 namespace GX { namespace GUI {
 
-/// @brief スクロール可能なコンテナ（MouseWheel でスクロール）
+/// @brief スクロール可能なコンテナウィジェット
+/// 子ウィジェットがはみ出す場合にマウスホイールでスクロールできる。
+/// スクロールバーも自動表示される。
 class ScrollView : public Widget
 {
 public:
@@ -19,6 +21,8 @@ public:
     float GetIntrinsicWidth() const override { return 200.0f; }
     float GetIntrinsicHeight() const override { return 150.0f; }
 
+    /// @brief マウスホイール1回転あたりのスクロール量を設定する
+    /// @param speed スクロール速度（ピクセル/ホイール）
     void SetScrollSpeed(float speed) { m_scrollSpeed = speed; }
 
     bool OnEvent(const UIEvent& event) override;

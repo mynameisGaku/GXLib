@@ -1,5 +1,10 @@
 /// @file main.cpp
-/// @brief gxpak CLI - GXPAK asset bundle tool
+/// @brief gxpak CLIツール — GXPAKアセットバンドルの作成・展開・一覧表示
+///
+/// 使い方:
+///   gxpak pack   -o output.gxpak -d input_dir/ [--compress]  ... パック
+///   gxpak unpack -i input.gxpak  -d output_dir/              ... 展開
+///   gxpak list   -i input.gxpak                              ... 一覧表示
 
 #include "gxpak.h"
 #include "lz4.h"
@@ -14,6 +19,7 @@
 
 namespace fs = std::filesystem;
 
+/// ヘルプメッセージを表示する
 static void PrintUsage()
 {
     printf("Usage:\n");
@@ -25,19 +31,21 @@ static void PrintUsage()
 }
 
 // ============================================================
-// TOC serialization helpers
+// TOCシリアライズヘルパー
 // ============================================================
 
+/// @brief パックツール内部で使うエントリ情報
 struct PakEntry
 {
-    std::string path;
-    gxfmt::GxpakAssetType assetType;
-    bool compressed;
-    uint64_t dataOffset;
-    uint32_t compressedSize;
-    uint32_t originalSize;
+    std::string path;                    ///< バンドル内の相対パス
+    gxfmt::GxpakAssetType assetType;     ///< アセット種別
+    bool compressed;                      ///< LZ4圧縮済みか
+    uint64_t dataOffset;                  ///< データのファイル内オフセット
+    uint32_t compressedSize;              ///< 圧縮後サイズ
+    uint32_t originalSize;                ///< 元サイズ
 };
 
+/// TOCエントリ1つをファイルに書き出す (可変長パス + 固定フィールド)
 static void WriteTocEntry(FILE* f, const PakEntry& entry)
 {
     uint32_t pathLen = static_cast<uint32_t>(entry.path.size());
@@ -53,6 +61,7 @@ static void WriteTocEntry(FILE* f, const PakEntry& entry)
     fwrite(&entry.originalSize, 4, 1, f);
 }
 
+/// ファイルからTOCエントリ1つを読み込む
 static PakEntry ReadTocEntry(FILE* f)
 {
     PakEntry entry;
@@ -75,12 +84,12 @@ static PakEntry ReadTocEntry(FILE* f)
 }
 
 // ============================================================
-// Pack command
+// packコマンド: ディレクトリ内のファイルをGXPAKにまとめる
 // ============================================================
 
 static int CmdPack(const std::string& outputPath, const std::string& inputDir, bool compress)
 {
-    std::vector<std::pair<std::string, fs::path>> files; // relative path, full path
+    std::vector<std::pair<std::string, fs::path>> files; // (バンドル内相対パス, ディスクパス)
 
     for (auto& entry : fs::recursive_directory_iterator(inputDir))
     {
@@ -101,7 +110,7 @@ static int CmdPack(const std::string& outputPath, const std::string& inputDir, b
     FILE* f = fopen(outputPath.c_str(), "wb");
     if (!f) { fprintf(stderr, "Error: Cannot open %s\n", outputPath.c_str()); return 1; }
 
-    // Write placeholder header
+    // 仮ヘッダ書き出し (tocOffset/tocSizeは後で上書き)
     gxfmt::GxpakHeader header{};
     header.magic = gxfmt::k_GxpakMagic;
     header.version = gxfmt::k_GxpakVersion;
@@ -109,7 +118,7 @@ static int CmdPack(const std::string& outputPath, const std::string& inputDir, b
     header.flags = compress ? 1 : 0;
     fwrite(&header, sizeof(header), 1, f);
 
-    // Write data entries
+    // データエントリを書き出し (LZ4圧縮で小さくなる場合のみ圧縮)
     std::vector<PakEntry> entries;
     uint64_t dataStart = sizeof(gxfmt::GxpakHeader);
 
@@ -165,13 +174,13 @@ static int CmdPack(const std::string& outputPath, const std::string& inputDir, b
         entries.push_back(entry);
     }
 
-    // Write TOC
+    // TOCをファイル末尾に書き出す
     uint64_t tocOffset = static_cast<uint64_t>(ftell(f));
     for (auto& e : entries)
         WriteTocEntry(f, e);
     uint64_t tocSize = static_cast<uint64_t>(ftell(f)) - tocOffset;
 
-    // Update header
+    // ヘッダを更新 (TOCオフセット/サイズを確定値で上書き)
     header.tocOffset = tocOffset;
     header.tocSize = tocSize;
     fseek(f, 0, SEEK_SET);
@@ -186,7 +195,7 @@ static int CmdPack(const std::string& outputPath, const std::string& inputDir, b
 }
 
 // ============================================================
-// List command
+// listコマンド: GXPAKの内容一覧を表示する
 // ============================================================
 
 static int CmdList(const std::string& inputPath)
@@ -235,7 +244,7 @@ static int CmdList(const std::string& inputPath)
 }
 
 // ============================================================
-// Unpack command
+// unpackコマンド: GXPAKの全エントリをディレクトリに展開する
 // ============================================================
 
 static int CmdUnpack(const std::string& inputPath, const std::string& outputDir)
@@ -304,7 +313,7 @@ static int CmdUnpack(const std::string& inputPath, const std::string& outputDir)
 }
 
 // ============================================================
-// Main
+// エントリポイント: サブコマンドを判定して実行
 // ============================================================
 
 int main(int argc, char* argv[])

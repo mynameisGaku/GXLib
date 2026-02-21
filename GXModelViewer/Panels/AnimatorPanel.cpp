@@ -1,5 +1,9 @@
 /// @file AnimatorPanel.cpp
-/// @brief State machine visualizer using imnodes
+/// @brief ステートマシン可視化パネル実装
+///
+/// ImNodesを使い、各AnimStateをノード、遷移(Transition)をリンクで表示する。
+/// ノードID=ステートインデックス、ピンID=index*1000+0/1、リンクID=遷移index+10000。
+/// 現在のステートは緑色でハイライトされる。
 
 #include "AnimatorPanel.h"
 #include <imgui.h>

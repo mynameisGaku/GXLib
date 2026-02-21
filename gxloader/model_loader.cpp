@@ -1,5 +1,5 @@
 /// @file model_loader.cpp
-/// @brief GXMD runtime loader implementation
+/// @brief GXMDランタイムローダーの実装
 
 #include "model_loader.h"
 #include <cstdio>
@@ -8,7 +8,7 @@
 namespace gxloader
 {
 
-// Helper: read string from string table
+/// 文字列テーブルからオフセット指定で文字列を読み取る
 static std::string ReadString(const uint8_t* stringData, uint32_t stringSize, uint32_t offset)
 {
     if (offset == gxfmt::k_InvalidStringIndex || offset >= stringSize)
@@ -69,11 +69,11 @@ std::unique_ptr<LoadedModel> LoadGxmdFromMemory(const uint8_t* data, size_t size
     const uint8_t* vertexBase = data + header->vertexDataOffset;
     const uint8_t* indexBase = data + header->indexDataOffset;
 
-    // Accumulate all meshes into single vertex/index arrays
+    // 全メッシュの頂点/インデックスを単一配列に結合
     uint32_t globalVertexOffset = 0;
     uint32_t globalIndexOffset = 0;
 
-    // First pass: count totals
+    // 1パス目: 総数カウント
     uint32_t totalVertices = 0;
     uint32_t totalIndices = 0;
     for (uint32_t i = 0; i < header->meshCount; ++i)
@@ -87,7 +87,7 @@ std::unique_ptr<LoadedModel> LoadGxmdFromMemory(const uint8_t* data, size_t size
     else
         model->standardVertices.resize(totalVertices);
 
-    // Check if ALL meshes use 16-bit indices; if any uses 32-bit, unify to 32-bit
+    // 全メッシュが16bitインデックスか確認。1つでも32bitがあれば全て32bitに統一
     bool allUse16 = true;
     for (uint32_t i = 0; i < header->meshCount; ++i)
     {
@@ -116,7 +116,7 @@ std::unique_ptr<LoadedModel> LoadGxmdFromMemory(const uint8_t* data, size_t size
             std::memcpy(&model->standardVertices[globalVertexOffset], vSrc,
                         mc.vertexCount * sizeof(gxfmt::VertexStandard));
 
-        // Copy indices — handle per-mesh index format
+        // インデックスのコピー: メッシュごとのフォーマット混在に対応
         const uint8_t* iSrc = indexBase + mc.indexOffset;
         bool meshUse16 = (mc.indexFormat == gxfmt::IndexFormat::UInt16);
 

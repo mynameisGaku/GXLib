@@ -9,10 +9,10 @@
 
 cbuffer MotionBlurCB : register(b0)
 {
-    float4x4 invViewProjection;
-    float4x4 previousViewProjection;
-    float intensity;
-    int   sampleCount;
+    float4x4 invViewProjection;       // 現フレームの逆VP行列（ワールド座標復元用）
+    float4x4 previousViewProjection;  // 前フレームのVP行列（リプロジェクション用）
+    float intensity;                  // ブラーの強度
+    int   sampleCount;                // ブラーのサンプル数
     float2 padding;
 };
 
@@ -21,6 +21,7 @@ Texture2D<float>  gDepth : register(t1);
 SamplerState gLinearSampler : register(s0);
 SamplerState gPointSampler  : register(s1);
 
+/// @brief モーションブラーPS — リプロジェクションで速度ベクトルを求め、方向にブラー
 float4 PSMotionBlur(FullscreenVSOutput input) : SV_Target
 {
     float2 uv = input.uv;

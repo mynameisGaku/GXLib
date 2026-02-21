@@ -10,7 +10,9 @@ namespace GX {
 class UDPSocket
 {
 public:
+    /// @brief UDPソケットを作成する（Winsock初期化も行う）
     UDPSocket();
+    /// @brief ソケットを閉じる
     ~UDPSocket();
 
     /// @brief ローカルポートにバインドする (受信用)

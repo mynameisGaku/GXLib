@@ -10,6 +10,7 @@
 // ピクセルシェーダー
 // ============================================================================
 
+/// @brief Blinn-PhongPS — Lambert拡散 + Blinn-Phongスペキュラ + CSMシャドウ
 PSOutput PSMain(PSInput input)
 {
     // --- アルベド ---
@@ -66,7 +67,7 @@ PSOutput PSMain(PSInput input)
         // Specular (Blinn-Phong)
         float3 H = normalize(V + L);
         float NdotH = max(dot(N, H), 0.0f);
-        // Normalization factor: (shininess + 8) / (8 * PI)
+        // 正規化係数: エネルギー保存のためパワーに応じてスケール
         float specNorm = (gShininess + 8.0f) / (8.0f * PI);
         float3 specular = gSpecularColor * specNorm * pow(NdotH, gShininess);
 

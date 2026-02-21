@@ -130,6 +130,7 @@ void TextInput::InsertText(const std::wstring& str)
 // クリップボード
 // ============================================================================
 
+// Win32 Clipboard APIで選択テキストをクリップボードにコピーする
 void TextInput::CopyToClipboard()
 {
     if (!HasSelection()) return;
@@ -153,6 +154,7 @@ void TextInput::CopyToClipboard()
     CloseClipboard();
 }
 
+// Win32 Clipboard APIからUnicodeテキストを取得し、改行を除去して挿入する
 void TextInput::PasteFromClipboard()
 {
     if (!OpenClipboard(nullptr)) return;

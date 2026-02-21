@@ -1,5 +1,5 @@
 /// @file gltf_importer.cpp
-/// @brief glTF/GLB importer implementation using cgltf
+/// @brief glTF/GLBインポーターの実装 (cgltf使用)
 
 #define CGLTF_IMPLEMENTATION
 #include "cgltf.h"
@@ -32,12 +32,14 @@ static std::string ResolveUri(const std::string& baseDir, const char* uri)
     return baseDir + "/" + uri;
 }
 
-// Accessor helpers
+// --- cgltfアクセサヘルパー ---
+
+/// アクセサから指定要素の指定コンポーネントをfloatで読み込む
 static float ReadFloat(const cgltf_accessor* acc, cgltf_size index, cgltf_size component)
 {
     float val = 0.0f;
-    cgltf_accessor_read_float(acc, index, &val + 0, 1); // single component is tricky
-    // Use full read approach
+    cgltf_accessor_read_float(acc, index, &val + 0, 1);
+    // 全コンポーネントを一括読みして該当コンポーネントを返す
     float buf[16] = {};
     cgltf_accessor_read_float(acc, index, buf, acc->type == cgltf_type_scalar ? 1 :
         (acc->type == cgltf_type_vec2 ? 2 : (acc->type == cgltf_type_vec3 ? 3 :
@@ -45,11 +47,13 @@ static float ReadFloat(const cgltf_accessor* acc, cgltf_size index, cgltf_size c
     return buf[component];
 }
 
+/// アクセサからn個のfloatを読み込む
 static void ReadFloatN(const cgltf_accessor* acc, cgltf_size index, float* out, int n)
 {
     cgltf_accessor_read_float(acc, index, out, n);
 }
 
+/// アクセサから1つのuint32を読み込む
 static uint32_t ReadUint(const cgltf_accessor* acc, cgltf_size index)
 {
     cgltf_uint val = 0;
@@ -57,6 +61,7 @@ static uint32_t ReadUint(const cgltf_accessor* acc, cgltf_size index)
     return val;
 }
 
+/// アクセサからn個のuint32を読み込む
 static void ReadUintN(const cgltf_accessor* acc, cgltf_size index, uint32_t* out, int n)
 {
     cgltf_uint buf[4] = {};
@@ -64,6 +69,7 @@ static void ReadUintN(const cgltf_accessor* acc, cgltf_size index, uint32_t* out
     for (int i = 0; i < n; ++i) out[i] = buf[i];
 }
 
+/// glTFマテリアルからシェーダーモデルを推定する
 static gxfmt::ShaderModel DetectShaderModelFromGltf(const cgltf_material* mat)
 {
     if (!mat) return gxfmt::ShaderModel::Standard;
@@ -93,7 +99,7 @@ bool GltfImporter::Import(const std::string& filePath, Scene& outScene)
 
     std::string baseDir = GetDirectory(filePath);
 
-    // Build node-to-index map for skeleton
+    // スケルトン用: ノード→ジョイントインデックスのマップ
     std::map<const cgltf_node*, uint32_t> nodeToJointIndex;
 
     // --- Materials ---
@@ -195,12 +201,11 @@ bool GltfImporter::Import(const std::string& filePath, Scene& outScene)
                     joint.parentIndex = static_cast<int32_t>(it->second);
             }
 
-            // Inverse bind matrix
+            // 逆バインド行列: cgltfは列メジャー → 行メジャーに転置
             if (skin->inverse_bind_matrices)
             {
                 float mat[16];
                 ReadFloatN(skin->inverse_bind_matrices, ji, mat, 16);
-                // cgltf stores column-major; we need row-major
                 for (int r = 0; r < 4; ++r)
                     for (int c = 0; c < 4; ++c)
                         joint.inverseBindMatrix[r * 4 + c] = mat[c * 4 + r];
@@ -250,7 +255,7 @@ bool GltfImporter::Import(const std::string& filePath, Scene& outScene)
             if (prim->material)
                 dstMesh.materialIndex = static_cast<uint32_t>(prim->material - data->materials);
 
-            // Find accessors
+            // プリミティブの頂点属性アクセサを検索
             const cgltf_accessor* posAcc = nullptr;
             const cgltf_accessor* normAcc = nullptr;
             const cgltf_accessor* uvAcc = nullptr;

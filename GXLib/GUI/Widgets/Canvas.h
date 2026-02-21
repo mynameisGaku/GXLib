@@ -7,7 +7,9 @@
 
 namespace GX { namespace GUI {
 
-/// @brief カスタム描画エリア（onDraw コールバックで自由描画）
+/// @brief カスタム描画エリア
+/// onDrawコールバックにUIRendererとレイアウト矩形が渡されるので、自由に描画できる。
+/// グラフやカスタムUIなど、既存ウィジェットでは表現できない描画に使う。
 class Canvas : public Widget
 {
 public:

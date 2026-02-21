@@ -437,6 +437,8 @@ void RTGI::Execute(ID3D12GraphicsCommandList4* cmdList4, uint32_t frameIndex,
     auto* cmdList = static_cast<ID3D12GraphicsCommandList*>(cmdList4);
 
     // === Pass 1: DispatchRays (半解像度) ===
+    // 1spp コサイン半球サンプルで間接照明を計算。半解像度で負荷を軽減し、
+    // テンポラルとA-Trousフィルタで品質を回復する
 
     // TLAS構築 (自前モードのみ; 共有モードではRTReflectionsが既にビルド済み)
     if (m_accelStruct == &m_ownAccelStruct)
@@ -625,7 +627,9 @@ void RTGI::Execute(ID3D12GraphicsCommandList4* cmdList4, uint32_t frameIndex,
     if (m_normalRT)
         m_normalRT->TransitionTo(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-    // === Pass 2: テンポラル蓄積 ===
+    // === Pass 2: テンポラル蓄積 (フル解像度) ===
+    // 半解像度GIをバイリニアでアップスケールし、前フレーム結果と指数移動平均で蓄積。
+    // 前フレームVP行列でリプロジェクション、深度差で棄却判定する
     {
         uint32_t readIdx  = m_temporalWriteIdx;
         uint32_t writeIdx = 1 - m_temporalWriteIdx;
@@ -698,9 +702,11 @@ void RTGI::Execute(ID3D12GraphicsCommandList4* cmdList4, uint32_t frameIndex,
         m_temporalWriteIdx = writeIdx;
     }
 
-    // === Pass 3: A-Trous 空間フィルタ ===
+    // === Pass 3: A-Trous 空間フィルタ (フル解像度, 複数イテレーション) ===
+    // Edge-avoiding (depth/normal/color) ウェイトで空間ノイズ除去。
+    // ステップ幅を2^iter倍に拡大して広範囲をカバーする (a trous = "with holes")。
+    // ping-pong RTで入出力を交互に切替え、最終出力は可変のRT
     {
-        // テンポラル出力→空間フィルタ入力にコピー
         m_temporalHistory[m_temporalWriteIdx].TransitionTo(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
         // 全イテレーションのCBデータを一括書き込み (GPU実行時にオーバーライトされない)
@@ -854,7 +860,8 @@ void RTGI::Execute(ID3D12GraphicsCommandList4* cmdList4, uint32_t frameIndex,
         cmdList->DrawInstanced(3, 1, 0, 0);
     }
 
-    // 深度バッファを前フレームコピーに保存 (次フレームのテンポラル用)
+    // 深度バッファを前フレームコピーに保存 (次フレームのテンポラルリプロジェクション用)
+    // D32_FLOAT → R32_FLOAT にCopyTextureRegionでフォーマット互換コピー
     {
         // depth → COPY_SOURCE
         depth.TransitionTo(cmdList, D3D12_RESOURCE_STATE_COPY_SOURCE);

@@ -1,5 +1,9 @@
 /// @file BlendTreeEditor.cpp
-/// @brief Blend tree parameter editor panel implementation
+/// @brief ブレンドツリーエディタパネル実装
+///
+/// 1D: パラメータスライダー + ImDrawListで数直線・ノード閾値マーカー・現在値三角形を描画。
+/// 2D: X/Yスライダー + 散布図キャンバス（ドラッグ操作対応）でノード位置と現在パラメータを表示。
+/// 下部にノード一覧テーブル（クリップ名/閾値/位置）も表示する。
 
 #include "BlendTreeEditor.h"
 #include <imgui.h>

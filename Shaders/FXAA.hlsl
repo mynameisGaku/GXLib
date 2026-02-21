@@ -8,14 +8,15 @@
 
 cbuffer FXAAConstants : register(b0)
 {
-    float2 gRcpFrame;     // 1/width, 1/height
-    float  gFxaaQualitySubpix;        // サブピクセルAA品質 (default: 0.75)
-    float  gFxaaQualityEdgeThreshold; // エッジ閾値 (default: 0.166)
+    float2 gRcpFrame;                 // テクセルサイズ (1/width, 1/height)
+    float  gFxaaQualitySubpix;        // サブピクセルAA品質 (0.75でバランス良好)
+    float  gFxaaQualityEdgeThreshold; // エッジ検出閾値 (低いほど敏感)
 };
 
 Texture2D    tScene  : register(t0);
 SamplerState sLinear : register(s0);
 
+/// @brief FXAA用輝度 — Rec.601ウェイトで知覚輝度を算出
 float FxaaLuma(float3 color)
 {
     return dot(color, float3(0.299f, 0.587f, 0.114f));
@@ -27,6 +28,7 @@ static const float FXAA_QUALITY[12] = {
     1.0, 1.0, 1.0, 1.0, 1.0, 1.5, 2.0, 2.0, 2.0, 2.0, 4.0, 8.0
 };
 
+/// @brief FXAA 3.11 PS — エッジ検出・方向判定・ウォーキング・サブピクセルAAを実行
 float4 PSMain(FullscreenVSOutput input) : SV_Target
 {
     float2 uv = input.uv;

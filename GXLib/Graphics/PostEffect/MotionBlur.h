@@ -1,9 +1,10 @@
 #pragma once
 /// @file MotionBlur.h
-/// @brief カメラベース Motion Blur ポストエフェクト
+/// @brief カメラベース Motion Blur (動きぼかし)
 ///
-/// 深度バッファからワールド座標を再構成し、前フレームVP行列で再投影して
-/// 速度ベクトルを求め、HDRシーンを速度方向にブラーする。
+/// DxLibには無い機能。カメラが動いた方向に画面をぼかし、動きの勢いを表現する。
+/// 深度→ワールド座標復元→前フレームVP再投影で速度ベクトルを求め、
+/// その方向にサンプリングしてブラーを生成する。オブジェクト単位ではなくカメラ全体が対象。
 
 #include "pch.h"
 #include "Graphics/Resource/RenderTarget.h"
@@ -26,31 +27,49 @@ struct MotionBlurConstants
     float padding[2];
 };  // 144B → 256-align
 
-/// @brief カメラベース Motion Blur エフェクト
+/// @brief カメラ移動による動きぼかしを再現するモーションブラーエフェクト
+///
+/// 前フレームと現フレームのViewProjection行列の差から速度ベクトルを求め、
+/// HDRシーンを速度方向にサンプリングしてブラーする。
 class MotionBlur
 {
 public:
     MotionBlur() = default;
     ~MotionBlur() = default;
 
+    /// @brief 初期化。PSO・SRVヒープ・定数バッファを作成する
+    /// @param device D3D12デバイス
+    /// @param width 画面幅
+    /// @param height 画面高さ
+    /// @return 成功でtrue
     bool Initialize(ID3D12Device* device, uint32_t width, uint32_t height);
 
+    /// @brief モーションブラーを実行する
+    /// @param cmdList コマンドリスト
+    /// @param frameIndex ダブルバッファ用フレームインデックス
+    /// @param srcHDR 入力HDRシーン
+    /// @param destHDR 出力先HDR RT
+    /// @param depth 深度バッファ (ワールド座標復元に使う)
+    /// @param camera カメラ (現フレームの逆VP行列取得に使う)
     void Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
                  RenderTarget& srcHDR, RenderTarget& destHDR,
                  DepthBuffer& depth, const Camera3D& camera);
 
+    /// @brief 画面リサイズ対応
     void OnResize(ID3D12Device* device, uint32_t width, uint32_t height);
 
     void SetEnabled(bool enabled) { m_enabled = enabled; }
     bool IsEnabled() const { return m_enabled; }
 
+    /// @brief ブラー強度。大きいほど動きの軌跡が長くなる
     void SetIntensity(float i) { m_intensity = i; }
     float GetIntensity() const { return m_intensity; }
 
+    /// @brief 速度方向のサンプリング数。多いほど滑らかだが重い
     void SetSampleCount(int n) { m_sampleCount = n; }
     int GetSampleCount() const { return m_sampleCount; }
 
-    /// 前フレームVP行列を更新（フレーム末に呼ぶ）
+    /// @brief 前フレームのVP行列を保存する。Executeの後に呼ぶこと
     void UpdatePreviousVP(const Camera3D& camera);
 
 private:

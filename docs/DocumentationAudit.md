@@ -1,6 +1,6 @@
 # GXLib ドキュメント監査レポート
 
-**調査日:** 2026-02-17
+**調査日:** 2026-02-17 (更新: 2026-02-21)
 **参考記事:** [開発者が書くチュートリアルは読みにくい (Gigazine)](https://gigazine.net/news/20250926-developer-read/)
 
 ## 記事の要旨
@@ -288,3 +288,29 @@ GXLib のドキュメントは、記事が指摘する「開発者が書く読�
 3. **開発メモと公開ドキュメントの乖離** — MEMORY.md に蓄積された実践的知見が公開ドキュメントに反映されていない
 
 ドキュメントの構造自体（チュートリアル 5 本 + 移行ガイド + サンプル）は良好であり、改善の余地は大きい。上記の提案を順次適用することで、初心者にもアクセスしやすいドキュメントに改善できる。
+
+---
+
+## 2026-02-21 更新: Phase 11〜22 反映状況
+
+### 追加済み項目
+
+以下の Phase 11〜22 の機能がドキュメントに反映された:
+
+| Phase | 機能 | 反映先 |
+|---|---|---|
+| 11 | DXR レイトレーシング反射 (RTReflections) | index.html (ページ+サイドバー), README, Glossary, チュートリアル04, 移行ガイド |
+| 12 | DXR RTGI (グローバルイルミネーション) | index.html (ページ+サイドバー), README, Glossary, チュートリアル04 |
+| 13 | アセットパイプライン (gxformat/gxconv/gxloader/gxpak) | index.html (4ページ+サイドバー), README, Glossary, チュートリアル04, 移行ガイド |
+| 14 | ShaderRegistry + シェーダーモデル PSO | index.html (2ページ+サイドバー), README, Glossary, チュートリアル04 |
+| 15 | アニメーションブレンド (BlendStack/BlendTree/ASM) | index.html (4ページ+サイドバー), README, Glossary, チュートリアル04 |
+| 16-17 | GXModelViewer | README (プロジェクト構成), 移行ガイド |
+| 18 | マテリアルオーバーライド + Toon 強化 + GXPAK VFS | index.html (PakFileProvider ページ), README |
+| 19-21 | スムース法線 Toon アウトライン + UTS2 | index.html (ShaderRegistry 内), README, Glossary, チュートリアル04 |
+| 22 | ImGui Docking 移行 | README, Glossary |
+
+### 残課題
+
+- GXModelViewer の操作方法チュートリアルは未作成（新規チュートリアル 06 が望ましい）
+- index.html の JS detail データに Phase 14-22 の詳細説明/サンプルコードが未追加
+- サンプル README の Phase 11+ 新機能への言及が不足

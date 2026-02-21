@@ -116,7 +116,7 @@ void VolumetricLight::UpdateSunInfo(const Camera3D& camera)
     XMVECTOR sunDir = XMVector3Normalize(XMLoadFloat3(&m_lightDirection));
     XMVECTOR camPos = XMLoadFloat3(&camera.GetPosition());
 
-    // 太陽は光の逆方向の遠方
+    // 太陽はカメラから光源方向の逆向きに十分遠い仮想位置として配置
     XMVECTOR sunWorld = camPos - sunDir * 1000.0f;
 
     XMMATRIX viewProj = camera.GetViewProjectionMatrix();
@@ -143,9 +143,9 @@ void VolumetricLight::UpdateSunInfo(const Camera3D& camera)
     }
     else
     {
-        // 画面外の場合は距離に応じてフェードアウト
+        // 画面端に近づくにつれゴッドレイを滑らかにフェードアウト。
+        // 太陽の見かけ位置がUV中心から0.7以内なら100%、2.0以上で完全消失
         float distFromCenter = sqrtf((sunU - 0.5f) * (sunU - 0.5f) + (sunV - 0.5f) * (sunV - 0.5f));
-        // 画面内(~0.7)では100%、それ以降フェードアウト、2.0以上で0
         float fadeT = (distFromCenter - 0.7f) / 1.3f;
         fadeT = (std::max)(0.0f, (std::min)(1.0f, fadeT));
         sunVisible = 1.0f - fadeT;

@@ -1,11 +1,14 @@
 #pragma once
 /// @file DepthOfField.h
-/// @brief Depth of Field (被写界深度) ポストエフェクト
+/// @brief Depth of Field (被写界深度/ピントぼけ)
+///
+/// DxLibには無い機能。カメラのフォーカス距離から離れた部分をぼかす。
+/// 被写体にピントを合わせて背景をぼかす映画的な表現ができる。
 ///
 /// 処理の流れ:
-/// 1. CoC生成: 深度→ビュー空間Z復元→フォーカス距離からのずれ→Circle of Confusion
+/// 1. CoC生成: 深度→ビュー空間Z復元→フォーカス距離との差でCircle of Confusion算出
 /// 2. ブラー: CoC加重ガウシアンブラー (H/V分離, half-res)
-/// 3. 合成: CoC値でシャープHDRとブラーHDRをlerp
+/// 3. 合成: CoC値に基づいてシャープ画像とブラー画像をlerp
 
 #include "pch.h"
 #include "Graphics/Resource/RenderTarget.h"
@@ -46,30 +49,49 @@ struct DoFCompositeConstants
     float padding[3];
 };  // 16B → 256-align
 
-/// @brief Depth of Fieldエフェクト
+/// @brief フォーカス距離に基づくピントぼけを再現する被写界深度エフェクト
+///
+/// CoC (Circle of Confusion) マップを生成し、半解像度のガウシアンブラーと
+/// フル解像度合成でピント外をぼかす。3パス構成 (CoC生成→ブラー→合成)。
 class DepthOfField
 {
 public:
     DepthOfField() = default;
     ~DepthOfField() = default;
 
+    /// @brief 初期化。CoC RT・ブラーRT・PSO・定数バッファを作成する
+    /// @param device D3D12デバイス
+    /// @param width 画面幅
+    /// @param height 画面高さ
+    /// @return 成功でtrue
     bool Initialize(ID3D12Device* device, uint32_t width, uint32_t height);
 
+    /// @brief DoFの全パスを実行する
+    /// @param cmdList コマンドリスト
+    /// @param frameIndex ダブルバッファ用フレームインデックス
+    /// @param srcHDR 入力HDRシーン
+    /// @param destHDR 出力先HDR RT (ピントぼけ適用後)
+    /// @param depth 深度バッファ (CoC計算に使う)
+    /// @param camera カメラ (逆射影行列の取得に使う)
     void Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
                  RenderTarget& srcHDR, RenderTarget& destHDR,
                  DepthBuffer& depth, const Camera3D& camera);
 
+    /// @brief 画面リサイズ対応
     void OnResize(ID3D12Device* device, uint32_t width, uint32_t height);
 
     void SetEnabled(bool enabled) { m_enabled = enabled; }
     bool IsEnabled() const { return m_enabled; }
 
+    /// @brief フォーカス距離 (ビュー空間Z)。この距離の物体がピントが合う
     void SetFocalDistance(float d) { m_focalDistance = d; }
     float GetFocalDistance() const { return m_focalDistance; }
 
+    /// @brief フォーカス鮮明範囲。この幅の中は完全にシャープ
     void SetFocalRange(float r) { m_focalRange = r; }
     float GetFocalRange() const { return m_focalRange; }
 
+    /// @brief ぼけの最大半径 (ピクセル)
     void SetBokehRadius(float r) { m_bokehRadius = r; }
     float GetBokehRadius() const { return m_bokehRadius; }
 

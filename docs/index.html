@@ -174,6 +174,19 @@ table.api tbody tr[id]:hover{background:rgba(233,69,96,0.06)!important}
 <span class="leaf" data-page="CascadedShadowMap">CascadedShadowMap</span>
 <span class="leaf" data-page="PointShadowMap">PointShadowMap</span>
 <span class="leaf" data-page="ShadowMap">ShadowMap</span>
+<span class="leaf" data-page="ShaderRegistry">ShaderRegistry</span>
+<span class="leaf" data-page="ShaderModelConstants">ShaderModelConstants</span>
+<span class="leaf" data-page="Animator">Animator</span>
+<span class="leaf" data-page="BlendStack">BlendStack</span>
+<span class="leaf" data-page="BlendTree">BlendTree</span>
+<span class="leaf" data-page="AnimatorStateMachine">AnimatorStateMachine</span>
+<span class="leaf" data-page="GxmdModelLoader">GxmdModelLoader</span>
+</details>
+<details class="sub"><summary>RayTracing</summary>
+<span class="leaf" data-page="RTAccelerationStructure">RTAccelerationStructure</span>
+<span class="leaf" data-page="RTPipeline">RTPipeline</span>
+<span class="leaf" data-page="RTReflections">RTReflections</span>
+<span class="leaf" data-page="RTGI">RTGI</span>
 </details>
 <details class="sub"><summary>Layer</summary>
 <span class="leaf" data-page="RenderLayer">RenderLayer</span>
@@ -240,6 +253,7 @@ table.api tbody tr[id]:hover{background:rgba(233,69,96,0.06)!important}
 <span class="leaf" data-page="PhysicalFileProvider">PhysicalFileProvider</span>
 <span class="leaf" data-page="Archive">Archive / ArchiveWriter</span>
 <span class="leaf" data-page="ArchiveFileProvider">ArchiveFileProvider</span>
+<span class="leaf" data-page="PakFileProvider">PakFileProvider</span>
 <span class="leaf" data-page="Crypto">Crypto</span>
 <span class="leaf" data-page="AsyncLoader">AsyncLoader</span>
 <span class="leaf" data-page="FileWatcher">FileWatcher</span>
@@ -276,6 +290,12 @@ table.api tbody tr[id]:hover{background:rgba(233,69,96,0.06)!important}
 <span class="leaf" data-page="RigidBody2D">RigidBody2D</span>
 <span class="leaf" data-page="PhysicsShape">PhysicsShape</span>
 </details>
+<details><summary>Asset Pipeline</summary>
+<span class="leaf" data-page="gxformat">gxformat (GXMD/GXAN/GXPAK)</span>
+<span class="leaf" data-page="gxconv">gxconv (モデルコンバーター)</span>
+<span class="leaf" data-page="gxloader">gxloader (ランタイムローダー)</span>
+<span class="leaf" data-page="gxpak">gxpak (バンドルツール)</span>
+</details>
 <details><summary>Compat (DXLib互換)</summary>
 <span class="leaf" data-page="GXLib_System">GXLib.h — System</span>
 <span class="leaf" data-page="GXLib_Graphics">GXLib.h — Graphics</span>
@@ -306,13 +326,15 @@ table.api tbody tr[id]:hover{background:rgba(233,69,96,0.06)!important}
 <tr><td>Graphics/Pipeline</td><td>シェーダ・PSO管理</td><td>Shader, ShaderLibrary, ShaderHotReload</td></tr>
 <tr><td>Graphics/Resource</td><td>GPU リソース管理</td><td>Texture, TextureManager, RenderTarget</td></tr>
 <tr><td>Graphics/Rendering</td><td>2D 描画エンジン</td><td>SpriteBatch, PrimitiveBatch, FontManager</td></tr>
-<tr><td>Graphics/3D</td><td>3D レンダリング (PBR)</td><td>Renderer3D, Camera3D, Model, Light</td></tr>
+<tr><td>Graphics/3D</td><td>3D レンダリング (PBR/Toon/Phong)</td><td>Renderer3D, Camera3D, Model, ShaderRegistry, Animator</td></tr>
+<tr><td>Graphics/RayTracing</td><td>DXR レイトレーシング</td><td>RTAccelerationStructure, RTReflections, RTGI</td></tr>
 <tr><td>Graphics/Layer</td><td>レンダーレイヤーシステム</td><td>RenderLayer, LayerStack, LayerCompositor</td></tr>
 <tr><td>Graphics/PostEffect</td><td>HDR ポストエフェクト</td><td>PostEffectPipeline, Bloom, SSAO, TAA</td></tr>
 <tr><td>Input</td><td>入力デバイス</td><td>InputManager, Keyboard, Mouse, Gamepad</td></tr>
 <tr><td>Audio</td><td>XAudio2 オーディオ</td><td>AudioManager, SoundPlayer, MusicPlayer</td></tr>
 <tr><td>GUI</td><td>Flexbox UI システム</td><td>Widget, UIContext, StyleSheet, GUILoader</td></tr>
-<tr><td>IO</td><td>VFS・ネットワーク</td><td>FileSystem, Archive, HTTPClient, WebSocket</td></tr>
+<tr><td>IO</td><td>VFS・ネットワーク</td><td>FileSystem, Archive, PakFileProvider, HTTPClient, WebSocket</td></tr>
+<tr><td>Asset Pipeline</td><td>アセット変換・バンドル</td><td>gxformat, gxconv, gxloader, gxpak</td></tr>
 <tr><td>Movie</td><td>動画再生</td><td>MoviePlayer</td></tr>
 <tr><td>Math</td><td>数学・衝突判定</td><td>Vector3, Matrix4x4, Collision2D/3D</td></tr>
 <tr><td>Physics</td><td>物理エンジン</td><td>PhysicsWorld2D, PhysicsWorld3D (Jolt)</td></tr>
@@ -343,7 +365,7 @@ table.api tbody tr[id]:hover{background:rgba(233,69,96,0.06)!important}
     <span class="kw">return</span> <span class="num">0</span>;
 }</pre>
 
-<footer>GXLib APIリファレンス — 生成日 2026-02-10 — DirectX 12 ゲームエンジン for Windows</footer>
+<footer>GXLib APIリファレンス — 生成日 2026-02-21 — DirectX 12 ゲームエンジン for Windows</footer>
 </div>
 
 <!-- ==================== GLOSSARY ==================== -->
@@ -361,6 +383,8 @@ table.api tbody tr[id]:hover{background:rgba(233,69,96,0.06)!important}
 <tr><td><strong>SRV / RTV / DSV / UAV / CBV</strong></td><td>GPU リソースの参照方法。読み取り(SRV)、描画先(RTV)、深度(DSV)、読み書き(UAV)、定数(CBV)。</td></tr>
 <tr><td><strong>HLSL</strong></td><td>High-Level Shading Language。GPU で動くシェーダーを書く言語。</td></tr>
 <tr><td><strong>DXR</strong></td><td>DirectX Raytracing。光線追跡によるリアルな反射・影の計算。</td></tr>
+<tr><td><strong>BLAS / TLAS</strong></td><td>レイトレーシング加速構造。BLAS=個々のメッシュ、TLAS=シーン全体の配置。</td></tr>
+<tr><td><strong>State Object</strong></td><td>DXR のレイトレーシングパイプライン定義。RayGen/Miss/ClosestHit シェーダーを含む。</td></tr>
 </tbody></table>
 
 <h3 class="glossary-cat">グラフィックス技術</h3>
@@ -374,6 +398,10 @@ table.api tbody tr[id]:hover{background:rgba(233,69,96,0.06)!important}
 <tr><td><strong>DoF</strong></td><td>Depth of Field（被写界深度）。ピント範囲外をぼかす。</td></tr>
 <tr><td><strong>CSM</strong></td><td>Cascaded Shadow Maps（カスケードシャドウマップ）。距離に応じた影の品質制御。</td></tr>
 <tr><td><strong>FOV</strong></td><td>Field of View（視野角）。カメラが見える範囲の角度。</td></tr>
+<tr><td><strong>RTGI</strong></td><td>DXR グローバルイルミネーション。間接光を計算してシーンの明るさをリアルにする。</td></tr>
+<tr><td><strong>Toon / UTS2</strong></td><td>トゥーンシェーディング（セルシェーディング）。UTS2 ベースの3ゾーン+リム+アウトライン。</td></tr>
+<tr><td><strong>ShaderModel</strong></td><td>マテリアルの描画方式 (PBR/Toon/Phong/Unlit/Subsurface/ClearCoat)。ShaderRegistry が PSO を自動選択。</td></tr>
+<tr><td><strong>BlendTree</strong></td><td>パラメータベースのアニメーション自動合成。1D/2D 対応。</td></tr>
 </tbody></table>
 
 <h3 class="glossary-cat">空間・物理・数学</h3>
@@ -387,7 +415,9 @@ table.api tbody tr[id]:hover{background:rgba(233,69,96,0.06)!important}
 <h3 class="glossary-cat">その他</h3>
 <table class="glossary-table"><thead><tr><th>用語</th><th>説明</th></tr></thead><tbody>
 <tr><td><strong>glTF</strong></td><td>GL Transmission Format。GXLib が採用する 3D モデル形式。</td></tr>
+<tr><td><strong>GXMD / GXAN / GXPAK</strong></td><td>GXLib 独自バイナリ形式。モデル/アニメーション/バンドル。gxconv で変換、gxloader で読み込み。</td></tr>
 <tr><td><strong>VFS</strong></td><td>Virtual File System。実ファイルとアーカイブを統一的に扱うファイルアクセス層。</td></tr>
+<tr><td><strong>ImGui</strong></td><td>Dear ImGui。即時モード GUI ライブラリ。GXModelViewer の UI フレームワーク。</td></tr>
 <tr><td><strong>Flexbox</strong></td><td>CSS レイアウト方式。GXLib の GUI で要素の並び方向・配置を制御。</td></tr>
 <tr><td><strong>DIK</strong></td><td>DirectInput Key codes。DXLib 互換のキーコード定数。</td></tr>
 <tr><td><strong>Compat</strong></td><td>GXLib の DXLib 互換レイヤー。同じ関数名で使えるラッパー API。</td></tr>
@@ -1284,6 +1314,159 @@ renderer3D.<span class="fn">EndScene</span>();</pre>
 </tbody></table>
 </div>
 
+<!-- ==================== GRAPHICS/3D (Phase 14-15) ==================== -->
+<div class="page" id="page-ShaderRegistry">
+<h1>ShaderRegistry</h1>
+<p class="meta"><code>namespace GX</code> | <code>Graphics/3D/ShaderRegistry.h</code></p>
+<p class="brief">シェーダーモデル PSO レジストリ。6 種 ShaderModel (PBR, Toon, Phong, Unlit, Subsurface, ClearCoat) x static/skinned = 14 PSO を一括管理。Material の shaderModel に応じて自動選択。<span class="brief-beginner">マテリアルの描画方式を指定するだけで、適切な描画設定 (PSO) が自動で選ばれる仕組みです。</span></p>
+<h2>メソッド</h2>
+<table class="api"><thead><tr><th>戻り値</th><th>メソッド</th><th>説明</th></tr></thead><tbody>
+<tr><td>void</td><td>Initialize(ID3D12Device*, RootSignature&amp;)</td><td>全 PSO を一括構築</td></tr>
+<tr><td>PipelineState*</td><td>GetPSO(ShaderModel model, bool skinned)</td><td>シェーダーモデルと skinned フラグに応じた PSO を返す</td></tr>
+<tr><td>PipelineState*</td><td>GetToonOutlinePSO(bool skinned)</td><td>Toon アウトライン用 PSO を返す</td></tr>
+</tbody></table>
+<div class="note">Toon シェーダーはアウトライン描画パスを追加で実行します (スムース法線ベース)。</div>
+</div>
+
+<div class="page" id="page-ShaderModelConstants">
+<h1>ShaderModelConstants</h1>
+<p class="meta"><code>namespace GX</code> | <code>Graphics/3D/ShaderModelConstants.h</code></p>
+<p class="brief">シェーダーモデル共通定数バッファ (b3, 256B)。全シェーダーモデルが共有する cbuffer レイアウト。ShaderModelParams (CPU 側) と ShaderModelGPUParams (GPU 側) を定義。<span class="brief-beginner">シェーダーに渡すマテリアルパラメータの構造体定義です。Toon の UTS2 パラメータもここに含まれます。</span></p>
+<h2>構造体</h2>
+<table class="api"><thead><tr><th>名前</th><th>サイズ</th><th>説明</th></tr></thead><tbody>
+<tr><td>ShaderModelParams</td><td>256B</td><td>CPU 側パラメータ (inline アクセサで Toon 用パラメータにアクセス)</td></tr>
+<tr><td>ShaderModelGPUParams</td><td>256B</td><td>GPU 側 cbuffer レイアウト (ConvertToGPUParams で変換)</td></tr>
+</tbody></table>
+</div>
+
+<div class="page" id="page-Animator">
+<h1>Animator</h1>
+<p class="meta"><code>namespace GX</code> | <code>Graphics/3D/Animator.h</code></p>
+<p class="brief">アニメーション再生・クロスフェード制御。GetCurrentClip/GetCurrentTime/SetCurrentTime/SetSpeed/IsPaused 対応。<span class="brief-beginner">3D モデルのアニメーション再生を管理するクラスです。クロスフェード (滑らかな切り替え) をサポートします。</span></p>
+<h2>メソッド</h2>
+<table class="api"><thead><tr><th>戻り値</th><th>メソッド</th><th>説明</th></tr></thead><tbody>
+<tr><td>void</td><td>Play(const std::string&amp; clipName, float fadeTime = 0.2f)</td><td>アニメーション再生 (クロスフェード付き)</td></tr>
+<tr><td>void</td><td>Update(float deltaTime)</td><td>アニメーション更新</td></tr>
+<tr><td>const AnimationClip*</td><td>GetCurrentClip() const</td><td>現在のクリップ取得</td></tr>
+<tr><td>float</td><td>GetCurrentTime() const</td><td>現在の再生時間</td></tr>
+<tr><td>void</td><td>SetCurrentTime(float t)</td><td>再生時間設定</td></tr>
+<tr><td>void</td><td>SetSpeed(float speed)</td><td>再生速度設定</td></tr>
+<tr><td>bool</td><td>IsPaused() const</td><td>一時停止状態か</td></tr>
+</tbody></table>
+</div>
+
+<div class="page" id="page-BlendStack">
+<h1>BlendStack</h1>
+<p class="meta"><code>namespace GX</code> | <code>Graphics/3D/Animator.h</code></p>
+<p class="brief">アニメーション ブレンドスタック。最大 8 レイヤーの Override/Additive ブレンドを管理。<span class="brief-beginner">複数のアニメーションを重ねて合成する仕組みです。例: 歩きモーション + 手を振るモーションを同時再生。</span></p>
+<h2>メソッド</h2>
+<table class="api"><thead><tr><th>戻り値</th><th>メソッド</th><th>説明</th></tr></thead><tbody>
+<tr><td>void</td><td>PushLayer(const AnimationClip*, AnimBlendMode mode, float weight)</td><td>レイヤー追加 (Override or Additive)</td></tr>
+<tr><td>void</td><td>PopLayer()</td><td>最上位レイヤー削除</td></tr>
+<tr><td>void</td><td>Evaluate(float deltaTime, Skeleton&amp;)</td><td>全レイヤーを評価してスケルトンに適用</td></tr>
+</tbody></table>
+</div>
+
+<div class="page" id="page-BlendTree">
+<h1>BlendTree</h1>
+<p class="meta"><code>namespace GX</code> | <code>Graphics/3D/Animator.h</code></p>
+<p class="brief">1D/2D パラメータベースのアニメーション自動合成ツリー。<span class="brief-beginner">パラメータ（速度や方向など）に応じて、複数のアニメーションを自動的にブレンドする仕組みです。</span></p>
+<h2>メソッド</h2>
+<table class="api"><thead><tr><th>戻り値</th><th>メソッド</th><th>説明</th></tr></thead><tbody>
+<tr><td>void</td><td>AddClip(const AnimationClip*, float threshold)</td><td>1D: しきい値でクリップ追加</td></tr>
+<tr><td>void</td><td>AddClip(const AnimationClip*, float x, float y)</td><td>2D: 座標でクリップ追加</td></tr>
+<tr><td>void</td><td>SetParameter(float value)</td><td>1D パラメータ設定</td></tr>
+<tr><td>void</td><td>SetParameter(float x, float y)</td><td>2D パラメータ設定</td></tr>
+<tr><td>void</td><td>Evaluate(float deltaTime, Skeleton&amp;)</td><td>ブレンド結果をスケルトンに適用</td></tr>
+</tbody></table>
+</div>
+
+<div class="page" id="page-AnimatorStateMachine">
+<h1>AnimatorStateMachine</h1>
+<p class="meta"><code>namespace GX</code> | <code>Graphics/3D/AnimatorStateMachine.h</code></p>
+<p class="brief">トリガーベースのアニメーション ステートマシン。状態遷移とトリガー条件を管理。GetTransitions() 公開済み。<span class="brief-beginner">「歩く→走る→ジャンプ」のようなアニメーション遷移を、条件 (トリガー) に基づいて自動制御する仕組みです。</span></p>
+<h2>メソッド</h2>
+<table class="api"><thead><tr><th>戻り値</th><th>メソッド</th><th>説明</th></tr></thead><tbody>
+<tr><td>void</td><td>AddState(const std::string&amp; name, const AnimationClip*)</td><td>ステート追加</td></tr>
+<tr><td>void</td><td>AddTransition(const std::string&amp; from, const std::string&amp; to, const std::string&amp; trigger)</td><td>遷移条件追加</td></tr>
+<tr><td>void</td><td>SetTrigger(const std::string&amp; trigger)</td><td>トリガー発火</td></tr>
+<tr><td>void</td><td>Update(float deltaTime)</td><td>更新 (遷移判定 + アニメーション進行)</td></tr>
+<tr><td>const auto&amp;</td><td>GetTransitions() const</td><td>遷移リスト取得</td></tr>
+</tbody></table>
+</div>
+
+<div class="page" id="page-GxmdModelLoader">
+<h1>GxmdModelLoader</h1>
+<p class="meta"><code>namespace GX</code> | <code>Graphics/3D/GxmdModelLoader.h</code></p>
+<p class="brief">GXMD バイナリモデルローダー。gxloader を使用して .gxmd ファイルから Model を構築。<span class="brief-beginner">GXLib 独自のバイナリモデル形式 (.gxmd) を読み込むローダーです。glTF より高速に読み込めます。</span></p>
+<h2>メソッド</h2>
+<table class="api"><thead><tr><th>戻り値</th><th>メソッド</th><th>説明</th></tr></thead><tbody>
+<tr><td>std::unique_ptr&lt;Model&gt;</td><td>Load(const std::wstring&amp; path, GraphicsDevice&amp;, TextureManager&amp;)</td><td>GXMD ファイル読み込み</td></tr>
+</tbody></table>
+<div class="note">テクスチャ検索順: dir/name → dir/textures/name。shaderParams.textureNames はランタイムで -1 にクリアされます。</div>
+</div>
+
+<!-- ==================== GRAPHICS/RAYTRACING (Phase 11-12) ==================== -->
+<div class="page" id="page-RTAccelerationStructure">
+<h1>RTAccelerationStructure</h1>
+<p class="meta"><code>namespace GX</code> | <code>Graphics/RayTracing/RTAccelerationStructure.h</code></p>
+<p class="brief">DXR アクセラレーション構造 (BLAS + TLAS) 管理。ID3D12Device5 必須。最大 512 インスタンス。<span class="brief-beginner">レイトレーシングで光線とメッシュの交差判定を高速化するためのデータ構造を管理します。</span></p>
+<h2>メソッド</h2>
+<table class="api"><thead><tr><th>戻り値</th><th>メソッド</th><th>説明</th></tr></thead><tbody>
+<tr><td>bool</td><td>Initialize(ID3D12Device5*)</td><td>初期化 (DXR 非対応時は false)</td></tr>
+<tr><td>int</td><td>BuildBLAS(ID3D12GraphicsCommandList4*, ID3D12Resource* vb, ID3D12Resource* ib, ...)</td><td>BLAS 構築 (戻り値を AddInstance に渡す)</td></tr>
+<tr><td>void</td><td>BeginFrame()</td><td>フレーム開始 (インスタンスリストクリア)</td></tr>
+<tr><td>void</td><td>AddInstance(int blasIndex, const XMMATRIX&amp; world)</td><td>TLAS にインスタンス追加</td></tr>
+<tr><td>void</td><td>BuildTLAS(ID3D12GraphicsCommandList4*)</td><td>TLAS 構築</td></tr>
+<tr><td>D3D12_GPU_VIRTUAL_ADDRESS</td><td>GetTLASAddress() const</td><td>TLAS GPU アドレス取得</td></tr>
+</tbody></table>
+</div>
+
+<div class="page" id="page-RTPipeline">
+<h1>RTPipeline</h1>
+<p class="meta"><code>namespace GX</code> | <code>Graphics/RayTracing/RTPipeline.h</code></p>
+<p class="brief">DXR State Object + Shader Table 管理。パラメータ化されたシェーダーパス/エクスポート名。<span class="brief-beginner">レイトレーシング用の GPU パイプライン設定です。RayGen / Miss / ClosestHit シェーダーをまとめた State Object を管理します。</span></p>
+<h2>メソッド</h2>
+<table class="api"><thead><tr><th>戻り値</th><th>メソッド</th><th>説明</th></tr></thead><tbody>
+<tr><td>bool</td><td>Initialize(ID3D12Device5*, const std::wstring&amp; shaderPath, ...)</td><td>初期化 (lib_6_3 コンパイル)</td></tr>
+<tr><td>void</td><td>DispatchRays(ID3D12GraphicsCommandList4*, uint32_t w, uint32_t h)</td><td>レイトレーシング実行</td></tr>
+<tr><td>ID3D12RootSignature*</td><td>GetGlobalRootSignature()</td><td>ルートシグネチャ取得</td></tr>
+</tbody></table>
+</div>
+
+<div class="page" id="page-RTReflections">
+<h1>RTReflections</h1>
+<p class="meta"><code>namespace GX</code> | <code>Graphics/RayTracing/RTReflections.h</code></p>
+<p class="brief">DXR レイトレーシング反射エフェクト。フル解像度ディスパッチ + コンポジット。SSR と排他使用 (Y キーでトグル)。<span class="brief-beginner">ハードウェアレイトレーシングを使った高品質な反射です。SSR より正確ですが GPU 負荷が高くなります。</span></p>
+<h2>メソッド</h2>
+<table class="api"><thead><tr><th>戻り値</th><th>メソッド</th><th>説明</th></tr></thead><tbody>
+<tr><td>bool</td><td>Initialize(ID3D12Device5*, uint32_t w, uint32_t h)</td><td>初期化</td></tr>
+<tr><td>int</td><td>BuildBLAS(ID3D12GraphicsCommandList4*, ID3D12Resource* vb, ID3D12Resource* ib, ...)</td><td>BLAS 構築</td></tr>
+<tr><td>void</td><td>BeginFrame()</td><td>フレーム開始</td></tr>
+<tr><td>void</td><td>AddInstance(int blasIndex, const XMMATRIX&amp; world, float metallic, float roughness)</td><td>インスタンス追加</td></tr>
+<tr><td>void</td><td>SetLightData(const XMFLOAT3&amp; dir, const XMFLOAT3&amp; color, float intensity)</td><td>ライト設定</td></tr>
+<tr><td>void</td><td>Execute(ID3D12GraphicsCommandList4*, ID3D12Resource* sceneSRV, ID3D12Resource* depthSRV, ...)</td><td>レイトレーシング実行 + コンポジット</td></tr>
+<tr><td>void</td><td>SetEnabled(bool)</td><td>有効/無効 (SSR と排他)</td></tr>
+<tr><td>bool</td><td>IsEnabled() const</td><td>有効状態取得</td></tr>
+<tr><td>void</td><td>OnResize(uint32_t w, uint32_t h)</td><td>リサイズ処理</td></tr>
+</tbody></table>
+</div>
+
+<div class="page" id="page-RTGI">
+<h1>RTGI</h1>
+<p class="meta"><code>namespace GX</code> | <code>Graphics/RayTracing/RTGI.h</code></p>
+<p class="brief">DXR グローバルイルミネーション。半解像度 1spp コサイン半球サンプリング + テンポラル蓄積 + A-Trous 空間フィルタ (5反復) + コンポジット加算合成。G キーでトグル。<span class="brief-beginner">レイトレーシングで間接光 (他の物体に反射した光) を計算し、シーン全体の明るさをリアルにします。</span></p>
+<h2>メソッド</h2>
+<table class="api"><thead><tr><th>戻り値</th><th>メソッド</th><th>説明</th></tr></thead><tbody>
+<tr><td>bool</td><td>Initialize(ID3D12Device5*, uint32_t w, uint32_t h)</td><td>初期化</td></tr>
+<tr><td>void</td><td>Execute(ID3D12GraphicsCommandList4*, ...)</td><td>GI 計算 (半解像度→テンポラル→A-Trous→コンポジット)</td></tr>
+<tr><td>void</td><td>SetEnabled(bool)</td><td>有効/無効 (G キーでトグル)</td></tr>
+<tr><td>bool</td><td>IsEnabled() const</td><td>有効状態取得</td></tr>
+<tr><td>void</td><td>OnResize(uint32_t w, uint32_t h)</td><td>リサイズ処理</td></tr>
+</tbody></table>
+<div class="note">RTReflections/SSR とは独立して動作します。PBR.hlsl に 3 番目 MRT (SV_Target2=albedo) が追加済み。</div>
+</div>
+
 <!-- ==================== GRAPHICS/LAYER ==================== -->
 <div class="page" id="page-RenderLayer">
 <h1>RenderLayer</h1>
@@ -2019,6 +2202,16 @@ GX::FileSystem::Instance().<span class="fn">Mount</span>(<span class="str">"asse
 </tbody></table>
 </div>
 
+<div class="page" id="page-PakFileProvider">
+<h1>PakFileProvider</h1>
+<p class="meta"><code>namespace GX</code> | <code>IO/PakFileProvider.h</code></p>
+<p class="brief">.gxpak バンドルの IFileProvider 実装。gxloader::PakLoader 使用。Priority=100。<span class="brief-beginner">.gxpak バンドルファイルからアセットを読み込むプロバイダーです。VFS にマウントすると、バンドル内のファイルを通常と同じ方法で読めます。LZ4 圧縮に対応。</span></p>
+<table class="api"><thead><tr><th>戻り値</th><th>メソッド</th><th>説明</th></tr></thead><tbody>
+<tr><td>bool</td><td>Open(const std::string&amp; pakPath)</td><td>GXPAK ファイルを開く</td></tr>
+<tr><td>int</td><td>Priority() const</td><td>100 (高優先度)</td></tr>
+</tbody></table>
+</div>
+
 <div class="page" id="page-Crypto">
 <h1>Crypto</h1>
 <p class="meta"><code>namespace GX</code> | <code>IO/Crypto.h</code></p>
@@ -2594,7 +2787,63 @@ settings.mass = <span class="num">1.0f</span>;
 <div class="struct-box"><h4>VECTOR</h4><code>float x, y, z</code></div>
 <div class="struct-box"><h4>MATRIX</h4><code>float m[4][4]</code></div>
 
-<footer>GXLib APIリファレンス — 生成日 2026-02-10 — DirectX 12 ゲームエンジン for Windows<br>Total: 120+ class pages | namespace GX | C++20</footer>
+<footer>GXLib APIリファレンス — 生成日 2026-02-21 — DirectX 12 ゲームエンジン for Windows<br>Total: 140+ class pages | namespace GX | C++20</footer>
+</div>
+
+<!-- ==================== ASSET PIPELINE (Phase 13) ==================== -->
+<div class="page" id="page-gxformat">
+<h1>gxformat (GXMD/GXAN/GXPAK)</h1>
+<p class="meta"><code>namespace gxfmt</code> | <code>gxformat/</code></p>
+<p class="brief">GXLib 独自バイナリ形式のヘッダーオンリー定義。GXMD (モデル), GXAN (アニメーション), GXPAK (バンドル) の3形式。<span class="brief-beginner">GXLib 専用のバイナリファイル形式の定義です。glTF より高速に読み込めるよう設計されています。</span></p>
+<h2>形式一覧</h2>
+<table class="api"><thead><tr><th>形式</th><th>拡張子</th><th>ヘッダー</th><th>説明</th></tr></thead><tbody>
+<tr><td>GXMD</td><td>.gxmd</td><td>gxformat/gxmd.h</td><td>メッシュ、マテリアル、テクスチャ参照、スケルトン、バインドポーズ</td></tr>
+<tr><td>GXAN</td><td>.gxan</td><td>gxformat/gxan.h</td><td>スケルタルアニメーション (キーフレーム、ボーンチャンネル)</td></tr>
+<tr><td>GXPAK</td><td>.gxpak</td><td>gxformat/gxpak.h</td><td>複数ファイルの LZ4 圧縮バンドル</td></tr>
+</tbody></table>
+<h2>頂点フォーマット</h2>
+<table class="api"><thead><tr><th>型</th><th>サイズ</th><th>対応</th></tr></thead><tbody>
+<tr><td>VertexStandard</td><td>48B</td><td>Vertex3D_PBR (バイナリ互換)</td></tr>
+<tr><td>VertexSkinned</td><td>80B</td><td>Vertex3D_Skinned (バイナリ互換)</td></tr>
+</tbody></table>
+</div>
+
+<div class="page" id="page-gxconv">
+<h1>gxconv (モデルコンバーター)</h1>
+<p class="meta"><code>namespace gxconv</code> | <code>gxconv/</code></p>
+<p class="brief">CLI モデル変換ツール。OBJ (tinyobjloader) / FBX (ufbx) / glTF (cgltf) → .gxmd/.gxan 変換。<span class="brief-beginner">3D モデルファイルを GXLib 独自のバイナリ形式に変換するコマンドラインツールです。</span></p>
+<h2>使い方</h2>
+<pre class="code">gxconv input.fbx -o output.gxmd
+gxconv input.glb -o output.gxmd
+gxconv input.obj -o output.gxmd</pre>
+<h2>対応形式</h2>
+<table class="api"><thead><tr><th>入力形式</th><th>ライブラリ</th><th>備考</th></tr></thead><tbody>
+<tr><td>.obj</td><td>tinyobjloader</td><td>スタティックメッシュのみ</td></tr>
+<tr><td>.fbx</td><td>ufbx</td><td>メッシュ + スケルタルアニメーション</td></tr>
+<tr><td>.gltf / .glb</td><td>cgltf</td><td>メッシュ + スケルタルアニメーション</td></tr>
+</tbody></table>
+</div>
+
+<div class="page" id="page-gxloader">
+<h1>gxloader (ランタイムローダー)</h1>
+<p class="meta"><code>namespace gxloader</code> | <code>gxloader/</code></p>
+<p class="brief">GXMD/GXAN/GXPAK ランタイムローダー (静的ライブラリ)。ボーンマッチングによるアニメーション再利用、ワイド文字パス対応。<span class="brief-beginner">ゲーム実行時に GXLib 独自形式のファイルを高速に読み込むライブラリです。</span></p>
+<h2>主要関数</h2>
+<table class="api"><thead><tr><th>戻り値</th><th>関数</th><th>説明</th></tr></thead><tbody>
+<tr><td>GxmdData</td><td>LoadGxmd(const char* path) / LoadGxmdW(const wchar_t*)</td><td>GXMD モデル読み込み</td></tr>
+<tr><td>GxanData</td><td>LoadGxan(const char* path) / LoadGxanW(const wchar_t*)</td><td>GXAN アニメーション読み込み</td></tr>
+<tr><td>BoneMatchResult</td><td>MatchBones(const GxmdData&amp;, const GxanData&amp;)</td><td>ボーン名でリマッピング</td></tr>
+</tbody></table>
+</div>
+
+<div class="page" id="page-gxpak">
+<h1>gxpak (バンドルツール)</h1>
+<p class="meta"><code>gxpak/</code></p>
+<p class="brief">CLI バンドルツール。複数ファイルを LZ4 圧縮してひとつの .gxpak にパック/アンパック。PakFileProvider で VFS に統合可能。<span class="brief-beginner">ゲーム配布時にアセットファイルをひとまとめにするツールです。</span></p>
+<h2>使い方</h2>
+<pre class="code">gxpak pack bundle.gxpak Assets/     <span class="cm"># Assets/ 以下を bundle.gxpak にパック</span>
+gxpak unpack bundle.gxpak output/   <span class="cm"># bundle.gxpak を output/ に展開</span>
+gxpak list bundle.gxpak             <span class="cm"># 内容一覧表示</span></pre>
 </div>
 
 <div class="page" id="page-detail"></div>

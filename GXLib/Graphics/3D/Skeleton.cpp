@@ -9,6 +9,8 @@ namespace GX
 void Skeleton::ComputeGlobalTransforms(const XMFLOAT4X4* localTransforms,
                                          XMFLOAT4X4* globalTransforms) const
 {
+    // ジョイント配列は親が子より前にある前提（トポロジカル順序）で、
+    // ルートから順にローカル行列を累積してグローバル行列を求める
     for (uint32_t i = 0; i < m_joints.size(); ++i)
     {
         XMMATRIX local = XMLoadFloat4x4(&localTransforms[i]);
@@ -28,6 +30,8 @@ void Skeleton::ComputeGlobalTransforms(const XMFLOAT4X4* localTransforms,
 void Skeleton::ComputeBoneMatrices(const XMFLOAT4X4* globalTransforms,
                                      XMFLOAT4X4* boneMatrices) const
 {
+    // inverseBindMatrix でバインドポーズを打ち消し、現在のグローバル姿勢を適用する
+    // HLSL側は列ベクトル規約（mul(float4,matrix)）のため、ここで転置して格納する
     for (uint32_t i = 0; i < m_joints.size(); ++i)
     {
         XMMATRIX invBind = XMLoadFloat4x4(&m_joints[i].inverseBindMatrix);

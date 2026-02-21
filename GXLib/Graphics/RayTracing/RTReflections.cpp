@@ -51,8 +51,9 @@ bool RTReflections::Initialize(ID3D12Device5* device, uint32_t width, uint32_t h
         m_reflectionState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
     }
 
-    // ディスパッチ用SRV/UAVヒープ
-    // レイアウト: [8..39]=geometry VB/IB, [40..71]=textures, [72..79]=per-frame SRV/UAV
+    // ディスパッチ用 shader-visible SRVヒープ (1つのヒープに全リソースを集約)
+    // レイアウト: [8..39]=geometry VB/IB(ByteAddressBuffer), [40..71]=albedo textures,
+    //            [72..79]=per-frame SRV/UAV (Scene,Depth,Normal,Output × 2フレーム)
     if (!m_dispatchHeap.Initialize(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, k_DispatchHeapSize, true))
         return false;
 
@@ -75,7 +76,9 @@ bool RTReflections::Initialize(ID3D12Device5* device, uint32_t width, uint32_t h
     if (!m_compositeHeap.Initialize(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 8, true))
         return false;
 
-    // per-instance PBRデータ CBV (512 * sizeof(XMFLOAT4) * 3配列 = 24576B per frame)
+    // per-instance PBRデータ CBV
+    // GPU側は3つの配列を連続配置: albedoMetallic[512] + roughnessGeom[512] + extraData[512]
+    // StructuredBufferではなくCBVとして渡す (24576B = 512 * sizeof(float4) * 3)
     if (!m_instanceDataCB.Initialize(device, 24576, 24576))
         return false;
     m_instanceData.reserve(k_MaxInstances);
@@ -317,7 +320,8 @@ void RTReflections::Execute(ID3D12GraphicsCommandList4* cmdList4, uint32_t frame
 
     auto* cmdList = static_cast<ID3D12GraphicsCommandList*>(cmdList4);
 
-    // リソース遷移 (DispatchRaysはコンピュート系なのでNON_PIXEL_SHADER_RESOURCE)
+    // DXRのDispatchRaysはコンピュートパイプラインで実行されるため、
+    // 入力SRVはNON_PIXEL_SHADER_RESOURCE状態でなければならない
     srcHDR.TransitionTo(cmdList, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
     depth.TransitionTo(cmdList, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
     if (m_normalRT)
@@ -487,7 +491,8 @@ void RTReflections::Execute(ID3D12GraphicsCommandList4* cmdList4, uint32_t frame
         cmdList->ResourceBarrier(static_cast<UINT>(texBarriers.size()), texBarriers.data());
     }
 
-    // === コンポジットパス ===
+    // === コンポジットパス (ピクセルシェーダーベース) ===
+    // DispatchRaysで書いた反射UAVをSRVとして読み、srcHDRにFresnel反射率で加算合成
     // srcHDR / depth / normal をピクセルシェーダー用に遷移
     srcHDR.TransitionTo(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     depth.TransitionTo(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);

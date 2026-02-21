@@ -1,5 +1,9 @@
 /// @file ModelExporter.cpp
-/// @brief GX::Model -> gxconv::Scene -> GXMD/GXAN binary export
+/// @brief GX::Model → gxconv::Scene中間表現 → GXMD/GXANバイナリ出力
+///
+/// GX::Modelのメッシュ/マテリアル/スケルトン/アニメーションをgxconv中間表現に変換し、
+/// gxconv::GxmdExporter/GxanExporterでバイナリファイルを書き出す。
+/// マテリアルのShaderModelパラメータやテクスチャファイルパスも保持される。
 
 #include "ModelExporter.h"
 #include "Core/Logger.h"
@@ -17,7 +21,9 @@
 #include <cstring>
 
 // ============================================================
-// Helper: Convert GX::Model -> gxconv::Scene
+// GX::Model → gxconv::Scene 変換ヘルパー
+// メッシュ(頂点/インデックス)、マテリアル(テクスチャパス含む)、
+// スケルトン(IBM+ローカルTRS)、アニメーション(T/R/Sチャンネル)を変換する。
 // ============================================================
 static gxconv::Scene ConvertModelToScene(const SceneEntity& entity,
                                           GX::MaterialManager& matManager,

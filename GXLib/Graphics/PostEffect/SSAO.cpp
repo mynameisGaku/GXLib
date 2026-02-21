@@ -13,7 +13,7 @@ namespace GX
 
 void SSAO::GenerateKernel()
 {
-    std::mt19937 rng(42); // 固定シード
+    std::mt19937 rng(42); // 固定シード (フレーム間で不変のカーネルを得るため)
     std::uniform_real_distribution<float> dist01(0.0f, 1.0f);
     std::uniform_real_distribution<float> distNeg(-1.0f, 1.0f);
 
@@ -30,7 +30,8 @@ void SSAO::GenerateKernel()
         XMVECTOR v = XMLoadFloat4(&sample);
         v = XMVector3Normalize(v);
 
-        // ランダムな長さ（中心に近いほど密に）
+        // ランダムな長さ（中心ほどサンプル密度を高くする二次分布）
+        // scale^2で原点付近に集中させ、近距離のオクルージョン検出精度を上げる
         float scale = static_cast<float>(i) / static_cast<float>(k_KernelSize);
         scale = 0.1f + scale * scale * 0.9f; // lerp(0.1, 1.0, scale^2)
         v = XMVectorScale(v, scale);
@@ -155,6 +156,7 @@ bool SSAO::CreatePipelines(ID3D12Device* device)
     }
 
     // 合成 PSO (HDR R16G16B16A16_FLOAT + MultiplyBlend)
+    // AO値 (0=遮蔽, 1=非遮蔽) をHDRシーンに乗算ブレンドして陰影を付ける
     {
         auto ps = m_shader.CompileFromFile(L"Shaders/SSAO.hlsl", L"PSComposite", L"ps_6_0");
         if (!ps.valid) return false;

@@ -11,18 +11,18 @@
 // ============================================================================
 cbuffer RTGIConstants : register(b0)
 {
-    float4x4 invViewProjection;
-    float4x4 viewMatrix;
-    float4x4 invProjection;
-    float3   cameraPosition;
-    float    maxDistance;
-    float    screenWidth;
-    float    screenHeight;
-    float    halfWidth;
-    float    halfHeight;
-    float3   skyTopColor;
-    float    giFrameIndex;
-    float3   skyBottomColor;
+    float4x4 invViewProjection;  // 逆VP行列
+    float4x4 viewMatrix;         // ビュー行列
+    float4x4 invProjection;      // 逆プロジェクション行列
+    float3   cameraPosition;     // カメラのワールド座標
+    float    maxDistance;         // GIレイの最大到達距離
+    float    screenWidth;        // フル解像度の幅
+    float    screenHeight;       // フル解像度の高さ
+    float    halfWidth;          // 半解像度の幅（ディスパッチサイズ）
+    float    halfHeight;         // 半解像度の高さ
+    float3   skyTopColor;        // プロシージャル空の天頂色
+    float    giFrameIndex;       // フレーム番号（RNG用）
+    float3   skyBottomColor;     // プロシージャル空の地平線色
     float    _pad1;
 };
 
@@ -69,8 +69,10 @@ struct ShadowPayload
 };
 
 // ============================================================================
-// RNG (PCGハッシュ)
+// RNG (PCGハッシュ) — フレームごとに異なるランダムシードを生成
 // ============================================================================
+
+/// @brief RNGシード初期化 — ピクセル座標+フレーム番号からPCGハッシュで生成
 uint InitRNG(uint2 pixel, uint frame)
 {
     uint seed = pixel.x + pixel.y * 65536 + frame * 1234567;
@@ -79,6 +81,7 @@ uint InitRNG(uint2 pixel, uint frame)
     return (seed >> 22) ^ seed;
 }
 
+/// @brief 次の乱数を生成 — PCGハッシュで [0,1] の浮動小数点を返す
 float NextRandom(inout uint state)
 {
     state = state * 747796405u + 2891336453u;
@@ -88,7 +91,10 @@ float NextRandom(inout uint state)
 
 // ============================================================================
 // コサイン重み半球サンプリング
+// Lambert拡散に最適な確率密度で半球上の方向をサンプリングする。
 // ============================================================================
+
+/// @brief コサイン重み半球サンプリング — 法線N周りの半球上からランダム方向を生成
 float3 CosineSampleHemisphere(float3 N, inout uint rng)
 {
     float u1 = NextRandom(rng);

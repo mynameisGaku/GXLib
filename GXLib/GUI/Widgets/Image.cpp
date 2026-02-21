@@ -7,6 +7,7 @@ namespace GX { namespace GUI {
 void Image::Update(float deltaTime)
 {
     Widget::Update(deltaTime);
+    // UVスクロールアニメーション（imageUvSpeedX/Yが設定されていれば毎フレームUVオフセットを進める）
     const Style& style = GetRenderStyle();
     if (style.imageUVSpeedX != 0.0f || style.imageUVSpeedY != 0.0f)
     {

@@ -1,5 +1,8 @@
 /// @file SceneHierarchyPanel.cpp
-/// @brief Scene hierarchy panel implementation
+/// @brief シーン階層パネル実装
+///
+/// エンティティをTreeNodeExで一覧表示し、クリックで選択、右クリックで追加/削除。
+/// スキンドモデルはノード展開時にボーンツリーも表示する。
 
 #include "SceneHierarchyPanel.h"
 #include <imgui.h>

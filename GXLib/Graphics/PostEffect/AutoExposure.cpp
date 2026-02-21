@@ -220,9 +220,10 @@ float AutoExposure::ComputeExposure(ID3D12GraphicsCommandList* cmdList, uint32_t
     }
 
     // === 前フレームのリードバック値を読取り (2フレーム遅延) ===
+    // GPUが書き込み中のバッファを読まないよう、反対側のバッファから読む (リングバッファ方式)
     if (m_readbackFrameCount >= 2)
     {
-        uint32_t readIdx = (m_readbackFrameCount) % 2; // 反対側のバッファを読む
+        uint32_t readIdx = (m_readbackFrameCount) % 2;
         void* mapped = nullptr;
         D3D12_RANGE readRange = { 0, 2 }; // R16_FLOAT = 2 bytes
         if (SUCCEEDED(m_readbackBuffer[readIdx]->Map(0, &readRange, &mapped)))
@@ -261,14 +262,15 @@ float AutoExposure::ComputeExposure(ID3D12GraphicsCommandList* cmdList, uint32_t
     m_readbackFrameCount++;
 
     // === 露出計算 ===
-    // avgLogLum は log(luminance) の平均値
+    // avgLogLum は log(luminance) の平均値 → exp() で実際の平均輝度に戻す
     float avgLum = expf(m_lastAvgLuminance);
     avgLum = (std::max)(avgLum, 0.001f); // ゼロ除算防止
 
+    // keyValue(目標中間灰) / 平均輝度 = 目標露出
     float targetExposure = m_keyValue / avgLum;
     targetExposure = (std::max)(m_minExposure, (std::min)(m_maxExposure, targetExposure));
 
-    // 時間的適応 (exponential smoothing)
+    // 指数平滑化で急激な変化を抑え、人間の目の順応をシミュレート
     float adaptRate = 1.0f - expf(-m_adaptationSpeed * deltaTime);
     m_currentExposure = m_currentExposure + (targetExposure - m_currentExposure) * adaptRate;
     m_currentExposure = (std::max)(m_minExposure, (std::min)(m_maxExposure, m_currentExposure));

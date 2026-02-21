@@ -1,9 +1,11 @@
 #pragma once
 /// @file RTGI.h
-/// @brief DXR グローバルイルミネーション (1spp コサイン半球 + テンポラル蓄積 + A-Trous デノイズ)
+/// @brief DXR グローバルイルミネーション (間接照明)
 ///
-/// RTReflections と同一のインフラ (BLAS/TLAS/InstanceData) を共有可能。
-/// 間接ディフューズ照明（カラーブリーディング）を計算し、シーンに加算合成する。
+/// DxLibには無い機能。DXRレイトレーシングで間接ディフューズ照明を計算する。
+/// 赤い壁の反射光が近くの白い物体を赤く染める「カラーブリーディング」等を再現。
+/// 1sppコサイン半球サンプリング→テンポラル蓄積→A-Trousデノイズの3段構成。
+/// RTReflectionsのBLAS/TLASインフラを共有可能 (Gキーでトグル)。
 
 #include "pch.h"
 #include "Graphics/RayTracing/RTAccelerationStructure.h"
@@ -68,23 +70,30 @@ struct RTGICompositeConstants
     float fullHeight;   // 12
 };  // 16B → 256B aligned
 
-/// @brief DXR グローバルイルミネーションクラス
+/// @brief DXRレイトレでグローバルイルミネーション(間接照明)を計算するクラス
+///
+/// 半解像度でコサイン半球1sppレイをディスパッチし、テンポラル蓄積(フル解像度)と
+/// A-Trous空間フィルタ(最大8反復)でデノイズ後、HDRシーンに加算合成する。
 class RTGI
 {
 public:
     RTGI() = default;
     ~RTGI() = default;
 
-    /// @brief 初期化
+    /// @brief 初期化。DXRパイプライン・デノイズRT・コンポジットPSOを作成する
+    /// @param device DXR対応デバイス (ID3D12Device5)
+    /// @param width 画面幅
+    /// @param height 画面高さ
+    /// @return 成功でtrue
     bool Initialize(ID3D12Device5* device, uint32_t width, uint32_t height);
 
-    /// @brief BLAS共有 (RTReflectionsのAccelStructを流用)
+    /// @brief RTReflectionsのBLAS/TLASを共有して二重構築を回避する
     void SetSharedAccelerationStructure(RTAccelerationStructure* shared);
 
-    /// @brief 自前AccelStructを取得
+    /// @brief 自前のAccelerationStructureを取得 (共有しない場合)
     RTAccelerationStructure& GetAccelStruct() { return m_ownAccelStruct; }
 
-    /// @brief フレーム開始
+    /// @brief フレーム開始。インスタンスリストをクリアする
     void BeginFrame();
 
     /// @brief BLASを構築
@@ -115,26 +124,40 @@ public:
     /// @brief 空の色設定
     void SetSkyColors(const XMFLOAT3& top, const XMFLOAT3& bottom);
 
-    /// @brief 4パス実行
+    /// @brief GIの全4パス (レイディスパッチ→テンポラル→空間フィルタ→コンポジット) を実行
+    /// @param cmdList4 DXR対応コマンドリスト
+    /// @param frameIndex ダブルバッファ用フレームインデックス
+    /// @param srcHDR 入力HDRシーン
+    /// @param destHDR 出力先HDR RT (GI加算済み)
+    /// @param depth 深度バッファ
+    /// @param camera カメラ
+    /// @param albedoRT アルベドRT (PBR.hlslのMRT SV_Target2で書かれたもの)
     void Execute(ID3D12GraphicsCommandList4* cmdList4, uint32_t frameIndex,
                  RenderTarget& srcHDR, RenderTarget& destHDR,
                  DepthBuffer& depth, const Camera3D& camera,
                  RenderTarget& albedoRT);
 
+    /// @brief GBuffer法線RT (外部所有) を設定
     void SetNormalRT(RenderTarget* rt) { m_normalRT = rt; }
     void SetEnabled(bool e) { m_enabled = e; }
     bool IsEnabled() const { return m_enabled; }
+    /// @brief GI合成の強度。大きいほど間接光が強くなる
     void SetIntensity(float i) { m_intensity = i; }
     float GetIntensity() const { return m_intensity; }
+    /// @brief GIレイの最大飛距離
     void SetMaxDistance(float d) { m_maxDistance = d; }
     float GetMaxDistance() const { return m_maxDistance; }
+    /// @brief テンポラル蓄積の新フレーム比率 (小さいほど過去フレームを重視)
     void SetTemporalAlpha(float a) { m_temporalAlpha = a; }
     float GetTemporalAlpha() const { return m_temporalAlpha; }
+    /// @brief A-Trous空間フィルタの反復数 (最大8)。多いほどノイズが減る
     void SetSpatialIterations(int n) { m_spatialIterations = n; }
     int GetSpatialIterations() const { return m_spatialIterations; }
+    /// @brief デバッグ表示モード (0=オフ, 1=GIのみ表示)
     void SetDebugMode(int mode) { m_debugMode = mode; }
     int GetDebugMode() const { return m_debugMode; }
 
+    /// @brief 画面リサイズ対応
     void OnResize(ID3D12Device* device, uint32_t w, uint32_t h);
 
 private:

@@ -1,5 +1,5 @@
 /// @file fbx_importer.cpp
-/// @brief FBX importer implementation using ufbx
+/// @brief FBXインポーターの実装 (ufbx使用)
 
 #include "fbx_importer.h"
 #include "intermediate/scene.h"
@@ -16,11 +16,13 @@
 namespace gxconv
 {
 
+/// FBXマテリアルからシェーダーモデルを推定する
+/// マテリアル名に"toon"/"cel"を含む場合はToon、shader_typeでPhong/Lambert判定
 static gxfmt::ShaderModel DetectShaderModelFromFbx(const ufbx_material* mat)
 {
     if (!mat) return gxfmt::ShaderModel::Standard;
 
-    // Check material name for toon/cel hints
+    // マテリアル名にToon/Celヒントがあるか確認
     std::string name(mat->name.data, mat->name.length);
     for (auto& c : name) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
     if (name.find("toon") != std::string::npos || name.find("cel") != std::string::npos)
@@ -29,11 +31,13 @@ static gxfmt::ShaderModel DetectShaderModelFromFbx(const ufbx_material* mat)
     if (mat->shader_type == UFBX_SHADER_FBX_PHONG)
         return gxfmt::ShaderModel::Phong;
     if (mat->shader_type == UFBX_SHADER_FBX_LAMBERT)
-        return gxfmt::ShaderModel::Phong; // low shininess
+        return gxfmt::ShaderModel::Phong; // Lambertは低shihinessのPhongとして扱う
 
     return gxfmt::ShaderModel::Standard;
 }
 
+/// FBXマテリアルマップからテクスチャファイル名を取得する
+/// FBXは絶対パスを保持するため、ファイル名のみを抽出する
 static std::string GetTextureFilePath(const ufbx_material_map& map)
 {
     if (!map.texture || !map.texture->filename.length)
@@ -43,7 +47,7 @@ static std::string GetTextureFilePath(const ufbx_material_map& map)
         return "";
     }
     std::string fullPath(map.texture->filename.data, map.texture->filename.length);
-    // Strip directory — only store filename (FBX has absolute paths)
+    // ディレクトリを除去してファイル名のみ保持
     auto slash = fullPath.find_last_of("/\\");
     if (slash != std::string::npos)
         return fullPath.substr(slash + 1);
@@ -57,6 +61,7 @@ static std::string UfbxStr(ufbx_string s)
 
 bool FbxImporter::Import(const std::string& filePath, Scene& outScene)
 {
+    // ufbxの読み込みオプション: 左手Y-up (DirectX座標系) に変換
     ufbx_load_opts opts = {};
     opts.target_axes = ufbx_axes_left_handed_y_up;
     opts.target_unit_meters = 1.0f;
@@ -131,11 +136,9 @@ bool FbxImporter::Import(const std::string& filePath, Scene& outScene)
         outScene.materials.push_back(std::move(defaultMat));
     }
 
-    // --- Build skeleton (collect all bone nodes) ---
+    // --- スケルトン構築: スキンデフォーマーからボーンノードを収集 ---
     std::map<const ufbx_node*, uint32_t> boneNodeToIndex;
     std::vector<const ufbx_node*> boneNodes;
-
-    // Find all bones from skin deformers
     for (size_t si = 0; si < scene->skin_deformers.count; ++si)
     {
         ufbx_skin_deformer* skin = scene->skin_deformers.data[si];
@@ -172,11 +175,11 @@ bool FbxImporter::Import(const std::string& filePath, Scene& outScene)
                     joint.parentIndex = static_cast<int32_t>(it->second);
             }
 
-            // Local transform (TRS)
+            // ローカルTRS
             if (joint.parentIndex == -1)
             {
-                // Root bone: use node_to_world to include non-bone ancestor
-                // (e.g. Armature) axis/unit conversions from ADJUST_TRANSFORMS
+                // ルートボーン: node_to_worldを使用して非ボーン祖先(Armature等)の
+                // 軸変換・単位変換を含める (ADJUST_TRANSFORMSの影響)
                 ufbx_transform worldXf = ufbx_matrix_to_transform(&node->node_to_world);
                 joint.localTranslation[0] = static_cast<float>(worldXf.translation.x);
                 joint.localTranslation[1] = static_cast<float>(worldXf.translation.y);
@@ -205,7 +208,8 @@ bool FbxImporter::Import(const std::string& filePath, Scene& outScene)
             }
         }
 
-        // Set inverse bind matrices from skin clusters
+        // 逆バインド行列をスキンクラスタから取得
+        // ufbxの列ベクトル規約 → DirectXMathの行ベクトル規約に転置して格納
         for (size_t si = 0; si < scene->skin_deformers.count; ++si)
         {
             ufbx_skin_deformer* skin = scene->skin_deformers.data[si];
@@ -217,10 +221,9 @@ bool FbxImporter::Import(const std::string& filePath, Scene& outScene)
                 if (it == boneNodeToIndex.end()) continue;
 
                 auto& joint = outScene.skeleton[it->second];
-                // ufbx geometry_to_bone is already the inverse bind matrix
+                // geometry_to_boneがそのまま逆バインド行列
                 const ufbx_matrix& m = cluster->geometry_to_bone;
-                // Store as row-major 4x4 (row-vector convention for DirectXMath)
-                // ufbx cols are column vectors → transpose to row-vector layout
+                // ufbx列ベクトル → DirectXMath行ベクトルへ転置格納
                 joint.inverseBindMatrix[0]  = static_cast<float>(m.cols[0].x);  // m00
                 joint.inverseBindMatrix[1]  = static_cast<float>(m.cols[0].y);  // m10
                 joint.inverseBindMatrix[2]  = static_cast<float>(m.cols[0].z);  // m20
@@ -248,8 +251,8 @@ bool FbxImporter::Import(const std::string& filePath, Scene& outScene)
         if (!node->mesh) continue;
         const ufbx_mesh* mesh = node->mesh;
 
-        // Determine skin weights for this mesh
-        struct JointIndices { uint32_t v[4]; };
+        // 頂点ごとのスキンウェイトを構築
+        struct JointIndices { uint32_t v[4]; }; // 最大4ボーン
         struct JointWeights { float v[4]; };
         std::vector<JointIndices> vertJoints(mesh->num_vertices, {{0,0,0,0}});
         std::vector<JointWeights> vertWeights(mesh->num_vertices, {{0,0,0,0}});
@@ -281,7 +284,7 @@ bool FbxImporter::Import(const std::string& filePath, Scene& outScene)
                 }
             }
 
-            // Keep top 4 influences per vertex, normalize
+            // 各頂点の影響を上位4つに絞ってウェイトを正規化
             for (size_t v = 0; v < mesh->num_vertices; ++v)
             {
                 auto& inf = influences[v];
@@ -325,7 +328,7 @@ bool FbxImporter::Import(const std::string& filePath, Scene& outScene)
             for (uint32_t fi : faceList)
             {
                 ufbx_face face = mesh->faces.data[fi];
-                // Triangulate (fan triangulation for convex polygons)
+                // 凸ポリゴンをファン三角形分割
                 uint32_t numTriangles = face.num_indices >= 3 ? face.num_indices - 2 : 0;
 
                 for (uint32_t t = 0; t < numTriangles; ++t)
@@ -337,7 +340,7 @@ bool FbxImporter::Import(const std::string& filePath, Scene& outScene)
                         face.index_begin + t + 2
                     };
 
-                    // Swap winding for left-handed coordinate system
+                    // 左手座標系用にワインディング反転
                     std::swap(triIndices[1], triIndices[2]);
 
                     for (int vi = 0; vi < 3; ++vi)
@@ -404,7 +407,7 @@ bool FbxImporter::Import(const std::string& filePath, Scene& outScene)
         }
     }
 
-    // --- Animations ---
+    // --- アニメーション: 30fpsでサンプリング ---
     for (size_t ai = 0; ai < scene->anim_stacks.count; ++ai)
     {
         const ufbx_anim_stack* stack = scene->anim_stacks.data[ai];
@@ -413,14 +416,13 @@ bool FbxImporter::Import(const std::string& filePath, Scene& outScene)
         anim.duration = static_cast<float>(stack->time_end - stack->time_begin);
         if (anim.duration <= 0.0f) anim.duration = 1.0f;
 
-        // Sample each bone at regular intervals
-        float sampleRate = 30.0f; // 30 fps
+        float sampleRate = 30.0f;
         uint32_t numSamples = static_cast<uint32_t>(anim.duration * sampleRate) + 1;
         if (numSamples < 2) numSamples = 2;
 
         for (auto& [node, jointIdx] : boneNodeToIndex)
         {
-            // Determine if this is a root bone (no bone ancestor in skeleton)
+            // ルートボーン判定: スケルトン内にボーン親を持たないノード
             bool isRootBone = true;
             if (node->parent)
             {
@@ -428,7 +430,8 @@ bool FbxImporter::Import(const std::string& filePath, Scene& outScene)
                     isRootBone = false;
             }
 
-            // For root bones, pre-fetch parent's world matrix (static during animation)
+            // ルートボーンの場合、親ワールド行列を事前取得 (アニメ中は静的)
+            // parentWorld * localMatでワールド変換を合成する
             ufbx_matrix parentWorld = {};
             if (isRootBone && node->parent)
                 parentWorld = node->parent->node_to_world;

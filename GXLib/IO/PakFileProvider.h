@@ -23,9 +23,13 @@ public:
     bool Open(const std::string& pakPath);
 
     /// @brief ファイルの存在を確認する
+    /// @param path バンドル内パス
+    /// @return 存在すればtrue
     bool Exists(const std::string& path) const override;
 
-    /// @brief ファイルを読み込む
+    /// @brief ファイルを読み込む（LZ4圧縮エントリは自動伸長される）
+    /// @param path バンドル内パス
+    /// @return ファイルデータ（失敗時はIsValid()==false）
     FileData Read(const std::string& path) const override;
 
     /// @brief 書き込みは非サポート (常にfalse)

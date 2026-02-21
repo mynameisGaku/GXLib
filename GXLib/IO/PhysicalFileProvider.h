@@ -18,12 +18,20 @@ public:
     explicit PhysicalFileProvider(const std::string& rootDir);
 
     /// @brief ファイルの存在を確認する
+    /// @param path ファイルパス（ルートディレクトリ相対）
+    /// @return 存在すればtrue
     bool Exists(const std::string& path) const override;
 
     /// @brief ファイルを読み込む
+    /// @param path ファイルパス（ルートディレクトリ相対）
+    /// @return ファイルデータ（失敗時はIsValid()==false）
     FileData Read(const std::string& path) const override;
 
     /// @brief ファイルを書き込む
+    /// @param path ファイルパス（ルートディレクトリ相対）
+    /// @param data 書き込むデータ
+    /// @param size データサイズ（バイト）
+    /// @return 成功した場合true
     bool Write(const std::string& path, const void* data, size_t size) override;
 
 private:

@@ -9,7 +9,8 @@
 
 #include <fstream>
 
-// nlohmann/json は巨大ヘッダなので翻訳単位を1つに限定
+// nlohmann/json は巨大なヘッダオンリーライブラリなので、
+// インクルードをこの1翻訳単位に限定してコンパイル時間を抑える
 #include "ThirdParty/json.hpp"
 
 using json = nlohmann::json;

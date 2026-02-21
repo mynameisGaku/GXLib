@@ -1,3 +1,5 @@
+/// @file ArchiveFileProvider.cpp
+/// @brief アーカイブプロバイダー実装 — Archive への委譲
 #include "pch.h"
 #include "IO/ArchiveFileProvider.h"
 

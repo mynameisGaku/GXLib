@@ -9,13 +9,13 @@
 
 cbuffer CompositeConstants : register(b0)
 {
-    float    intensity;
-    float    debugMode;
-    float    screenWidth;
-    float    screenHeight;
-    float3   cameraPosition;
+    float    intensity;          // 反射の強度
+    float    debugMode;          // デバッグ表示モード
+    float    screenWidth;        // スクリーン幅
+    float    screenHeight;       // スクリーン高さ
+    float3   cameraPosition;     // カメラのワールド座標
     float    _pad0;
-    float4x4 invViewProjection;
+    float4x4 invViewProjection;  // 逆VP行列
 };
 
 Texture2D<float4> g_Scene      : register(t0);
@@ -35,6 +35,7 @@ float3 ReconstructWorldPosition(float2 uv, float depth)
     return worldPos.xyz / worldPos.w;
 }
 
+/// @brief 反射合成PS — 深度エッジ保持ブラー + Fresnelベースlerp合成
 float4 PSMain(FullscreenVSOutput input) : SV_Target
 {
     float2 uv = input.uv;

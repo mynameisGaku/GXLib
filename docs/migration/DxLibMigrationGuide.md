@@ -232,7 +232,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
 | DXLib | GXLib | 備考 |
 |---|---|---|
-| `MV1LoadModel()` | `LoadModel()` | 関数名変更、glTF 形式のみ |
+| `MV1LoadModel()` | `LoadModel()` | 関数名変更、glTF / GXMD 形式対応 |
 | `MV1DeleteModel()` | `DeleteModel()` | 関数名変更 |
 | `MV1DrawModel()` | `DrawModel()` | 関数名変更 |
 | `MV1SetPosition()` | `SetModelPosition()` | 関数名変更 |
@@ -278,7 +278,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
 ### 3D モデル形式
 - DXLib: `.x`, `.mv1` 形式に対応
-- GXLib: **glTF (.gltf/.glb)** のみ対応（Blender 等からエクスポート可能）
+- GXLib: **glTF (.gltf/.glb)** および **GXMD (.gxmd)** に対応（Blender 等からエクスポート、gxconv で変換可能）
+- gxconv ツールで FBX/OBJ/glTF → .gxmd/.gxan への一括変換が可能
 
 ### サウンド形式
 - DXLib: `.mp3`, `.ogg`, `.wav` 等に広く対応
@@ -317,7 +318,14 @@ DXLib にない GXLib 独自機能です。移行後にステップアップと�
 | 機能 | 説明 | 関連チュートリアル |
 |------|------|-------------------|
 | **HDR レンダリング + ポストエフェクト** | Bloom, SSAO, SSR, DoF, TAA 等 | [04_Rendering3D](../../docs/tutorials/04_Rendering3D.md) |
+| **DXR レイトレーシング反射** | ハードウェアレイトレーシングによるリアルな反射 (SSR と排他) | [API リファレンス](../index.html) |
+| **DXR RTGI** | グローバルイルミネーション (間接光の自動計算) | [API リファレンス](../index.html) |
 | **PBR マテリアル** | メタリック/ラフネスによるリアルな質感 | [04_Rendering3D](../../docs/tutorials/04_Rendering3D.md) |
+| **Toon シェーダー (UTS2)** | セルシェーディング、3ゾーン、スムース法線アウトライン | [04_Rendering3D](../../docs/tutorials/04_Rendering3D.md) |
+| **ShaderRegistry** | 6 種シェーダーモデル × static/skinned = 14 PSO 自動管理 | [API リファレンス](../index.html) |
+| **アニメーションブレンド** | BlendStack / BlendTree / AnimatorStateMachine | [API リファレンス](../index.html) |
+| **アセットパイプライン** | gxconv (モデル変換) / gxloader (ランタイムローダー) / gxpak (バンドル) | [API リファレンス](../index.html) |
+| **GXModelViewer** | ImGui Docking ベースの 3D モデルビューア / エディタ | — |
 | **レンダーレイヤーシステム** | Scene + UI の分離合成 | [API リファレンス](../index.html) |
 | **XML + CSS GUI** | 宣言的UIシステム | [05_GUI](../../docs/tutorials/05_GUI.md) |
 | **VFS + アーカイブ** | 暗号化アーカイブ (AES-256 + LZ4) | [API リファレンス](../index.html) |

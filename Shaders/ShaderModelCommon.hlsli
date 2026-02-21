@@ -1,3 +1,7 @@
+// シェーダーモデル共通定義
+// PBR/Unlit/Toon/Phong/Subsurface/ClearCoat の全シェーダーモデルが共有する
+// cbuffer、テクスチャバインディング、頂点フォーマット、VSMain、ヘルパー関数を定義。
+
 /// @file ShaderModelCommon.hlsli
 /// @brief ShaderModel共通定義（cbuffer/テクスチャ/頂点フォーマット/VSMain）
 ///
@@ -16,41 +20,41 @@
 
 cbuffer ObjectConstants : register(b0)
 {
-    float4x4 world;
-    float4x4 worldInverseTranspose;
+    float4x4 world;                 // ワールド変換行列
+    float4x4 worldInverseTranspose; // 法線変換用（ワールド逆転置行列）
 };
 
 #define NUM_SHADOW_CASCADES 4
 
 cbuffer FrameConstants : register(b1)
 {
-    float4x4 gView;
-    float4x4 gProjection;
-    float4x4 gViewProjection;
-    float3   gCameraPosition;
-    float    gTime;
+    float4x4 gView;                              // ビュー行列
+    float4x4 gProjection;                        // プロジェクション行列
+    float4x4 gViewProjection;                    // ビュー×プロジェクション行列
+    float3   gCameraPosition;                    // カメラのワールド座標
+    float    gTime;                              // アプリ開始からの経過秒
     // CSMシャドウ関連
-    float4x4 gLightVP[NUM_SHADOW_CASCADES];
-    float4   gCascadeSplitsVec;   // x,y,z,w = splits[0..3]
-    float    gShadowMapSize;
-    uint     gShadowEnabled;
+    float4x4 gLightVP[NUM_SHADOW_CASCADES];      // 各カスケードのライトVP行列
+    float4   gCascadeSplitsVec;                   // カスケード分割距離 (x,y,z,w)
+    float    gShadowMapSize;                      // シャドウマップの解像度（px）
+    uint     gShadowEnabled;                      // シャドウ有効フラグ
     float2   _fogPad;
     // フォグ関連
-    float3   gFogColor;
-    float    gFogStart;
-    float    gFogEnd;
-    float    gFogDensity;
-    uint     gFogMode;
-    uint     gShadowDebugMode;
+    float3   gFogColor;                           // フォグの色
+    float    gFogStart;                           // 線形フォグの開始距離
+    float    gFogEnd;                             // 線形フォグの終了距離
+    float    gFogDensity;                         // 指数フォグの密度
+    uint     gFogMode;                            // 0=無効, 1=Linear, 2=Exp, 3=Exp2
+    uint     gShadowDebugMode;                    // シャドウデバッグ可視化モード (0=off)
     // スポットシャドウ関連
-    float4x4 gSpotLightVP;
-    float    gSpotShadowMapSize;
-    int      gSpotShadowLightIndex;
+    float4x4 gSpotLightVP;                        // スポットライトのVP行列
+    float    gSpotShadowMapSize;                  // スポットシャドウマップ解像度
+    int      gSpotShadowLightIndex;               // スポットシャドウ対象のライトインデックス
     float2   _spotPad;
     // ポイントシャドウ関連
-    float4x4 gPointLightVP[6];
-    float    gPointShadowMapSize;
-    int      gPointShadowLightIndex;
+    float4x4 gPointLightVP[6];                    // ポイントライト6面のVP行列
+    float    gPointShadowMapSize;                 // ポイントシャドウマップ解像度
+    int      gPointShadowLightIndex;              // ポイントシャドウ対象のライトインデックス
     float2   _pointPad;
 };
 
@@ -58,9 +62,9 @@ cbuffer FrameConstants : register(b1)
 
 cbuffer LightConstants : register(b2)
 {
-    LightData gLights[MAX_LIGHTS];
-    float3    gAmbientColor;
-    uint      gNumLights;
+    LightData gLights[MAX_LIGHTS]; // ライト配列（最大16個）
+    float3    gAmbientColor;       // アンビエントライト色
+    uint      gNumLights;          // 有効ライト数
 };
 
 // ============================================================================
@@ -69,99 +73,100 @@ cbuffer LightConstants : register(b2)
 
 cbuffer ShaderModelConstants : register(b3)
 {
-    // Common (0..63)
-    float4   gBaseColor;          //  0
-    float3   gEmissiveFactor;     // 16
-    float    gEmissiveStrength;   // 28
-    float    gAlphaCutoff;        // 32
-    uint     gShaderModelId;      // 36
-    uint     gMaterialFlags;      // 40
-    float    gNormalScale;        // 44
-    float    gMetallic;           // 48
-    float    gRoughness;          // 52
-    float    gAOStrength;         // 56
-    float    gReflectance;        // 60
+    // -- 共通パラメータ (0..63) -- 全シェーダーモデルで使用
+    float4   gBaseColor;          //  0: 基本色 (RGBA)
+    float3   gEmissiveFactor;     // 16: 自発光色
+    float    gEmissiveStrength;   // 28: 自発光の強度
+    float    gAlphaCutoff;        // 32: アルファテストの閾値
+    uint     gShaderModelId;      // 36: シェーダーモデルID
+    uint     gMaterialFlags;      // 40: テクスチャ有無フラグ群
+    float    gNormalScale;        // 44: 法線マップの強度
+    float    gMetallic;           // 48: メタリック度 (PBR)
+    float    gRoughness;          // 52: ラフネス (PBR)
+    float    gAOStrength;         // 56: AOマップの効き具合
+    float    gReflectance;        // 60: 反射率
 
-    // Toon (64..143) — UTS2-style double shade
-    float4   gShadeColor;         // 64:  1st shade color
-    float4   gShade2ndColor;      // 80:  2nd shade color
-    float    gBaseColorStep;      // 96:  base->1st threshold
-    float    gBaseShadeFeather;   // 100: base->1st feather
-    float    gShadeColorStep;     // 104: 1st->2nd threshold
-    float    gShade1st2ndFeather; // 108: 1st->2nd feather
-    float4   gRimColor;           // 112
-    float    gRimPower;           // 128
-    float    gRimIntensity;       // 132
-    float    gHighColorPower;     // 136: specular power
-    float    gHighColorIntensity; // 140: specular intensity
+    // -- Toonパラメータ (64..143) -- UTS2ダブルシェード方式
+    float4   gShadeColor;         // 64:  1stシェード色（半影）
+    float4   gShade2ndColor;      // 80:  2ndシェード色（暗部）
+    float    gBaseColorStep;      // 96:  Base→1stの閾値
+    float    gBaseShadeFeather;   // 100: Base→1stの遷移幅
+    float    gShadeColorStep;     // 104: 1st→2ndの閾値
+    float    gShade1st2ndFeather; // 108: 1st→2ndの遷移幅
+    float4   gRimColor;           // 112: リムライト色 (.a=強度)
+    float    gRimPower;           // 128: リムライトの鋭さ
+    float    gRimIntensity;       // 132: リムライト全体強度
+    float    gHighColorPower;     // 136: スペキュラのパワー値
+    float    gHighColorIntensity; // 140: スペキュラの強度
 
-    // Phong (144..159)
-    float3   gSpecularColor;      // 144
-    float    gShininess;          // 156
+    // -- Phongパラメータ (144..159)
+    float3   gSpecularColor;      // 144: スペキュラ反射色
+    float    gShininess;          // 156: Phong指数（光沢度）
 
-    // Subsurface (160..191)
-    float3   gSubsurfaceColor;    // 160
-    float    gSubsurfaceRadius;   // 172
-    float    gSubsurfaceStrength; // 176
-    float    gThickness;          // 180
-    float2   _ssPad;              // 184
+    // -- Subsurfaceパラメータ (160..191)
+    float3   gSubsurfaceColor;    // 160: SSS散乱色
+    float    gSubsurfaceRadius;   // 172: 散乱半径（広がり）
+    float    gSubsurfaceStrength; // 176: SSS強度
+    float    gThickness;          // 180: 厚み（0=薄い→高透過）
+    float2   _ssPad;              // 184: パディング
 
-    // ClearCoat (192..207)
-    float    gClearCoatStrength;  // 192
-    float    gClearCoatRoughness; // 196
-    float2   _ccPad;              // 200
+    // -- ClearCoatパラメータ (192..207)
+    float    gClearCoatStrength;  // 192: クリアコートの強度
+    float    gClearCoatRoughness; // 196: クリアコート層のラフネス
+    float2   _ccPad;              // 200: パディング
 
-    // Toon Extended (208..255)
-    float    gOutlineWidth;       // 208
-    float3   gOutlineColor;       // 212
-    float3   gHighColor;          // 224: specular color
-    float    gShadowReceiveLevel; // 236: CSM shadow influence
-    float    gRimInsideMask;      // 240: rim shadow mask
-    float3   _toonPad2;           // 244
+    // -- Toon拡張パラメータ (208..255)
+    float    gOutlineWidth;       // 208: アウトライン幅
+    float3   gOutlineColor;       // 212: アウトライン色
+    float3   gHighColor;          // 224: ハイカラー（スペキュラ色）
+    float    gShadowReceiveLevel; // 236: CSMシャドウの影響度
+    float    gRimInsideMask;      // 240: リム内側マスク閾値
+    float3   _toonPad2;           // 244: パディング
 };
 
-// Toon extended: aliases into Phong/Subsurface/ClearCoat fields (mutually exclusive)
-#define gRimLightDirMask       gSpecularColor.x
-#define gRimFeatherOff         gSpecularColor.y
-#define gHighColorBlendAdd     gSpecularColor.z
-#define gHighColorOnShadow     gShininess
-#define gOutlineFarDist        gSubsurfaceColor.x
-#define gOutlineNearDist       gSubsurfaceColor.y
-#define gOutlineBlendBaseColor gSubsurfaceColor.z
+// Toon拡張エイリアス: cbuffer 256B制約のため、Phong/SS/CC領域をToon用に再利用
+// ToonとPhong/SS/CCは排他的なので同時使用されない
+#define gRimLightDirMask       gSpecularColor.x   // リムのライト方向制限 (0=無制限, 1=ライト側のみ)
+#define gRimFeatherOff         gSpecularColor.y   // リムフェザーOFF (0=グラデ, 1=ステップ)
+#define gHighColorBlendAdd     gSpecularColor.z   // ハイカラーブレンド (0=乗算, 1=加算)
+#define gHighColorOnShadow     gShininess         // 影領域でのハイカラー (0=消す, 1=維持)
+#define gOutlineFarDist        gSubsurfaceColor.x // アウトライン遠距離（消え始め）
+#define gOutlineNearDist       gSubsurfaceColor.y // アウトライン近距離（最大幅）
+#define gOutlineBlendBaseColor gSubsurfaceColor.z // ベース色のアウトラインへの混合率
 
 cbuffer BoneConstants : register(b4)
 {
-    float4x4 gBones[128];
+    float4x4 gBones[128]; // スケルタルアニメーション用ボーン行列（最大128本）
 };
 
 // ============================================================================
-// マテリアルフラグ（Material.h MaterialFlags と一致）
+// マテリアルフラグ（C++側 Material.h MaterialFlags と同一ビット定義）
+// gMaterialFlags のビットごとに対応テクスチャの有無を示す。
 // ============================================================================
 
-#define HAS_ALBEDO_MAP        (1 << 0)
-#define HAS_NORMAL_MAP        (1 << 1)
-#define HAS_METROUGH_MAP      (1 << 2)
-#define HAS_AO_MAP            (1 << 3)
-#define HAS_EMISSIVE_MAP      (1 << 4)
-#define HAS_TOON_RAMP_MAP     (1 << 5)
-#define HAS_SUBSURFACE_MAP    (1 << 6)
-#define HAS_CLEARCOAT_MASK_MAP (1 << 7)
+#define HAS_ALBEDO_MAP        (1 << 0)  // アルベドテクスチャあり
+#define HAS_NORMAL_MAP        (1 << 1)  // 法線マップあり
+#define HAS_METROUGH_MAP      (1 << 2)  // メタリック/ラフネスマップあり
+#define HAS_AO_MAP            (1 << 3)  // AOマップあり
+#define HAS_EMISSIVE_MAP      (1 << 4)  // エミッシブマップあり
+#define HAS_TOON_RAMP_MAP     (1 << 5)  // Toonランプテクスチャあり
+#define HAS_SUBSURFACE_MAP    (1 << 6)  // サブサーフェス厚みマップあり
+#define HAS_CLEARCOAT_MASK_MAP (1 << 7) // クリアコートマスクマップあり
 
 // ============================================================================
-// テクスチャ
-// ============================================================================
-
-Texture2D    tAlbedo       : register(t0);
-Texture2D    tNormal       : register(t1);
-Texture2D    tMetRough     : register(t2);
-Texture2D    tAO           : register(t3);
-Texture2D    tEmissive     : register(t4);
-Texture2D    tToonRamp     : register(t5);
-Texture2D    tSubsurface   : register(t6);
-Texture2D    tClearCoatMask : register(t7);
-SamplerState sLinearWrap   : register(s0);
-
+// テクスチャバインディング (t0-t7)
 // t8-t13, s2 は ShadowUtils.hlsli で宣言済み
+// ============================================================================
+
+Texture2D    tAlbedo       : register(t0);  // アルベドテクスチャ
+Texture2D    tNormal       : register(t1);  // 法線マップ
+Texture2D    tMetRough     : register(t2);  // メタリック(B)/ラフネス(G) (glTF規約)
+Texture2D    tAO           : register(t3);  // アンビエントオクルージョン
+Texture2D    tEmissive     : register(t4);  // エミッシブマップ
+Texture2D    tToonRamp     : register(t5);  // Toonランプテクスチャ
+Texture2D    tSubsurface   : register(t6);  // SSS厚みマップ (R)
+Texture2D    tClearCoatMask : register(t7); // クリアコートマスク (R)
+SamplerState sLinearWrap   : register(s0);  // リニアラップサンプラー
 
 // ============================================================================
 // 頂点フォーマット
@@ -169,25 +174,25 @@ SamplerState sLinearWrap   : register(s0);
 
 struct VSInput
 {
-    float3 position : POSITION;
-    float3 normal   : NORMAL;
-    float2 texcoord : TEXCOORD;
-    float4 tangent  : TANGENT;
+    float3 position : POSITION;  // ローカル座標
+    float3 normal   : NORMAL;    // ローカル法線
+    float2 texcoord : TEXCOORD;  // UV座標
+    float4 tangent  : TANGENT;   // 接線 (.w=従接線の符号)
 #if defined(SKINNED)
-    uint4  joints   : JOINTS;
-    float4 weights  : WEIGHTS;
+    uint4  joints   : JOINTS;    // ボーンインデックス (最大4本)
+    float4 weights  : WEIGHTS;   // ボーンウェイト (合計=1.0)
 #endif
 };
 
 struct PSInput
 {
-    float4 posH     : SV_Position;
-    float3 posW     : POSITION;
-    float3 normalW  : NORMAL;
-    float2 texcoord : TEXCOORD;
-    float3 tangentW : TANGENT;
-    float  bitangentSign : BTSIGN;
-    float  viewZ    : VIEWZ;  // ビュー空間Z（カスケード選択用）
+    float4 posH     : SV_Position; // クリップ空間座標
+    float3 posW     : POSITION;    // ワールド座標
+    float3 normalW  : NORMAL;      // ワールド法線
+    float2 texcoord : TEXCOORD;    // UV座標
+    float3 tangentW : TANGENT;     // ワールド接線
+    float  bitangentSign : BTSIGN; // 従接線の符号 (tangent.w)
+    float  viewZ    : VIEWZ;      // ビュー空間Z (CSMカスケード選択用)
 };
 
 // ============================================================================
@@ -196,15 +201,16 @@ struct PSInput
 
 struct PSOutput
 {
-    float4 color  : SV_Target0;
-    float4 normal : SV_Target1;
-    float4 albedo : SV_Target2;  // GI用: ライティング前のアルベド
+    float4 color  : SV_Target0; // HDRライティング結果
+    float4 normal : SV_Target1; // エンコード済み法線 + メタリック/ラフネス (SSR/RTGI用)
+    float4 albedo : SV_Target2; // ライティング前のアルベド (RTGI用)
 };
 
 // ============================================================================
 // 頂点シェーダー
 // ============================================================================
 
+/// @brief 共通頂点シェーダー — スキニング・ワールド変換・ビュー空間Z計算を行う
 PSInput VSMain(VSInput input)
 {
     PSInput output;
@@ -347,13 +353,14 @@ float4 EncodeNormal(float3 N, float metallic, float roughness)
     return float4(N * 0.5f + 0.5f, packedMR);
 }
 
-/// @brief シャドウファクターを全ライト分計算するヘルパー構造体
+/// シャドウファクターを保持する構造体
 struct ShadowInfo
 {
-    float cascadeShadow;
+    float cascadeShadow; // CSMシャドウ値 (0=完全な影, 1=影なし)
 };
 
-/// @brief メインディレクショナルライトのシャドウファクターを計算
+/// @brief ディレクショナルライトのCSMシャドウを計算する
+/// 法線オフセットバイアスを適用してからCSMサンプリングを行う
 ShadowInfo ComputeShadowAll(float3 posW, float3 N, float viewZ)
 {
     ShadowInfo info;
@@ -391,6 +398,7 @@ ShadowInfo ComputeShadowAll(float3 posW, float3 N, float viewZ)
 }
 
 /// @brief 個別ライトのシャドウファクターを取得
+/// ディレクショナルはCSM、スポット/ポイントは専用シャドウマップから取得
 float GetLightShadow(uint lightIndex, float cascadeShadow, float3 posW, float3 N)
 {
     // ライト種別に応じた方向で法線オフセットバイアスを計算

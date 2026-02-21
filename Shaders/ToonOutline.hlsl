@@ -27,6 +27,8 @@ struct VSInput_Outline
 // アウトライン用頂点シェーダー
 // ============================================================================
 
+/// @brief アウトラインVS — スムース法線方向に頂点を押出してシルエットを生成
+/// カメラ距離に応じた幅減衰と、凸面/凹面でのハイブリッド押出し方向選択を行う。
 PSInput VSMain_Outline(VSInput_Outline input)
 {
     PSInput output;
@@ -118,6 +120,7 @@ PSInput VSMain_Outline(VSInput_Outline input)
 // アウトライン用ピクセルシェーダー
 // ============================================================================
 
+/// @brief アウトラインPS — 指定色にベース色を混合し、影領域で暗くする
 PSOutput PSMain_Outline(PSInput input)
 {
     PSOutput output;

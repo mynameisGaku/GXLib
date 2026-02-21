@@ -24,6 +24,7 @@ bool DynamicBuffer::Initialize(ID3D12Device* device, uint32_t maxSize, uint32_t 
     resourceDesc.SampleDesc.Count = 1;
     resourceDesc.Layout           = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
+    // ダブルバッファの2面それぞれにリソースを確保
     for (uint32_t i = 0; i < k_BufferCount; ++i)
     {
         HRESULT hr = device->CreateCommittedResource(
@@ -54,7 +55,7 @@ void* DynamicBuffer::Map(uint32_t frameIndex)
         return nullptr;
     }
     void* mapped = nullptr;
-    D3D12_RANGE readRange = { 0, 0 }; // CPU側からの読み込みは不要
+    D3D12_RANGE readRange = { 0, 0 }; // CPU側からの読み戻しは不要
     HRESULT hr = m_buffers[frameIndex]->Map(0, &readRange, &mapped);
     if (FAILED(hr))
     {

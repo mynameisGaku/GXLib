@@ -1,10 +1,14 @@
 /// @file main.cpp
-/// @brief gxconv CLI entry point
+/// @brief gxconv CLIツールのエントリポイント
+///
+/// OBJ/FBX/glTFファイルを.gxmd/.gxan形式に変換するコマンドラインツール。
+/// 使い方: gxconv <input> [output] [options]
 
 #include "converter.h"
 #include <cstdio>
 #include <cstring>
 
+/// ヘルプメッセージを表示する
 static void PrintUsage()
 {
     printf("Usage: gxconv <input> [output] [options]\n\n");
@@ -21,6 +25,7 @@ static void PrintUsage()
     printf("  --help              Show this help\n");
 }
 
+/// コマンドライン引数を解析してConverterを実行する
 int main(int argc, char* argv[])
 {
     if (argc < 2)
@@ -30,7 +35,7 @@ int main(int argc, char* argv[])
     }
 
     gxconv::ConvertOptions options;
-    int positionalIndex = 0;
+    int positionalIndex = 0; // 位置引数のカウンタ (0=input, 1=output)
 
     for (int i = 1; i < argc; ++i)
     {

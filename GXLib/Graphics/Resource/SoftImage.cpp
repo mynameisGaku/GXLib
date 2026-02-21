@@ -1,10 +1,10 @@
 /// @file SoftImage.cpp
-/// @brief ソフトウェアイメージの実装
+/// @brief CPU側での画像ピクセル操作の実装
 #include "pch.h"
 #include "Graphics/Resource/SoftImage.h"
 #include "Core/Logger.h"
 
-// stb_imageはTexture.cppでSTB_IMAGE_IMPLEMENTATIONを定義済み
+// stb_imageの実装定義(STB_IMAGE_IMPLEMENTATION)はTexture.cppにあるため、ここではヘッダのみ
 #include "ThirdParty/stb_image.h"
 
 namespace GX
@@ -14,13 +14,13 @@ bool SoftImage::Create(uint32_t width, uint32_t height)
 {
     m_width  = width;
     m_height = height;
-    m_pixels.resize(width * height * 4, 0);
+    m_pixels.resize(width * height * 4, 0); // RGBA 4バイト/ピクセル
     return true;
 }
 
 bool SoftImage::LoadFromFile(const std::wstring& filePath)
 {
-    // wstring → string 変換
+    // stb_imageはchar*パスのみ対応
     int pathLen = WideCharToMultiByte(CP_UTF8, 0, filePath.c_str(), -1, nullptr, 0, nullptr, nullptr);
     std::string pathUtf8(pathLen - 1, '\0');
     WideCharToMultiByte(CP_UTF8, 0, filePath.c_str(), -1, pathUtf8.data(), pathLen, nullptr, nullptr);
@@ -47,6 +47,7 @@ uint32_t SoftImage::GetPixel(int x, int y) const
         y < 0 || y >= static_cast<int>(m_height))
         return 0;
 
+    // 内部はRGBA順だが、戻り値は0xAARRGGBB形式にパックする
     size_t offset = (y * m_width + x) * 4;
     uint8_t r = m_pixels[offset + 0];
     uint8_t g = m_pixels[offset + 1];
@@ -61,6 +62,7 @@ void SoftImage::DrawPixel(int x, int y, uint32_t color)
         y < 0 || y >= static_cast<int>(m_height))
         return;
 
+    // 0xAARRGGBB形式からRGBA各バイトに分解して格納
     size_t offset = (y * m_width + x) * 4;
     m_pixels[offset + 0] = (color >> 16) & 0xFF; // R
     m_pixels[offset + 1] = (color >> 8)  & 0xFF; // G
@@ -78,6 +80,7 @@ int SoftImage::CreateTexture(TextureManager& textureManager)
 
 void SoftImage::Clear(uint32_t color)
 {
+    // 0xAARRGGBB形式を分解してRGBA順で全ピクセルに書き込む
     uint8_t r = (color >> 16) & 0xFF;
     uint8_t g = (color >> 8)  & 0xFF;
     uint8_t b = (color >> 0)  & 0xFF;

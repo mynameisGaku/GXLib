@@ -69,8 +69,7 @@ void AnimationPlayer::Update(float deltaTime)
     if (jointCount == 0)
         return;
 
-    // バインドポーズ上でクリップをサンプル
-    // 初学者向け: まず「基準姿勢」を用意し、アニメのキーでその上書きを行います。
+    // バインドポーズをベースにクリップをサンプル（キーの無い関節はバインドポーズを維持）
     if (!m_bindPose.empty())
         m_currentClip->SampleTRS(m_currentTime, jointCount, m_localPose.data(), m_bindPose.data());
     else
@@ -88,8 +87,7 @@ void AnimationPlayer::Update(float deltaTime)
     // グローバル変換に変換
     m_skeleton->ComputeGlobalTransforms(m_localTransforms.data(), m_globalTransforms.data());
 
-    // ボーン行列を作成
-    // 初学者向け: スキニング用に「現在のボーン姿勢」をまとめた配列です。
+    // ボーン行列を作成（グローバル変換 × 逆バインドポーズ → スキニング用行列）
     uint32_t boneCount = (std::min)(jointCount, BoneConstants::k_MaxBones);
     m_skeleton->ComputeBoneMatrices(m_globalTransforms.data(), m_boneConstants.boneMatrices);
 }

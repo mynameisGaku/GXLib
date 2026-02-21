@@ -8,16 +8,16 @@
 
 cbuffer OutlineCB : register(b0)
 {
-    float4x4 invProjection;
-    float depthThreshold;
-    float normalThreshold;
-    float intensity;
-    float screenWidth;
-    float screenHeight;
-    float nearZ;
+    float4x4 invProjection;  // 逆プロジェクション行列
+    float depthThreshold;    // 深度エッジの感度閾値
+    float normalThreshold;   // 法線エッジの感度閾値
+    float intensity;         // アウトラインの強度
+    float screenWidth;       // スクリーン幅
+    float screenHeight;      // スクリーン高さ
+    float nearZ;             // ニアクリップ距離
     float padding0;
     float padding1;
-    float4 lineColor;
+    float4 lineColor;        // アウトラインの色 (.a=不透明度)
 };
 
 Texture2D<float4> gScene : register(t0);
@@ -70,6 +70,7 @@ float3 ReconstructNormal(float3 posC, float depthC, float2 uv, float2 ts)
     return ReconstructNormalFromDepths(posC, depthC, uv, ts, dR, dL, dD, dU);
 }
 
+/// @brief アウトラインPS — Sobelエッジ検出(深度) + 法線エッジでアウトラインを合成
 float4 PSOutline(FullscreenVSOutput input) : SV_Target
 {
     float2 uv = input.uv;

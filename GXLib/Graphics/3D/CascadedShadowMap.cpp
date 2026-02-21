@@ -40,8 +40,8 @@ void CascadedShadowMap::Update(const Camera3D& camera, const XMFLOAT3& lightDire
     float nearZ = camera.GetNearZ();
     float farZ  = camera.GetFarZ();
 
-    // カスケード分割距離を計算 (PSSM: logarithmic/linear blend)
-    constexpr float lambda = 0.5f;  // log/linear ブレンド比率 (0=linear, 1=log)
+    // PSSM分割: 対数分割と線形分割をlambdaでブレンド (Practical Split Scheme)
+    constexpr float lambda = 0.5f;  // 0=完全線形, 1=完全対数
     float ratio = farZ / nearZ;
 
     float prevSplit = nearZ;

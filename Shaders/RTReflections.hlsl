@@ -13,35 +13,35 @@
 // ============================================================================
 cbuffer RTReflectionConstants : register(b0)
 {
-    float4x4 invViewProjection;     // 0
-    float4x4 view;                  // 64
-    float4x4 invProjection;         // 128
-    float3   cameraPosition;        // 192
-    float    maxDistance;            // 204
-    float    screenWidth;           // 208
-    float    screenHeight;          // 212
-    float    debugMode;             // 216
-    float    intensity;             // 220
-    float3   skyTopColor;           // 224
-    float    _pad0;                 // 236
-    float3   skyBottomColor;        // 240
-    float    _pad1;                 // 252
+    float4x4 invViewProjection;     // 逆VP行列（ワールド座標復元用）
+    float4x4 view;                  // ビュー行列
+    float4x4 invProjection;         // 逆プロジェクション行列
+    float3   cameraPosition;        // カメラのワールド座標
+    float    maxDistance;            // レイの最大到達距離
+    float    screenWidth;           // スクリーン幅
+    float    screenHeight;          // スクリーン高さ
+    float    debugMode;             // デバッグ表示モード (0=off)
+    float    intensity;             // 反射強度
+    float3   skyTopColor;           // プロシージャル空の天頂色
+    float    _pad0;
+    float3   skyBottomColor;        // プロシージャル空の地平線色
+    float    _pad1;
 };
 
-// per-instance PBRデータ (InstanceIndex() でインデックス)
+// インスタンスごとのPBRマテリアルデータ (InstanceIndex()でアクセス)
 cbuffer InstanceData : register(b1)
 {
-    float4 g_InstanceAlbedoMetallic[512];  // .rgb=albedo, .a=metallic
-    float4 g_InstanceRoughnessGeom[512];   // .x=roughness, .y=geometryIndex, .z=texIdx, .w=hasTexture
-    float4 g_InstanceExtraData[512];       // .x=vertexStride, .yzw=reserved
+    float4 g_InstanceAlbedoMetallic[512];  // .rgb=アルベド色, .a=メタリック度
+    float4 g_InstanceRoughnessGeom[512];   // .x=ラフネス, .y=ジオメトリID, .z=テクスチャID, .w=テクスチャ有無
+    float4 g_InstanceExtraData[512];       // .x=頂点ストライド(bytes), .yzw=予約
 };
 
-// PBR.hlsl b2と同一構造体
+// ライトデータ (PBR.hlsl の b2 と同一レイアウト)
 cbuffer LightConstants : register(b2)
 {
-    LightData g_Lights[16];
-    float3    g_AmbientColor;
-    uint      g_NumLights;
+    LightData g_Lights[16];   // ライト配列
+    float3    g_AmbientColor; // アンビエント色
+    uint      g_NumLights;    // 有効ライト数
 };
 
 // ============================================================================

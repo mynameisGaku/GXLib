@@ -84,7 +84,7 @@ void ScrollView::RenderSelf(UIRenderer& renderer)
 
 void ScrollView::RenderChildren(UIRenderer& /*renderer*/)
 {
-    // Children are rendered inside RenderSelf with clipping.
+    // 子の描画はRenderSelf内でクリッピング付きで行うため、ここでは何もしない
 }
 
 }} // namespace GX::GUI

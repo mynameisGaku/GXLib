@@ -1,48 +1,55 @@
 #pragma once
 /// @file LogPanel.h
-/// @brief ImGui panel for scrollable log output with level filtering
+/// @brief スクロール可能なログ出力パネル（レベルフィルタ付き）
+///
+/// Info/Warning/Errorの3レベルでログを記録し、トグルボタンでフィルタリングできる。
+/// 自動スクロール、クリア機能付き。
 
 #include <string>
 #include <vector>
 #include <cstdarg>
 
-/// Log severity level
+/// @brief ログの重要度レベル
 enum class LogLevel
 {
-    Info,
-    Warning,
-    Error,
+    Info,      ///< 通常の情報
+    Warning,   ///< 警告（処理は続行可能）
+    Error,     ///< エラー（処理に失敗）
 };
 
-/// Single log entry
+/// @brief 1件のログエントリ
 struct LogEntry
 {
-    LogLevel    level;
-    std::string message;
+    LogLevel    level;    ///< 重要度
+    std::string message;  ///< メッセージ本文
 };
 
-/// @brief ImGui panel that displays a scrollable, filterable log
+/// @brief レベルフィルタ・自動スクロール付きログ表示パネル
 class LogPanel
 {
 public:
-    /// Add a formatted log message at Info level.
+    /// @brief Infoレベルでフォーマット付きログを追加する
+    /// @param fmt printf形式のフォーマット文字列
     void AddLog(const char* fmt, ...);
 
-    /// Add a log message with a specific level.
+    /// @brief 指定レベルでフォーマット付きログを追加する
+    /// @param level ログレベル
+    /// @param fmt printf形式のフォーマット文字列
     void AddLogLevel(LogLevel level, const char* fmt, ...);
 
-    /// Draw the log panel.
+    /// @brief ログパネルを描画する
     void Draw();
 
-    /// Clear all log entries.
+    /// @brief 全ログエントリを消去する
     void Clear();
 
 private:
+    /// @brief 可変引数リスト版の内部ログ追加
     void AddLogV(LogLevel level, const char* fmt, va_list args);
 
     std::vector<LogEntry> m_entries;
-    bool m_autoScroll   = true;
-    bool m_showInfo     = true;
-    bool m_showWarning  = true;
-    bool m_showError    = true;
+    bool m_autoScroll   = true;   ///< 新規ログ追加時に自動スクロールするか
+    bool m_showInfo     = true;   ///< Infoレベル表示ON/OFF
+    bool m_showWarning  = true;   ///< Warningレベル表示ON/OFF
+    bool m_showError    = true;   ///< Errorレベル表示ON/OFF
 };

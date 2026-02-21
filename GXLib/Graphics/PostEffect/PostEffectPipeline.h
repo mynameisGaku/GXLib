@@ -2,8 +2,14 @@
 /// @file PostEffectPipeline.h
 /// @brief ポストエフェクトパイプライン管理
 ///
+/// DxLibには無いHDR後処理パイプライン。シーン描画後の画面加工を一括管理する。
 /// エフェクトチェーン:
-/// HDRシーン → [ブルーム] → [カラーグレーディング] → [トーンマッピング] → [FXAA] → [ビネット+色収差] → バックバッファ
+/// HDRシーン → [RTGI] → [SSAO] → [RT反射/SSR] → [ゴッドレイ] → [Bloom] → [DoF]
+///           → [MotionBlur] → [Outline] → [TAA] → [ColorGrading] → [Tonemap(HDR→LDR)]
+///           → [FXAA] → [Vignette+色収差] → バックバッファ
+///
+/// HDR空間ではping-pong RT (2枚のHDR RT) を交互に使い、入力と出力が重ならないようにしている。
+/// LDR空間でも同様に2枚のLDR RTでping-pongする。
 
 #include "pch.h"
 #include "Graphics/Resource/RenderTarget.h"
@@ -26,25 +32,51 @@ namespace GX
 class RTReflections;
 class RTGI;
 
+/// トーンマッピング方式。HDRからLDRへの変換アルゴリズムを選ぶ
 enum class TonemapMode : uint32_t { Reinhard = 0, ACES = 1, Uncharted2 = 2 };
 
+/// トーンマッピング用定数バッファ
 struct TonemapConstants { uint32_t mode; float exposure; float padding[2]; };
+/// FXAA (Fast Approximate Anti-Aliasing) 用定数バッファ
 struct FXAAConstants    { float rcpFrameX; float rcpFrameY; float qualitySubpix; float edgeThreshold; };
+/// ビネット+色収差用定数バッファ
 struct VignetteConstants{ float intensity; float radius; float chromaticStrength; float padding; };
+/// カラーグレーディング用定数バッファ
 struct ColorGradingConstants { float exposure; float contrast; float saturation; float temperature; };
 
-/// @brief ポストエフェクトパイプライン
+/// @brief シーン描画後の画面加工を一括管理するポストエフェクトパイプライン
+///
+/// HDR→LDR変換を含む全エフェクトの初期化・実行・設定を担当する。
+/// DxLibでは自前で画面加工するしかないが、GXLibではこのクラスに設定するだけで済む。
 class PostEffectPipeline
 {
 public:
     PostEffectPipeline() = default;
     ~PostEffectPipeline() = default;
 
+    /// @brief パイプラインの初期化。全エフェクトのリソースとPSOを作成する
+    /// @param device D3D12デバイス
+    /// @param width 画面幅 (ピクセル)
+    /// @param height 画面高さ (ピクセル)
+    /// @return 成功でtrue
     bool Initialize(ID3D12Device* device, uint32_t width, uint32_t height);
 
+    /// @brief シーン描画の開始。HDR RTをクリアして描画先に設定する
+    /// @param cmdList コマンドリスト
+    /// @param frameIndex ダブルバッファ用フレームインデックス (0 or 1)
+    /// @param dsvHandle 深度ステンシルビューのCPUハンドル
+    /// @param camera カメラ (TAA有効時にジッターが適用される)
     void BeginScene(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
                      D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle, Camera3D& camera);
+
+    /// @brief シーン描画の終了。HDR RTをSRV状態に遷移する
     void EndScene();
+
+    /// @brief 全エフェクトを実行してバックバッファに最終画像を出力する
+    /// @param backBufferRTV バックバッファのRTVハンドル
+    /// @param depthBuffer 深度バッファ (SSAO/SSR/DoF等で使用)
+    /// @param camera カメラ情報
+    /// @param deltaTime フレーム間秒数 (自動露出の適応速度に使用)
     void Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
                  DepthBuffer& depthBuffer, const Camera3D& camera,
                  float deltaTime = 0.0f);

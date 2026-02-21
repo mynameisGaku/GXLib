@@ -10,6 +10,8 @@ using Ctx = GX_Internal::CompatContext;
 
 // ============================================================================
 // DIK → VK 変換テーブル (256エントリ)
+// DxLibはDirectInput(DIK_*)キーコードを使うが、GXLibはWin32 VKコードで動作する。
+// この変換テーブルにより CheckHitKey(KEY_INPUT_*) がそのまま使える。
 // ============================================================================
 static int s_dikToVK[256] = {};
 static bool s_dikTableInitialized = false;
