@@ -101,15 +101,44 @@ table.api tbody tr[id]:hover{background:rgba(233,69,96,0.06)!important}
 .glossary-table td{padding:6px 12px;border:1px solid var(--border);font-size:0.9em;line-height:1.6}
 .glossary-table tr:hover{background:rgba(255,255,255,0.02)}
 .glossary-cat{font-size:1.1em;color:var(--accent2);margin:24px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+#menu-btn{display:none;position:fixed;top:10px;left:10px;z-index:1100;background:var(--card);color:var(--accent);border:1px solid var(--border);border-radius:6px;font-size:1.5em;width:44px;height:44px;cursor:pointer;line-height:1}
+#menu-btn:hover{background:var(--accent);color:#fff}
+#sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999}
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+@media(max-width:768px){
+  #menu-btn{display:block}
+  body{display:block;height:auto;overflow:auto}
+  nav#sidebar{position:fixed;top:0;left:0;bottom:0;width:280px;min-width:280px;z-index:1000;transform:translateX(-100%);transition:transform 0.3s ease}
+  body.sidebar-open nav#sidebar{transform:translateX(0)}
+  body.sidebar-open #sidebar-overlay{display:block}
+  body.sidebar-open #menu-btn{display:none}
+  main#content{padding:56px 16px 16px;width:100%;overflow-x:hidden}
+  .page h1{font-size:1.4em}
+  .page h2{font-size:1.1em}
+  table.api{font-size:0.78em}
+  table.api td:first-child{white-space:normal}
+  pre.code,.detail-sample,.detail-sig{font-size:0.75em;padding:10px}
+  .page .brief{font-size:0.95em;padding:10px 12px}
+}
+@media(max-width:480px){
+  main#content{padding:52px 10px 10px}
+  .page h1{font-size:1.2em}
+  table.api{font-size:0.72em}
+  table.api th,table.api td{padding:4px 6px}
+  pre.code,.detail-sample,.detail-sig{font-size:0.7em;padding:8px}
+  nav#sidebar{width:260px;min-width:260px}
+}
 </style>
 </head>
 <body>
+<button id="menu-btn" aria-label="メニュー">☰</button>
+<div id="sidebar-overlay"></div>
 <nav id="sidebar">
 <div class="logo">GXLib <span>APIリファレンス</span></div>
 <div class="tree">
 <span class="leaf" data-page="overview">概要</span>
 <span class="leaf" data-page="glossary" style="color:var(--accent2);margin-top:4px">📖 用語集 (Glossary)</span>
-<details open><summary>Core</summary>
+<details><summary data-page="cat-Core">Core</summary>
 <span class="leaf" data-page="Application">Application</span>
 <span class="leaf" data-page="Window">Window</span>
 <span class="leaf" data-page="Timer">Timer</span>
@@ -117,7 +146,7 @@ table.api tbody tr[id]:hover{background:rgba(233,69,96,0.06)!important}
 <span class="leaf" data-page="FrameAllocator">FrameAllocator</span>
 <span class="leaf" data-page="PoolAllocator">PoolAllocator</span>
 </details>
-<details><summary>Graphics</summary>
+<details><summary data-page="cat-Graphics">Graphics</summary>
 <details class="sub"><summary>Device</summary>
 <span class="leaf" data-page="GraphicsDevice">GraphicsDevice</span>
 <span class="leaf" data-page="CommandQueue">CommandQueue</span>
@@ -208,20 +237,20 @@ table.api tbody tr[id]:hover{background:rgba(233,69,96,0.06)!important}
 <span class="leaf" data-page="AutoExposure">AutoExposure</span>
 </details>
 </details>
-<details><summary>Input</summary>
+<details><summary data-page="cat-Input">Input</summary>
 <span class="leaf" data-page="InputManager">InputManager</span>
 <span class="leaf" data-page="Keyboard">Keyboard</span>
 <span class="leaf" data-page="Mouse">Mouse</span>
 <span class="leaf" data-page="Gamepad">Gamepad</span>
 </details>
-<details><summary>Audio</summary>
+<details><summary data-page="cat-Audio">Audio</summary>
 <span class="leaf" data-page="AudioManager">AudioManager</span>
 <span class="leaf" data-page="AudioDevice">AudioDevice</span>
 <span class="leaf" data-page="Sound">Sound</span>
 <span class="leaf" data-page="SoundPlayer">SoundPlayer</span>
 <span class="leaf" data-page="MusicPlayer">MusicPlayer</span>
 </details>
-<details><summary>GUI</summary>
+<details><summary data-page="cat-GUI">GUI</summary>
 <span class="leaf" data-page="Widget">Widget</span>
 <span class="leaf" data-page="UIContext">UIContext</span>
 <span class="leaf" data-page="UIRenderer">UIRenderer</span>
@@ -248,7 +277,7 @@ table.api tbody tr[id]:hover{background:rgba(233,69,96,0.06)!important}
 <span class="leaf" data-page="Spacer">Spacer</span>
 </details>
 </details>
-<details><summary>IO</summary>
+<details><summary data-page="cat-IO">IO</summary>
 <span class="leaf" data-page="FileSystem">FileSystem</span>
 <span class="leaf" data-page="PhysicalFileProvider">PhysicalFileProvider</span>
 <span class="leaf" data-page="Archive">Archive / ArchiveWriter</span>
@@ -264,10 +293,10 @@ table.api tbody tr[id]:hover{background:rgba(233,69,96,0.06)!important}
 <span class="leaf" data-page="WebSocket">WebSocket</span>
 </details>
 </details>
-<details><summary>Movie</summary>
+<details><summary data-page="cat-Movie">Movie</summary>
 <span class="leaf" data-page="MoviePlayer">MoviePlayer</span>
 </details>
-<details><summary>Math</summary>
+<details><summary data-page="cat-Math">Math</summary>
 <span class="leaf" data-page="Vector2">Vector2</span>
 <span class="leaf" data-page="Vector3">Vector3</span>
 <span class="leaf" data-page="Vector4">Vector4</span>
@@ -284,19 +313,19 @@ table.api tbody tr[id]:hover{background:rgba(233,69,96,0.06)!important}
 <span class="leaf" data-page="BVH">BVH&lt;T&gt;</span>
 </details>
 </details>
-<details><summary>Physics</summary>
+<details><summary data-page="cat-Physics">Physics</summary>
 <span class="leaf" data-page="PhysicsWorld2D">PhysicsWorld2D</span>
 <span class="leaf" data-page="PhysicsWorld3D">PhysicsWorld3D</span>
 <span class="leaf" data-page="RigidBody2D">RigidBody2D</span>
 <span class="leaf" data-page="PhysicsShape">PhysicsShape</span>
 </details>
-<details><summary>Asset Pipeline</summary>
+<details><summary data-page="cat-AssetPipeline">Asset Pipeline</summary>
 <span class="leaf" data-page="gxformat">gxformat (GXMD/GXAN/GXPAK)</span>
 <span class="leaf" data-page="gxconv">gxconv (モデルコンバーター)</span>
 <span class="leaf" data-page="gxloader">gxloader (ランタイムローダー)</span>
 <span class="leaf" data-page="gxpak">gxpak (バンドルツール)</span>
 </details>
-<details><summary>Compat (DXLib互換)</summary>
+<details><summary data-page="cat-Compat">Compat (DXLib互換)</summary>
 <span class="leaf" data-page="GXLib_System">GXLib.h — System</span>
 <span class="leaf" data-page="GXLib_Graphics">GXLib.h — Graphics</span>
 <span class="leaf" data-page="GXLib_Text">GXLib.h — Text</span>
@@ -2844,6 +2873,235 @@ gxconv input.obj -o output.gxmd</pre>
 <pre class="code">gxpak pack bundle.gxpak Assets/     <span class="cm"># Assets/ 以下を bundle.gxpak にパック</span>
 gxpak unpack bundle.gxpak output/   <span class="cm"># bundle.gxpak を output/ に展開</span>
 gxpak list bundle.gxpak             <span class="cm"># 内容一覧表示</span></pre>
+</div>
+
+<!-- ==================== CATEGORY OVERVIEW PAGES ==================== -->
+<div class="page" id="page-cat-Core">
+<h1>Core</h1>
+<p class="brief">アプリケーション基盤モジュール。ウィンドウ作成、メインループ、タイマー、ロギング、メモリアロケータなどの基本機能を提供します。</p>
+<h2>クラス一覧</h2>
+<div class="table-wrap"><table class="api">
+<thead><tr><th>クラス</th><th>説明</th></tr></thead>
+<tbody>
+<tr><td><a onclick="showPage('Application')">Application</a></td><td>アプリケーションのライフサイクル管理・メインループ</td></tr>
+<tr><td><a onclick="showPage('Window')">Window</a></td><td>Win32 ウィンドウの作成と管理</td></tr>
+<tr><td><a onclick="showPage('Timer')">Timer</a></td><td>高精度タイマー・デルタタイム計測</td></tr>
+<tr><td><a onclick="showPage('Logger')">Logger</a></td><td>ログ出力（デバッグ/情報/警告/エラー）</td></tr>
+<tr><td><a onclick="showPage('FrameAllocator')">FrameAllocator</a></td><td>フレーム単位の高速メモリアロケータ</td></tr>
+<tr><td><a onclick="showPage('PoolAllocator')">PoolAllocator</a></td><td>固定サイズオブジェクトプールアロケータ</td></tr>
+</tbody>
+</table></div>
+</div>
+
+<div class="page" id="page-cat-Graphics">
+<h1>Graphics</h1>
+<p class="brief">DirectX 12 ベースのグラフィックスモジュール。デバイス管理、シェーダー、リソース、2D/3D レンダリング、レイトレーシング、ポストエフェクトなど描画機能の全てを提供します。</p>
+<h2>サブカテゴリ一覧</h2>
+<div class="table-wrap"><table class="api">
+<thead><tr><th>カテゴリ</th><th>説明</th><th>主なクラス</th></tr></thead>
+<tbody>
+<tr><td><strong>Device</strong></td><td>GPU デバイス・コマンド管理</td><td>GraphicsDevice, CommandQueue, CommandList, SwapChain, DescriptorHeap, Fence, GPUProfiler, BarrierBatch</td></tr>
+<tr><td><strong>Pipeline</strong></td><td>シェーダー・パイプライン</td><td>RootSignature, PipelineState, Shader, ShaderLibrary, ShaderHotReload</td></tr>
+<tr><td><strong>Resource</strong></td><td>GPU リソース管理</td><td>Buffer, DynamicBuffer, Texture, TextureManager, RenderTarget, DepthBuffer, SoftImage</td></tr>
+<tr><td><strong>Rendering</strong></td><td>2D 描画</td><td>SpriteBatch, PrimitiveBatch, Camera2D, FontManager, TextRenderer, SpriteSheet, Animation2D</td></tr>
+<tr><td><strong>3D</strong></td><td>3D レンダリング・アニメーション</td><td>Renderer3D, Camera3D, Model, Light, Material, Skeleton, AnimationClip, Skybox, Terrain, Fog, CSM</td></tr>
+<tr><td><strong>RayTracing</strong></td><td>DXR レイトレーシング</td><td>RTAccelerationStructure, RTPipeline, RTReflections, RTGI</td></tr>
+<tr><td><strong>Layer</strong></td><td>レンダーレイヤーシステム</td><td>RenderLayer, LayerStack, LayerCompositor, MaskScreen</td></tr>
+<tr><td><strong>PostEffect</strong></td><td>ポストエフェクトパイプライン</td><td>PostEffectPipeline, Bloom, SSAO, SSR, DoF, MotionBlur, TAA, AutoExposure</td></tr>
+</tbody>
+</table></div>
+</div>
+
+<div class="page" id="page-cat-Input">
+<h1>Input</h1>
+<p class="brief">入力デバイス管理モジュール。キーボード、マウス、ゲームパッドの入力取得とアクションマッピングを提供します。</p>
+<h2>クラス一覧</h2>
+<div class="table-wrap"><table class="api">
+<thead><tr><th>クラス</th><th>説明</th></tr></thead>
+<tbody>
+<tr><td><a onclick="showPage('InputManager')">InputManager</a></td><td>入力デバイスの統合管理・アクションマッピング</td></tr>
+<tr><td><a onclick="showPage('Keyboard')">Keyboard</a></td><td>キーボード入力（押下/トリガー/リリース）</td></tr>
+<tr><td><a onclick="showPage('Mouse')">Mouse</a></td><td>マウス入力（ボタン/座標/ホイール）</td></tr>
+<tr><td><a onclick="showPage('Gamepad')">Gamepad</a></td><td>ゲームパッド入力（XInput）</td></tr>
+</tbody>
+</table></div>
+</div>
+
+<div class="page" id="page-cat-Audio">
+<h1>Audio</h1>
+<p class="brief">XAudio2 ベースのオーディオモジュール。効果音・BGM の再生、オーディオバス、3D サウンドを提供します。</p>
+<h2>クラス一覧</h2>
+<div class="table-wrap"><table class="api">
+<thead><tr><th>クラス</th><th>説明</th></tr></thead>
+<tbody>
+<tr><td><a onclick="showPage('AudioManager')">AudioManager</a></td><td>オーディオリソースのハンドル管理</td></tr>
+<tr><td><a onclick="showPage('AudioDevice')">AudioDevice</a></td><td>XAudio2 デバイスの初期化・管理</td></tr>
+<tr><td><a onclick="showPage('Sound')">Sound</a></td><td>WAV サウンドデータの読み込み</td></tr>
+<tr><td><a onclick="showPage('SoundPlayer')">SoundPlayer</a></td><td>効果音の再生・停止・音量制御</td></tr>
+<tr><td><a onclick="showPage('MusicPlayer')">MusicPlayer</a></td><td>BGM のストリーミング再生・ループ</td></tr>
+</tbody>
+</table></div>
+</div>
+
+<div class="page" id="page-cat-GUI">
+<h1>GUI</h1>
+<p class="brief">UI フレームワーク。ウィジェットベースの GUI システム、CSS ライクなスタイルシート、XML レイアウトをサポートします。</p>
+<h2>基盤クラス</h2>
+<div class="table-wrap"><table class="api">
+<thead><tr><th>クラス</th><th>説明</th></tr></thead>
+<tbody>
+<tr><td><a onclick="showPage('Widget')">Widget</a></td><td>全ウィジェットの基底クラス</td></tr>
+<tr><td><a onclick="showPage('UIContext')">UIContext</a></td><td>UI の入力処理・レイアウト・描画管理</td></tr>
+<tr><td><a onclick="showPage('UIRenderer')">UIRenderer</a></td><td>UI 描画バックエンド</td></tr>
+<tr><td><a onclick="showPage('Style')">Style</a></td><td>ウィジェットのスタイル定義</td></tr>
+<tr><td><a onclick="showPage('StyleSheet')">StyleSheet</a></td><td>CSS ライクなスタイルシートパーサー</td></tr>
+<tr><td><a onclick="showPage('GUILoader')">GUILoader</a></td><td>XML からの GUI レイアウト読み込み</td></tr>
+<tr><td><a onclick="showPage('XMLParser')">XMLParser</a></td><td>軽量 XML パーサー</td></tr>
+</tbody>
+</table></div>
+<h2>ウィジェット</h2>
+<div class="table-wrap"><table class="api">
+<thead><tr><th>クラス</th><th>説明</th></tr></thead>
+<tbody>
+<tr><td><a onclick="showPage('Panel')">Panel</a></td><td>コンテナパネル（水平/垂直レイアウト）</td></tr>
+<tr><td><a onclick="showPage('TextWidget')">TextWidget</a></td><td>テキスト表示</td></tr>
+<tr><td><a onclick="showPage('Button')">Button</a></td><td>ボタン</td></tr>
+<tr><td><a onclick="showPage('Image')">Image</a></td><td>画像表示</td></tr>
+<tr><td><a onclick="showPage('TextInput')">TextInput</a></td><td>テキスト入力フィールド</td></tr>
+<tr><td><a onclick="showPage('Slider')">Slider</a></td><td>スライダー</td></tr>
+<tr><td><a onclick="showPage('CheckBox')">CheckBox</a></td><td>チェックボックス</td></tr>
+<tr><td><a onclick="showPage('RadioButton')">RadioButton</a></td><td>ラジオボタン</td></tr>
+<tr><td><a onclick="showPage('DropDown')">DropDown</a></td><td>ドロップダウンメニュー</td></tr>
+<tr><td><a onclick="showPage('ListView')">ListView</a></td><td>リストビュー</td></tr>
+<tr><td><a onclick="showPage('ScrollView')">ScrollView</a></td><td>スクロールビュー</td></tr>
+<tr><td><a onclick="showPage('ProgressBar')">ProgressBar</a></td><td>プログレスバー</td></tr>
+<tr><td><a onclick="showPage('TabView')">TabView</a></td><td>タブビュー</td></tr>
+<tr><td><a onclick="showPage('Dialog')">Dialog</a></td><td>ダイアログ</td></tr>
+<tr><td><a onclick="showPage('Canvas')">Canvas</a></td><td>自由描画キャンバス</td></tr>
+<tr><td><a onclick="showPage('Spacer')">Spacer</a></td><td>スペーサー</td></tr>
+</tbody>
+</table></div>
+</div>
+
+<div class="page" id="page-cat-IO">
+<h1>IO</h1>
+<p class="brief">ファイル・ネットワーク I/O モジュール。仮想ファイルシステム (VFS)、アーカイブ、非同期ロード、TCP/UDP/HTTP/WebSocket 通信を提供します。</p>
+<h2>ファイルシステム</h2>
+<div class="table-wrap"><table class="api">
+<thead><tr><th>クラス</th><th>説明</th></tr></thead>
+<tbody>
+<tr><td><a onclick="showPage('FileSystem')">FileSystem</a></td><td>仮想ファイルシステム（VFS）</td></tr>
+<tr><td><a onclick="showPage('PhysicalFileProvider')">PhysicalFileProvider</a></td><td>実ファイルシステムプロバイダー</td></tr>
+<tr><td><a onclick="showPage('Archive')">Archive / ArchiveWriter</a></td><td>独自アーカイブ (.gxarc) の読み書き</td></tr>
+<tr><td><a onclick="showPage('ArchiveFileProvider')">ArchiveFileProvider</a></td><td>アーカイブ用ファイルプロバイダー</td></tr>
+<tr><td><a onclick="showPage('PakFileProvider')">PakFileProvider</a></td><td>GXPAK 用ファイルプロバイダー</td></tr>
+<tr><td><a onclick="showPage('Crypto')">Crypto</a></td><td>AES 暗号化・SHA256 ハッシュ</td></tr>
+<tr><td><a onclick="showPage('AsyncLoader')">AsyncLoader</a></td><td>非同期ファイルローダー</td></tr>
+<tr><td><a onclick="showPage('FileWatcher')">FileWatcher</a></td><td>ファイル変更監視</td></tr>
+</tbody>
+</table></div>
+<h2>ネットワーク</h2>
+<div class="table-wrap"><table class="api">
+<thead><tr><th>クラス</th><th>説明</th></tr></thead>
+<tbody>
+<tr><td><a onclick="showPage('TCPSocket')">TCPSocket</a></td><td>TCP ソケット通信</td></tr>
+<tr><td><a onclick="showPage('UDPSocket')">UDPSocket</a></td><td>UDP ソケット通信</td></tr>
+<tr><td><a onclick="showPage('HTTPClient')">HTTPClient</a></td><td>HTTP クライアント（GET/POST）</td></tr>
+<tr><td><a onclick="showPage('WebSocket')">WebSocket</a></td><td>WebSocket クライアント</td></tr>
+</tbody>
+</table></div>
+</div>
+
+<div class="page" id="page-cat-Movie">
+<h1>Movie</h1>
+<p class="brief">動画再生モジュール。Media Foundation を使用した動画ファイルの再生を提供します。</p>
+<h2>クラス一覧</h2>
+<div class="table-wrap"><table class="api">
+<thead><tr><th>クラス</th><th>説明</th></tr></thead>
+<tbody>
+<tr><td><a onclick="showPage('MoviePlayer')">MoviePlayer</a></td><td>動画ファイルの再生・停止・シーク</td></tr>
+</tbody>
+</table></div>
+</div>
+
+<div class="page" id="page-cat-Math">
+<h1>Math</h1>
+<p class="brief">数学・衝突判定モジュール。ベクトル、行列、クォータニオン、色、乱数、2D/3D 衝突判定、空間分割構造を提供します。</p>
+<h2>数学クラス</h2>
+<div class="table-wrap"><table class="api">
+<thead><tr><th>クラス</th><th>説明</th></tr></thead>
+<tbody>
+<tr><td><a onclick="showPage('Vector2')">Vector2</a></td><td>2D ベクトル</td></tr>
+<tr><td><a onclick="showPage('Vector3')">Vector3</a></td><td>3D ベクトル</td></tr>
+<tr><td><a onclick="showPage('Vector4')">Vector4</a></td><td>4D ベクトル</td></tr>
+<tr><td><a onclick="showPage('Matrix4x4')">Matrix4x4</a></td><td>4x4 行列</td></tr>
+<tr><td><a onclick="showPage('Quaternion')">Quaternion</a></td><td>クォータニオン（回転表現）</td></tr>
+<tr><td><a onclick="showPage('Color')">Color</a></td><td>RGBA カラー</td></tr>
+<tr><td><a onclick="showPage('MathUtil')">MathUtil</a></td><td>数学ユーティリティ関数</td></tr>
+<tr><td><a onclick="showPage('Random')">Random</a></td><td>乱数生成</td></tr>
+</tbody>
+</table></div>
+<h2>衝突判定</h2>
+<div class="table-wrap"><table class="api">
+<thead><tr><th>クラス</th><th>説明</th></tr></thead>
+<tbody>
+<tr><td><a onclick="showPage('Collision2D')">Collision2D</a></td><td>2D 衝突判定（矩形・円・線分）</td></tr>
+<tr><td><a onclick="showPage('Collision3D')">Collision3D</a></td><td>3D 衝突判定（AABB・球・レイ）</td></tr>
+<tr><td><a onclick="showPage('Quadtree')">Quadtree&lt;T&gt;</a></td><td>2D 空間分割（四分木）</td></tr>
+<tr><td><a onclick="showPage('Octree')">Octree&lt;T&gt;</a></td><td>3D 空間分割（八分木）</td></tr>
+<tr><td><a onclick="showPage('BVH')">BVH&lt;T&gt;</a></td><td>バウンディングボリューム階層</td></tr>
+</tbody>
+</table></div>
+</div>
+
+<div class="page" id="page-cat-Physics">
+<h1>Physics</h1>
+<p class="brief">物理演算モジュール。2D 物理エンジン（自前実装）と 3D 物理エンジン（Jolt Physics）を提供します。</p>
+<h2>クラス一覧</h2>
+<div class="table-wrap"><table class="api">
+<thead><tr><th>クラス</th><th>説明</th></tr></thead>
+<tbody>
+<tr><td><a onclick="showPage('PhysicsWorld2D')">PhysicsWorld2D</a></td><td>2D 物理ワールド（重力・衝突応答）</td></tr>
+<tr><td><a onclick="showPage('PhysicsWorld3D')">PhysicsWorld3D</a></td><td>3D 物理ワールド（Jolt Physics）</td></tr>
+<tr><td><a onclick="showPage('RigidBody2D')">RigidBody2D</a></td><td>2D 剛体</td></tr>
+<tr><td><a onclick="showPage('PhysicsShape')">PhysicsShape</a></td><td>物理形状（Box/Sphere/Capsule/Mesh）</td></tr>
+</tbody>
+</table></div>
+</div>
+
+<div class="page" id="page-cat-AssetPipeline">
+<h1>Asset Pipeline</h1>
+<p class="brief">アセットパイプラインモジュール。モデル・アニメーションのバイナリ変換、ランタイムロード、アセットバンドルを提供します。</p>
+<h2>ツール・ライブラリ一覧</h2>
+<div class="table-wrap"><table class="api">
+<thead><tr><th>名前</th><th>種別</th><th>説明</th></tr></thead>
+<tbody>
+<tr><td><a onclick="showPage('gxformat')">gxformat</a></td><td>ヘッダーライブラリ</td><td>バイナリフォーマット定義（GXMD/GXAN/GXPAK）</td></tr>
+<tr><td><a onclick="showPage('gxconv')">gxconv</a></td><td>CLI ツール</td><td>OBJ/FBX/glTF → .gxmd/.gxan モデルコンバーター</td></tr>
+<tr><td><a onclick="showPage('gxloader')">gxloader</a></td><td>静的ライブラリ</td><td>ランタイムローダー（モデル/アニメーション/PAK）</td></tr>
+<tr><td><a onclick="showPage('gxpak')">gxpak</a></td><td>CLI ツール</td><td>アセットバンドル（pack/unpack/list）</td></tr>
+</tbody>
+</table></div>
+</div>
+
+<div class="page" id="page-cat-Compat">
+<h1>Compat (DXLib互換)</h1>
+<p class="brief">DXLib 互換レイヤー。DXLib の API に慣れたユーザーが GXLib を使いやすくするための互換関数群を提供します。</p>
+<h2>モジュール一覧</h2>
+<div class="table-wrap"><table class="api">
+<thead><tr><th>モジュール</th><th>説明</th></tr></thead>
+<tbody>
+<tr><td><a onclick="showPage('GXLib_System')">GXLib.h — System</a></td><td>DXLib_Init, ScreenFlip, ProcessMessage 等</td></tr>
+<tr><td><a onclick="showPage('GXLib_Graphics')">GXLib.h — Graphics</a></td><td>DrawBox, DrawCircle, LoadGraph 等の 2D 描画</td></tr>
+<tr><td><a onclick="showPage('GXLib_Text')">GXLib.h — Text</a></td><td>DrawString, CreateFontToHandle 等</td></tr>
+<tr><td><a onclick="showPage('GXLib_Input')">GXLib.h — Input</a></td><td>CheckHitKey, GetMousePoint 等</td></tr>
+<tr><td><a onclick="showPage('GXLib_Audio')">GXLib.h — Audio</a></td><td>PlaySoundMem, LoadSoundMem 等</td></tr>
+<tr><td><a onclick="showPage('GXLib_3D')">GXLib.h — 3D</a></td><td>MV1LoadModel, MV1DrawModel 等</td></tr>
+<tr><td><a onclick="showPage('GXLib_Math')">GXLib.h — Math</a></td><td>VGet, VAdd, MGetIdent 等</td></tr>
+<tr><td><a onclick="showPage('CompatContext')">CompatContext</a></td><td>互換レイヤーのコンテキスト管理</td></tr>
+<tr><td><a onclick="showPage('CompatTypes')">CompatTypes</a></td><td>互換型定義（VECTOR, MATRIX 等）</td></tr>
+</tbody>
+</table></div>
 </div>
 
 <div class="page" id="page-detail"></div>
@@ -12312,7 +12570,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     h+='<div class="detail-section"><h2>注意点・補足</h2><div class="detail-notes">'+esc(d[3])+'</div></div>';
     detailPage.innerHTML=h;
     // Back link
-    detailPage.querySelector('.detail-back').addEventListener('click',()=>{showPage(pid,elemId);});
+    detailPage.querySelector('.detail-back').addEventListener('click',()=>{showPage(pid);});
     return true;
   }
 
@@ -12376,6 +12634,25 @@ document.addEventListener('DOMContentLoaded',()=>{
     l.addEventListener('click',()=>showPage(l.dataset.page));
   });
 
+  // Sidebar: root category summary clicks (Core, Graphics, etc.)
+  // MutationObserver catches the open-attribute removal (microtask, before render)
+  // regardless of whether preventDefault blocks the native toggle or not.
+  document.querySelectorAll('#sidebar > .tree > details > summary[data-page]').forEach(s=>{
+    const d=s.parentElement;
+    let guard=false;
+    new MutationObserver(()=>{
+      if(guard&&!d.open){d.open=true;}
+    }).observe(d,{attributes:true,attributeFilter:['open']});
+    s.addEventListener('click',e=>{
+      e.preventDefault();
+      guard=true;
+      showPage(s.dataset.page);
+      closeSidebarIfMobile();
+      d.open=true;
+      setTimeout(()=>{guard=false;},200);
+    });
+  });
+
   // Content: click items → show detail if data exists, else copy permalink
   pages.forEach(pg=>{
     pg.querySelectorAll('[id]').forEach(el=>{
@@ -12392,6 +12669,27 @@ document.addEventListener('DOMContentLoaded',()=>{
         navigator.clipboard.writeText(location.href).catch(()=>{});
       });
     });
+  });
+
+  // Mobile sidebar toggle
+  const menuBtn=document.getElementById('menu-btn');
+  const overlay=document.getElementById('sidebar-overlay');
+  function closeSidebar(){document.body.classList.remove('sidebar-open');}
+  function isMobile(){return window.matchMedia('(max-width:768px)').matches;}
+  menuBtn.addEventListener('click',()=>{document.body.classList.toggle('sidebar-open');});
+  overlay.addEventListener('click',closeSidebar);
+  // Close sidebar when navigating to a page on mobile (called from leaf/method click handlers)
+  function closeSidebarIfMobile(){if(isMobile())setTimeout(closeSidebar,150);}
+  document.querySelectorAll('#sidebar .leaf, #sidebar .m').forEach(el=>{
+    el.addEventListener('click',closeSidebarIfMobile);
+  });
+
+  // Wrap tables for mobile horizontal scroll
+  document.querySelectorAll('table.api').forEach(t=>{
+    if(!t.parentElement.classList.contains('table-wrap')){
+      const w=document.createElement('div');w.className='table-wrap';
+      t.parentNode.insertBefore(w,t);w.appendChild(t);
+    }
   });
 
   // Initial hash navigation
