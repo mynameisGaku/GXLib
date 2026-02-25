@@ -12635,21 +12635,29 @@ document.addEventListener('DOMContentLoaded',()=>{
   });
 
   // Sidebar: root category summary clicks (Core, Graphics, etc.)
-  // MutationObserver catches the open-attribute removal (microtask, before render)
-  // regardless of whether preventDefault blocks the native toggle or not.
   document.querySelectorAll('#sidebar > .tree > details > summary[data-page]').forEach(s=>{
     const d=s.parentElement;
-    let guard=false;
-    new MutationObserver(()=>{
-      if(guard&&!d.open){d.open=true;}
-    }).observe(d,{attributes:true,attributeFilter:['open']});
     s.addEventListener('click',e=>{
       e.preventDefault();
-      guard=true;
+      const cp=document.querySelector('.page.active');
+      if(cp&&cp.id==='page-'+s.dataset.page){
+        d.open=!d.open;
+        return;
+      }
       showPage(s.dataset.page);
       closeSidebarIfMobile();
       d.open=true;
-      setTimeout(()=>{guard=false;},200);
+    });
+  });
+
+  // Sidebar: sub-category summary clicks (Device, Pipeline, etc.)
+  document.querySelectorAll('.tree details.sub > summary').forEach(s=>{
+    s.addEventListener('click',()=>{
+      const root=s.closest('.tree > details');
+      if(root){
+        const rs=root.querySelector(':scope > summary[data-page]');
+        if(rs) showPage(rs.dataset.page);
+      }
     });
   });
 
