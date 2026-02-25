@@ -12651,12 +12651,14 @@ document.addEventListener('DOMContentLoaded',()=>{
   });
 
   // Sidebar: sub-category summary clicks (Device, Pipeline, etc.)
+  // Show parent root category overview when opening a sub-category
   document.querySelectorAll('.tree details.sub > summary').forEach(s=>{
     s.addEventListener('click',()=>{
-      const root=s.closest('.tree > details');
-      if(root){
-        const rs=root.querySelector(':scope > summary[data-page]');
-        if(rs) showPage(rs.dataset.page);
+      let p=s.parentElement;
+      while(p&&p.parentElement&&!p.parentElement.classList.contains('tree')) p=p.parentElement;
+      if(p&&p.tagName==='DETAILS'){
+        const rs=p.children[0];
+        if(rs&&rs.tagName==='SUMMARY'&&rs.dataset.page) showPage(rs.dataset.page);
       }
     });
   });
