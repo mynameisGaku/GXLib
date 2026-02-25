@@ -214,7 +214,12 @@ void RTReflections::AddInstance(int blasIndex, const XMMATRIX& worldMatrix,
                 m_dispatchHeap.GetCPUHandle(k_TextureSlotsBase + slot));
             texIdx = static_cast<float>(slot);
         }
-        hasTexture = 1.0f;
+        else
+        {
+            GX_LOG_WARN("RTReflections: texture slot overflow (max %u), ignoring texture", k_MaxTextures);
+        }
+        if (texIdx >= 0.0f)
+            hasTexture = 1.0f;
     }
 
     // BLAS から頂点ストライドを取得
@@ -315,6 +320,12 @@ void RTReflections::Execute(ID3D12GraphicsCommandList4* cmdList4, uint32_t frame
                              RenderTarget& srcHDR, RenderTarget& destHDR,
                              DepthBuffer& depth, const Camera3D& camera)
 {
+    if (!m_reflectionUAV.Get())
+    {
+        GX_LOG_ERROR("RTReflections: m_reflectionUAV is null, skipping Execute");
+        return;
+    }
+
     // TLAS構築
     m_accelStruct.BuildTLAS(cmdList4, frameIndex);
 

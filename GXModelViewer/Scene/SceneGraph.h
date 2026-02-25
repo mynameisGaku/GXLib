@@ -72,6 +72,10 @@ public:
     /// @brief 遅延削除待ちのエンティティを実際に破棄する。GPUフラッシュ後に呼ぶこと。
     void ProcessPendingRemovals();
 
+    /// @brief candidateIdx が entityIdx の祖先（親、祖父...）であるかを判定
+    /// @return candidateIdx が entityIdx の祖先ならtrue
+    bool IsAncestor(int candidateIdx, int entityIdx) const;
+
     int selectedEntity = -1;  ///< 選択中エンティティインデックス（-1=未選択）
     int selectedBone = -1;    ///< 選択中ボーンインデックス（Hierarchy/Skeletonパネル共有）
 

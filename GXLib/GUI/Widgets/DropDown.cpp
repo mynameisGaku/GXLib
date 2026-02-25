@@ -31,6 +31,11 @@ void DropDown::SetItems(const std::vector<std::string>& items)
 
 void DropDown::SetSelectedIndex(int index)
 {
+    if (m_items.empty())
+    {
+        m_selectedIndex = -1;
+        return;
+    }
     if (index < 0 || index >= static_cast<int>(m_items.size()))
         index = 0;
     m_selectedIndex = index;

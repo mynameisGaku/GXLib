@@ -24,6 +24,28 @@ set(TEST_SOURCES
     test_Spatial.cpp
     test_Crypto.cpp
     test_Allocator.cpp
+    # Phase 37: テスト強化
+    test_Spline.cpp
+    test_Transform3D.cpp
+    test_Entity.cpp
+    test_SceneSerializer.cpp
+    test_ActionMapping.cpp
+    test_NavMesh.cpp
+    test_LODGroup.cpp
+    test_Animation.cpp
+    test_StyleSheet.cpp
+    test_FileSystem.cpp
+    # Phase 41: テスト拡充
+    test_Transform2D.cpp
+    test_Camera2D.cpp
+    test_Camera3D.cpp
+    test_Light.cpp
+    test_Material.cpp
+    test_XMLParser.cpp
+    test_Tilemap.cpp
+    test_IK.cpp
+    test_AnimatorStateMachine.cpp
+    test_BlendSystem.cpp
 )
 
 add_executable(GXLibTests ${TEST_SOURCES})

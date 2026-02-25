@@ -226,7 +226,7 @@ float AutoExposure::ComputeExposure(ID3D12GraphicsCommandList* cmdList, uint32_t
         uint32_t readIdx = (m_readbackFrameCount) % 2;
         void* mapped = nullptr;
         D3D12_RANGE readRange = { 0, 2 }; // R16_FLOAT = 2 bytes
-        if (SUCCEEDED(m_readbackBuffer[readIdx]->Map(0, &readRange, &mapped)))
+        if (SUCCEEDED(m_readbackBuffer[readIdx]->Map(0, &readRange, &mapped)) && mapped)
         {
             // R16_FLOAT → float 変換
             uint16_t halfVal = *reinterpret_cast<const uint16_t*>(mapped);

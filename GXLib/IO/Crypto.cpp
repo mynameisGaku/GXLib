@@ -149,7 +149,10 @@ std::array<uint8_t, 32> Crypto::SHA256(const void* data, size_t size)
 
     NTSTATUS status = BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_SHA256_ALGORITHM, nullptr, 0);
     if (!BCRYPT_SUCCESS(status))
+    {
+        GX_LOG_ERROR("Crypto::SHA256: BCryptOpenAlgorithmProvider failed: 0x%08X", status);
         return hash;
+    }
 
     status = BCryptCreateHash(hAlg, &hHash, nullptr, 0, nullptr, 0, 0);
     if (!BCRYPT_SUCCESS(status))

@@ -365,6 +365,51 @@ void GXModelViewerApp::BuildMainMenuBar()
             ImGui::EndMenu();
         }
 
+        if (ImGui::BeginMenu("Edit"))
+        {
+            if (ImGui::MenuItem("Undo", "Ctrl+Z", false, m_undoSystem.CanUndo()))
+                m_undoSystem.Undo();
+            if (ImGui::MenuItem("Redo", "Ctrl+Y", false, m_undoSystem.CanRedo()))
+                m_undoSystem.Redo();
+            ImGui::Separator();
+            if (ImGui::MenuItem("Duplicate", "Ctrl+D", false, m_sceneGraph.selectedEntity >= 0))
+            {
+                // Trigger via keyboard shortcut code path
+                int srcIdx = m_sceneGraph.selectedEntity;
+                SceneEntity* src = m_sceneGraph.GetEntity(srcIdx);
+                if (src)
+                {
+                    std::string newName = src->name + " (Copy)";
+                    XMFLOAT3 srcPos = src->transform.GetPosition();
+                    GX::Transform3D srcTransform = src->transform;
+                    GX::Material srcMat = src->materialOverride;
+                    bool srcUseMat = src->useMaterialOverride;
+                    int srcParent = src->parentIndex;
+                    GX::Model* srcModel = src->model;
+
+                    int newIdx = m_sceneGraph.AddEntity(newName);
+                    m_sceneGraph.selectedEntity = newIdx;
+
+                    SceneEntity* dst = m_sceneGraph.GetEntity(newIdx);
+                    if (dst)
+                    {
+                        dst->transform = srcTransform;
+                        dst->transform.SetPosition(srcPos.x + 1.0f, srcPos.y, srcPos.z);
+                        dst->materialOverride = srcMat;
+                        dst->useMaterialOverride = srcUseMat;
+                        dst->parentIndex = srcParent;
+                        if (srcModel) dst->model = srcModel;
+                    }
+                }
+            }
+            if (ImGui::MenuItem("Delete", "Del", false, m_sceneGraph.selectedEntity >= 0))
+            {
+                auto cmd = std::make_unique<RemoveEntityCommand>(m_sceneGraph, m_sceneGraph.selectedEntity);
+                m_undoSystem.Execute(std::move(cmd));
+            }
+            ImGui::EndMenu();
+        }
+
         if (ImGui::BeginMenu("View"))
         {
             ImGui::MenuItem("Scene Hierarchy", nullptr, &m_showSceneHierarchy);
@@ -594,9 +639,32 @@ void GXModelViewerApp::UpdateUI()
 
     // --- Editor Panels ---
 
+    // Simulation toolbar
+    DrawSimulationToolbar();
+
     // Scene Hierarchy
     if (m_showSceneHierarchy)
         m_sceneHierarchyPanel.Draw(m_sceneGraph);
+
+    // Process pending primitive creation from SceneHierarchyPanel
+    {
+        PrimitiveRequest req = m_sceneHierarchyPanel.GetPendingPrimitive();
+        if (req != PrimitiveRequest::None)
+        {
+            CreatePrimitive(req);
+            m_sceneHierarchyPanel.ClearPendingPrimitive();
+        }
+    }
+
+    // Process pending reparent from SceneHierarchyPanel
+    if (m_sceneHierarchyPanel.HasReparentRequest())
+    {
+        int entityIdx, oldParent, newParent;
+        m_sceneHierarchyPanel.GetReparentRequest(entityIdx, oldParent, newParent);
+        auto cmd = std::make_unique<ReparentCommand>(m_sceneGraph, entityIdx, oldParent, newParent);
+        m_undoSystem.Execute(std::move(cmd));
+        m_sceneHierarchyPanel.ClearReparentRequest();
+    }
 
     // Get selected entity for panel connections
     SceneEntity* selEntity = m_sceneGraph.GetEntity(m_sceneGraph.selectedEntity);
@@ -741,9 +809,101 @@ void GXModelViewerApp::UpdateUI()
         ImGui::End();
     }
 
+    // Undo/Redo shortcuts (always active, Ctrl+Z / Ctrl+Y)
+    {
+        auto& io = ImGui::GetIO();
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z) && m_undoSystem.CanUndo())
+            m_undoSystem.Undo();
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Y) && m_undoSystem.CanRedo())
+            m_undoSystem.Redo();
+    }
+
+    // Gizmo undo tracking: detect start/end of gizmo manipulation
+    {
+        bool isUsing = ImGuizmo::IsUsing();
+        if (isUsing && !m_gizmoWasUsing)
+        {
+            // Gizmo drag started — save initial transform
+            SceneEntity* sel = m_sceneGraph.GetEntity(m_sceneGraph.selectedEntity);
+            if (sel)
+            {
+                m_gizmoStartEntity = m_sceneGraph.selectedEntity;
+                m_gizmoStartPos   = sel->transform.GetPosition();
+                m_gizmoStartRot   = sel->transform.GetRotation();
+                m_gizmoStartScale = sel->transform.GetScale();
+            }
+        }
+        else if (!isUsing && m_gizmoWasUsing && m_gizmoStartEntity >= 0)
+        {
+            // Gizmo drag ended — push undo command if transform changed
+            SceneEntity* sel = m_sceneGraph.GetEntity(m_gizmoStartEntity);
+            if (sel)
+            {
+                XMFLOAT3 curPos = sel->transform.GetPosition();
+                XMFLOAT3 curRot = sel->transform.GetRotation();
+                XMFLOAT3 curScale = sel->transform.GetScale();
+                bool changed = (curPos.x != m_gizmoStartPos.x || curPos.y != m_gizmoStartPos.y || curPos.z != m_gizmoStartPos.z)
+                            || (curRot.x != m_gizmoStartRot.x || curRot.y != m_gizmoStartRot.y || curRot.z != m_gizmoStartRot.z)
+                            || (curScale.x != m_gizmoStartScale.x || curScale.y != m_gizmoStartScale.y || curScale.z != m_gizmoStartScale.z);
+                if (changed)
+                {
+                    // Create a command that sets to current (Execute) or reverts to old (Undo)
+                    // We push without Execute since the gizmo already applied the change
+                    auto cmd = std::make_unique<TransformChangeCommand>(
+                        m_sceneGraph, m_gizmoStartEntity,
+                        m_gizmoStartPos, m_gizmoStartRot, m_gizmoStartScale,
+                        curPos, curRot, curScale);
+                    m_undoSystem.Execute(std::move(cmd));
+                    // The Execute call re-applies the transform (no-op since already set)
+                }
+            }
+            m_gizmoStartEntity = -1;
+        }
+        m_gizmoWasUsing = isUsing;
+    }
+
     // Keyboard shortcuts (when ImGui doesn't want keyboard)
     if (!ImGui::GetIO().WantCaptureKeyboard)
     {
+        // Delete key: remove selected entity
+        if (ImGui::IsKeyPressed(ImGuiKey_Delete) && m_sceneGraph.selectedEntity >= 0)
+        {
+            auto cmd = std::make_unique<RemoveEntityCommand>(m_sceneGraph, m_sceneGraph.selectedEntity);
+            m_undoSystem.Execute(std::move(cmd));
+        }
+
+        // Ctrl+D: duplicate selected entity
+        if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_D) && m_sceneGraph.selectedEntity >= 0)
+        {
+            int srcIdx = m_sceneGraph.selectedEntity;
+            SceneEntity* src = m_sceneGraph.GetEntity(srcIdx);
+            if (src)
+            {
+                std::string newName = src->name + " (Copy)";
+                XMFLOAT3 srcPos = src->transform.GetPosition();
+                GX::Transform3D srcTransform = src->transform;
+                GX::Material srcMat = src->materialOverride;
+                bool srcUseMat = src->useMaterialOverride;
+                int srcParent = src->parentIndex;
+                GX::Model* srcModel = src->model;
+
+                int newIdx = m_sceneGraph.AddEntity(newName);
+                m_sceneGraph.selectedEntity = newIdx;
+
+                SceneEntity* dst = m_sceneGraph.GetEntity(newIdx);
+                if (dst)
+                {
+                    dst->transform = srcTransform;
+                    dst->transform.SetPosition(srcPos.x + 1.0f, srcPos.y, srcPos.z);
+                    dst->materialOverride = srcMat;
+                    dst->useMaterialOverride = srcUseMat;
+                    dst->parentIndex = srcParent;
+                    if (srcModel)
+                        dst->model = srcModel;
+                }
+            }
+        }
+
         // Space: play/pause toggle
         if (ImGui::IsKeyPressed(ImGuiKey_Space))
         {
@@ -1918,11 +2078,168 @@ void GXModelViewerApp::HandleViewportPicking()
 }
 
 // ============================================================================
+// CreatePrimitive
+// ============================================================================
+
+void GXModelViewerApp::CreatePrimitive(PrimitiveRequest request)
+{
+    if (request == PrimitiveRequest::None) return;
+
+    const char* name = "Entity";
+    GX::MeshData meshData;
+    bool hasMesh = false;
+
+    switch (request)
+    {
+    case PrimitiveRequest::Empty:
+        name = "Empty";
+        break;
+    case PrimitiveRequest::Cube:
+        name = "Cube";
+        meshData = GX::MeshGenerator::CreateBox(1.0f, 1.0f, 1.0f);
+        hasMesh = true;
+        break;
+    case PrimitiveRequest::Sphere:
+        name = "Sphere";
+        meshData = GX::MeshGenerator::CreateSphere(0.5f, 32, 32);
+        hasMesh = true;
+        break;
+    case PrimitiveRequest::Plane:
+        name = "Plane";
+        meshData = GX::MeshGenerator::CreatePlane(10.0f, 10.0f, 1, 1);
+        hasMesh = true;
+        break;
+    case PrimitiveRequest::Cylinder:
+        name = "Cylinder";
+        meshData = GX::MeshGenerator::CreateCylinder(0.5f, 0.5f, 2.0f, 32, 1);
+        hasMesh = true;
+        break;
+    case PrimitiveRequest::Cone:
+        name = "Cone";
+        meshData = GX::MeshGenerator::CreateCylinder(0.0f, 0.5f, 2.0f, 32, 1);
+        hasMesh = true;
+        break;
+    default:
+        break;
+    }
+
+    // Count active entities for unique naming
+    int activeCount = 0;
+    for (int i = 0; i < m_sceneGraph.GetEntityCount(); ++i)
+        if (m_sceneGraph.GetEntity(i)) ++activeCount;
+
+    char nameBuf[64];
+    snprintf(nameBuf, sizeof(nameBuf), "%s_%d", name, activeCount);
+
+    int idx = m_sceneGraph.AddEntity(nameBuf);
+    m_sceneGraph.selectedEntity = idx;
+
+    if (hasMesh)
+    {
+        SceneEntity* entity = m_sceneGraph.GetEntity(idx);
+        if (entity)
+        {
+            entity->ownedModel = std::make_unique<GX::Model>();
+            auto& mesh = entity->ownedModel->GetMesh();
+
+            ID3D12Device* device = m_graphicsDevice.GetDevice();
+            mesh.CreateVertexBuffer(device,
+                meshData.vertices.data(),
+                static_cast<uint32_t>(meshData.vertices.size() * sizeof(GX::Vertex3D_PBR)),
+                sizeof(GX::Vertex3D_PBR));
+            mesh.CreateIndexBuffer(device,
+                meshData.indices.data(),
+                static_cast<uint32_t>(meshData.indices.size() * sizeof(uint32_t)),
+                DXGI_FORMAT_R32_UINT);
+
+            // Create default grey material
+            GX::Material defaultMat;
+            defaultMat.shaderParams.baseColor[0] = 0.6f;
+            defaultMat.shaderParams.baseColor[1] = 0.6f;
+            defaultMat.shaderParams.baseColor[2] = 0.6f;
+            defaultMat.shaderParams.baseColor[3] = 1.0f;
+            defaultMat.shaderParams.roughness = 0.5f;
+            defaultMat.shaderParams.metallic = 0.0f;
+            defaultMat.constants.albedoFactor = { 0.6f, 0.6f, 0.6f, 1.0f };
+            defaultMat.constants.roughnessFactor = 0.5f;
+            defaultMat.constants.metallicFactor = 0.0f;
+            int matHandle = m_materialManager.CreateMaterial(defaultMat);
+
+            GX::SubMesh subMesh;
+            subMesh.indexCount = static_cast<uint32_t>(meshData.indices.size());
+            subMesh.indexOffset = 0;
+            subMesh.vertexOffset = 0;
+            subMesh.materialHandle = matHandle;
+            mesh.AddSubMesh(subMesh);
+
+            entity->ownedModel->AddMaterial(matHandle);
+            entity->model = entity->ownedModel.get();
+
+            // Store CPU data for export/AABB
+            GX::MeshCPUData cpuData;
+            cpuData.staticVertices = meshData.vertices;
+            cpuData.indices = meshData.indices;
+            entity->ownedModel->SetCPUData(std::move(cpuData));
+
+            // Initialize submesh visibility
+            entity->submeshVisibility.resize(1, true);
+        }
+    }
+}
+
+// ============================================================================
+// DrawSimulationToolbar
+// ============================================================================
+
+void GXModelViewerApp::DrawSimulationToolbar()
+{
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8, 4));
+    if (ImGui::Begin("Simulation", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
+    {
+        SimulationState state = m_simulationManager.GetState();
+
+        if (state == SimulationState::Editing)
+        {
+            if (ImGui::Button("Play"))
+                m_simulationManager.Play(m_sceneGraph);
+        }
+        else if (state == SimulationState::Playing)
+        {
+            if (ImGui::Button("Pause"))
+                m_simulationManager.Pause();
+            ImGui::SameLine();
+            if (ImGui::Button("Stop"))
+                m_simulationManager.Stop(m_sceneGraph);
+        }
+        else if (state == SimulationState::Paused)
+        {
+            if (ImGui::Button("Resume"))
+                m_simulationManager.Resume();
+            ImGui::SameLine();
+            if (ImGui::Button("Stop"))
+                m_simulationManager.Stop(m_sceneGraph);
+        }
+
+        ImGui::SameLine();
+        const char* stateStr = (state == SimulationState::Editing) ? "Editing" :
+                               (state == SimulationState::Playing) ? "Playing" : "Paused";
+        ImGui::TextColored(
+            state == SimulationState::Playing ? ImVec4(0.2f, 1.0f, 0.2f, 1.0f) :
+            state == SimulationState::Paused  ? ImVec4(1.0f, 1.0f, 0.2f, 1.0f) :
+                                                ImVec4(0.6f, 0.6f, 0.6f, 1.0f),
+            "%s", stateStr);
+    }
+    ImGui::End();
+    ImGui::PopStyleVar();
+}
+
+// ============================================================================
 // Shutdown
 // ============================================================================
 
 void GXModelViewerApp::Shutdown()
 {
+    m_simulationManager.Stop(m_sceneGraph);
     m_commandQueue.Flush();
     m_audioManager.Shutdown();
     ShutdownImGui();

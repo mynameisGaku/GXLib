@@ -62,7 +62,8 @@ int LoadDivGraph(const TCHAR* filePath, int allNum, int xNum, int yNum,
                  int xSize, int ySize, int* handleBuf)
 {
     if (!handleBuf) return -1;
-    if (allNum <= 0) return -1;
+    if (allNum <= 0 || allNum > 4096) return -1;
+    if (xNum <= 0 || yNum <= 0 || xSize <= 0 || ySize <= 0) return -1;
 
     auto& ctx = Ctx::Instance();
     int baseHandle = LoadGraph(filePath);

@@ -32,7 +32,7 @@ cbuffer RTReflectionConstants : register(b0)
 cbuffer InstanceData : register(b1)
 {
     float4 g_InstanceAlbedoMetallic[512];  // .rgb=アルベド色, .a=メタリック度
-    float4 g_InstanceRoughnessGeom[512];   // .x=ラフネス, .y=ジオメトリID, .z=テクスチャID, .w=テクスチャ有無
+    float4 g_InstanceRoughnessGeom[512];   // .x=ラフネス, .y=ジオメトリID (VB/IBインデックス), .z=テクスチャID (g_AlbedoTextures配列インデックス), .w=テクスチャ有無 (>0.5でテクスチャサンプリング有効)
     float4 g_InstanceExtraData[512];       // .x=頂点ストライド(bytes), .yzw=予約
 };
 
@@ -286,11 +286,12 @@ void ClosestHit(inout ReflectionPayload payload, in BuiltInTriangleIntersectionA
     float2 texCoord = uv0 * bary.x + uv1 * bary.y + uv2 * bary.z;
 
     // オブジェクト空間 -> ワールド空間 法線変換
-    float3 N = normalize(mul((float3x3)ObjectToWorld3x4(), normalObj));
+    // 非一様スケール対応: 逆転置行列 = mul(n, (float3x3)WorldToObject3x4())
+    float3 N = normalize(mul(normalObj, (float3x3)WorldToObject3x4()));
 
     // ジオメトリック法線 (face normal) — シャドウレイオフセット用
     float3 faceNormalObj = normalize(cross(p1 - p0, p2 - p0));
-    float3 Ng = normalize(mul((float3x3)ObjectToWorld3x4(), faceNormalObj));
+    float3 Ng = normalize(mul(faceNormalObj, (float3x3)WorldToObject3x4()));
     if (dot(Ng, -WorldRayDirection()) < 0.0)
         Ng = -Ng;
 

@@ -329,6 +329,112 @@ anim.Draw(spriteBatch, 100.0f, 200.0f);     // 現在のフレームを描画
 - 画像の中心を (x, y) に合わせたい場合はそのまま使えます
 - 左上を合わせたい場合は `(x + 幅/2, y + 高さ/2)` を指定してください
 
+---
+
+## 関数パラメータ一覧
+
+### スプライト描画関数
+
+#### DrawGraph
+
+| パラメータ | 型 | 説明 |
+|---|---|---|
+| x | int | 描画位置の左上 X 座標 |
+| y | int | 描画位置の左上 Y 座標 |
+| grHandle | int | `LoadGraph` で取得した画像ハンドル |
+| transFlag | int | `TRUE`: 透過処理あり（PNG の透明部分を透過）、`FALSE`: 不透明描画 |
+
+#### DrawRotaGraph
+
+| パラメータ | 型 | 説明 |
+|---|---|---|
+| x | int | 描画中心の X 座標（左上ではなく中心） |
+| y | int | 描画中心の Y 座標 |
+| extRate | double | 拡大率（1.0 = 等倍、2.0 = 2倍、0.5 = 半分） |
+| angle | double | 回転角度（ラジアン、時計回り）。度数法との変換: ラジアン = 度 * PI / 180 |
+| grHandle | int | 画像ハンドル |
+| transFlag | int | 透過処理フラグ |
+
+#### DrawExtendGraph
+
+| パラメータ | 型 | 説明 |
+|---|---|---|
+| x1 | int | 描画先の左上 X 座標 |
+| y1 | int | 描画先の左上 Y 座標 |
+| x2 | int | 描画先の右下 X 座標 |
+| y2 | int | 描画先の右下 Y 座標 |
+| grHandle | int | 画像ハンドル |
+| transFlag | int | 透過処理フラグ |
+
+#### DrawRectGraph
+
+| パラメータ | 型 | 説明 |
+|---|---|---|
+| destX | int | 描画位置の左上 X 座標 |
+| destY | int | 描画位置の左上 Y 座標 |
+| srcX | int | 画像内の切り出し開始 X 座標 |
+| srcY | int | 画像内の切り出し開始 Y 座標 |
+| width | int | 切り出す幅（ピクセル） |
+| height | int | 切り出す高さ（ピクセル） |
+| grHandle | int | 画像ハンドル |
+| transFlag | int | 透過処理フラグ |
+| turnFlag | int | `TRUE`: 左右反転描画、`FALSE`: 通常描画 |
+
+#### LoadDivGraph
+
+| パラメータ | 型 | 説明 |
+|---|---|---|
+| fileName | const char* | スプライトシート画像ファイルパス |
+| allNum | int | 総コマ数（= xNum * yNum） |
+| xNum | int | 横方向の分割数 |
+| yNum | int | 縦方向の分割数 |
+| xSize | int | 1コマの幅（ピクセル） |
+| ySize | int | 1コマの高さ（ピクセル） |
+| handleArray | int* | ハンドルを格納する配列（要素数 >= allNum） |
+
+### プリミティブ描画関数
+
+#### DrawLine
+
+| パラメータ | 型 | 説明 |
+|---|---|---|
+| x1 | int | 始点 X |
+| y1 | int | 始点 Y |
+| x2 | int | 終点 X |
+| y2 | int | 終点 Y |
+| color | unsigned int | `GetColor(R, G, B)` で取得した色 |
+| thickness | int | 線の太さ（ピクセル） |
+
+#### DrawBox
+
+| パラメータ | 型 | 説明 |
+|---|---|---|
+| x1 | int | 左上 X |
+| y1 | int | 左上 Y |
+| x2 | int | 右下 X |
+| y2 | int | 右下 Y |
+| color | unsigned int | 色 |
+| fillFlag | int | `TRUE`: 塗りつぶし、`FALSE`: 枠線のみ |
+
+#### DrawCircle
+
+| パラメータ | 型 | 説明 |
+|---|---|---|
+| x | int | 中心 X |
+| y | int | 中心 Y |
+| r | int | 半径（ピクセル） |
+| color | unsigned int | 色 |
+| fillFlag | int | `TRUE`: 塗りつぶし、`FALSE`: 枠線のみ |
+
+### ブレンドモード
+
+#### SetDrawBlendMode
+
+| パラメータ | 型 | 説明 |
+|---|---|---|
+| blendMode | int | `GX_BLENDMODE_NOBLEND` (ブレンドなし)、`GX_BLENDMODE_ALPHA` (半透明)、`GX_BLENDMODE_ADD` (加算合成) |
+| blendParam | int | ブレンド強度 (0-255)。ALPHA: 不透明度、ADD: 加算強度 |
+
 ## 次のステップ
 
 - [03_Game2D.md](03_Game2D.md) — 入力処理とサウンドを追加してゲームを作る

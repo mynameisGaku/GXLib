@@ -10,6 +10,7 @@
 #include "Graphics/Resource/TextureManager.h"
 #include <imgui.h>
 #include "ImGuizmo.h"
+#include "ImGuiFileDialog.h"
 
 /// @brief 選択エンティティのプロパティ（Transform/Material/Gizmo等）を編集するパネル
 class PropertyPanel
@@ -42,12 +43,23 @@ private:
     void DrawMaterialOverrideSection(SceneEntity& entity);
 
     /// @brief モデル本体のサブメッシュ別マテリアルを直接編集するUI
-    void DrawModelMaterials(SceneEntity& entity, GX::MaterialManager& matManager);
+    void DrawModelMaterials(SceneEntity& entity, GX::MaterialManager& matManager,
+                            GX::TextureManager& texManager);
 
     /// @brief シェーダーモデル固有パラメータの編集UI（Toon/Phong/Subsurface/ClearCoat等）
-    /// @param params 編集対象のパラメータ構造体
-    /// @param model 現在のシェーダーモデル種別
     void DrawShaderModelParams(gxfmt::ShaderModelParams& params, gxfmt::ShaderModel model);
 
+    /// @brief テクスチャスロットのBrowse/Clear UIを描画する
+    void DrawTextureSlots(GX::Material* mat, int matHandle, GX::MaterialManager& matManager,
+                          GX::TextureManager& texManager, int submeshIndex);
+
+    /// @brief テクスチャファイルダイアログの結果を処理する
+    void HandleTextureDialog(GX::MaterialManager& matManager, GX::TextureManager& texManager);
+
     char m_nameBuffer[256] = {};  ///< エンティティ名編集バッファ
+
+    // --- テクスチャ割り当て状態 ---
+    int m_pendingTexMatHandle = -1;  ///< テクスチャ選択待ちのマテリアルハンドル
+    int m_pendingTexSlot = -1;       ///< テクスチャ選択待ちのスロット（0=albedo...）
+    bool m_pendingTexIsOverride = false; ///< オーバーライドマテリアル用か
 };

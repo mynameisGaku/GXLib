@@ -183,6 +183,30 @@ Texture2D    tClearCoatMask : register(t7); // クリアコートマスク (R)
 SamplerState sLinearWrap   : register(s0);  // リニアラップサンプラー
 
 // ============================================================================
+// Bindless テクスチャ (space1) — ヒープ全体をバインドしインデックスでアクセス
+// ============================================================================
+Texture2D gBindlessTextures[] : register(t0, space1);
+
+cbuffer BindlessTextureIndices : register(b5)
+{
+    int gTexIdx[8]; // [0]=albedo [1]=normal [2]=metRough [3]=ao
+                    // [4]=emissive [5]=toonRamp [6]=subsurface [7]=clearCoatMask
+};
+
+/// @brief Bindless テクスチャをサンプルする（インデックスが有効な場合のみ）
+/// @param slot テクスチャスロット (0-7)
+/// @param samp サンプラーステート
+/// @param uv テクスチャ座標
+/// @param fallback インデックスが無効時の戻り値
+float4 SampleBindless(int slot, SamplerState samp, float2 uv, float4 fallback)
+{
+    int idx = gTexIdx[slot];
+    if (idx >= 0)
+        return gBindlessTextures[NonUniformResourceIndex(idx)].Sample(samp, uv);
+    return fallback;
+}
+
+// ============================================================================
 // 頂点フォーマット
 // ============================================================================
 

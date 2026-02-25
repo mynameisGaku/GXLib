@@ -29,6 +29,15 @@ struct TAAConstants
     float      padding[3];             // 12B
 };  // 160B → 256-align
 
+/// シャープニング定数バッファ
+struct SharpeningConstants
+{
+    float sharpness;     ///< シャープニング強度 (0=無効, 1=最大)
+    float screenWidth;   ///< スクリーン幅
+    float screenHeight;  ///< スクリーン高さ
+    float padding;
+};
+
 /// @brief ジッター+履歴合成でジャギーを消すTAAエフェクト
 ///
 /// 現フレーム(ジッター適用済み)と前フレーム履歴をリプロジェクション+
@@ -68,6 +77,15 @@ public:
     void SetBlendFactor(float f) { m_blendFactor = f; }
     float GetBlendFactor() const { return m_blendFactor; }
 
+    /// @brief シャープニング強度 (0=無効, 1=最大)
+    void SetSharpness(float s) { m_sharpness = s; }
+    float GetSharpness() const { return m_sharpness; }
+
+    /// @brief 内部解像度スケール (0.5〜1.0, 1.0=フル解像度)
+    /// @note PostEffectPipeline側でHDR RTサイズを調整する必要がある
+    void SetResolutionScale(float scale) { m_resolutionScale = (std::max)(0.5f, (std::min)(1.0f, scale)); }
+    float GetResolutionScale() const { return m_resolutionScale; }
+
     /// @brief 現フレームのジッターオフセットを取得 (NDC空間)
     XMFLOAT2 GetCurrentJitter() const;
 
@@ -84,6 +102,8 @@ private:
 
     bool m_enabled = false;
     float m_blendFactor = 0.9f;
+    float m_sharpness = 0.0f;         ///< CASシャープニング強度
+    float m_resolutionScale = 1.0f;   ///< 内部解像度スケール
 
     RenderTarget m_historyRT;       // R16G16B16A16_FLOAT (前フレームTAA出力)
     bool m_hasHistory = false;
@@ -106,6 +126,13 @@ private:
     ID3D12Device* m_device = nullptr;
 
     void UpdateSRVHeap(RenderTarget& srcHDR, DepthBuffer& depth, uint32_t frameIndex);
+
+    // シャープニング (CAS)
+    ComPtr<ID3D12RootSignature> m_sharpenRS;
+    ComPtr<ID3D12PipelineState> m_sharpenPSO;
+    DynamicBuffer m_sharpenCB;
+    RenderTarget m_sharpenTempRT;  ///< シャープニング用一時RT
+    bool CreateSharpenPipeline(ID3D12Device* device);
 
     /// Halton数列 (base=2,3) ジッター生成
     static float Halton(int index, int base);

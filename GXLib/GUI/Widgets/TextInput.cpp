@@ -137,6 +137,9 @@ void TextInput::CopyToClipboard()
 
     int s = (std::min)(m_selStart, m_selEnd);
     int e = (std::max)(m_selStart, m_selEnd);
+    s = std::clamp(s, 0, static_cast<int>(m_text.size()));
+    e = std::clamp(e, 0, static_cast<int>(m_text.size()));
+    if (s >= e) return;
     std::wstring selected = m_text.substr(s, e - s);
 
     if (!OpenClipboard(nullptr)) return;

@@ -111,4 +111,29 @@ void AnimationClip::Sample(float time, uint32_t jointCount, XMFLOAT4X4* outLocal
     }
 }
 
+void AnimationClip::CollectEvents(float prevTime, float curTime,
+                                   std::vector<const AnimationEvent*>& outEvents) const
+{
+    if (m_events.empty()) return;
+
+    if (curTime >= prevTime)
+    {
+        // 通常再生（前進）: prevTime < event.time <= curTime
+        for (const auto& evt : m_events)
+        {
+            if (evt.time > prevTime && evt.time <= curTime)
+                outEvents.push_back(&evt);
+        }
+    }
+    else
+    {
+        // ループ境界をまたいだ場合: prevTime < event.time <= duration  OR  0 <= event.time <= curTime
+        for (const auto& evt : m_events)
+        {
+            if (evt.time > prevTime || evt.time <= curTime)
+                outEvents.push_back(&evt);
+        }
+    }
+}
+
 } // namespace GX

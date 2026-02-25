@@ -2,7 +2,7 @@
 /// @brief シーン階層パネル実装
 ///
 /// エンティティをTreeNodeExで一覧表示し、クリックで選択、右クリックで追加/削除。
-/// スキンドモデルはノード展開時にボーンツリーも表示する。
+/// ドラッグ&ドロップで親子関係を変更する。プリミティブ追加はPendingAction経由。
 
 #include "SceneHierarchyPanel.h"
 #include <imgui.h>
@@ -18,18 +18,7 @@ void SceneHierarchyPanel::Draw(SceneGraph& scene)
     // "+" button to add a new empty entity
     if (ImGui::Button("+"))
     {
-        int count = scene.GetEntityCount();
-        // Count active entities for naming
-        int activeCount = 0;
-        for (int i = 0; i < count; ++i)
-        {
-            if (scene.GetEntity(i))
-                ++activeCount;
-        }
-        char nameBuf[64];
-        snprintf(nameBuf, sizeof(nameBuf), "Entity_%d", activeCount);
-        int newIdx = scene.AddEntity(nameBuf);
-        scene.selectedEntity = newIdx;
+        m_pendingPrimitive = PrimitiveRequest::Empty;
     }
     ImGui::SameLine();
     ImGui::TextUnformatted("Scene Entities");
@@ -61,7 +50,22 @@ void SceneHierarchyPanel::Draw(SceneGraph& scene)
         if (!entity->visible)
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
 
-        bool nodeOpen = ImGui::TreeNodeEx(entity->name.c_str(), flags);
+        // Show parent indicator
+        char label[128];
+        if (entity->parentIndex >= 0)
+        {
+            const SceneEntity* parent = scene.GetEntity(entity->parentIndex);
+            if (parent)
+                snprintf(label, sizeof(label), "%s  (-> %s)", entity->name.c_str(), parent->name.c_str());
+            else
+                snprintf(label, sizeof(label), "%s", entity->name.c_str());
+        }
+        else
+        {
+            snprintf(label, sizeof(label), "%s", entity->name.c_str());
+        }
+
+        bool nodeOpen = ImGui::TreeNodeEx(label, flags);
 
         if (!entity->visible)
             ImGui::PopStyleColor();
@@ -73,16 +77,46 @@ void SceneHierarchyPanel::Draw(SceneGraph& scene)
             scene.selectedBone = -1;
         }
 
+        // --- Drag source ---
+        if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
+        {
+            ImGui::SetDragDropPayload("ENTITY_INDEX", &i, sizeof(int));
+            ImGui::Text("Move: %s", entity->name.c_str());
+            ImGui::EndDragDropSource();
+        }
+
+        // --- Drop target ---
+        if (ImGui::BeginDragDropTarget())
+        {
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ENTITY_INDEX"))
+            {
+                int draggedIdx = *(const int*)payload->Data;
+                if (draggedIdx != i && !scene.IsAncestor(draggedIdx, i))
+                {
+                    const SceneEntity* dragged = scene.GetEntity(draggedIdx);
+                    if (dragged)
+                    {
+                        m_reparentEntity    = draggedIdx;
+                        m_reparentOldParent = dragged->parentIndex;
+                        m_reparentNewParent = i;
+                    }
+                }
+            }
+            ImGui::EndDragDropTarget();
+        }
+
         // Right-click context menu
         if (ImGui::BeginPopupContextItem("EntityContext"))
         {
-            if (ImGui::MenuItem("Add Empty"))
+            DrawContextMenu(scene, entityCount);
+            if (ImGui::MenuItem("Unparent") && entity->parentIndex >= 0)
             {
-                char nameBuf[64];
-                snprintf(nameBuf, sizeof(nameBuf), "Entity_%d", entityCount);
-                int newIdx = scene.AddEntity(nameBuf);
-                scene.selectedEntity = newIdx;
+                // Use reparent mechanism to unparent
+                m_reparentEntity    = i;
+                m_reparentOldParent = entity->parentIndex;
+                m_reparentNewParent = -1;
             }
+            ImGui::Separator();
             if (ImGui::MenuItem("Delete"))
             {
                 scene.RemoveEntity(i);
@@ -106,20 +140,52 @@ void SceneHierarchyPanel::Draw(SceneGraph& scene)
         ImGui::PopID();
     }
 
+    // Drop on empty space = unparent (set to root)
+    if (ImGui::BeginDragDropTarget())
+    {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ENTITY_INDEX"))
+        {
+            int draggedIdx = *(const int*)payload->Data;
+            const SceneEntity* dragged = scene.GetEntity(draggedIdx);
+            if (dragged && dragged->parentIndex >= 0)
+            {
+                m_reparentEntity    = draggedIdx;
+                m_reparentOldParent = dragged->parentIndex;
+                m_reparentNewParent = -1;
+            }
+        }
+        ImGui::EndDragDropTarget();
+    }
+
     // Right-click on empty space
     if (ImGui::BeginPopupContextWindow("HierarchyContext", ImGuiPopupFlags_NoOpenOverItems | ImGuiPopupFlags_MouseButtonRight))
     {
-        if (ImGui::MenuItem("Add Empty"))
-        {
-            char nameBuf[64];
-            snprintf(nameBuf, sizeof(nameBuf), "Entity_%d", entityCount);
-            int newIdx = scene.AddEntity(nameBuf);
-            scene.selectedEntity = newIdx;
-        }
+        DrawContextMenu(scene, entityCount);
         ImGui::EndPopup();
     }
 
     ImGui::End();
+}
+
+void SceneHierarchyPanel::DrawContextMenu(SceneGraph& /*scene*/, int /*entityCount*/)
+{
+    if (ImGui::MenuItem("Add Empty"))
+        m_pendingPrimitive = PrimitiveRequest::Empty;
+
+    if (ImGui::BeginMenu("Add Primitive"))
+    {
+        if (ImGui::MenuItem("Cube"))
+            m_pendingPrimitive = PrimitiveRequest::Cube;
+        if (ImGui::MenuItem("Sphere"))
+            m_pendingPrimitive = PrimitiveRequest::Sphere;
+        if (ImGui::MenuItem("Plane"))
+            m_pendingPrimitive = PrimitiveRequest::Plane;
+        if (ImGui::MenuItem("Cylinder"))
+            m_pendingPrimitive = PrimitiveRequest::Cylinder;
+        if (ImGui::MenuItem("Cone"))
+            m_pendingPrimitive = PrimitiveRequest::Cone;
+        ImGui::EndMenu();
+    }
 }
 
 void SceneHierarchyPanel::DrawBoneTree(const GX::Skeleton* skeleton, SceneGraph& scene, int jointIndex)

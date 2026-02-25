@@ -6,6 +6,7 @@
 #include "Graphics/3D/Transform3D.h"
 #include "Graphics/Resource/Buffer.h"
 #include "Graphics/Resource/DynamicBuffer.h"
+#include "Graphics/Resource/DepthBuffer.h"
 #include "Graphics/Device/DescriptorHeap.h"
 #include "Graphics/Pipeline/Shader.h"
 #include "Math/Color.h"
@@ -54,9 +55,16 @@ public:
     void Update(float deltaTime);
 
     /// @brief デカールを描画する
+    /// @param cmdList コマンドリスト
+    /// @param camera カメラ
+    /// @param depthBuffer 深度バッファ（SRVに遷移して読み込む）
+    /// @param outputRTV 描画先RTVハンドル（HDR RT）
+    /// @param texManager テクスチャマネージャ
+    /// @param frameIndex フレームインデックス
     void Render(ID3D12GraphicsCommandList* cmdList,
                 const Camera3D& camera,
-                ID3D12Resource* depthSRV,
+                DepthBuffer& depthBuffer,
+                D3D12_CPU_DESCRIPTOR_HANDLE outputRTV,
                 TextureManager& texManager,
                 uint32_t frameIndex);
 

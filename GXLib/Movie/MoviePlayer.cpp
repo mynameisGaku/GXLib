@@ -103,9 +103,11 @@ bool MoviePlayer::Open(const std::string& filePath, GraphicsDevice& device, Text
 
         pOutputType->Release();
     }
-    else if (SUCCEEDED(hr) && !pOutputType)
+    else
     {
-        GX_LOG_ERROR("MoviePlayer: GetCurrentMediaType returned null output type");
+        if (pOutputType)
+            pOutputType->Release();
+        GX_LOG_ERROR("MoviePlayer: GetCurrentMediaType failed or returned null output type");
         return false;
     }
 

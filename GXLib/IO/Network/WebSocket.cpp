@@ -122,12 +122,16 @@ void WebSocket::Close()
 
     if (m_receiveThread.joinable())
         m_receiveThread.join();
-    if (m_hWebSocket)
+
     {
-        WinHttpWebSocketClose(static_cast<HINTERNET>(m_hWebSocket),
-            WINHTTP_WEB_SOCKET_SUCCESS_CLOSE_STATUS, nullptr, 0);
-        WinHttpCloseHandle(static_cast<HINTERNET>(m_hWebSocket));
-        m_hWebSocket = nullptr;
+        std::lock_guard<std::mutex> lock(m_handleMutex);
+        if (m_hWebSocket)
+        {
+            WinHttpWebSocketClose(static_cast<HINTERNET>(m_hWebSocket),
+                WINHTTP_WEB_SOCKET_SUCCESS_CLOSE_STATUS, nullptr, 0);
+            WinHttpCloseHandle(static_cast<HINTERNET>(m_hWebSocket));
+            m_hWebSocket = nullptr;
+        }
     }
 
     if (m_hConnect)
@@ -149,6 +153,7 @@ bool WebSocket::IsConnected() const
 
 bool WebSocket::Send(const std::string& message)
 {
+    std::lock_guard<std::mutex> lock(m_handleMutex);
     if (!m_hWebSocket) return false;
     DWORD err = WinHttpWebSocketSend(static_cast<HINTERNET>(m_hWebSocket),
         WINHTTP_WEB_SOCKET_UTF8_MESSAGE_BUFFER_TYPE,
@@ -159,6 +164,7 @@ bool WebSocket::Send(const std::string& message)
 
 bool WebSocket::SendBinary(const void* data, size_t size)
 {
+    std::lock_guard<std::mutex> lock(m_handleMutex);
     if (!m_hWebSocket) return false;
     DWORD err = WinHttpWebSocketSend(static_cast<HINTERNET>(m_hWebSocket),
         WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE,
@@ -204,11 +210,16 @@ void WebSocket::ReceiveLoop()
     {
         DWORD bytesRead = 0;
         WINHTTP_WEB_SOCKET_BUFFER_TYPE bufferType;
-        DWORD err = WinHttpWebSocketReceive(
-            static_cast<HINTERNET>(m_hWebSocket),
-            buffer.data(),
-            static_cast<DWORD>(buffer.size()),
-            &bytesRead, &bufferType);
+        DWORD err;
+        {
+            std::lock_guard<std::mutex> lock(m_handleMutex);
+            if (!m_hWebSocket) break;
+            err = WinHttpWebSocketReceive(
+                static_cast<HINTERNET>(m_hWebSocket),
+                buffer.data(),
+                static_cast<DWORD>(buffer.size()),
+                &bytesRead, &bufferType);
+        }
 
         if (err != ERROR_SUCCESS)
         {

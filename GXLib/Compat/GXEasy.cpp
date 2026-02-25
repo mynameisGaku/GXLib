@@ -68,6 +68,13 @@ int Run(App& app, const AppConfig& config)
 
         app.Update(dt);
 
+        // フレーム開始を保証する（autoClear=falseでもコマンドリストが必要）
+        {
+            auto& c = GX_Internal::CompatContext::Instance();
+            c.fontManager.FlushAtlasUpdates();
+            c.BeginFrame();
+        }
+
         if (config.autoClear)
             ClearDrawScreen();
 

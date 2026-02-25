@@ -88,10 +88,22 @@ bool TAA::Initialize(ID3D12Device* device, uint32_t width, uint32_t height)
     if (!CreatePipelines(device))
         return false;
 
+    // シャープニング (CAS)
+    if (!m_sharpenCB.Initialize(device, 256, 256))
+        return false;
+    if (!m_sharpenTempRT.Create(device, width, height, DXGI_FORMAT_R16G16B16A16_FLOAT))
+        return false;
+    if (!CreateSharpenPipeline(device))
+        return false;
+
     // ホットリロード用PSO Rebuilder登録
     ShaderLibrary::Instance().RegisterPSORebuilder(
         L"Shaders/TAA.hlsl",
         [this](ID3D12Device* dev) { return CreatePipelines(dev); }
+    );
+    ShaderLibrary::Instance().RegisterPSORebuilder(
+        L"Shaders/Sharpening.hlsl",
+        [this](ID3D12Device* dev) { return CreateSharpenPipeline(dev); }
     );
 
     GX_LOG_INFO("TAA initialized (%dx%d)", width, height);
@@ -117,6 +129,39 @@ bool TAA::CreatePipelines(ID3D12Device* device)
     if (!m_pso) return false;
 
     return true;
+}
+
+bool TAA::CreateSharpenPipeline(ID3D12Device* device)
+{
+    // RS: CBV(b0) + DescTable(SRV t0, pixel) + static sampler (point/clamp)
+    if (!m_sharpenRS)
+    {
+        RootSignatureBuilder rsb;
+        m_sharpenRS = rsb
+            .AddCBV(0)
+            .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, 0,
+                                D3D12_SHADER_VISIBILITY_PIXEL)
+            .AddStaticSampler(0, D3D12_FILTER_MIN_MAG_MIP_POINT,
+                              D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+                              D3D12_COMPARISON_FUNC_NEVER)
+            .Build(device);
+        if (!m_sharpenRS) return false;
+    }
+
+    auto vs = m_shader.CompileFromFile(L"Shaders/Sharpening.hlsl", L"FullscreenVS", L"vs_6_0");
+    if (!vs.valid) return false;
+    auto ps = m_shader.CompileFromFile(L"Shaders/Sharpening.hlsl", L"PSSharpening", L"ps_6_0");
+    if (!ps.valid) return false;
+
+    PipelineStateBuilder b;
+    m_sharpenPSO = b.SetRootSignature(m_sharpenRS.Get())
+        .SetVertexShader(vs.GetBytecode())
+        .SetPixelShader(ps.GetBytecode())
+        .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT)
+        .SetDepthEnable(false)
+        .SetCullMode(D3D12_CULL_MODE_NONE)
+        .Build(device);
+    return m_sharpenPSO != nullptr;
 }
 
 void TAA::UpdateSRVHeap(RenderTarget& srcHDR, DepthBuffer& depth, uint32_t frameIndex)
@@ -245,6 +290,49 @@ void TAA::Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
     cmdList->CopyResource(m_historyRT.GetResource(), destHDR.GetResource());
     m_historyRT.TransitionTo(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
+    // === シャープニング (CAS) ===
+    // TAA後のボケをシャープニングで回復（m_sharpness > 0 の場合のみ）
+    if (m_sharpness > 0.0f && m_sharpenPSO)
+    {
+        // destHDR(TAA結果) → sharpenTempRT にシャープ化
+        destHDR.TransitionTo(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        m_sharpenTempRT.TransitionTo(cmdList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+        auto sharpenRTV = m_sharpenTempRT.GetRTVHandle();
+        cmdList->OMSetRenderTargets(1, &sharpenRTV, FALSE, nullptr);
+        cmdList->RSSetViewports(1, &vp);
+        cmdList->RSSetScissorRects(1, &sc);
+
+        cmdList->SetPipelineState(m_sharpenPSO.Get());
+        cmdList->SetGraphicsRootSignature(m_sharpenRS.Get());
+
+        ID3D12DescriptorHeap* destHeaps[] = { destHDR.GetSRVHeap().GetHeap() };
+        cmdList->SetDescriptorHeaps(1, destHeaps);
+
+        SharpeningConstants sc2 = {};
+        sc2.sharpness    = m_sharpness;
+        sc2.screenWidth  = static_cast<float>(m_width);
+        sc2.screenHeight = static_cast<float>(m_height);
+
+        void* sp = m_sharpenCB.Map(frameIndex);
+        if (sp)
+        {
+            memcpy(sp, &sc2, sizeof(sc2));
+            m_sharpenCB.Unmap(frameIndex);
+        }
+
+        cmdList->SetGraphicsRootConstantBufferView(0, m_sharpenCB.GetGPUVirtualAddress(frameIndex));
+        cmdList->SetGraphicsRootDescriptorTable(1, destHDR.GetSRVGPUHandle());
+
+        cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        cmdList->DrawInstanced(3, 1, 0, 0);
+
+        // sharpenTempRT → destHDR にコピーバック
+        m_sharpenTempRT.TransitionTo(cmdList, D3D12_RESOURCE_STATE_COPY_SOURCE);
+        destHDR.TransitionTo(cmdList, D3D12_RESOURCE_STATE_COPY_DEST);
+        cmdList->CopyResource(destHDR.GetResource(), m_sharpenTempRT.GetResource());
+    }
+
     // 深度バッファを DEPTH_WRITE に戻す
     depth.TransitionTo(cmdList, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 }
@@ -261,6 +349,7 @@ void TAA::OnResize(ID3D12Device* device, uint32_t width, uint32_t height)
     m_width  = width;
     m_height = height;
     m_historyRT.Create(device, width, height, DXGI_FORMAT_R16G16B16A16_FLOAT);
+    m_sharpenTempRT.Create(device, width, height, DXGI_FORMAT_R16G16B16A16_FLOAT);
     m_hasHistory = false;
 }
 

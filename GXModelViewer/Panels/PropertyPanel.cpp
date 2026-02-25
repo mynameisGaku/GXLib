@@ -9,6 +9,7 @@
 #include <imgui.h>
 #include <cstring>
 #include <cmath>
+#include <algorithm>
 
 #ifndef XM_PI
 #define XM_PI 3.14159265358979323846f
@@ -34,7 +35,8 @@ void PropertyPanel::DrawContent(SceneGraph& scene, GX::MaterialManager& matManag
                                 ImGuizmo::OPERATION& gizmoOp, ImGuizmo::MODE& gizmoMode,
                                 bool& useSnap, float& snapT, float& snapR, float& snapS)
 {
-    (void)texManager;
+    // Handle pending texture file dialog result
+    HandleTextureDialog(matManager, texManager);
 
     if (scene.selectedEntity < 0)
     {
@@ -110,7 +112,7 @@ void PropertyPanel::DrawContent(SceneGraph& scene, GX::MaterialManager& matManag
     ImGui::Separator();
 
     // --- Model Materials (direct editing) ---
-    DrawModelMaterials(*entity, matManager);
+    DrawModelMaterials(*entity, matManager, texManager);
 
     ImGui::Separator();
 
@@ -213,7 +215,8 @@ void PropertyPanel::DrawMaterialOverrideSection(SceneEntity& entity)
     DrawShaderModelParams(mat.shaderParams, mat.shaderModel);
 }
 
-void PropertyPanel::DrawModelMaterials(SceneEntity& entity, GX::MaterialManager& matManager)
+void PropertyPanel::DrawModelMaterials(SceneEntity& entity, GX::MaterialManager& matManager,
+                                       GX::TextureManager& texManager)
 {
     if (!entity.model) return;
     if (!ImGui::CollapsingHeader("Model Materials", ImGuiTreeNodeFlags_DefaultOpen)) return;
@@ -269,6 +272,9 @@ void PropertyPanel::DrawModelMaterials(SceneEntity& entity, GX::MaterialManager&
             ImGui::SliderFloat("AO Strength", &mat->shaderParams.aoStrength, 0.0f, 1.0f);
             ImGui::ColorEdit3("Emissive", mat->shaderParams.emissiveFactor);
             ImGui::SliderFloat("Emissive Strength", &mat->shaderParams.emissiveStrength, 0.0f, 10.0f);
+
+            // Texture slots
+            DrawTextureSlots(mat, matHandle, matManager, texManager, static_cast<int>(i));
 
             // Sync MaterialConstants for backward compatibility
             mat->constants.albedoFactor = { mat->shaderParams.baseColor[0],
@@ -378,5 +384,106 @@ void PropertyPanel::DrawShaderModelParams(gxfmt::ShaderModelParams& params, gxfm
 
     default:
         break;
+    }
+}
+
+void PropertyPanel::DrawTextureSlots(GX::Material* mat, int matHandle, GX::MaterialManager& /*matManager*/,
+                                     GX::TextureManager& texManager, int submeshIndex)
+{
+    if (!mat) return;
+
+    ImGui::Separator();
+    if (!ImGui::TreeNode("Textures"))
+        return;
+
+    static const char* slotNames[] = { "Albedo", "Normal", "MetalRough", "AO", "Emissive" };
+    int* handles[] = {
+        &mat->albedoMapHandle,
+        &mat->normalMapHandle,
+        &mat->metRoughMapHandle,
+        &mat->aoMapHandle,
+        &mat->emissiveMapHandle
+    };
+
+    for (int slot = 0; slot < 5; ++slot)
+    {
+        ImGui::PushID(submeshIndex * 100 + slot);
+
+        // Display current texture name
+        if (*handles[slot] >= 0)
+        {
+            const std::wstring& path = texManager.GetFilePath(*handles[slot]);
+            // Extract filename
+            size_t lastSlash = path.find_last_of(L"/\\");
+            std::wstring fname = (lastSlash != std::wstring::npos) ? path.substr(lastSlash + 1) : path;
+            char nameBuf[128];
+            snprintf(nameBuf, sizeof(nameBuf), "%s: %ls", slotNames[slot],
+                     fname.empty() ? L"[loaded]" : fname.c_str());
+            ImGui::Text("%s", nameBuf);
+        }
+        else
+        {
+            ImGui::Text("%s: [none]", slotNames[slot]);
+        }
+
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Browse"))
+        {
+            m_pendingTexMatHandle = matHandle;
+            m_pendingTexSlot = slot;
+            m_pendingTexIsOverride = false;
+
+            IGFD::FileDialogConfig config;
+            config.path = ".";
+            ImGuiFileDialog::Instance()->OpenDialog(
+                "BrowseTexDlg", "Select Texture",
+                ".png,.jpg,.jpeg,.dds,.tga,.bmp",
+                config);
+        }
+        ImGui::SameLine();
+        if (ImGui::SmallButton("X"))
+        {
+            *handles[slot] = -1;
+        }
+
+        ImGui::PopID();
+    }
+
+    ImGui::TreePop();
+}
+
+void PropertyPanel::HandleTextureDialog(GX::MaterialManager& matManager, GX::TextureManager& texManager)
+{
+    if (ImGuiFileDialog::Instance()->Display("BrowseTexDlg",
+        ImGuiWindowFlags_NoCollapse, ImVec2(400, 300)))
+    {
+        if (ImGuiFileDialog::Instance()->IsOk())
+        {
+            std::string filePath = ImGuiFileDialog::Instance()->GetFilePathName();
+
+            // Convert to wstring for TextureManager
+            std::wstring wpath(filePath.begin(), filePath.end());
+            int texHandle = texManager.LoadTexture(wpath);
+
+            if (texHandle >= 0 && m_pendingTexMatHandle >= 0 && m_pendingTexSlot >= 0)
+            {
+                GX::Material* mat = matManager.GetMaterial(m_pendingTexMatHandle);
+                if (mat)
+                {
+                    int* handles[] = {
+                        &mat->albedoMapHandle,
+                        &mat->normalMapHandle,
+                        &mat->metRoughMapHandle,
+                        &mat->aoMapHandle,
+                        &mat->emissiveMapHandle
+                    };
+                    if (m_pendingTexSlot < 5)
+                        *handles[m_pendingTexSlot] = texHandle;
+                }
+            }
+        }
+        ImGuiFileDialog::Instance()->Close();
+        m_pendingTexMatHandle = -1;
+        m_pendingTexSlot = -1;
     }
 }

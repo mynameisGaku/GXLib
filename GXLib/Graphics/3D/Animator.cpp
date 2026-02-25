@@ -94,6 +94,15 @@ void Animator::Play(const AnimationClip* clip, bool loop, float speed)
     m_fading = false;
     m_playing = (clip != nullptr);
     m_paused = false;
+
+    // ルートモーション: 再生開始時にバインドポーズ位置を初期値にリセット
+    if (m_rootMotionEnabled && !m_bindPose.empty())
+    {
+        m_prevRootPosition = m_bindPose[0].translation;
+        m_prevRootRotation = m_bindPose[0].rotation;
+    }
+    m_rootMotionDelta = { 0.0f, 0.0f, 0.0f };
+    m_rootMotionRotDelta = { 0.0f, 0.0f, 0.0f, 1.0f };
 }
 
 void Animator::SetBlendStack(BlendStack* stack)
@@ -228,6 +237,9 @@ void Animator::Update(float deltaTime)
 
     const TransformTRS* bindPose = m_bindPose.empty() ? nullptr : m_bindPose.data();
 
+    // イベント用: 進行前の時刻を記録
+    float prevTime = m_current.time;
+
     switch (m_mode)
     {
     case AnimMode::BlendStack:
@@ -276,13 +288,52 @@ void Animator::Update(float deltaTime)
         break;
     }
 
-    // ルートモーション固定
-    if (jointCount > 0 && !m_bindPose.empty())
+    // アニメーションイベント発火
+    if (m_eventCallback && m_current.clip)
     {
-        if (m_lockRootPosition)
-            m_localPose[0].translation = m_bindPose[0].translation;
-        if (m_lockRootRotation)
-            m_localPose[0].rotation = m_bindPose[0].rotation;
+        m_firedEvents.clear();
+        m_current.clip->CollectEvents(prevTime, m_current.time, m_firedEvents);
+        for (const auto* evt : m_firedEvents)
+            m_eventCallback(*evt);
+    }
+
+    // ルートモーション抽出（差分を計算してルートボーンを固定）
+    if (m_rootMotionEnabled && jointCount > 0 && !m_bindPose.empty())
+    {
+        const XMFLOAT3& curPos = m_localPose[0].translation;
+        const XMFLOAT4& curRot = m_localPose[0].rotation;
+
+        m_rootMotionDelta = {
+            curPos.x - m_prevRootPosition.x,
+            curPos.y - m_prevRootPosition.y,
+            curPos.z - m_prevRootPosition.z
+        };
+
+        // 回転差分: delta = cur * inverse(prev)
+        XMVECTOR qCur  = XMLoadFloat4(&curRot);
+        XMVECTOR qPrev = XMLoadFloat4(&m_prevRootRotation);
+        XMVECTOR qDelta = XMQuaternionMultiply(qCur, XMQuaternionInverse(qPrev));
+        XMStoreFloat4(&m_rootMotionRotDelta, XMQuaternionNormalize(qDelta));
+
+        m_prevRootPosition = curPos;
+        m_prevRootRotation = curRot;
+
+        // ルートボーンをバインドポーズに固定
+        m_localPose[0].translation = m_bindPose[0].translation;
+        m_localPose[0].rotation    = m_bindPose[0].rotation;
+    }
+    else
+    {
+        // ルートモーション無効時の従来ロック
+        if (jointCount > 0 && !m_bindPose.empty())
+        {
+            if (m_lockRootPosition)
+                m_localPose[0].translation = m_bindPose[0].translation;
+            if (m_lockRootRotation)
+                m_localPose[0].rotation = m_bindPose[0].rotation;
+        }
+        m_rootMotionDelta = { 0.0f, 0.0f, 0.0f };
+        m_rootMotionRotDelta = { 0.0f, 0.0f, 0.0f, 1.0f };
     }
 
     // ローカル変換行列を作成

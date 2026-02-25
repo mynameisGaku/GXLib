@@ -58,6 +58,7 @@ private:
 
     std::thread m_receiveThread;
     std::mutex m_mutex;
+    std::mutex m_handleMutex;       ///< WebSocketハンドルアクセスの排他制御
     std::atomic<bool> m_running{ false };
 
     struct QueuedMessage {

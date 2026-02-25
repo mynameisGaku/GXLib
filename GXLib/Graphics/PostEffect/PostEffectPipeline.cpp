@@ -75,6 +75,13 @@ bool PostEffectPipeline::Initialize(ID3D12Device* device, uint32_t width, uint32
         return false;
     }
 
+    // コンタクトシャドウ
+    if (!m_contactShadows.Initialize(device, width, height))
+    {
+        GX_LOG_ERROR("PostEffectPipeline: Failed to initialize ContactShadows");
+        return false;
+    }
+
     // ブルーム
     if (!m_bloom.Initialize(device, width, height))
     {
@@ -114,6 +121,13 @@ bool PostEffectPipeline::Initialize(ID3D12Device* device, uint32_t width, uint32
     if (!m_volumetricLight.Initialize(device, width, height))
     {
         GX_LOG_ERROR("PostEffectPipeline: Failed to initialize VolumetricLight");
+        return false;
+    }
+
+    // ボリューメトリッククラウド
+    if (!m_volumetricClouds.Initialize(device, width, height))
+    {
+        GX_LOG_ERROR("PostEffectPipeline: Failed to initialize VolumetricClouds");
         return false;
     }
 
@@ -336,6 +350,9 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
                                   DepthBuffer& depthBuffer, const Camera3D& camera,
                                   float deltaTime)
 {
+    // 累積時間更新
+    m_elapsedTime += deltaTime;
+
     // 毎フレーム太陽位置を計算（HUDデバッグ用、enabled に関係なく）
     m_volumetricLight.UpdateSunInfo(camera);
 
@@ -363,6 +380,14 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
         currentHDR->TransitionTo(m_cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     }
 
+    // コンタクトシャドウ (SSAOの直後, HDRシーンにインプレース乗算合成)
+    if (m_contactShadows.IsEnabled())
+    {
+        m_contactShadows.Execute(m_cmdList, m_frameIndex, *currentHDR, depthBuffer,
+                                  camera, m_mainLightDirection);
+        currentHDR->TransitionTo(m_cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    }
+
     // 反射: DXR RT反射 (排他) または SSR
     bool rtUsed = false;
     if (m_rtReflections && m_rtReflections->IsEnabled() && m_cmdList4)
@@ -387,6 +412,15 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
     {
         RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
         m_volumetricLight.Execute(m_cmdList, m_frameIndex, *currentHDR, *dest, depthBuffer, camera);
+        currentHDR = dest;
+    }
+
+    // ボリューメトリッククラウド (HDR空間, ゴッドレイの後・Bloomの前)
+    if (m_volumetricClouds.IsEnabled())
+    {
+        RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
+        m_volumetricClouds.Execute(m_cmdList, m_frameIndex, *currentHDR, *dest,
+                                    depthBuffer, camera, m_elapsedTime);
         currentHDR = dest;
     }
 
@@ -544,12 +578,14 @@ void PostEffectPipeline::OnResize(ID3D12Device* device, uint32_t width, uint32_t
     m_ldrRT[0].Create(device, width, height, k_LDRFormat);
     m_ldrRT[1].Create(device, width, height, k_LDRFormat);
     m_ssao.OnResize(device, width, height);
+    m_contactShadows.OnResize(device, width, height);
     m_bloom.OnResize(device, width, height);
     m_dof.OnResize(device, width, height);
     m_motionBlur.OnResize(device, width, height);
     m_ssr.OnResize(device, width, height);
     m_outline.OnResize(device, width, height);
     m_volumetricLight.OnResize(device, width, height);
+    m_volumetricClouds.OnResize(device, width, height);
     m_taa.OnResize(device, width, height);
     m_autoExposure.OnResize(device, width, height);
     if (m_rtReflections)

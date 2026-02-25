@@ -137,6 +137,24 @@ public:
     /// @return 固定中ならtrue
     bool IsRootRotationLocked() const { return m_lockRootRotation; }
 
+    /// @brief ルートモーション抽出を有効化/無効化する
+    /// 有効にすると、ルートボーンの移動/回転差分がGetRootMotionDelta/GetRootMotionRotationDeltaで取得でき、
+    /// ルートボーン自体はバインドポーズに固定される。
+    /// @param enabled 有効にするか
+    void SetRootMotionEnabled(bool enabled) { m_rootMotionEnabled = enabled; }
+
+    /// @brief ルートモーションが有効か
+    /// @return 有効ならtrue
+    bool IsRootMotionEnabled() const { return m_rootMotionEnabled; }
+
+    /// @brief 前フレームからのルートボーン位置の差分を取得する（ローカル空間）
+    /// @return 位置差分ベクトル
+    XMFLOAT3 GetRootMotionDelta() const { return m_rootMotionDelta; }
+
+    /// @brief 前フレームからのルートボーン回転の差分を取得する（クォータニオン）
+    /// @return 回転差分クォータニオン
+    XMFLOAT4 GetRootMotionRotationDelta() const { return m_rootMotionRotDelta; }
+
     /// @brief FootIKを設定する（所有権を移転）
     /// @param footIK FootIKインスタンス
     void SetFootIK(std::unique_ptr<FootIK> footIK) { m_footIK = std::move(footIK); }
@@ -176,6 +194,11 @@ public:
     /// @return ローカル変換行列配列
     std::vector<XMFLOAT4X4>& GetLocalTransforms() { return m_localTransforms; }
 
+    /// @brief アニメーションイベントのコールバックを設定する
+    /// @param callback イベント発火時に呼ばれる関数 (イベント名, イベント詳細)
+    using EventCallback = std::function<void(const AnimationEvent&)>;
+    void SetEventCallback(EventCallback callback) { m_eventCallback = std::move(callback); }
+
 private:
     /// クリップの再生状態
     struct ClipState
@@ -212,6 +235,13 @@ private:
     bool m_lockRootPosition = false;
     bool m_lockRootRotation = false;
 
+    // ルートモーション
+    bool     m_rootMotionEnabled = false;
+    XMFLOAT3 m_prevRootPosition = { 0.0f, 0.0f, 0.0f };
+    XMFLOAT4 m_prevRootRotation = { 0.0f, 0.0f, 0.0f, 1.0f };
+    XMFLOAT3 m_rootMotionDelta = { 0.0f, 0.0f, 0.0f };
+    XMFLOAT4 m_rootMotionRotDelta = { 0.0f, 0.0f, 0.0f, 1.0f };
+
     // IK
     std::unique_ptr<FootIK>   m_footIK;
     std::unique_ptr<LookAtIK> m_lookAtIK;
@@ -220,6 +250,10 @@ private:
     XMFLOAT3                  m_lookAtTarget = { 0.0f, 0.0f, 0.0f };
     float                     m_lookAtWeight = 1.0f;
     bool                      m_lookAtActive = false;
+
+    // イベント
+    EventCallback m_eventCallback;
+    std::vector<const AnimationEvent*> m_firedEvents; ///< フレーム内で発火したイベント（一時バッファ）
 
     std::vector<TransformTRS> m_bindPose;       ///< スケルトンのバインドポーズ（TRS分解済み）
     std::vector<TransformTRS> m_poseA;          ///< ブレンド用テンポラリ

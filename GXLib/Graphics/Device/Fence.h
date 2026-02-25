@@ -47,6 +47,10 @@ public:
     /// @return GPU完了済みの値（GetCurrentValue未満なら処理途中）
     uint64_t GetCompletedValue() const { return m_fence->GetCompletedValue(); }
 
+    /// @brief 内部のID3D12Fenceを取得する（キュー間同期に必要）
+    /// @return ID3D12Fenceへのポインタ
+    ID3D12Fence* GetD3D12Fence() const { return m_fence.Get(); }
+
 private:
     ComPtr<ID3D12Fence> m_fence;
     HANDLE              m_event = nullptr;      ///< GPU完了通知用のWindowsイベント

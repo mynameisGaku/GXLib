@@ -60,6 +60,10 @@ public:
     /// @return シェーダーにバインドするためのGPUハンドル
     D3D12_GPU_DESCRIPTOR_HANDLE GetSRVGPUHandle() const { return m_srvGPUHandle; }
 
+    /// @brief SRVのヒープ内インデックスを取得する（Bindlessテクスチャ用）
+    /// @return ディスクリプタヒープ内のインデックス
+    uint32_t GetSRVIndex() const { return m_srvIndex; }
+
     /// @brief 既存テクスチャのピクセルデータを差し替える
     ///
     /// リソースとSRVはそのまま維持し、内容だけを更新する。

@@ -5,6 +5,7 @@
 #include "pch.h"
 #include "Core/Scene/Entity.h"
 #include "Core/Scene/Components.h"
+#include "Math/Collision/Octree.h"
 
 namespace GX
 {
@@ -90,7 +91,12 @@ public:
     /// @brief エンティティ数を取得する
     uint32_t GetEntityCount() const { return static_cast<uint32_t>(m_entities.size()); }
 
+    /// @brief 空間インデックスの再構築を要求する（エンティティ追加/削除/移動時）
+    void MarkSpatialIndexDirty() { m_spatialIndexDirty = true; }
+
 private:
+    /// @brief Octree空間インデックスを再構築する
+    void RebuildSpatialIndex();
     /// @brief 内部描画（フラスタムがnullの場合はカリングなし）
     void RenderInternal(Renderer3D& renderer, const Frustum* frustum,
                          const Camera3D* camera = nullptr);
@@ -102,6 +108,10 @@ private:
     std::vector<Entity*> m_pendingDestroy;
     RenderStats m_lastRenderStats;
     uint32_t m_debugFlags = 0;
+
+    // Octree空間インデックス（フラスタムカリング高速化）
+    std::unique_ptr<Octree<Entity*>> m_spatialIndex;
+    bool m_spatialIndexDirty = true;
 };
 
 } // namespace GX

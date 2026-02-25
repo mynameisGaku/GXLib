@@ -102,6 +102,14 @@ struct ShaderProgramDesc
     std::vector<std::pair<std::wstring, std::wstring>> defines;
 };
 
+/// @brief Renderer3D の描画統計情報
+struct Renderer3DStats
+{
+    uint32_t drawCallCount  = 0; ///< DrawIndexedInstanced の呼び出し回数
+    uint32_t psoSwitchCount = 0; ///< PSO 切り替え回数
+    uint32_t triangleCount  = 0; ///< 描画された三角形数
+};
+
 /// @brief 3Dレンダラー（DxLibの MV1DrawModel 内部処理に相当する3D描画エンジン）
 /// PBR/Toon/Phong等のシェーダーモデルPSO管理、CSM/スポット/ポイントシャドウ、
 /// フォグ、スカイボックス、ワイヤフレーム描画、マテリアルオーバーライドに対応する
@@ -309,6 +317,10 @@ public:
     /// @return IBLへの参照
     IBL& GetIBL() { return m_ibl; }
 
+    /// @brief 直近フレームの描画統計を取得する
+    /// @return Renderer3DStats 構造体
+    Renderer3DStats GetRenderStats() const { return m_renderStats; }
+
     /// @brief 画面サイズの変更を処理する
     /// @param width 新しい幅（ピクセル）
     /// @param height 新しい高さ（ピクセル）
@@ -389,6 +401,9 @@ private:
     uint8_t*      m_materialCBMapped = nullptr;
     uint32_t      m_materialCBOffset = 0;
     DynamicBuffer m_boneCB;       ///< b4: ボーン行列（スキニングメッシュ用）
+    DynamicBuffer m_bindlessIndicesCB; ///< b5: Bindlessテクスチャインデックス
+    uint8_t*      m_bindlessCBMapped = nullptr;
+    uint32_t      m_bindlessCBOffset = 0;
 
     // 現在のライト状態
     LightConstants m_currentLights = {};
@@ -424,6 +439,9 @@ private:
     // 冗長バインド防止用 — 前回バインドしたVB/IBリソース
     ID3D12Resource* m_lastBoundVB = nullptr;
     ID3D12Resource* m_lastBoundIB = nullptr;
+
+    // 描画統計
+    Renderer3DStats m_renderStats;
 
     // IBL（イメージベースドライティング）
     IBL m_ibl;

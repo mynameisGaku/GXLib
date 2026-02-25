@@ -356,6 +356,119 @@ cmake --build build --config Debug --target GUIMenuDemo
 - `loader.RegisterFont("default", fontHandle)` でフォントを登録しているか確認
 - `fontManager.LoadFont()` の戻り値が有効なハンドルか確認
 
+---
+
+## 補足: CSS と Flexbox の基本概念
+
+### CSS とは何か
+
+CSS (Cascading Style Sheets) は、もともと Web ページの見た目を定義するために生まれた技術です。GXLib の GUI システムはこの CSS の仕組みを借用しており、Web 開発の経験があればほぼ同じ感覚で使えます。
+
+**「Cascading（カスケーディング）」の意味**: スタイルが「滝のように上から流れ落ちる」仕組みです。親要素に設定したスタイルが子要素にも継承され、より具体的なセレクタが優先されます。
+
+```css
+/* 全ての Button に適用（一般的） */
+Button {
+    font-size: 16;
+    color: rgba(200, 200, 200, 1.0);
+}
+
+/* class="menu-button" の Button に適用（より具体的 → こちらが優先） */
+.menu-button {
+    font-size: 20;
+}
+
+/* id="btnStart" の Button に適用（最も具体的 → 最優先） */
+#btnStart {
+    font-size: 24;
+}
+```
+
+優先順位: `#id` > `.class` > `タグ名`
+
+### セレクタの種類
+
+| セレクタ | 書き方 | 意味 | 例 |
+|---------|--------|------|-----|
+| ID セレクタ | `#名前` | 特定の1要素にだけ適用 | `#btnStart { ... }` |
+| クラスセレクタ | `.名前` | 同じクラスの全要素に適用 | `.menu-button { ... }` |
+| タグセレクタ | `タグ名` | 同じ種類の全要素に適用 | `Button { ... }` |
+| 擬似クラス | `:状態` | 特定の状態の時だけ適用 | `.menu-button:hover { ... }` |
+
+### Flexbox の詳細解説
+
+Flexbox は「1次元レイアウト」のモデルです。要素を横一列（row）か縦一列（column）に並べます。
+
+#### 主軸と交差軸
+
+Flexbox を理解する鍵は「主軸（Main Axis）」と「交差軸（Cross Axis）」です。
+
+```
+flex-direction: row の場合:
+
+  主軸 →→→→→→→→→→→→→→→→
+  ┌──────────────────────────┐  ↑
+  │ [A]    [B]    [C]       │  │ 交差軸
+  └──────────────────────────┘  ↓
+
+  justify-content → 主軸方向の配置（左右）
+  align-items     → 交差軸方向の配置（上下）
+
+
+flex-direction: column の場合:
+
+  交差軸 →→→→→
+  ┌────────────┐  ↑
+  │    [A]     │  │
+  │    [B]     │  │ 主軸
+  │    [C]     │  │
+  └────────────┘  ↓
+
+  justify-content → 主軸方向の配置（上下）
+  align-items     → 交差軸方向の配置（左右）
+```
+
+#### よく使うレイアウトパターン
+
+**中央揃え（縦横とも中央）**:
+```css
+#container {
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+```
+
+**等間隔配置（ナビゲーションバー風）**:
+```css
+#navbar {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+}
+```
+
+**余白を埋めるフレキシブルレイアウト**:
+```css
+/* 3つの子要素のうち、中央だけが余白を全て吸収 */
+.sidebar { width: 200; }
+.content { flex-grow: 1; }  /* 残り全ての幅を取る */
+.sidebar-right { width: 200; }
+```
+
+### Web CSS との違い
+
+GXLib の CSS は Web の CSS をベースにしていますが、いくつかの違いがあります。
+
+| 項目 | Web CSS | GXLib CSS |
+|------|---------|-----------|
+| 単位 | `px`, `em`, `%`, `vh` 等 | 数値のみ（px 相当、単位記号なし） |
+| 色指定 | `#FF0000`, `rgb()`, `rgba()`, 色名 | `rgba()` のみ |
+| フォント | `font-family: "Arial", sans-serif` | `RegisterFont()` で事前登録 |
+| 角丸 | `border-radius` | `corner-radius` |
+| レイアウト | Flexbox, Grid, Block, Inline 等 | Flexbox のみ |
+| メディアクエリ | `@media (max-width: 600px)` | なし（`SetDesignResolution` で一括スケーリング） |
+
 ## 次のステップ
 
 - [DXLib 移行ガイド](../migration/DxLibMigrationGuide.md) — DXLib からの移行方法

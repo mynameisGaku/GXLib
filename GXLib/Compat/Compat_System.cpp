@@ -77,6 +77,16 @@ int ClearDrawScreen()
     auto& ctx = Ctx::Instance();
     ctx.fontManager.FlushAtlasUpdates();
     ctx.BeginFrame();
+
+    // バックバッファのクリア（BeginFrameではクリアしないのでここで行う）
+    float clearColor[4] = {
+        ctx.bgColor_r / 255.0f,
+        ctx.bgColor_g / 255.0f,
+        ctx.bgColor_b / 255.0f,
+        1.0f
+    };
+    ctx.cmdList->ClearRenderTargetView(
+        ctx.swapChain.GetCurrentRTVHandle(), clearColor, 0, nullptr);
     return 0;
 }
 

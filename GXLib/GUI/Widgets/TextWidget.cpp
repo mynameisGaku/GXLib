@@ -12,7 +12,7 @@ float TextWidget::GetIntrinsicWidth() const
 
 float TextWidget::GetIntrinsicHeight() const
 {
-    if (m_fontHandle < 0 || !m_renderer) return computedStyle.fontSize;
+    if (m_fontHandle < 0 || !m_renderer) return 0.0f;
     return static_cast<float>(m_renderer->GetLineHeight(m_fontHandle));
 }
 

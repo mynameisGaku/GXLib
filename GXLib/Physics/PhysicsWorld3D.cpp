@@ -346,6 +346,12 @@ PhysicsShape* PhysicsWorld3D::CreateMeshShape(const Vector3* vertices, uint32_t 
         auto jphShape = new JPH::ShapeRefC(result.Get());
         shape->internal = jphShape;
     }
+    else
+    {
+        GX_LOG_ERROR("PhysicsWorld3D: MeshShape creation failed");
+        delete shape;
+        return nullptr;
+    }
     m_impl->ownedShapes.push_back(shape);
     return shape;
 }
@@ -369,6 +375,12 @@ PhysicsShape* PhysicsWorld3D::CreateConvexHullShape(const Vector3* vertices, uin
     {
         auto jphShape = new JPH::ShapeRefC(result.Get());
         shape->internal = jphShape;
+    }
+    else
+    {
+        GX_LOG_ERROR("PhysicsWorld3D: ConvexHullShape creation failed");
+        delete shape;
+        return nullptr;
     }
     m_impl->ownedShapes.push_back(shape);
     return shape;

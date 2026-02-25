@@ -70,8 +70,8 @@ bool DecalSystem::Initialize(ID3D12Device* device, uint32_t width, uint32_t heig
     if (!CreatePSO(device))
         return false;
 
-    // デカール用定数バッファ（256バイト x ダブルバッファリング）
-    if (!m_cb.Initialize(device, sizeof(DecalCB), sizeof(DecalCB)))
+    // デカール用定数バッファ（各デカールに個別のCBスロットが必要）
+    if (!m_cb.Initialize(device, sizeof(DecalCB) * k_MaxDecals, sizeof(DecalCB)))
         return false;
 
     // SRVヒープ: 深度テクスチャ + デカールテクスチャ（2スロット）
@@ -142,7 +142,8 @@ bool DecalSystem::CreatePSO(ID3D12Device* device)
 
     // PSO:
     // - アルファブレンド有効（デカールは半透明合成）
-    // - 深度テスト有効、深度書き込み無効
+    // - 深度テスト無効（シェーダー側でボックス投影テストを行うため）
+    //   深度バッファはSRVとしてシェーダーで読み取り、ワールド座標復元に使用
     // - FRONT面カリング（背面のみ描画 — カメラがキューブ内にいても描画される）
     // - HDR RTフォーマット
     auto pso = PipelineStateBuilder()
@@ -151,10 +152,7 @@ bool DecalSystem::CreatePSO(ID3D12Device* device)
         .SetPixelShader(psBlob.GetBytecode())
         .SetInputLayout(inputLayout, _countof(inputLayout))
         .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT)
-        .SetDepthFormat(DXGI_FORMAT_D32_FLOAT)
-        .SetDepthEnable(true)
-        .SetDepthWriteMask(D3D12_DEPTH_WRITE_MASK_ZERO)
-        .SetDepthComparisonFunc(D3D12_COMPARISON_FUNC_GREATER_EQUAL)
+        .SetDepthEnable(false)
         .SetCullMode(D3D12_CULL_MODE_FRONT)
         .SetAlphaBlend()
         .Build(device);
@@ -238,11 +236,12 @@ void DecalSystem::Update(float deltaTime)
 // ============================================================================
 void DecalSystem::Render(ID3D12GraphicsCommandList* cmdList,
                           const Camera3D& camera,
-                          ID3D12Resource* depthSRV,
+                          DepthBuffer& depthBuffer,
+                          D3D12_CPU_DESCRIPTOR_HANDLE outputRTV,
                           TextureManager& texManager,
                           uint32_t frameIndex)
 {
-    if (!m_initialized || !cmdList || !depthSRV)
+    if (!m_initialized || !cmdList)
         return;
 
     // アクティブなデカールがあるか確認
@@ -257,6 +256,23 @@ void DecalSystem::Render(ID3D12GraphicsCommandList* cmdList,
     }
     if (!hasActive)
         return;
+
+    // 深度バッファをSRV状態に遷移（シェーダーでサンプリングするため）
+    D3D12_RESOURCE_STATES prevDepthState = depthBuffer.GetCurrentState();
+    depthBuffer.TransitionTo(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+    // HDR RTのみをバインド（DSVなし — 深度テストはシェーダー側で処理）
+    cmdList->OMSetRenderTargets(1, &outputRTV, FALSE, nullptr);
+
+    // ビューポート・シザー設定
+    D3D12_VIEWPORT vp = {};
+    vp.Width    = static_cast<float>(m_width);
+    vp.Height   = static_cast<float>(m_height);
+    vp.MaxDepth = 1.0f;
+    cmdList->RSSetViewports(1, &vp);
+
+    D3D12_RECT sc = { 0, 0, static_cast<LONG>(m_width), static_cast<LONG>(m_height) };
+    cmdList->RSSetScissorRects(1, &sc);
 
     // ビュープロジェクション行列と逆行列を計算
     XMMATRIX viewMat = camera.GetViewMatrix();
@@ -280,6 +296,38 @@ void DecalSystem::Render(ID3D12GraphicsCommandList* cmdList,
     cmdList->IASetVertexBuffers(0, 1, &vbv);
     cmdList->IASetIndexBuffer(&ibv);
 
+    // SRVヒープを設定（深度テクスチャSRVはループ外で1回だけ作成）
+    ID3D12DescriptorHeap* heaps[] = { m_srvHeap.GetHeap() };
+    cmdList->SetDescriptorHeaps(1, heaps);
+
+    ID3D12Resource* depthRes = depthBuffer.GetResource();
+    ComPtr<ID3D12Device> pDevice;
+    depthRes->GetDevice(__uuidof(ID3D12Device), reinterpret_cast<void**>(pDevice.GetAddressOf()));
+    if (!pDevice)
+    {
+        depthBuffer.TransitionTo(cmdList, prevDepthState);
+        return;
+    }
+
+    // 深度テクスチャSRV (t0) — ループ外で1回作成
+    D3D12_SHADER_RESOURCE_VIEW_DESC depthSrvDesc = {};
+    depthSrvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+    depthSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    depthSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    depthSrvDesc.Texture2D.MipLevels = 1;
+    pDevice->CreateShaderResourceView(depthRes, &depthSrvDesc, m_srvHeap.GetCPUHandle(0));
+
+    // CBを1回マップし、各デカールを異なるオフセットに書き込む
+    uint8_t* mappedCB = static_cast<uint8_t*>(m_cb.Map(frameIndex));
+    if (!mappedCB)
+    {
+        depthBuffer.TransitionTo(cmdList, prevDepthState);
+        return;
+    }
+
+    D3D12_GPU_VIRTUAL_ADDRESS cbBaseGPU = m_cb.GetGPUVirtualAddress(frameIndex);
+    uint32_t cbOffset = 0;
+
     // 各デカールを描画
     for (const auto& entry : m_decals)
     {
@@ -300,7 +348,7 @@ void DecalSystem::Render(ID3D12GraphicsCommandList* cmdList,
         XMMATRIX decalWorldMat = decal.transform.GetWorldMatrix();
         XMMATRIX decalInvWorldMat = XMMatrixInverse(nullptr, decalWorldMat);
 
-        // 定数バッファを更新
+        // 定数バッファを構築
         DecalCB cb = {};
         cb.invViewProj = invViewProjF;
         XMStoreFloat4x4(&cb.decalWorld, XMMatrixTranspose(XMMatrixMultiply(decalWorldMat, viewProj)));
@@ -310,7 +358,7 @@ void DecalSystem::Render(ID3D12GraphicsCommandList* cmdList,
         // 寿命によるフェードアウト
         if (decal.lifetime > 0.0f)
         {
-            float fadeStart = decal.lifetime * 0.8f;  // 残り20%でフェードアウト開始
+            float fadeStart = decal.lifetime * 0.8f;
             if (decal.age > fadeStart)
             {
                 float fadeT = (decal.age - fadeStart) / (decal.lifetime - fadeStart);
@@ -323,47 +371,21 @@ void DecalSystem::Render(ID3D12GraphicsCommandList* cmdList,
         cb.normalThreshold = decal.normalThreshold;
         cb.screenSize = { static_cast<float>(m_width), static_cast<float>(m_height) };
 
-        // CBにデータ書き込み
-        void* mapped = m_cb.Map(frameIndex);
-        if (mapped)
-        {
-            memcpy(mapped, &cb, sizeof(DecalCB));
-            m_cb.Unmap(frameIndex);
-        }
+        // CBの個別オフセットに書き込み
+        memcpy(mappedCB + cbOffset, &cb, sizeof(DecalCB));
 
-        // CBVバインド（ルートパラメータ0）
-        cmdList->SetGraphicsRootConstantBufferView(0, m_cb.GetGPUVirtualAddress(frameIndex));
+        // CBVバインド（各デカール固有のオフセット）
+        cmdList->SetGraphicsRootConstantBufferView(0, cbBaseGPU + cbOffset);
+        cbOffset += sizeof(DecalCB);
 
-        // SRVヒープを設定し、深度テクスチャとデカールテクスチャのSRVを作成
-        ID3D12DescriptorHeap* heaps[] = { m_srvHeap.GetHeap() };
-        cmdList->SetDescriptorHeaps(1, heaps);
-
-        // 深度テクスチャSRV (t0)
-        D3D12_SHADER_RESOURCE_VIEW_DESC depthSrvDesc = {};
-        depthSrvDesc.Format = DXGI_FORMAT_R32_FLOAT;  // D32_FLOATをR32_FLOATとして読む
-        depthSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-        depthSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-        depthSrvDesc.Texture2D.MipLevels = 1;
-
-        // デバイスをリソースから取得
-        ComPtr<ID3D12Device> pDevice;
-        depthSRV->GetDevice(__uuidof(ID3D12Device), reinterpret_cast<void**>(pDevice.GetAddressOf()));
-
-        if (pDevice)
-        {
-            pDevice->CreateShaderResourceView(depthSRV, &depthSrvDesc,
-                m_srvHeap.GetCPUHandle(0));
-
-            // デカールテクスチャSRV (t1)
-            D3D12_SHADER_RESOURCE_VIEW_DESC texSrvDesc = {};
-            texSrvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-            texSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-            texSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-            texSrvDesc.Texture2D.MipLevels = 1;
-
-            pDevice->CreateShaderResourceView(decalTex->GetResource(), &texSrvDesc,
-                m_srvHeap.GetCPUHandle(1));
-        }
+        // デカールテクスチャSRV (t1) — テクスチャが異なる可能性があるためループ内で更新
+        D3D12_SHADER_RESOURCE_VIEW_DESC texSrvDesc = {};
+        texSrvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        texSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+        texSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        texSrvDesc.Texture2D.MipLevels = 1;
+        pDevice->CreateShaderResourceView(decalTex->GetResource(), &texSrvDesc,
+            m_srvHeap.GetCPUHandle(1));
 
         // ディスクリプタテーブルバインド（ルートパラメータ1）
         cmdList->SetGraphicsRootDescriptorTable(1, m_srvHeap.GetGPUHandle(0));
@@ -371,6 +393,11 @@ void DecalSystem::Render(ID3D12GraphicsCommandList* cmdList,
         // キューブ描画（36インデックス）
         cmdList->DrawIndexedInstanced(36, 1, 0, 0, 0);
     }
+
+    m_cb.Unmap(frameIndex);
+
+    // 深度バッファを元の状態に戻す
+    depthBuffer.TransitionTo(cmdList, prevDepthState);
 }
 
 // ============================================================================

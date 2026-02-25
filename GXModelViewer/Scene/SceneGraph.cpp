@@ -75,3 +75,18 @@ const SceneEntity* SceneGraph::GetEntity(int index) const
         return nullptr;
     return &m_entities[index];
 }
+
+bool SceneGraph::IsAncestor(int candidateIdx, int entityIdx) const
+{
+    int current = entityIdx;
+    int maxDepth = static_cast<int>(m_entities.size()); // prevent infinite loops
+    while (current >= 0 && maxDepth-- > 0)
+    {
+        if (current == candidateIdx)
+            return true;
+        if (current < 0 || current >= static_cast<int>(m_entities.size()))
+            break;
+        current = m_entities[current].parentIndex;
+    }
+    return false;
+}

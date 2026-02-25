@@ -47,6 +47,9 @@
 #include "Panels/IKPanel.h"
 #include "Panels/AudioPanel.h"
 #include "InfiniteGrid.h"
+#include "UndoSystem.h"
+#include "EditorCommands.h"
+#include "SimulationManager.h"
 
 #include <imgui.h>
 #include "ImGuizmo.h"
@@ -143,6 +146,14 @@ private:
     /// @param width 新しいウィンドウ幅
     /// @param height 新しいウィンドウ高さ
     void OnResize(uint32_t width, uint32_t height);
+
+    // --- プリミティブ生成 ---
+
+    /// @brief プリミティブメッシュのエンティティを作成する
+    void CreatePrimitive(PrimitiveRequest request);
+
+    /// @brief シミュレーションツールバーを描画する
+    void DrawSimulationToolbar();
 
     // --- ボーン可視化 ---
 
@@ -269,4 +280,15 @@ private:
     float m_snapTranslation = 0.5f;     ///< 移動スナップ値
     float m_snapRotation    = 15.0f;    ///< 回転スナップ値（度）
     float m_snapScale       = 0.1f;     ///< スケールスナップ値
+
+    // --- シミュレーション ---
+    SimulationManager m_simulationManager;         ///< Play/Pause/Stop管理
+
+    // --- Undo/Redo ---
+    UndoSystem m_undoSystem;                       ///< コマンド履歴管理
+    bool       m_gizmoWasUsing     = false;        ///< 前フレームの ImGuizmo::IsUsing()
+    XMFLOAT3   m_gizmoStartPos    = {};            ///< ギズモ操作開始時の位置
+    XMFLOAT3   m_gizmoStartRot    = {};            ///< ギズモ操作開始時の回転
+    XMFLOAT3   m_gizmoStartScale  = {};            ///< ギズモ操作開始時のスケール
+    int        m_gizmoStartEntity = -1;            ///< ギズモ操作対象エンティティ
 };

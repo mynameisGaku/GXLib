@@ -43,6 +43,40 @@ set(INTERPROCEDURAL_OPTIMIZATION OFF CACHE BOOL "" FORCE)
 set(USE_STATIC_MSVC_RUNTIME_LIBRARY OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(JoltPhysics)
 
+# Lua 5.4 (FetchContent)
+option(GX_ENABLE_LUA "Enable Lua scripting support" ON)
+if (GX_ENABLE_LUA)
+    FetchContent_Declare(lua
+        GIT_REPOSITORY https://github.com/lua/lua.git
+        GIT_TAG        v5.4.7
+    )
+    FetchContent_MakeAvailable(lua)
+
+    # Lua はCMakeプロジェクトではないので手動でライブラリを構築
+    file(GLOB LUA_SOURCES "${lua_SOURCE_DIR}/*.c")
+    # lua.c と luac.c は実行ファイルのエントリポイントなので除外
+    list(FILTER LUA_SOURCES EXCLUDE REGEX "lua\\.c$")
+    list(FILTER LUA_SOURCES EXCLUDE REGEX "luac\\.c$")
+
+    add_library(lua_static STATIC ${LUA_SOURCES})
+    target_include_directories(lua_static PUBLIC ${lua_SOURCE_DIR})
+    set_target_properties(lua_static PROPERTIES LANGUAGE C)
+    set_source_files_properties(${LUA_SOURCES} PROPERTIES
+        SKIP_PRECOMPILE_HEADERS ON
+        LANGUAGE C
+    )
+    if (MSVC)
+        target_compile_options(lua_static PRIVATE /FS)
+    endif()
+
+    # sol2 (header-only)
+    FetchContent_Declare(sol2
+        GIT_REPOSITORY https://github.com/ThePhD/sol2.git
+        GIT_TAG        v3.3.1
+    )
+    FetchContent_MakeAvailable(sol2)
+endif()
+
 # 繝・せ繝域怏蜉ｹ蛹・
 enable_testing()
 
@@ -118,6 +152,19 @@ add_subdirectory(Samples/SplineShowcase)
 add_subdirectory(Samples/WireframeShowcase)
 add_subdirectory(Samples/TextLayoutShowcase)
 add_subdirectory(Samples/ProfilerShowcase)
+add_subdirectory(Samples/MultiThreadShowcase)
+add_subdirectory(Samples/LuaShowcase)
+add_subdirectory(Samples/TilemapShowcase)
+
+# Phase 42: 不足サンプル (Tier 1-2)
+add_subdirectory(Samples/AnimationBlendingShowcase)
+add_subdirectory(Samples/Physics2DShowcase)
+add_subdirectory(Samples/Physics3DShowcase)
+add_subdirectory(Samples/RenderLayerShowcase)
+add_subdirectory(Samples/DecalShowcase)
+add_subdirectory(Samples/TerrainShowcase)
+add_subdirectory(Samples/LODShowcase)
+add_subdirectory(Samples/AudioMixerShowcase)
 
 # GXModelViewer (ImGui-based 3D model viewer)
 add_subdirectory(GXModelViewer)

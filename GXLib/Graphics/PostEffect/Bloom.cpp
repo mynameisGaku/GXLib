@@ -301,6 +301,12 @@ void Bloom::Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
 
 void Bloom::OnResize(ID3D12Device* device, uint32_t width, uint32_t height)
 {
+    if (!device || width == 0 || height == 0)
+    {
+        GX_LOG_ERROR("Bloom::OnResize: invalid parameters (device=%p, %ux%u)",
+                     device, width, height);
+        return;
+    }
     CreateMipRenderTargets(device, width, height);
 }
 

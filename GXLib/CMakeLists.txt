@@ -22,6 +22,7 @@ file(GLOB_RECURSE GXLIB_SOURCES
     "Physics/*.cpp"     "Physics/*.h"
     "Compat/*.cpp"      "Compat/*.h"
     "AI/*.cpp"          "AI/*.h"
+    "Script/*.cpp"      "Script/*.h"
     "pch.cpp"           "pch.h"
 )
 
@@ -100,3 +101,16 @@ target_include_directories(GXLib PUBLIC
 # gxformat headers + gxloader library (asset pipeline)
 target_include_directories(GXLib PUBLIC ${CMAKE_SOURCE_DIR}/gxformat)
 target_link_libraries(GXLib PUBLIC gxloader)
+
+# Lua scripting (optional)
+if (GX_ENABLE_LUA)
+    target_compile_definitions(GXLib PUBLIC GX_ENABLE_LUA)
+    target_link_libraries(GXLib PUBLIC lua_static)
+    target_include_directories(GXLib PUBLIC ${sol2_SOURCE_DIR}/include)
+
+    # ScriptEngine/ScriptBindings の sol2 ヘッダーはPCHと競合するため個別にスキップ
+    file(GLOB_RECURSE SCRIPT_SOURCES "Script/*.cpp")
+    set_source_files_properties(${SCRIPT_SOURCES} PROPERTIES
+        SKIP_PRECOMPILE_HEADERS ON
+    )
+endif()

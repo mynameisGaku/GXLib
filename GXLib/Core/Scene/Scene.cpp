@@ -24,6 +24,7 @@ Entity* Scene::CreateEntity(const std::string& name)
     Entity* ptr = entity.get();
     m_entities.push_back(std::move(entity));
     m_rootEntities.push_back(ptr);
+    m_spatialIndexDirty = true;
     return ptr;
 }
 
@@ -31,6 +32,7 @@ void Scene::DestroyEntity(Entity* entity)
 {
     if (!entity) return;
     m_pendingDestroy.push_back(entity);
+    m_spatialIndexDirty = true;
 }
 
 Entity* Scene::FindEntity(const std::string& name) const
@@ -118,6 +120,47 @@ void Scene::Render(Renderer3D& renderer, const Camera3D& camera)
     RenderInternal(renderer, &frustum, &camera);
 }
 
+void Scene::RebuildSpatialIndex()
+{
+    // シーン全体を覆うAABBを計算
+    Vector3 sceneMin(-500.0f, -500.0f, -500.0f);
+    Vector3 sceneMax(500.0f, 500.0f, 500.0f);
+
+    // エンティティの範囲からシーンバウンドを拡張
+    for (const auto& entity : m_entities)
+    {
+        if (!entity->IsActive() || !entity->GetBounds().hasBounds)
+            continue;
+        Sphere ws = entity->GetWorldBoundingSphere();
+        Vector3 center(ws.center.x, ws.center.y, ws.center.z);
+        Vector3 extent(ws.radius, ws.radius, ws.radius);
+        Vector3 eMin = center - extent;
+        Vector3 eMax = center + extent;
+        sceneMin.x = (std::min)(sceneMin.x, eMin.x);
+        sceneMin.y = (std::min)(sceneMin.y, eMin.y);
+        sceneMin.z = (std::min)(sceneMin.z, eMin.z);
+        sceneMax.x = (std::max)(sceneMax.x, eMax.x);
+        sceneMax.y = (std::max)(sceneMax.y, eMax.y);
+        sceneMax.z = (std::max)(sceneMax.z, eMax.z);
+    }
+
+    AABB3D sceneBounds(sceneMin, sceneMax);
+    m_spatialIndex = std::make_unique<Octree<Entity*>>(sceneBounds, 6, 16);
+
+    for (const auto& entity : m_entities)
+    {
+        if (!entity->IsActive() || !entity->GetBounds().hasBounds)
+            continue;
+        Sphere ws = entity->GetWorldBoundingSphere();
+        Vector3 center(ws.center.x, ws.center.y, ws.center.z);
+        Vector3 extent(ws.radius, ws.radius, ws.radius);
+        AABB3D entityAABB(center - extent, center + extent);
+        m_spatialIndex->Insert(entity.get(), entityAABB);
+    }
+
+    m_spatialIndexDirty = false;
+}
+
 void Scene::RenderInternal(Renderer3D& renderer, const Frustum* frustum,
                             const Camera3D* camera)
 {
@@ -140,6 +183,29 @@ void Scene::RenderInternal(Renderer3D& renderer, const Frustum* frustum,
     std::vector<StaticDrawEntry> staticDraws;
     std::vector<SkinnedDrawEntry> skinnedDraws;
 
+    // フラスタムカリング: Octree空間インデックスを使用して高速化
+    // バウンド付きエンティティはOctreeクエリで取得、バウンドなしは全探索
+    std::vector<Entity*> octreeResults;
+    bool useOctree = frustum && m_entities.size() > 32;
+
+    if (useOctree)
+    {
+        // 空間インデックスが古い場合は再構築
+        if (m_spatialIndexDirty || !m_spatialIndex)
+            RebuildSpatialIndex();
+
+        if (m_spatialIndex)
+            m_spatialIndex->Query(*frustum, octreeResults);
+    }
+
+    // Octree結果をセットに変換してO(1)ルックアップ
+    std::unordered_map<Entity*, bool> octreeVisible;
+    if (useOctree)
+    {
+        for (Entity* e : octreeResults)
+            octreeVisible[e] = true;
+    }
+
     for (const auto& entity : m_entities)
     {
         if (!entity->IsActive()) continue;
@@ -148,11 +214,24 @@ void Scene::RenderInternal(Renderer3D& renderer, const Frustum* frustum,
         // フラスタムカリング
         if (frustum && entity->GetBounds().hasBounds)
         {
-            Sphere worldSphere = entity->GetWorldBoundingSphere();
-            if (!Collision3D::TestFrustumVsSphere(*frustum, worldSphere))
+            if (useOctree && m_spatialIndex)
             {
-                ++stats.culledEntities;
-                continue;
+                // Octreeで事前フィルタ済み — マップにないものはカリング
+                if (octreeVisible.find(entity.get()) == octreeVisible.end())
+                {
+                    ++stats.culledEntities;
+                    continue;
+                }
+            }
+            else
+            {
+                // フォールバック: 球テスト
+                Sphere worldSphere = entity->GetWorldBoundingSphere();
+                if (!Collision3D::TestFrustumVsSphere(*frustum, worldSphere))
+                {
+                    ++stats.culledEntities;
+                    continue;
+                }
             }
         }
 
@@ -242,7 +321,21 @@ void Scene::RenderInternal(Renderer3D& renderer, const Frustum* frustum,
         }
     }
 
-    // Phase 4: Draw remaining static models individually
+    // Phase 4: Sort remaining static draws by model to minimize PSO/VB switches
+    std::sort(staticDraws.begin(), staticDraws.end(),
+        [](const StaticDrawEntry& a, const StaticDrawEntry& b) {
+            // nullptrs (instanced draws) go to end
+            if (!a.model) return false;
+            if (!b.model) return true;
+            // Group by model pointer (same model → same PSO/VB/IB)
+            if (a.model != b.model) return a.model < b.model;
+            // Within same model, non-override first (avoids override toggling)
+            if ((a.materialOverride == nullptr) != (b.materialOverride == nullptr))
+                return a.materialOverride == nullptr;
+            return false;
+        });
+
+    // Draw remaining static models individually
     for (auto& entry : staticDraws)
     {
         if (!entry.model) continue; // インスタンス描画済み

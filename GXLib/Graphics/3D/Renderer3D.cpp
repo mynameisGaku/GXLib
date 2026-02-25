@@ -66,6 +66,10 @@ bool Renderer3D::Initialize(ID3D12Device* device, ID3D12CommandQueue* cmdQueue,
     if (!m_boneCB.Initialize(device, boneCBSize, boneCBSize))
         return false;
 
+    // BindlessTextureIndices（b5: テクスチャインデックス、リングバッファ、256B/描画）
+    if (!m_bindlessIndicesCB.Initialize(device, 256 * k_MaxObjectsPerFrame, 256))
+        return false;
+
     // シャドウパス用CB（各カスケード/面ごとのLightVP、256アライン×11枠: CSM4 + Spot1 + Point6）
     static constexpr uint32_t k_ShadowCBSlots = 4 + 1 + 6; // CSM + Spot + Point
     if (!m_shadowPassCB.Initialize(device, 256 * k_ShadowCBSlots,
@@ -231,6 +235,10 @@ bool Renderer3D::CreatePipelineState(ID3D12Device* device)
                             D3D12_SHADER_VISIBILITY_PIXEL)  // t16: IBL鏡面プリフィルタマップ
         .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 17, 1, 0,
                             D3D12_SHADER_VISIBILITY_PIXEL)  // t17: BRDF LUT
+        .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, UINT_MAX, 1,
+                            D3D12_SHADER_VISIBILITY_PIXEL,
+                            D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE)  // t0[]: Bindless (space1)
+        .AddCBV(5)  // b5: BindlessTextureIndices
         .AddStaticSampler(0)  // s0: リニアWrapサンプラ
         .AddStaticSampler(1, D3D12_FILTER_MIN_MAG_MIP_LINEAR,
                           D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
@@ -493,6 +501,7 @@ void Renderer3D::BindPipelineForModel(bool skinned, int shaderHandle, gxfmt::Sha
     {
         m_cmdList->SetPipelineState(target);
         m_currentPso = target;
+        ++m_renderStats.psoSwitchCount;
     }
 }
 
@@ -882,6 +891,9 @@ void Renderer3D::Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
         m_objectCBOffset = 0;
     }
 
+    // 描画統計リセット
+    m_renderStats = {};
+
     // 冗長バインド防止用リセット
     m_lastBoundVB = nullptr;
     m_lastBoundIB = nullptr;
@@ -889,6 +901,10 @@ void Renderer3D::Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
     // マテリアルCBをマップ（リングバッファ方式）
     m_materialCBMapped = static_cast<uint8_t*>(m_materialCB.Map(frameIndex));
     m_materialCBOffset = 0;
+
+    // BindlessテクスチャインデックスCBをマップ
+    m_bindlessCBMapped = static_cast<uint8_t*>(m_bindlessIndicesCB.Map(frameIndex));
+    m_bindlessCBOffset = 0;
 
     // パイプライン設定
     m_cmdList->SetPipelineState(m_pso.Get());
@@ -899,6 +915,10 @@ void Renderer3D::Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
     ID3D12DescriptorHeap* heaps[] = { m_textureManager.GetSRVHeap().GetHeap() };
     m_cmdList->SetDescriptorHeaps(1, heaps);
 
+    // Bindlessテクスチャ: ヒープ全体を space1 にバインド (root param 18)
+    m_cmdList->SetGraphicsRootDescriptorTable(18,
+        m_textureManager.GetSRVHeap().GetGPUHandle(0));
+
     // フレーム・ライト定数バッファをバインド
     m_cmdList->SetGraphicsRootConstantBufferView(1, m_frameCB.GetGPUVirtualAddress(frameIndex));
     m_cmdList->SetGraphicsRootConstantBufferView(2, m_lightCB.GetGPUVirtualAddress(frameIndex));
@@ -908,51 +928,38 @@ void Renderer3D::Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
     {
         // 未使用シャドウマップがDEPTH_WRITEのままの場合、SRV状態に遷移
         // (シャドウパスがスキップされたシーンで必要)
-        D3D12_RESOURCE_BARRIER barriers[6] = {};
-        uint32_t barrierCount = 0;
-
-        // CSMカスケード4枚
-        for (uint32_t i = 0; i < CascadedShadowMap::k_NumCascades; ++i)
         {
-            auto& sm = m_csm.GetShadowMap(i);
-            if (sm.GetCurrentState() != D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
+            BarrierBatch<6> batch(m_cmdList);
+
+            // CSMカスケード4枚
+            for (uint32_t i = 0; i < CascadedShadowMap::k_NumCascades; ++i)
             {
-                auto& b = barriers[barrierCount++];
-                b.Type                   = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-                b.Transition.pResource   = sm.GetResource();
-                b.Transition.StateBefore = sm.GetCurrentState();
-                b.Transition.StateAfter  = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-                b.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-                sm.SetCurrentState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+                auto& sm = m_csm.GetShadowMap(i);
+                if (sm.GetCurrentState() != D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
+                {
+                    batch.Transition(sm.GetResource(), sm.GetCurrentState(),
+                                     D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+                    sm.SetCurrentState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+                }
             }
-        }
 
-        // スポットシャドウマップ
-        if (m_spotShadowMap.GetCurrentState() != D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
-        {
-            auto& b = barriers[barrierCount++];
-            b.Type                   = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-            b.Transition.pResource   = m_spotShadowMap.GetResource();
-            b.Transition.StateBefore = m_spotShadowMap.GetCurrentState();
-            b.Transition.StateAfter  = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-            b.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-            m_spotShadowMap.SetCurrentState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-        }
+            // スポットシャドウマップ
+            if (m_spotShadowMap.GetCurrentState() != D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
+            {
+                batch.Transition(m_spotShadowMap.GetResource(), m_spotShadowMap.GetCurrentState(),
+                                 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+                m_spotShadowMap.SetCurrentState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+            }
 
-        // ポイントシャドウマップ
-        if (m_pointShadowMap.GetCurrentState() != D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
-        {
-            auto& b = barriers[barrierCount++];
-            b.Type                   = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-            b.Transition.pResource   = m_pointShadowMap.GetResource();
-            b.Transition.StateBefore = m_pointShadowMap.GetCurrentState();
-            b.Transition.StateAfter  = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-            b.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-            m_pointShadowMap.SetCurrentState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+            // ポイントシャドウマップ
+            if (m_pointShadowMap.GetCurrentState() != D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
+            {
+                batch.Transition(m_pointShadowMap.GetResource(), m_pointShadowMap.GetCurrentState(),
+                                 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+                m_pointShadowMap.SetCurrentState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+            }
+            // BarrierBatch デストラクタで自動フラッシュ
         }
-
-        if (barrierCount > 0)
-            m_cmdList->ResourceBarrier(barrierCount, barriers);
 
         m_cmdList->SetGraphicsRootDescriptorTable(13, m_csm.GetSRVGPUHandle());
     }
@@ -1058,6 +1065,34 @@ void Renderer3D::SetMaterial(const Material& material)
     bindTex(10, material.toonRampMapHandle,      m_defaultWhiteTex);
     bindTex(11, material.subsurfaceMapHandle,    m_defaultWhiteTex);
     bindTex(12, material.clearCoatMaskMapHandle, m_defaultBlackTex);
+
+    // Bindless テクスチャインデックス (b5)
+    // ハンドルからSRVヒープインデックスを解決し、cbufferでシェーダーに渡す
+    auto resolveIdx = [this](int handle, int fallback) -> int32_t
+    {
+        int useHandle = (handle >= 0) ? handle : fallback;
+        if (useHandle < 0) return -1;
+        Texture* tex = m_textureManager.GetTexture(useHandle);
+        return tex ? static_cast<int32_t>(tex->GetSRVIndex()) : -1;
+    };
+
+    struct BindlessIndices { int32_t idx[8]; };
+    if (m_bindlessCBMapped)
+    {
+        BindlessIndices indices;
+        indices.idx[0] = resolveIdx(material.albedoMapHandle,        m_defaultWhiteTex);
+        indices.idx[1] = resolveIdx(material.normalMapHandle,        m_defaultNormalTex);
+        indices.idx[2] = resolveIdx(material.metRoughMapHandle,      m_defaultWhiteTex);
+        indices.idx[3] = resolveIdx(material.aoMapHandle,            m_defaultWhiteTex);
+        indices.idx[4] = resolveIdx(material.emissiveMapHandle,      m_defaultBlackTex);
+        indices.idx[5] = resolveIdx(material.toonRampMapHandle,      m_defaultWhiteTex);
+        indices.idx[6] = resolveIdx(material.subsurfaceMapHandle,    m_defaultWhiteTex);
+        indices.idx[7] = resolveIdx(material.clearCoatMaskMapHandle, m_defaultBlackTex);
+        memcpy(m_bindlessCBMapped + m_bindlessCBOffset, &indices, sizeof(indices));
+    }
+    m_cmdList->SetGraphicsRootConstantBufferView(
+        19, m_bindlessIndicesCB.GetGPUVirtualAddress(m_frameIndex) + m_bindlessCBOffset);
+    m_bindlessCBOffset += 256;
 }
 
 void Renderer3D::DrawMesh(const GPUMesh& mesh, const Transform3D& transform)
@@ -1088,6 +1123,8 @@ void Renderer3D::DrawMesh(const GPUMesh& mesh, const Transform3D& transform)
         m_lastBoundIB = ibRes;
     }
     m_cmdList->DrawIndexedInstanced(mesh.indexCount, 1, 0, 0, 0);
+    ++m_renderStats.drawCallCount;
+    m_renderStats.triangleCount += mesh.indexCount / 3;
 }
 
 void Renderer3D::DrawMesh(const GPUMesh& mesh, const XMMATRIX& worldMatrix)
@@ -1118,6 +1155,8 @@ void Renderer3D::DrawMesh(const GPUMesh& mesh, const XMMATRIX& worldMatrix)
         m_lastBoundIB = ibRes;
     }
     m_cmdList->DrawIndexedInstanced(mesh.indexCount, 1, 0, 0, 0);
+    ++m_renderStats.drawCallCount;
+    m_renderStats.triangleCount += mesh.indexCount / 3;
 }
 
 void Renderer3D::DrawTerrain(const Terrain& terrain, const Transform3D& transform)
@@ -1140,6 +1179,8 @@ void Renderer3D::DrawTerrain(const Terrain& terrain, const Transform3D& transfor
     m_cmdList->IASetVertexBuffers(0, 1, &vbv);
     m_cmdList->IASetIndexBuffer(&ibv);
     m_cmdList->DrawIndexedInstanced(terrain.GetIndexCount(), 1, 0, 0, 0);
+    ++m_renderStats.drawCallCount;
+    m_renderStats.triangleCount += terrain.GetIndexCount() / 3;
 }
 
 void Renderer3D::DrawModel(const Model& model, const Transform3D& transform)
@@ -1191,6 +1232,8 @@ void Renderer3D::DrawModel(const Model& model, const Transform3D& transform)
             SetMaterial(*mat);
 
         m_cmdList->DrawIndexedInstanced(sub.indexCount, 1, sub.indexOffset, 0, 0);
+        ++m_renderStats.drawCallCount;
+        m_renderStats.triangleCount += sub.indexCount / 3;
 
         if (shaderModel == gxfmt::ShaderModel::Toon)
             hasToonSubMesh = true;
@@ -1229,9 +1272,12 @@ void Renderer3D::DrawModel(const Model& model, const Transform3D& transform)
             {
                 m_cmdList->SetPipelineState(outlinePso);
                 m_currentPso = outlinePso;
+                ++m_renderStats.psoSwitchCount;
             }
             SetMaterial(*mat);
             m_cmdList->DrawIndexedInstanced(sub.indexCount, 1, sub.indexOffset, 0, 0);
+            ++m_renderStats.drawCallCount;
+            m_renderStats.triangleCount += sub.indexCount / 3;
         }
 
         // Slot 0 単独に戻す（後続描画に影響しないよう）
@@ -1284,6 +1330,12 @@ void Renderer3D::End()
     {
         m_materialCB.Unmap(m_frameIndex);
         m_materialCBMapped = nullptr;
+    }
+    // BindlessインデックスCBアンマップ
+    if (m_bindlessCBMapped)
+    {
+        m_bindlessIndicesCB.Unmap(m_frameIndex);
+        m_bindlessCBMapped = nullptr;
     }
     m_cmdList = nullptr;
 }
@@ -1357,6 +1409,8 @@ void Renderer3D::DrawModel(const Model& model, const Transform3D& transform,
             SetMaterial(*mat);
 
         m_cmdList->DrawIndexedInstanced(sub.indexCount, 1, sub.indexOffset, 0, 0);
+        ++m_renderStats.drawCallCount;
+        m_renderStats.triangleCount += sub.indexCount / 3;
 
         if (shaderModel == gxfmt::ShaderModel::Toon)
             hasToonSubMesh = true;
@@ -1396,9 +1450,12 @@ void Renderer3D::DrawModel(const Model& model, const Transform3D& transform,
             {
                 m_cmdList->SetPipelineState(outlinePso);
                 m_currentPso = outlinePso;
+                ++m_renderStats.psoSwitchCount;
             }
             SetMaterial(*mat);
             m_cmdList->DrawIndexedInstanced(sub.indexCount, 1, sub.indexOffset, 0, 0);
+            ++m_renderStats.drawCallCount;
+            m_renderStats.triangleCount += sub.indexCount / 3;
         }
 
         // Slot 0 単独に戻す（後続描画に影響しないよう）
@@ -1507,6 +1564,8 @@ void Renderer3D::DrawModelInstanced(const Model& model, const Transform3D* trans
             SetMaterial(*mat);
 
         m_cmdList->DrawIndexedInstanced(sub.indexCount, count, sub.indexOffset, 0, 0);
+        ++m_renderStats.drawCallCount;
+        m_renderStats.triangleCount += (sub.indexCount / 3) * count;
     }
 
     // 通常PSOに戻す

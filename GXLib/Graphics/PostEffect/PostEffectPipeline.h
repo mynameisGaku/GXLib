@@ -24,6 +24,8 @@
 #include "Graphics/PostEffect/VolumetricLight.h"
 #include "Graphics/PostEffect/TAA.h"
 #include "Graphics/PostEffect/AutoExposure.h"
+#include "Graphics/3D/VolumetricClouds.h"
+#include "Graphics/PostEffect/ContactShadows.h"
 
 namespace GX
 {
@@ -115,9 +117,17 @@ public:
     VolumetricLight& GetVolumetricLight() { return m_volumetricLight; }
     const VolumetricLight& GetVolumetricLight() const { return m_volumetricLight; }
 
+    // --- ボリューメトリッククラウド ---
+    VolumetricClouds& GetVolumetricClouds() { return m_volumetricClouds; }
+    const VolumetricClouds& GetVolumetricClouds() const { return m_volumetricClouds; }
+
     // --- TAA (時間的AA) ---
     TAA& GetTAA() { return m_taa; }
     const TAA& GetTAA() const { return m_taa; }
+
+    // --- コンタクトシャドウ ---
+    ContactShadows& GetContactShadows() { return m_contactShadows; }
+    const ContactShadows& GetContactShadows() const { return m_contactShadows; }
 
     // --- 自動露出 ---
     AutoExposure& GetAutoExposure() { return m_autoExposure; }
@@ -155,6 +165,10 @@ public:
     float GetSaturation() const { return m_saturation; }
     void SetTemperature(float v) { m_temperature = v; }
     float GetTemperature() const { return m_temperature; }
+
+    /// @brief メインライト方向を設定する（コンタクトシャドウ用）
+    void SetMainLightDirection(const XMFLOAT3& dir) { m_mainLightDirection = dir; }
+    const XMFLOAT3& GetMainLightDirection() const { return m_mainLightDirection; }
 
     // --- 設定ファイル ---
     bool LoadSettings(const std::string& filePath);
@@ -226,8 +240,14 @@ private:
     // ボリューメトリックライト
     VolumetricLight m_volumetricLight;
 
+    // ボリューメトリッククラウド
+    VolumetricClouds m_volumetricClouds;
+
     // TAA (時間的AA)
     TAA m_taa;
+
+    // コンタクトシャドウ
+    ContactShadows m_contactShadows;
 
     // 自動露出
     AutoExposure m_autoExposure;
@@ -272,6 +292,12 @@ private:
     float m_contrast    = 1.0f;
     float m_saturation  = 1.0f;
     float m_temperature = 0.0f;
+
+    // 累積時間 (VolumetricClouds の風アニメーション用)
+    float m_elapsedTime = 0.0f;
+
+    // メインライト方向 (ContactShadows用)
+    XMFLOAT3 m_mainLightDirection = { 0.3f, -1.0f, 0.5f };
 };
 
 } // namespace GX

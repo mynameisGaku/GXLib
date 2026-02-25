@@ -9,6 +9,17 @@
 namespace GX
 {
 
+/// @brief アニメーションイベント（特定フレームで発火するコールバック情報）
+/// ゲームロジックでは足音タイミングやエフェクト発生タイミングをアニメーションに埋め込める。
+struct AnimationEvent
+{
+    float time = 0.0f;          ///< 発火する時刻（秒）
+    std::string name;           ///< イベント名（"footstep", "attack_hit" 等）
+    float floatParam = 0.0f;    ///< 汎用パラメータ（浮動小数点）
+    int   intParam   = 0;       ///< 汎用パラメータ（整数）
+    std::string stringParam;    ///< 汎用パラメータ（文字列）
+};
+
 /// @brief 関節1つ分のTRS姿勢（移動・回転・拡縮）
 struct TransformTRS
 {
@@ -127,6 +138,23 @@ public:
     /// @param outLocalTransforms 出力先の行列配列
     void Sample(float time, uint32_t jointCount, XMFLOAT4X4* outLocalTransforms) const;
 
+    /// @brief アニメーションイベントを追加する
+    /// @param event 追加するイベント
+    void AddEvent(const AnimationEvent& event) { m_events.push_back(event); }
+
+    /// @brief 全イベントを取得する
+    /// @return イベント配列
+    const std::vector<AnimationEvent>& GetEvents() const { return m_events; }
+
+    /// @brief イベントを全て削除する
+    void ClearEvents() { m_events.clear(); }
+
+    /// @brief 指定時間範囲内のイベントを収集する（ループ境界対応）
+    /// @param prevTime 前フレームの時刻
+    /// @param curTime 現在フレームの時刻
+    /// @param outEvents 収集されたイベントの出力先
+    void CollectEvents(float prevTime, float curTime, std::vector<const AnimationEvent*>& outEvents) const;
+
 private:
     /// 位置・スケール用のベクトル3補間（線形）
     static XMFLOAT3 InterpolateVec3(const std::vector<Keyframe<XMFLOAT3>>& keys, float time);
@@ -136,6 +164,7 @@ private:
     std::string m_name;
     float m_duration = 0.0f;
     std::vector<AnimationChannel> m_channels;
+    std::vector<AnimationEvent> m_events;   ///< 時刻順のアニメーションイベント
 };
 
 } // namespace GX

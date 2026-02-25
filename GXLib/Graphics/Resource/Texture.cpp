@@ -100,8 +100,9 @@ bool Texture::UploadToGPU(ID3D12Device* device,
 
     // D3D12のテクスチャアップロードは行ピッチ256Bアライメントが必須
     const uint32_t bytesPerPixel = 4;
-    const uint32_t rowPitch = (width * bytesPerPixel + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1)
-                              & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1);
+    const uint64_t rawRowPitch = static_cast<uint64_t>(width) * bytesPerPixel;
+    const uint32_t rowPitch = static_cast<uint32_t>((rawRowPitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1)
+                              & ~(static_cast<uint64_t>(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT) - 1));
     const uint64_t uploadSize = static_cast<uint64_t>(rowPitch) * height;
 
     // UPLOADヒープにステージングバッファを作成（CPUからGPUへの中継）
@@ -251,8 +252,9 @@ bool Texture::UpdatePixels(ID3D12Device* device,
     }
 
     const uint32_t bytesPerPixel = 4;
-    const uint32_t rowPitch = (width * bytesPerPixel + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1)
-                              & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1);
+    const uint64_t rawRowPitch = static_cast<uint64_t>(width) * bytesPerPixel;
+    const uint32_t rowPitch = static_cast<uint32_t>((rawRowPitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1)
+                              & ~(static_cast<uint64_t>(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT) - 1));
     const uint64_t uploadSize = static_cast<uint64_t>(rowPitch) * height;
 
     D3D12_HEAP_PROPERTIES uploadHeap = {};
@@ -291,7 +293,7 @@ bool Texture::UpdatePixels(ID3D12Device* device,
     uint8_t* dstData = static_cast<uint8_t*>(mapped);
     for (uint32_t y = 0; y < height; ++y)
     {
-        memcpy(dstData + static_cast<uint64_t>(y) * rowPitch, srcData + static_cast<uint64_t>(y) * width * bytesPerPixel, width * bytesPerPixel);
+        memcpy(dstData + static_cast<uint64_t>(y) * rowPitch, srcData + static_cast<uint64_t>(y) * static_cast<uint64_t>(width) * bytesPerPixel, static_cast<uint64_t>(width) * bytesPerPixel);
     }
     uploadBuffer->Unmap(0, nullptr);
 

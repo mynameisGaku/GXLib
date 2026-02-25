@@ -148,3 +148,55 @@ spriteBatch.End();
 5. [05_GUI.md](05_GUI.md) — XML + CSS による GUI 構築
 
 用語がわからなくなったら → [用語集 (Glossary)](../Glossary.md)
+
+---
+
+## よくある問題（環境構築トラブルシューティング）
+
+### Visual Studio のインストール関連
+
+**症状**: CMake で `No CMAKE_CXX_COMPILER could be found` と出る
+
+**対処法**:
+1. Visual Studio Installer を開き、「C++ によるデスクトップ開発」ワークロードがチェックされているか確認
+2. 個別のコンポーネントで「MSVC v143 - VS 2022 C++ x64/x86 ビルドツール」が入っているか確認
+3. インストール後、コマンドプロンプトを再起動してから `cmake` を実行
+
+**症状**: `Windows SDK not found` 系のエラー
+
+**対処法**:
+- Visual Studio Installer → 個別のコンポーネント → 「Windows 10 SDK (10.0.19041.0)」以上をインストール
+- 複数バージョンの SDK がある場合、CMake が古いものを選ぶことがあります。`cmake -B build -S . -DCMAKE_SYSTEM_VERSION=10.0` で明示指定も可能です
+
+### CMake 関連
+
+**症状**: `cmake` コマンドが見つからない
+
+**対処法**:
+- CMake をインストールする際に「PATH に追加」オプションを有効にしたか確認
+- PowerShell で `cmake --version` を実行して確認。表示されない場合は PATH 環境変数に `C:\Program Files\CMake\bin` を追加
+- Visual Studio 同梱の CMake を使う場合は「Developer Command Prompt for VS 2022」から実行
+
+**症状**: `cmake -B build -S .` で `CMakeLists.txt not found`
+
+**対処法**:
+- コマンドを実行しているディレクトリが GXLib のルートフォルダ（`CMakeLists.txt` がある場所）か確認
+- `dir CMakeLists.txt` (コマンドプロンプト) または `ls CMakeLists.txt` (PowerShell) で存在を確認
+
+### Git 関連
+
+**症状**: `git clone` でエラーが出る
+
+**対処法**:
+- Git がインストールされているか確認: `git --version`
+- インストールされていない場合は [git-scm.com](https://git-scm.com/) からダウンロード
+- プロキシ環境の場合は `git config --global http.proxy http://proxy:port` でプロキシ設定
+
+### GPU ドライバー関連
+
+**症状**: 実行時に `D3D12 device creation failed` や `DXGI_ERROR_UNSUPPORTED` が出る
+
+**対処法**:
+- GPU ドライバーを最新版にアップデート（[NVIDIA](https://www.nvidia.com/drivers), [AMD](https://www.amd.com/en/support), [Intel](https://www.intel.com/content/www/us/en/download-center/home.html)）
+- DirectX 12 対応 GPU が搭載されているか確認（Windows 10 以降の大半の GPU は対応）
+- `dxdiag` コマンドで DirectX のバージョンと GPU 情報を確認

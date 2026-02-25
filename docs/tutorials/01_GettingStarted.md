@@ -241,3 +241,44 @@ GXLib/
 - [05_GUI.md](05_GUI.md) — XML+CSS によるGUI構築
 
 用語がわからない場合 → [用語集 (Glossary)](../Glossary.md)
+
+---
+
+## 補足: WinMain とダブルバッファリング
+
+### WinMain の各引数について
+
+```cpp
+int WINAPI WinMain(
+    HINSTANCE hInstance,    // 現在のアプリケーションのインスタンスハンドル
+    HINSTANCE hPrevInstance,// 常に NULL（Win16 時代の名残、使わない）
+    LPSTR     lpCmdLine,   // コマンドライン引数（文字列として渡される）
+    int       nCmdShow     // ウィンドウの初期表示方法（通常は無視して OK）
+)
+```
+
+通常の C++ プログラムの `int main(int argc, char* argv[])` とは異なり、Windows GUI アプリケーションは `WinMain` から開始します。GXLib の Compat API (`GX_Init()`) や Application クラスが内部でウィンドウの作成やメッセージループを処理するため、ユーザーが Win32 API を直接扱う必要はありません。
+
+### ダブルバッファリングの仕組み
+
+```
+フレーム N:
+  [裏画面(Back)]  ← 描画中（ClearDrawScreen → 描画 → ...）
+  [表画面(Front)] ← モニターに表示中（前フレームの結果）
+
+ScreenFlip() 実行:
+  [裏画面(Back)]  ← 表画面だったものが次の描画先に
+  [表画面(Front)] ← 裏画面だったものがモニターに表示される
+```
+
+GXLib 内部では DirectX 12 の SwapChain が 2 枚のバッファ (`k_BufferCount = 2`) を管理し、`Present()` で表裏を切り替えています。Compat API の `ScreenFlip()` はこの `Present()` のラッパーです。
+
+### GXEasy.h の推奨
+
+サンプルプロジェクトを書く際は `GXEasy.h` のインクルードを推奨します。
+
+```cpp
+#include "GXEasy.h"  // FormatT, TChar, TString, <format> を一括提供
+```
+
+`GXEasy.h` には `std::format` 関連のユーティリティ（`FormatT`、`TChar`、`TString`）が集約されており、各サンプルで個別にインクルードする手間を省けます。全サンプルプロジェクトはこのヘッダーだけで基本的な文字列フォーマットが利用可能です。

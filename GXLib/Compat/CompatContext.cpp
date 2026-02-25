@@ -212,15 +212,8 @@ void CompatContext::BeginFrame()
     barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
     cmdList->ResourceBarrier(1, &barrier);
 
-    // レンダーターゲット設定＆クリア
+    // レンダーターゲット設定（クリアはClearDrawScreen側で行う）
     auto rtvHandle = swapChain.GetCurrentRTVHandle();
-    float clearColor[4] = {
-        bgColor_r / 255.0f,
-        bgColor_g / 255.0f,
-        bgColor_b / 255.0f,
-        1.0f
-    };
-    cmdList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
     cmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
 
     // ビューポートとシザー
