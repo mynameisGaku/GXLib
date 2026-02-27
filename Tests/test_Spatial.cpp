@@ -7,7 +7,7 @@
 #include "Math/Collision/Octree.h"
 #include "Math/Collision/BVH.h"
 
-using namespace GX;
+using namespace gx;
 
 // ============================================================================
 // Quadtree（2D空間を4分割で管理する構造）

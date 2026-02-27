@@ -1,7 +1,7 @@
 /// @file GxmdModelLoader.cpp
-/// @brief GXMDモデルローダーの実装 — gxloader::LoadedModel から GX::Model への変換
+/// @brief GXMDモデルローダーの実装 — gxloader::LoadedModel から gx::Model への変換
 
-#include "pch.h"
+#include "pch_graphics.h"
 #include "GxmdModelLoader.h"
 #include "Graphics/3D/Vertex3D.h"
 #include "Graphics/3D/Mesh.h"
@@ -13,12 +13,12 @@
 #include <filesystem>
 
 // gxfmt と GXLib の頂点レイアウトがバイナリ互換であることを保証（memcpyで直接コピー可能）
-static_assert(sizeof(gxfmt::VertexStandard) == sizeof(GX::Vertex3D_PBR),
+static_assert(sizeof(gxfmt::VertexStandard) == sizeof(gx::Vertex3D_PBR),
     "VertexStandard(48B) must match Vertex3D_PBR(48B)");
-static_assert(sizeof(gxfmt::VertexSkinned) == sizeof(GX::Vertex3D_Skinned),
+static_assert(sizeof(gxfmt::VertexSkinned) == sizeof(gx::Vertex3D_Skinned),
     "VertexSkinned(80B) must match Vertex3D_Skinned(80B)");
 
-namespace GX
+namespace gx
 {
 
 static std::wstring Utf8ToWide(const std::string& str)
@@ -362,4 +362,4 @@ std::unique_ptr<Model> GxmdModelLoader::LoadFromGxmd(const std::wstring& filePat
     return model;
 }
 
-} // namespace GX
+} // namespace gx

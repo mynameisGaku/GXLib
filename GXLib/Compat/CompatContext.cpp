@@ -3,9 +3,11 @@
 #include "pch.h"
 #include "Compat/CompatContext.h"
 #include "Compat/CompatTypes.h"
+#include "Compat/CompatUtil.h"
 #include "Core/Logger.h"
+#include "Audio/IAudioDevice.h"
 
-namespace GX_Internal
+namespace gx_internal
 {
 
 CompatContext& CompatContext::Instance()
@@ -19,8 +21,8 @@ bool CompatContext::Initialize()
     GX_LOG_INFO("CompatContext: Initializing...");
 
     // アプリケーション初期化
-    GX::ApplicationDesc appDesc;
-    appDesc.title  = windowTitle;
+    gx::ApplicationDesc appDesc;
+    appDesc.title  = gx_internal::ToWString(windowTitle.c_str());
     appDesc.width  = static_cast<uint32_t>(graphWidth);
     appDesc.height = static_cast<uint32_t>(graphHeight);
     if (!app.Initialize(appDesc))
@@ -55,7 +57,7 @@ bool CompatContext::Initialize()
     }
 
     // スワップチェーン
-    GX::SwapChainDesc scDesc;
+    gx::SwapChainDesc scDesc;
     scDesc.hwnd   = app.GetWindow().GetHWND();
     scDesc.width  = screenWidth;
     scDesc.height = screenHeight;
@@ -122,6 +124,12 @@ bool CompatContext::Initialize()
     float aspect = static_cast<float>(screenWidth) / static_cast<float>(screenHeight);
     camera.SetPerspective(XM_PIDIV4, aspect, 0.1f, 1000.0f);
 
+    // ServiceLocator にサービスを登録
+    // 各サブシステムの所有権は CompatContext が持つため、カスタムデリータで非所有参照を登録
+    auto& sl = gx::ServiceLocator::Instance();
+    sl.Register<gx::IAudioDevice>(
+        std::shared_ptr<gx::IAudioDevice>(&audioManager.GetDevice(), [](gx::IAudioDevice*) {}));
+
     GX_LOG_INFO("CompatContext: Initialized successfully");
     return true;
 }
@@ -129,6 +137,9 @@ bool CompatContext::Initialize()
 void CompatContext::Shutdown()
 {
     GX_LOG_INFO("CompatContext: Shutting down...");
+
+    // ServiceLocator のサービス登録を解除（サブシステム破棄前に実施）
+    gx::ServiceLocator::Instance().Clear();
 
     commandQueue.Flush();
 
@@ -285,4 +296,4 @@ int CompatContext::AllocateModelHandle()
     return h;
 }
 
-} // namespace GX_Internal
+} // namespace gx_internal

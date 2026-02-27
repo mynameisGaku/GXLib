@@ -8,7 +8,7 @@
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Core/Logger.h"
 
-bool InfiniteGrid::Initialize(ID3D12Device* device, GX::Shader& shader)
+bool InfiniteGrid::Initialize(ID3D12Device* device, gx::Shader& shader)
 {
     // Compile shaders
     auto vs = shader.CompileFromFile(L"Shaders/InfiniteGrid.hlsl", L"FullscreenVS", L"vs_6_0");
@@ -20,7 +20,7 @@ bool InfiniteGrid::Initialize(ID3D12Device* device, GX::Shader& shader)
     }
 
     // Root signature: CBV at b0
-    GX::RootSignatureBuilder rsBuilder;
+    gx::RootSignatureBuilder rsBuilder;
     m_rootSig = rsBuilder
         .AddCBV(0) // b0 = GridCB
         .SetFlags(D3D12_ROOT_SIGNATURE_FLAG_NONE) // no input assembler
@@ -32,7 +32,7 @@ bool InfiniteGrid::Initialize(ID3D12Device* device, GX::Shader& shader)
     }
 
     // PSO: fullscreen triangle, alpha blend, depth write
-    GX::PipelineStateBuilder psoBuilder;
+    gx::PipelineStateBuilder psoBuilder;
     m_pso = psoBuilder
         .SetRootSignature(m_rootSig.Get())
         .SetVertexShader(vs.GetBytecode())
@@ -65,7 +65,7 @@ bool InfiniteGrid::Initialize(ID3D12Device* device, GX::Shader& shader)
 }
 
 void InfiniteGrid::Draw(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
-                         const GX::Camera3D& camera)
+                         const gx::Camera3D& camera)
 {
     // Update constant buffer
     XMMATRIX view = camera.GetViewMatrix();

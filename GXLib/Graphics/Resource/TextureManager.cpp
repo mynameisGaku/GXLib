@@ -1,10 +1,10 @@
 /// @file TextureManager.cpp
 /// @brief ハンドルベースのテクスチャ管理の実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Resource/TextureManager.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool TextureManager::Initialize(ID3D12Device* device, ID3D12CommandQueue* cmdQueue)
@@ -213,4 +213,4 @@ int TextureManager::CreateRegionHandles(int baseHandle, int allNum, int xNum, in
     return firstHandle;
 }
 
-} // namespace GX
+} // namespace gx

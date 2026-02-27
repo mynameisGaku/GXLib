@@ -1,10 +1,10 @@
 /// @file PipelineState.cpp
 /// @brief パイプラインステートオブジェクト（PSO）ビルダーの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 PipelineStateBuilder::PipelineStateBuilder()
@@ -214,4 +214,4 @@ ComPtr<ID3D12PipelineState> PipelineStateBuilder::Build(ID3D12Device* device)
     return pso;
 }
 
-} // namespace GX
+} // namespace gx

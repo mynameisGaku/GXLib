@@ -1,10 +1,10 @@
 /// @file ShadowMap.cpp
 /// @brief シャドウマップリソースの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/3D/ShadowMap.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool ShadowMap::Create(ID3D12Device* device, uint32_t size,
@@ -22,4 +22,4 @@ bool ShadowMap::Create(ID3D12Device* device, uint32_t size,
     return true;
 }
 
-} // namespace GX
+} // namespace gx

@@ -4,11 +4,11 @@
 /// D3D12のQuery Heap (TIMESTAMP) を使ってGPU側の処理時間を計測する。
 /// BeginFrameで前フレーム結果を読み取り、EndFrameでResolveQueryDataを発行。
 /// ダブルバッファリングのリードバックにより、GPUストールを回避している。
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Device/GPUProfiler.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 GPUProfiler& GPUProfiler::Instance()
@@ -251,4 +251,4 @@ void GPUProfiler::ReadbackResults(uint32_t frameIndex)
     m_readbackBuffer[frameIndex]->Unmap(0, &writeRange);
 }
 
-} // namespace GX
+} // namespace gx

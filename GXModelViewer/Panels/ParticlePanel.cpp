@@ -9,7 +9,7 @@
 #include "Graphics/3D/ParticleSystem3D.h"
 #include "Graphics/3D/ParticleEmitter.h"
 
-void ParticlePanel::Draw(GX::ParticleSystem3D& system)
+void ParticlePanel::Draw(gx::ParticleSystem3D& system)
 {
     if (!ImGui::Begin("Particles"))
     {
@@ -20,7 +20,7 @@ void ParticlePanel::Draw(GX::ParticleSystem3D& system)
     ImGui::End();
 }
 
-void ParticlePanel::DrawContent(GX::ParticleSystem3D& system)
+void ParticlePanel::DrawContent(gx::ParticleSystem3D& system)
 {
     ImGui::Text("Total Particles: %u", system.GetTotalParticleCount());
     ImGui::Separator();
@@ -30,7 +30,7 @@ void ParticlePanel::DrawContent(GX::ParticleSystem3D& system)
 
     if (ImGui::Button("Add Emitter"))
     {
-        GX::ParticleEmitterConfig config;
+        gx::ParticleEmitterConfig config;
         system.AddEmitter(config);
     }
 
@@ -55,8 +55,8 @@ void ParticlePanel::DrawContent(GX::ParticleSystem3D& system)
     // Selected emitter details
     if (m_selectedEmitter >= 0 && m_selectedEmitter < emitterCount)
     {
-        GX::ParticleEmitter& emitter = system.GetEmitter(m_selectedEmitter);
-        GX::ParticleEmitterConfig& config = emitter.GetConfigMutable();
+        gx::ParticleEmitter& emitter = system.GetEmitter(m_selectedEmitter);
+        gx::ParticleEmitterConfig& config = emitter.GetConfigMutable();
 
         ImGui::Separator();
         ImGui::Text("Emitter %d Settings", m_selectedEmitter);
@@ -122,18 +122,18 @@ void ParticlePanel::DrawContent(GX::ParticleSystem3D& system)
             const char* shapeNames[] = { "Point", "Sphere", "Cone", "Box" };
             int shapeIdx = static_cast<int>(config.shape);
             if (ImGui::Combo("Shape", &shapeIdx, shapeNames, 4))
-                config.shape = static_cast<GX::ParticleShape>(shapeIdx);
+                config.shape = static_cast<gx::ParticleShape>(shapeIdx);
 
-            if (config.shape == GX::ParticleShape::Sphere ||
-                config.shape == GX::ParticleShape::Cone)
+            if (config.shape == gx::ParticleShape::Sphere ||
+                config.shape == gx::ParticleShape::Cone)
             {
                 ImGui::DragFloat("Radius", &config.shapeRadius, 0.1f, 0.0f, 50.0f);
             }
-            if (config.shape == GX::ParticleShape::Cone)
+            if (config.shape == gx::ParticleShape::Cone)
             {
                 ImGui::DragFloat("Cone Angle", &config.coneAngle, 1.0f, 0.0f, 90.0f);
             }
-            if (config.shape == GX::ParticleShape::Box)
+            if (config.shape == gx::ParticleShape::Box)
             {
                 ImGui::DragFloat3("Box Half Extents", &config.boxHalfExtents.x, 0.1f, 0.0f, 50.0f);
             }
@@ -152,7 +152,7 @@ void ParticlePanel::DrawContent(GX::ParticleSystem3D& system)
             const char* blendNames[] = { "Alpha", "Additive" };
             int blendIdx = static_cast<int>(config.blend);
             if (ImGui::Combo("Blend", &blendIdx, blendNames, 2))
-                config.blend = static_cast<GX::ParticleBlend>(blendIdx);
+                config.blend = static_cast<gx::ParticleBlend>(blendIdx);
         }
 
         // Burst buttons

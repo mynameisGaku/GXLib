@@ -7,8 +7,8 @@
 #include "Graphics/3D/BlendTree.h"
 #include "TestHelpers.h"
 
-using namespace GX;
-using namespace GX::TestHelpers;
+using namespace gx;
+using namespace gx::TestHelpers;
 
 // Persistent clips
 static AnimationClip s_clipA = CreateSimpleClip("ClipA", 1.0f, 2.0f, 0.0f, 0.0f);

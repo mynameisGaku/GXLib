@@ -1,9 +1,9 @@
 /// @file PakFileProvider.cpp
 /// @brief GXPAK バンドルプロバイダー実装 — gxloader::PakLoader への委譲
-#include "pch.h"
+#include "pch_common.h"
 #include "IO/PakFileProvider.h"
 
-namespace GX {
+namespace gx {
 
 bool PakFileProvider::Open(const std::string& pakPath)
 {
@@ -22,4 +22,4 @@ FileData PakFileProvider::Read(const std::string& path) const
     return result;
 }
 
-} // namespace GX
+} // namespace gx

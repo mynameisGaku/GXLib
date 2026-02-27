@@ -17,7 +17,7 @@ struct TestObj
 
 TEST(PoolAllocatorTest, AllocateAndFree)
 {
-    GX::PoolAllocator<TestObj, 4> pool;
+    gx::PoolAllocator<TestObj, 4> pool;
     EXPECT_EQ(pool.GetActiveCount(), 0u);
 
     void* p1 = pool.Allocate();
@@ -36,7 +36,7 @@ TEST(PoolAllocatorTest, AllocateAndFree)
 
 TEST(PoolAllocatorTest, NewAndDelete)
 {
-    GX::PoolAllocator<TestObj, 4> pool;
+    gx::PoolAllocator<TestObj, 4> pool;
     TestObj* obj = pool.New(42, 3.14f);
     EXPECT_NE(obj, nullptr);
     EXPECT_EQ(obj->a, 42);
@@ -49,7 +49,7 @@ TEST(PoolAllocatorTest, NewAndDelete)
 
 TEST(PoolAllocatorTest, BlockGrowth)
 {
-    GX::PoolAllocator<TestObj, 4> pool;
+    gx::PoolAllocator<TestObj, 4> pool;
     EXPECT_EQ(pool.GetCapacity(), 0u);
 
     // 4個確保（最初のブロックが埋まる）
@@ -72,7 +72,7 @@ TEST(PoolAllocatorTest, BlockGrowth)
 
 TEST(PoolAllocatorTest, ReuseFreedSlots)
 {
-    GX::PoolAllocator<TestObj, 4> pool;
+    gx::PoolAllocator<TestObj, 4> pool;
     void* p1 = pool.Allocate();
     pool.Free(p1);
 
@@ -87,7 +87,7 @@ TEST(PoolAllocatorTest, ReuseFreedSlots)
 
 TEST(FrameAllocatorTest, BasicAllocate)
 {
-    GX::FrameAllocator alloc(1024);
+    gx::FrameAllocator alloc(1024);
     EXPECT_EQ(alloc.GetUsedBytes(), 0u);
     EXPECT_EQ(alloc.GetCapacity(), 1024u);
 
@@ -98,7 +98,7 @@ TEST(FrameAllocatorTest, BasicAllocate)
 
 TEST(FrameAllocatorTest, TypedAllocate)
 {
-    GX::FrameAllocator alloc(1024);
+    gx::FrameAllocator alloc(1024);
     float* f = alloc.Allocate<float>(10);
     EXPECT_NE(f, nullptr);
 
@@ -111,7 +111,7 @@ TEST(FrameAllocatorTest, TypedAllocate)
 
 TEST(FrameAllocatorTest, Reset)
 {
-    GX::FrameAllocator alloc(1024);
+    gx::FrameAllocator alloc(1024);
     alloc.Allocate(512);
     EXPECT_GE(alloc.GetUsedBytes(), 512u);
 
@@ -122,7 +122,7 @@ TEST(FrameAllocatorTest, Reset)
 
 TEST(FrameAllocatorTest, Alignment)
 {
-    GX::FrameAllocator alloc(1024);
+    gx::FrameAllocator alloc(1024);
     // 1バイト確保後に256バイト境界で確保
     alloc.Allocate(1, 1);
     void* p = alloc.Allocate(32, 256);
@@ -132,7 +132,7 @@ TEST(FrameAllocatorTest, Alignment)
 
 TEST(FrameAllocatorTest, CapacityExhausted)
 {
-    GX::FrameAllocator alloc(64);
+    gx::FrameAllocator alloc(64);
     void* p1 = alloc.Allocate(32);
     EXPECT_NE(p1, nullptr);
 
@@ -142,7 +142,7 @@ TEST(FrameAllocatorTest, CapacityExhausted)
 
 TEST(FrameAllocatorTest, SequentialAddresses)
 {
-    GX::FrameAllocator alloc(1024);
+    gx::FrameAllocator alloc(1024);
     void* p1 = alloc.Allocate(16, 16);
     void* p2 = alloc.Allocate(16, 16);
     EXPECT_NE(p1, nullptr);

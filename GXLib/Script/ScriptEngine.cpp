@@ -1,6 +1,6 @@
 /// @file ScriptEngine.cpp
 /// @brief Lua スクリプトエンジンの実装
-#include "pch.h"
+#include "pch_common.h"
 #include "Script/ScriptEngine.h"
 #include "Script/ScriptBindings.h"
 #include "Core/Logger.h"
@@ -10,7 +10,7 @@
 #define SOL_ALL_SAFETIES_ON 1
 #include <sol/sol.hpp>
 
-namespace GX
+namespace gx
 {
 
 struct ScriptEngine::Impl
@@ -175,12 +175,12 @@ void ScriptEngine::Shutdown()
     m_impl.reset();
 }
 
-} // namespace GX
+} // namespace gx
 
 #else // !GX_ENABLE_LUA
 
 // Lua 無効ビルド時のスタブ実装
-namespace GX
+namespace gx
 {
 
 struct ScriptEngine::Impl {};
@@ -206,6 +206,6 @@ float ScriptEngine::GetGlobalFloat(const std::string&, float d) const { return d
 int ScriptEngine::GetGlobalInt(const std::string&, int d) const { return d; }
 void ScriptEngine::Shutdown() {}
 
-} // namespace GX
+} // namespace gx
 
 #endif // GX_ENABLE_LUA

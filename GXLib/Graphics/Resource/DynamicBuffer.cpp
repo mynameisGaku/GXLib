@@ -1,10 +1,10 @@
 /// @file DynamicBuffer.cpp
 /// @brief ダイナミックバッファの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Resource/DynamicBuffer.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool DynamicBuffer::Initialize(ID3D12Device* device, uint32_t maxSize, uint32_t stride)
@@ -114,4 +114,4 @@ D3D12_GPU_VIRTUAL_ADDRESS DynamicBuffer::GetGPUVirtualAddress(uint32_t frameInde
     return m_buffers[frameIndex]->GetGPUVirtualAddress();
 }
 
-} // namespace GX
+} // namespace gx

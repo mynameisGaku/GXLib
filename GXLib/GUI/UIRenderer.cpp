@@ -1,4 +1,4 @@
-#include "pch.h"
+#include "pch_graphics.h"
 #include "GUI/UIRenderer.h"
 #include "Graphics/Rendering/SpriteBatch.h"
 #include "Graphics/Rendering/TextRenderer.h"
@@ -7,7 +7,7 @@
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
 
-namespace GX { namespace GUI {
+namespace gx { namespace GUI {
 
 static bool IsIdentityTransform(const Transform2D& t)
 {
@@ -748,4 +748,4 @@ void UIRenderer::OnResize(uint32_t width, uint32_t height)
                      static_cast<float>(m_designHeight > 0 ? m_designHeight : height) };
 }
 
-}} // namespace GX::GUI
+}} // namespace gx::GUI

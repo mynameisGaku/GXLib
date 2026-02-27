@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 #include "Graphics/Rendering/Camera2D.h"
 
-using namespace GX;
+using namespace gx;
 
 static constexpr float kEps = 1e-5f;
 static constexpr float kPi  = 3.14159265f;

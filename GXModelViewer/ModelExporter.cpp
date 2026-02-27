@@ -1,7 +1,7 @@
 /// @file ModelExporter.cpp
-/// @brief GX::Model → gxconv::Scene中間表現 → GXMD/GXANバイナリ出力
+/// @brief gx::Model → gxconv::Scene中間表現 → GXMD/GXANバイナリ出力
 ///
-/// GX::Modelのメッシュ/マテリアル/スケルトン/アニメーションをgxconv中間表現に変換し、
+/// gx::Modelのメッシュ/マテリアル/スケルトン/アニメーションをgxconv中間表現に変換し、
 /// gxconv::GxmdExporter/GxanExporterでバイナリファイルを書き出す。
 /// マテリアルのShaderModelパラメータやテクスチャファイルパスも保持される。
 
@@ -21,16 +21,16 @@
 #include <cstring>
 
 // ============================================================
-// GX::Model → gxconv::Scene 変換ヘルパー
+// gx::Model → gxconv::Scene 変換ヘルパー
 // メッシュ(頂点/インデックス)、マテリアル(テクスチャパス含む)、
 // スケルトン(IBM+ローカルTRS)、アニメーション(T/R/Sチャンネル)を変換する。
 // ============================================================
 static gxconv::Scene ConvertModelToScene(const SceneEntity& entity,
-                                          GX::MaterialManager& matManager,
-                                          GX::TextureManager* texManager)
+                                          gx::MaterialManager& matManager,
+                                          gx::TextureManager* texManager)
 {
     gxconv::Scene scene;
-    const GX::Model* model = entity.model;
+    const gx::Model* model = entity.model;
     if (!model) return scene;
 
     const auto* cpuData = model->GetCPUData();
@@ -121,7 +121,7 @@ static gxconv::Scene ConvertModelToScene(const SceneEntity& entity,
         int matHandle = subMeshes[si].materialHandle;
         if (matHandle >= 0)
         {
-            GX::Material* mat = matManager.GetMaterial(matHandle);
+            gx::Material* mat = matManager.GetMaterial(matHandle);
             if (mat)
             {
                 intMat.shaderModel = mat->shaderModel;
@@ -158,7 +158,7 @@ static gxconv::Scene ConvertModelToScene(const SceneEntity& entity,
     }
 
     // --- Skeleton ---
-    const GX::Skeleton* skeleton = model->GetSkeleton();
+    const gx::Skeleton* skeleton = model->GetSkeleton();
     if (skeleton && skeleton->GetJointCount() > 0)
     {
         scene.hasSkeleton = true;
@@ -174,7 +174,7 @@ static gxconv::Scene ConvertModelToScene(const SceneEntity& entity,
             memcpy(ij.inverseBindMatrix, &gj.inverseBindMatrix, sizeof(float) * 16);
 
             // Decompose localTransform to TRS
-            GX::TransformTRS trs = GX::DecomposeTRS(gj.localTransform);
+            gx::TransformTRS trs = gx::DecomposeTRS(gj.localTransform);
             memcpy(ij.localTranslation, &trs.translation, sizeof(float) * 3);
             memcpy(ij.localRotation, &trs.rotation, sizeof(float) * 4);
             memcpy(ij.localScale, &trs.scale, sizeof(float) * 3);
@@ -259,8 +259,8 @@ static gxconv::Scene ConvertModelToScene(const SceneEntity& entity,
 // ExportToGxmd
 // ============================================================
 bool ModelExporter::ExportToGxmd(const SceneEntity& entity,
-                                  GX::MaterialManager& matManager,
-                                  GX::TextureManager& texManager,
+                                  gx::MaterialManager& matManager,
+                                  gx::TextureManager& texManager,
                                   const std::string& outputPath)
 {
     if (!entity.model)
@@ -301,7 +301,7 @@ bool ModelExporter::ExportToGxan(const SceneEntity& entity,
 
     // We need a dummy matManager for the conversion (materials aren't used by GXAN)
     // but ConvertModelToScene requires one. Use a temporary.
-    GX::MaterialManager dummyMat;
+    gx::MaterialManager dummyMat;
     gxconv::Scene scene = ConvertModelToScene(entity, dummyMat, nullptr);
     if (scene.animations.empty())
     {

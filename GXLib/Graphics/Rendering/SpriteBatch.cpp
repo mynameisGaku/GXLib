@@ -4,7 +4,7 @@
 /// テクスチャが切り替わるか、バッファが満杯になるタイミングで自動的に Flush() が走り、
 /// 蓄積したスプライトをまとめてDrawIndexedInstancedで描画する。
 /// ブレンドモード変更時もPSO切り替えのためにFlushが発生する。
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Rendering/SpriteBatch.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
@@ -12,7 +12,7 @@
 #include "Core/Logger.h"
 #include <cmath>
 
-namespace GX
+namespace gx
 {
 
 bool SpriteBatch::Initialize(ID3D12Device* device, ID3D12CommandQueue* cmdQueue,
@@ -548,4 +548,4 @@ void SpriteBatch::ResetProjectionMatrix()
     UpdateProjectionMatrix();
 }
 
-} // namespace GX
+} // namespace gx

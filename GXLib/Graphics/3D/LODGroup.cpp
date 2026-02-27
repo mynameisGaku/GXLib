@@ -1,4 +1,4 @@
-#include "pch.h"
+#include "pch_graphics.h"
 /// @file LODGroup.cpp
 /// @brief LOD（Level of Detail）グループ管理の実装
 
@@ -7,7 +7,7 @@
 #include "Graphics/3D/Transform3D.h"
 #include "Graphics/3D/Model.h"
 
-namespace GX
+namespace gx
 {
 
 void LODGroup::AddLevel(Model* model, float screenPercentage)
@@ -98,4 +98,4 @@ Model* LODGroup::SelectLOD(const Camera3D& camera, const Transform3D& transform,
     return m_levels[selectedLevel].model;
 }
 
-} // namespace GX
+} // namespace gx

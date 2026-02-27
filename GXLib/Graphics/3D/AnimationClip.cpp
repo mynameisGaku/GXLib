@@ -1,10 +1,10 @@
 /// @file AnimationClip.cpp
 /// @brief アニメーションクリップの実装
 /// キーフレーム補間のコアロジック。位置/スケールは線形補間、回転は球面線形補間(slerp)を使う。
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/3D/AnimationClip.h"
 
-namespace GX
+namespace gx
 {
 
 /// 指定時刻を含むキーフレームペアのうち、先頭側のインデックスを返す（線形探索）
@@ -136,4 +136,4 @@ void AnimationClip::CollectEvents(float prevTime, float curTime,
     }
 }
 
-} // namespace GX
+} // namespace gx

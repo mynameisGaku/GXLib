@@ -5,7 +5,7 @@
 #include "Compat/CompatContext.h"
 #include "Core/Logger.h"
 
-using Ctx = GX_Internal::CompatContext;
+using Ctx = gx_internal::CompatContext;
 
 int GX_Init()
 {
@@ -23,16 +23,9 @@ int ProcessMessage()
     return Ctx::Instance().ProcessMessage();
 }
 
-int SetMainWindowText(const TCHAR* title)
+int SetMainWindowText(const char* title)
 {
-    auto& ctx = Ctx::Instance();
-#ifdef UNICODE
-    ctx.windowTitle = title;
-#else
-    int len = MultiByteToWideChar(CP_ACP, 0, title, -1, nullptr, 0);
-    ctx.windowTitle.resize(len - 1);
-    MultiByteToWideChar(CP_ACP, 0, title, -1, ctx.windowTitle.data(), len);
-#endif
+    Ctx::Instance().windowTitle = title ? title : "";
     return 0;
 }
 
@@ -58,6 +51,16 @@ unsigned int GetColor(int r, int g, int b)
         | (static_cast<unsigned int>(r & 0xFF) << 16)
         | (static_cast<unsigned int>(g & 0xFF) << 8)
         | (static_cast<unsigned int>(b & 0xFF));
+}
+
+float GetDeltaTime()
+{
+    return Ctx::Instance().app.GetTimer().GetDeltaTime();
+}
+
+float GetFPS()
+{
+    return Ctx::Instance().app.GetTimer().GetFPS();
 }
 
 int GetNowCount()
@@ -104,3 +107,24 @@ int SetBackgroundColor(int r, int g, int b)
     ctx.bgColor_b = static_cast<uint32_t>(b & 0xFF);
     return 0;
 }
+
+// ============================================================================
+// ポストエフェクト制御
+// ============================================================================
+void SetPostFXMask(gx::PostFXFlag mask)
+{
+    Ctx::Instance().postFXMask = mask;
+}
+
+void SetPostFXEnabled(bool enabled)
+{
+    Ctx::Instance().postFXMask = enabled ? gx::PostFXFlag::All : gx::PostFXFlag::None;
+}
+
+// ============================================================================
+// 中級者向け — 描画パイプラインアクセス
+// ============================================================================
+gx::Renderer3D&         GetRenderer3D()     { return Ctx::Instance().renderer3D; }
+gx::Camera3D&           GetCamera3D()       { return Ctx::Instance().camera; }
+gx::PostEffectPipeline& GetPostEffects()    { return Ctx::Instance().postEffect; }
+gx::InputManager&       GetInputManager()   { return Ctx::Instance().inputManager; }

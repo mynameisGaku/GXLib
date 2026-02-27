@@ -1,8 +1,8 @@
-#include "pch.h"
+#include "pch_graphics.h"
 #include "GUI/Widgets/TextWidget.h"
 #include "GUI/UIRenderer.h"
 
-namespace GX { namespace GUI {
+namespace gx { namespace GUI {
 
 float TextWidget::GetIntrinsicWidth() const
 {
@@ -76,4 +76,4 @@ void TextWidget::RenderSelf(UIRenderer& renderer)
     // 子は通常描画しない（TextWidgetは末端）
 }
 
-}} // namespace GX::GUI
+}} // namespace gx::GUI

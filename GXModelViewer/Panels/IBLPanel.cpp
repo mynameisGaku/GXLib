@@ -10,7 +10,7 @@
 #include "Graphics/3D/Skybox.h"
 #include "Graphics/3D/Renderer3D.h"
 
-void IBLPanel::Draw(GX::IBL& ibl, GX::Skybox& skybox, GX::Renderer3D& renderer)
+void IBLPanel::Draw(gx::IBL& ibl, gx::Skybox& skybox, gx::Renderer3D& renderer)
 {
     if (!ImGui::Begin("IBL"))
     {
@@ -21,7 +21,7 @@ void IBLPanel::Draw(GX::IBL& ibl, GX::Skybox& skybox, GX::Renderer3D& renderer)
     ImGui::End();
 }
 
-void IBLPanel::DrawContent(GX::IBL& ibl, GX::Skybox& skybox, GX::Renderer3D& renderer)
+void IBLPanel::DrawContent(gx::IBL& ibl, gx::Skybox& skybox, gx::Renderer3D& renderer)
 {
     bool ready = ibl.IsReady();
     ImGui::Text("IBL Status: %s", ready ? "Ready" : "Not Initialized");

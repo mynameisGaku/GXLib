@@ -1,9 +1,9 @@
-#include "pch.h"
+#include "pch_graphics.h"
 #include "GUI/UIContext.h"
 #include "Input/InputManager.h"
 #include "Math/Transform2D.h"
 
-namespace GX { namespace GUI {
+namespace gx { namespace GUI {
 
 // ウィジェットのCSS transformプロパティからアフィン変換を構築する
 static Transform2D BuildLocalTransform(const Widget& widget, const Style& style)
@@ -820,4 +820,4 @@ void UIContext::SetDesignResolution(uint32_t width, uint32_t height)
     if (m_root) m_root->layoutDirty = true;
 }
 
-}} // namespace GX::GUI
+}} // namespace gx::GUI

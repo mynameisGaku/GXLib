@@ -1,8 +1,8 @@
-#include "pch.h"
+#include "pch_graphics.h"
 #include "GUI/Widgets/ListView.h"
 #include "GUI/UIRenderer.h"
 
-namespace GX { namespace GUI {
+namespace gx { namespace GUI {
 
 static std::wstring Utf8ToWide(const std::string& utf8)
 {
@@ -153,4 +153,4 @@ void ListView::RenderSelf(UIRenderer& renderer)
     renderer.PopScissor();
 }
 
-}} // namespace GX::GUI
+}} // namespace gx::GUI

@@ -1,6 +1,6 @@
 /// @file ActionMapping.cpp
 /// @brief アクションマッピングの実装
-#include "pch.h"
+#include "pch_common.h"
 #include "Input/ActionMapping.h"
 #include "Input/Keyboard.h"
 #include "Input/Mouse.h"
@@ -10,7 +10,7 @@
 // JSON読み書き用
 #include "ThirdParty/json.hpp"
 
-namespace GX
+namespace gx
 {
 
 ActionState ActionMapping::s_emptyState = {};
@@ -258,4 +258,4 @@ void ActionMapping::Clear()
     m_actions.clear();
 }
 
-} // namespace GX
+} // namespace gx

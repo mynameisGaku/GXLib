@@ -1,4 +1,4 @@
-#include "pch.h"
+#include "pch_common.h"
 #include <mfapi.h>
 #include <mfidl.h>
 #include <mfreadwrite.h>
@@ -11,7 +11,7 @@
 #pragma comment(lib, "mf.lib")
 #pragma comment(lib, "mfuuid.lib")
 
-namespace GX {
+namespace gx {
 
 MoviePlayer::MoviePlayer()
 {
@@ -312,4 +312,4 @@ bool MoviePlayer::DecodeNextFrame(GraphicsDevice& device)
     return true;
 }
 
-} // namespace GX
+} // namespace gx

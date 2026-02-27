@@ -5,7 +5,7 @@
 /// 再生/一時停止/停止、タイムスクラブ、速度プリセット、クリップ切り替え、
 /// ルートモーションロックの操作UIを提供する。
 
-namespace GX { class Animator; class Model; }
+namespace gx { class Animator; class Model; }
 
 /// @brief アニメーション再生制御のタイムラインパネル
 class TimelinePanel
@@ -16,7 +16,7 @@ public:
     /// @param model アニメーションクリップ一覧の取得元
     /// @param deltaTime フレーム経過時間（秒）
     /// @param selectedClipIndex 選択中クリップインデックスの読み書き先（nullptrの場合は無視）
-    void Draw(GX::Animator* animator, const GX::Model* model,
+    void Draw(gx::Animator* animator, const gx::Model* model,
               float deltaTime, int* selectedClipIndex);
 
 private:

@@ -1,8 +1,8 @@
-#include "pch.h"
+#include "pch_common.h"
 #include "IO/PhysicalFileProvider.h"
 #include "Core/Logger.h"
 
-namespace GX {
+namespace gx {
 
 PhysicalFileProvider::PhysicalFileProvider(const std::string& rootDir)
     : m_rootDir(rootDir)
@@ -54,4 +54,4 @@ bool PhysicalFileProvider::Write(const std::string& path, const void* data, size
     return file.good();
 }
 
-} // namespace GX
+} // namespace gx

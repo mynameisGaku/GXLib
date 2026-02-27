@@ -1,10 +1,10 @@
 /// @file RenderLayer.cpp
 /// @brief 描画レイヤーの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Layer/RenderLayer.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool RenderLayer::Create(ID3D12Device* device, const std::string& name,
@@ -67,4 +67,4 @@ void RenderLayer::OnResize(ID3D12Device* device, uint32_t w, uint32_t h)
     m_renderTarget.Create(device, w, h, DXGI_FORMAT_R8G8B8A8_UNORM);
 }
 
-} // namespace GX
+} // namespace gx

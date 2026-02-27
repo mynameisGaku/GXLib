@@ -1,12 +1,12 @@
 /// @file MusicPlayer.cpp
 /// @brief BGM（背景音楽）再生の実装
-#include "pch.h"
+#include "pch_audio.h"
 #include "Audio/MusicPlayer.h"
 #include "Audio/Sound.h"
 #include "Audio/AudioDevice.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 MusicPlayer::~MusicPlayer()
@@ -171,4 +171,4 @@ void MusicPlayer::Update(float deltaTime)
     }
 }
 
-} // namespace GX
+} // namespace gx

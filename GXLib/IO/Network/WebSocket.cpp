@@ -1,11 +1,11 @@
 /// @file WebSocket.cpp
 /// @brief WebSocketクライアント実装 — WinHTTP WebSocket API ラッパー
-#include "pch.h"
+#include "pch_common.h"
 #include <winhttp.h>
 #include "IO/Network/WebSocket.h"
 #include "Core/Logger.h"
 
-namespace GX {
+namespace gx {
 
 WebSocket::WebSocket() = default;
 
@@ -263,4 +263,4 @@ void WebSocket::ReceiveLoop()
     m_running.store(false);
 }
 
-} // namespace GX
+} // namespace gx

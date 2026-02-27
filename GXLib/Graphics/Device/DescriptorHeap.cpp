@@ -1,10 +1,10 @@
 /// @file DescriptorHeap.cpp
 /// @brief ディスクリプタヒープの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Device/DescriptorHeap.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool DescriptorHeap::Initialize(ID3D12Device* device,
@@ -104,4 +104,4 @@ D3D12_GPU_DESCRIPTOR_HANDLE DescriptorHeap::GetGPUHandle(uint32_t index) const
     return handle;
 }
 
-} // namespace GX
+} // namespace gx

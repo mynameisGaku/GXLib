@@ -47,7 +47,7 @@ public:
 
 private:
     /// @brief スキンドモデルのボーン階層をツリーノードとして再帰描画する
-    void DrawBoneTree(const GX::Skeleton* skeleton, SceneGraph& scene, int jointIndex);
+    void DrawBoneTree(const gx::Skeleton* skeleton, SceneGraph& scene, int jointIndex);
 
     /// @brief コンテキストメニュー（右クリック）を描画する
     void DrawContextMenu(SceneGraph& scene, int entityCount);

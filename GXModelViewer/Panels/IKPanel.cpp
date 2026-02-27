@@ -9,7 +9,7 @@
 #include "Graphics/3D/FootIK.h"
 #include "Graphics/3D/LookAtIK.h"
 
-void IKPanel::Draw(GX::FootIK* footIK, GX::LookAtIK* lookAtIK, bool hasSkeleton)
+void IKPanel::Draw(gx::FootIK* footIK, gx::LookAtIK* lookAtIK, bool hasSkeleton)
 {
     if (!ImGui::Begin("IK"))
     {
@@ -20,7 +20,7 @@ void IKPanel::Draw(GX::FootIK* footIK, GX::LookAtIK* lookAtIK, bool hasSkeleton)
     ImGui::End();
 }
 
-void IKPanel::DrawContent(GX::FootIK* footIK, GX::LookAtIK* lookAtIK, bool hasSkeleton)
+void IKPanel::DrawContent(gx::FootIK* footIK, gx::LookAtIK* lookAtIK, bool hasSkeleton)
 {
     if (!hasSkeleton)
     {

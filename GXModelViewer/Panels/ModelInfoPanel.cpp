@@ -30,7 +30,7 @@ void ModelInfoPanel::DrawContent(const SceneGraph& scene)
         return;
     }
 
-    const GX::Model* model = entity->model;
+    const gx::Model* model = entity->model;
 
     // Source path
     if (!entity->sourcePath.empty())
@@ -112,7 +112,7 @@ void ModelInfoPanel::DrawContent(const SceneGraph& scene)
     // Skeleton
     if (model->HasSkeleton())
     {
-        const GX::Skeleton* skeleton = model->GetSkeleton();
+        const gx::Skeleton* skeleton = model->GetSkeleton();
         ImGui::Separator();
         ImGui::Text("Bones: %u", skeleton->GetJointCount());
     }

@@ -1,9 +1,9 @@
 /// @file ArchiveFileProvider.cpp
 /// @brief アーカイブプロバイダー実装 — Archive への委譲
-#include "pch.h"
+#include "pch_common.h"
 #include "IO/ArchiveFileProvider.h"
 
-namespace GX {
+namespace gx {
 
 bool ArchiveFileProvider::Open(const std::string& archivePath, const std::string& password)
 {
@@ -20,4 +20,4 @@ FileData ArchiveFileProvider::Read(const std::string& path) const
     return m_archive.Read(path);
 }
 
-} // namespace GX
+} // namespace gx

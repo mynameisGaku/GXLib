@@ -7,7 +7,7 @@
 #include "Math/Vector3.h"
 #include "Math/Vector4.h"
 
-using namespace GX;
+using namespace gx;
 
 // ============================================================================
 // Vector2（2次元ベクトル）

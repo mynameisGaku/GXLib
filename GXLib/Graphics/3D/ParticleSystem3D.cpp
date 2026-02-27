@@ -1,12 +1,12 @@
 /// @file ParticleSystem3D.cpp
 /// @brief 3Dパーティクルシステムの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/3D/ParticleSystem3D.h"
 #include "Graphics/Resource/TextureManager.h"
 #include "Graphics/Device/DescriptorHeap.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool ParticleSystem3D::Initialize(ID3D12Device* device, TextureManager& textureManager)
@@ -349,4 +349,4 @@ void ParticleSystem3D::Shutdown()
     m_rootSignature.Reset();
 }
 
-} // namespace GX
+} // namespace gx

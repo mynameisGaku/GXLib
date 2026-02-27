@@ -1,9 +1,9 @@
-#include "pch.h"
+#include "pch_graphics.h"
 #include "GUI/XMLParser.h"
 #include "IO/FileSystem.h"
 #include "Core/Logger.h"
 
-namespace GX { namespace GUI {
+namespace gx { namespace GUI {
 
 // ============================================================================
 // LoadFromFile（ファイル読み込み）
@@ -11,7 +11,7 @@ namespace GX { namespace GUI {
 
 bool XMLDocument::LoadFromFile(const std::string& path)
 {
-    auto fileData = GX::FileSystem::Instance().ReadFile(path);
+    auto fileData = gx::FileSystem::Instance().ReadFile(path);
     if (!fileData.IsValid())
     {
         // 直接ファイルI/Oにフォールバック
@@ -377,4 +377,4 @@ std::string XMLDocument::DecodeEntities(const std::string& text)
     return result;
 }
 
-}} // namespace GX::GUI
+}} // namespace gx::GUI

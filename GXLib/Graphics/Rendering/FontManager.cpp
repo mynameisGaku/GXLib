@@ -4,14 +4,14 @@
 /// DirectWrite + Direct2D + WIC を使い、文字を1つずつビットマップにラスタライズして
 /// アトラステクスチャに配置する。アトラスは2048x2048固定で、左上から右へ詰めていき、
 /// 行が溢れたら次の行へ移る。GPUへの転送は FlushAtlasUpdates() でまとめて行う。
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Rendering/FontManager.h"
 #include "Core/Logger.h"
 #include <d2d1.h>
 #include <dwrite.h>
 #include <wincodec.h>
 
-namespace GX
+namespace gx
 {
 
 bool FontManager::Initialize(ID3D12Device* device, TextureManager* textureManager)
@@ -491,5 +491,5 @@ void FontManager::Shutdown()
     GX_LOG_INFO("FontManager shutdown");
 }
 
-} // namespace GX
+} // namespace gx
 

@@ -1,10 +1,10 @@
 /// @file AudioEmitter.cpp
 /// @brief 3Dオーディオエミッターの実装
-#include "pch.h"
+#include "pch_audio.h"
 #include "Audio/AudioEmitter.h"
 #include <x3daudio.h>
 
-namespace GX
+namespace gx
 {
 
 AudioEmitter::AudioEmitter()
@@ -100,4 +100,4 @@ void AudioEmitter::UpdateNative()
         m_emitter.pCone = nullptr;
 }
 
-} // namespace GX
+} // namespace gx

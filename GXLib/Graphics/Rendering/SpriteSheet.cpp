@@ -3,11 +3,11 @@
 ///
 /// テクスチャを1枚だけロードし、TextureManager のリージョンハンドル機能で
 /// UV矩形を分割する。テクスチャ実体は1枚だけなのでVRAM効率が良い。
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Rendering/SpriteSheet.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool SpriteSheet::LoadDivGraph(TextureManager& textureManager,
@@ -43,4 +43,4 @@ bool SpriteSheet::LoadDivGraph(TextureManager& textureManager,
     return true;
 }
 
-} // namespace GX
+} // namespace gx

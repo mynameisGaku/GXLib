@@ -1,10 +1,10 @@
 /// @file PointShadowMap.cpp
 /// @brief ポイントライト用キューブシャドウマップの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/3D/PointShadowMap.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool PointShadowMap::Create(ID3D12Device* device, DescriptorHeap* srvHeap, uint32_t srvIndex)
@@ -114,4 +114,4 @@ D3D12_CPU_DESCRIPTOR_HANDLE PointShadowMap::GetFaceDSVHandle(uint32_t face) cons
     return m_dsvHeap.GetCPUHandle(face);
 }
 
-} // namespace GX
+} // namespace gx

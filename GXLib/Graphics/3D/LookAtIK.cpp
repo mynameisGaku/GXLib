@@ -1,10 +1,10 @@
 /// @file LookAtIK.cpp
 /// @brief 視線IKの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/3D/LookAtIK.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 void LookAtIK::Setup(const Skeleton& skeleton,
@@ -198,4 +198,4 @@ void LookAtIK::Apply(XMFLOAT4X4* localTransforms,
     }
 }
 
-} // namespace GX
+} // namespace gx

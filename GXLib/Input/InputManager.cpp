@@ -1,11 +1,11 @@
 /// @file InputManager.cpp
 /// @brief 入力システム統合マネージャーの実装
-#include "pch.h"
+#include "pch_common.h"
 #include "Input/InputManager.h"
 #include "Core/Window.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 void InputManager::Initialize(Window& window)
@@ -72,4 +72,4 @@ int InputManager::GetMouseWheel() const
     return m_mouse.GetWheel();
 }
 
-} // namespace GX
+} // namespace gx

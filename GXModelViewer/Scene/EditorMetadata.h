@@ -2,12 +2,12 @@
 /// @file EditorMetadata.h
 /// @brief エディタ固有のメタデータ（GXModelViewer用）
 ///
-/// GX::Entity/Componentシステムには含まれない、エディタ固有の表示設定や
-/// 選択状態を保持する。将来のSceneGraph→GX::Scene移行時に使用する。
+/// gx::Entity/Componentシステムには含まれない、エディタ固有の表示設定や
+/// 選択状態を保持する。将来のSceneGraph→gx::Scene移行時に使用する。
 
 #include <string>
 
-namespace GXEditor
+namespace gxEditor
 {
 
 /// @brief エンティティごとのエディタ固有メタデータ
@@ -20,4 +20,4 @@ struct EditorMetadata
     bool pendingRemoval = false;    ///< 遅延削除フラグ（GPUフラッシュ後に削除）
 };
 
-} // namespace GXEditor
+} // namespace gxEditor

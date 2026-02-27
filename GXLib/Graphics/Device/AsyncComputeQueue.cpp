@@ -1,10 +1,10 @@
 /// @file AsyncComputeQueue.cpp
 /// @brief 非同期コンピュートキューの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Device/AsyncComputeQueue.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool AsyncComputeQueue::Initialize(ID3D12Device* device)
@@ -94,4 +94,4 @@ void AsyncComputeQueue::Flush()
     m_fence.WaitForGPU(m_queue.Get());
 }
 
-} // namespace GX
+} // namespace gx

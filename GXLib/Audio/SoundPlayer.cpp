@@ -1,6 +1,6 @@
 /// @file SoundPlayer.cpp
 /// @brief SE（効果音）再生の実装（2D + 3D空間音響対応）
-#include "pch.h"
+#include "pch_audio.h"
 #include "Audio/SoundPlayer.h"
 #include "Audio/Sound.h"
 #include "Audio/AudioDevice.h"
@@ -10,7 +10,7 @@
 #include "Core/Logger.h"
 #include <x3daudio.h>
 
-namespace GX
+namespace gx
 {
 
 SoundPlayer::~SoundPlayer()
@@ -363,4 +363,4 @@ void SoundPlayer::CleanupFinishedVoices()
     m_activeVoiceCount = static_cast<int>(m_activeVoices.size());
 }
 
-} // namespace GX
+} // namespace gx

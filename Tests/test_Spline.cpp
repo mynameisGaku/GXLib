@@ -6,7 +6,7 @@
 #include "Math/Spline.h"
 #include "Math/Vector3.h"
 
-using namespace GX;
+using namespace gx;
 
 TEST(SplineTest, PointManagement_AddAndGet)
 {

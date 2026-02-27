@@ -1,8 +1,8 @@
-#include "pch.h"
+#include "pch_graphics.h"
 #include "GUI/Widgets/Dialog.h"
 #include "GUI/UIRenderer.h"
 
-namespace GX { namespace GUI {
+namespace gx { namespace GUI {
 
 bool Dialog::OnEvent(const UIEvent& event)
 {
@@ -33,4 +33,4 @@ void Dialog::RenderSelf(UIRenderer& renderer)
     // 子ウィジェットを描画（CSSでcenter配置される想定）
 }
 
-}} // namespace GX::GUI
+}} // namespace gx::GUI

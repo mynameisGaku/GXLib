@@ -122,7 +122,7 @@ private:
     SceneGraph& m_scene;
     int m_entityIdx;
     std::string m_savedName;
-    GX::Transform3D m_savedTransform;
+    gx::Transform3D m_savedTransform;
     int m_savedParentIndex = -1;
 };
 

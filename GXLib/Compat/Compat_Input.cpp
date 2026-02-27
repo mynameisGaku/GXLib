@@ -6,7 +6,7 @@
 #include "Compat/GXLib.h"
 #include "Compat/CompatContext.h"
 
-using Ctx = GX_Internal::CompatContext;
+using Ctx = gx_internal::CompatContext;
 
 // ============================================================================
 // DIK → VK 変換テーブル (256エントリ)
@@ -173,22 +173,22 @@ int GetJoypadInputState(int inputType)
     auto& ctx = Ctx::Instance();
     auto& pad = ctx.inputManager.GetGamepad();
     int padIdx = inputType;
-    if (padIdx < 0 || padIdx >= GX::Gamepad::k_MaxPads) return 0;
+    if (padIdx < 0 || padIdx >= gx::Gamepad::k_MaxPads) return 0;
     if (!pad.IsConnected(padIdx)) return 0;
 
     int result = 0;
 
-    if (pad.IsButtonDown(padIdx, GX::PadButton::DPadDown))  result |= PAD_INPUT_DOWN;
-    if (pad.IsButtonDown(padIdx, GX::PadButton::DPadLeft))  result |= PAD_INPUT_LEFT;
-    if (pad.IsButtonDown(padIdx, GX::PadButton::DPadRight)) result |= PAD_INPUT_RIGHT;
-    if (pad.IsButtonDown(padIdx, GX::PadButton::DPadUp))    result |= PAD_INPUT_UP;
-    if (pad.IsButtonDown(padIdx, GX::PadButton::A))  result |= PAD_INPUT_A;
-    if (pad.IsButtonDown(padIdx, GX::PadButton::B))  result |= PAD_INPUT_B;
-    if (pad.IsButtonDown(padIdx, GX::PadButton::X))  result |= PAD_INPUT_X;
-    if (pad.IsButtonDown(padIdx, GX::PadButton::Y))  result |= PAD_INPUT_Y;
-    if (pad.IsButtonDown(padIdx, GX::PadButton::LeftShoulder))  result |= PAD_INPUT_L;
-    if (pad.IsButtonDown(padIdx, GX::PadButton::RightShoulder)) result |= PAD_INPUT_R;
-    if (pad.IsButtonDown(padIdx, GX::PadButton::Start)) result |= PAD_INPUT_START;
+    if (pad.IsButtonDown(padIdx, gx::PadButton::DPadDown))  result |= PAD_INPUT_DOWN;
+    if (pad.IsButtonDown(padIdx, gx::PadButton::DPadLeft))  result |= PAD_INPUT_LEFT;
+    if (pad.IsButtonDown(padIdx, gx::PadButton::DPadRight)) result |= PAD_INPUT_RIGHT;
+    if (pad.IsButtonDown(padIdx, gx::PadButton::DPadUp))    result |= PAD_INPUT_UP;
+    if (pad.IsButtonDown(padIdx, gx::PadButton::A))  result |= PAD_INPUT_A;
+    if (pad.IsButtonDown(padIdx, gx::PadButton::B))  result |= PAD_INPUT_B;
+    if (pad.IsButtonDown(padIdx, gx::PadButton::X))  result |= PAD_INPUT_X;
+    if (pad.IsButtonDown(padIdx, gx::PadButton::Y))  result |= PAD_INPUT_Y;
+    if (pad.IsButtonDown(padIdx, gx::PadButton::LeftShoulder))  result |= PAD_INPUT_L;
+    if (pad.IsButtonDown(padIdx, gx::PadButton::RightShoulder)) result |= PAD_INPUT_R;
+    if (pad.IsButtonDown(padIdx, gx::PadButton::Start)) result |= PAD_INPUT_START;
 
     return result;
 }
@@ -210,7 +210,7 @@ int SetActionKey(const char* actionName, int keyCode)
     auto& ctx = Ctx::Instance();
     auto& am = ctx.inputManager.GetActionMapping();
     int vk = DIKToVK(keyCode);
-    am.DefineAction(actionName, { GX::InputBinding::Key(vk) });
+    am.DefineAction(actionName, { gx::InputBinding::Key(vk) });
     return 0;
 }
 
@@ -218,7 +218,7 @@ int SetActionButton(const char* actionName, int padButton)
 {
     auto& ctx = Ctx::Instance();
     auto& am = ctx.inputManager.GetActionMapping();
-    am.DefineAction(actionName, { GX::InputBinding::PadBtn(padButton) });
+    am.DefineAction(actionName, { gx::InputBinding::PadBtn(padButton) });
     return 0;
 }
 

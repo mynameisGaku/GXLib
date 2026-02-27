@@ -13,6 +13,7 @@
 ///   2D/3D物理(Jolt), ファイル/ネットワーク/ムービー, DXR反射, GPUプロファイラ
 
 #include "pch.h"
+#include "Math/MathConvert.h"
 #include "Core/Application.h"
 #include "Core/Logger.h"
 #include "Graphics/Device/GraphicsDevice.h"
@@ -101,126 +102,126 @@
 // --- DirectX 12 コアオブジェクト ---
 // GXEasyを使わないため、デバイスからスワップチェーンまで自前管理。
 // DxLibでいうDxLib_Init()が内部でやっていることを手動で行う形。
-static GX::Application       g_app;
-static GX::GraphicsDevice    g_device;        // ID3D12Device (+DXR用 ID3D12Device5)
-static GX::CommandQueue      g_commandQueue;  // コマンドキュー＋フェンス
-static GX::CommandList       g_commandList;   // コマンドリスト（ダブルバッファ）
-static GX::SwapChain         g_swapChain;     // DXGI SwapChain + RTV
+static gx::Application       g_app;
+static gx::GraphicsDevice    g_device;        // ID3D12Device (+DXR用 ID3D12Device5)
+static gx::CommandQueue      g_commandQueue;  // コマンドキュー＋フェンス
+static gx::CommandList       g_commandList;   // コマンドリスト（ダブルバッファ）
+static gx::SwapChain         g_swapChain;     // DXGI SwapChain + RTV
 
 // --- 2D描画 ---
-static GX::SpriteBatch       g_spriteBatch;   // テクスチャ付きスプライト描画
-static GX::PrimitiveBatch   g_primBatch2D;    // 線/矩形/円などのプリミティブ描画
-static GX::FontManager       g_fontManager;   // DirectWriteフォント管理
-static GX::TextRenderer      g_textRenderer;  // テキスト描画（SpriteBatch上）
-static GX::InputManager      g_inputManager;  // キーボード/マウス/ゲームパッド
+static gx::SpriteBatch       g_spriteBatch;   // テクスチャ付きスプライト描画
+static gx::PrimitiveBatch   g_primBatch2D;    // 線/矩形/円などのプリミティブ描画
+static gx::FontManager       g_fontManager;   // DirectWriteフォント管理
+static gx::TextRenderer      g_textRenderer;  // テキスト描画（SpriteBatch上）
+static gx::InputManager      g_inputManager;  // キーボード/マウス/ゲームパッド
 
 // --- 3D描画 ---
-static GX::Renderer3D        g_renderer3D;    // PBR描画 + CSMシャドウ + スカイボックス
-static GX::Camera3D          g_camera;        // 透視投影カメラ
+static gx::Renderer3D        g_renderer3D;    // PBR描画 + CSMシャドウ + スカイボックス
+static gx::Camera3D          g_camera;        // 透視投影カメラ
 
 // --- ポストエフェクト ---
-static GX::PostEffectPipeline g_postEffect;   // HDR→LDR変換チェーン
+static gx::PostEffectPipeline g_postEffect;   // HDR→LDR変換チェーン
 
 // --- レイヤーシステム ---
 // SceneレイヤーにPostFX済みの3Dシーン、UIレイヤーにHUD/GUIを描画し、
 // コンポジターで合成してバックバッファに出力する。
-static GX::LayerStack       g_layerStack;
-static GX::LayerCompositor  g_compositor;
-static GX::RenderLayer*     g_sceneLayer = nullptr;  // Z:0, PostFX=true
-static GX::RenderLayer*     g_uiLayer    = nullptr;  // Z:1000
-static GX::MaskScreen       g_maskScreen;             // マスクで一部だけ見せる演出
+static gx::LayerStack       g_layerStack;
+static gx::LayerCompositor  g_compositor;
+static gx::RenderLayer*     g_sceneLayer = nullptr;  // Z:0, PostFX=true
+static gx::RenderLayer*     g_uiLayer    = nullptr;  // Z:1000
+static gx::MaskScreen       g_maskScreen;             // マスクで一部だけ見せる演出
 static bool                 g_maskDemo   = false;     // マスクデモ表示
 
 // --- GUI ---
 // XML+CSSでメニュー画面を構築する（GUIMenuDemoと同様の仕組み）
-static GX::GUI::UIRenderer   g_uiRenderer;
-static GX::GUI::UIContext    g_uiContext;
-static GX::GUI::StyleSheet  g_styleSheet;
+static gx::GUI::UIRenderer   g_uiRenderer;
+static gx::GUI::UIContext    g_uiContext;
+static gx::GUI::StyleSheet  g_styleSheet;
 static bool                 g_guiDemo    = false;     // Uキーで表示トグル
 static int                  g_guiFontHandle = -1;
 static int                  g_guiFontLarge  = -1;
 
 // メッシュ
-static GX::GPUMesh           g_sphereMesh;
-static GX::GPUMesh           g_planeMesh;
-static GX::GPUMesh           g_cubeMesh;
-static GX::GPUMesh           g_cylinderMesh;
-static GX::GPUMesh           g_tallBoxMesh;
-static GX::GPUMesh           g_wallMesh;
+static gx::GPUMesh           g_sphereMesh;
+static gx::GPUMesh           g_planeMesh;
+static gx::GPUMesh           g_cubeMesh;
+static gx::GPUMesh           g_cylinderMesh;
+static gx::GPUMesh           g_tallBoxMesh;
+static gx::GPUMesh           g_wallMesh;
 
 // 球体（少数、AO確認用）
 static constexpr int k_NumSpheres = 3;
-static GX::Transform3D g_sphereTransforms[k_NumSpheres];
-static GX::Material    g_sphereMaterials[k_NumSpheres];
+static gx::Transform3D g_sphereTransforms[k_NumSpheres];
+static gx::Material    g_sphereMaterials[k_NumSpheres];
 
 // 地面
-static GX::Transform3D g_planeTransform;
-static GX::Material    g_planeMaterial;
+static gx::Transform3D g_planeTransform;
+static gx::Material    g_planeMaterial;
 
 // 箱の集まり（地面に置いた箱群 → 接地部AO確認）
 static constexpr int k_NumBoxes = 6;
-static GX::Transform3D g_boxTransforms[k_NumBoxes];
-static GX::Material    g_boxMaterials[k_NumBoxes];
+static gx::Transform3D g_boxTransforms[k_NumBoxes];
+static gx::Material    g_boxMaterials[k_NumBoxes];
 
 // 柱（円柱 → 地面との接合部AO確認）
 static constexpr int k_NumPillars = 4;
-static GX::Transform3D g_pillarTransforms[k_NumPillars];
-static GX::Material    g_pillarMaterial;
+static gx::Transform3D g_pillarTransforms[k_NumPillars];
+static gx::Material    g_pillarMaterial;
 
 // 壁（L字コーナー → 凹角AO確認）
 static constexpr int k_NumWalls = 2;
-static GX::Transform3D g_wallTransforms[k_NumWalls];
-static GX::Material    g_wallMaterial;
+static gx::Transform3D g_wallTransforms[k_NumWalls];
+static gx::Material    g_wallMaterial;
 
 // 段差（階段状 → 角のAO確認）
 static constexpr int k_NumSteps = 4;
-static GX::Transform3D g_stepTransforms[k_NumSteps];
-static GX::Material    g_stepMaterial;
+static gx::Transform3D g_stepTransforms[k_NumSteps];
+static gx::Material    g_stepMaterial;
 
 // 回転キューブ
-static GX::Transform3D g_cubeTransform;
-static GX::Material    g_cubeMaterial;
+static gx::Transform3D g_cubeTransform;
+static gx::Material    g_cubeMaterial;
 
 // SSRデモ用: 鏡面の壁 + その前のカラフルなオブジェクト（反射確認用）
-static GX::GPUMesh     g_mirrorMesh;
-static GX::Transform3D g_mirrorTransform;
-static GX::Material    g_mirrorMaterial;
+static gx::GPUMesh     g_mirrorMesh;
+static gx::Transform3D g_mirrorTransform;
+static gx::Material    g_mirrorMaterial;
 
 static constexpr int k_NumSSRDemoObjs = 3;
-static GX::Transform3D g_ssrDemoTransforms[k_NumSSRDemoObjs];
-static GX::Material    g_ssrDemoMaterials[k_NumSSRDemoObjs];
+static gx::Transform3D g_ssrDemoTransforms[k_NumSSRDemoObjs];
+static gx::Material    g_ssrDemoMaterials[k_NumSSRDemoObjs];
 
 // Phase 7: ファイル/ネット/ムービー
-static GX::MoviePlayer       g_moviePlayer;
-static GX::HTTPClient        g_httpClient;
+static gx::MoviePlayer       g_moviePlayer;
+static gx::HTTPClient        g_httpClient;
 static int                   g_httpStatusCode = 0;
 static std::string           g_httpStatusText = "Not tested";
 static bool                  g_archiveDemo    = false;
 
 // Phase 8: 2D物理
-static GX::PhysicsWorld2D    g_physicsWorld2D;
+static gx::PhysicsWorld2D    g_physicsWorld2D;
 static bool                  g_physics2DDemo = false;
 static constexpr int k_NumPhys2DBodies = 5;
 
 // Phase 8: 3D物理（Jolt）
-static GX::PhysicsWorld3D    g_physicsWorld3D;
+static gx::PhysicsWorld3D    g_physicsWorld3D;
 static bool                  g_physics3DInit = false;
-static GX::PhysicsShape*     g_floorShape = nullptr;
-static GX::PhysicsShape*     g_ballShape = nullptr;
-static GX::PhysicsShape*     g_boxPhysShape = nullptr;
-static GX::PhysicsShape*     g_capsulePhysShape = nullptr;
-static GX::PhysicsBodyID     g_floorBodyID;
+static gx::PhysicsShape*     g_floorShape = nullptr;
+static gx::PhysicsShape*     g_ballShape = nullptr;
+static gx::PhysicsShape*     g_boxPhysShape = nullptr;
+static gx::PhysicsShape*     g_capsulePhysShape = nullptr;
+static gx::PhysicsBodyID     g_floorBodyID;
 
 enum class PhysShapeType { Sphere, Box, Capsule };
 struct PhysObject {
-    GX::PhysicsBodyID id;
+    gx::PhysicsBodyID id;
     PhysShapeType     shapeType;
-    GX::Material      material;
+    gx::Material      material;
 };
 static std::vector<PhysObject> g_physObjects;
-static GX::GPUMesh           g_physSphereMesh;
-static GX::GPUMesh           g_physBoxMesh;
-static GX::GPUMesh           g_physCapsuleMesh;
+static gx::GPUMesh           g_physSphereMesh;
+static gx::GPUMesh           g_physBoxMesh;
+static gx::GPUMesh           g_physCapsuleMesh;
 static constexpr int k_MaxPhysObjects = 100;
 
 // Phase 9: シェーダーホットリロード
@@ -230,7 +231,7 @@ static bool g_showHotReloadStatus = false;
 static bool g_showProfiler = false;
 
 // Phase 11: DXR レイトレーシング反射
-static std::unique_ptr<GX::RTReflections> g_rtReflections;
+static std::unique_ptr<gx::RTReflections> g_rtReflections;
 static int g_blasSphere   = -1;
 static int g_blasPlane    = -1;
 static int g_blasCube     = -1;
@@ -239,7 +240,7 @@ static int g_blasTallBox  = -1;
 static int g_blasWall     = -1;
 static int g_blasMirror   = -1;
 
-static uint64_t g_frameFenceValues[GX::SwapChain::k_BufferCount] = {};
+static uint64_t g_frameFenceValues[gx::SwapChain::k_BufferCount] = {};
 static uint32_t g_frameIndex = 0;
 static float    g_totalTime  = 0.0f;
 static int g_fontHandle = -1;
@@ -317,8 +318,8 @@ void DrawScene(bool drawPhysics = true)
         for (auto& obj : g_physObjects)
         {
             if (!obj.id.IsValid()) continue;
-            GX::Matrix4x4 worldMat = g_physicsWorld3D.GetWorldTransform(obj.id);
-            XMMATRIX xmWorld = XMLoadFloat4x4(&worldMat);
+            gx::Matrix4x4 worldMat = g_physicsWorld3D.GetWorldTransform(obj.id);
+            XMMATRIX xmWorld = gx::ToXMMATRIX(worldMat);
             g_renderer3D.SetMaterial(obj.material);
             switch (obj.shapeType)
             {
@@ -347,7 +348,7 @@ bool InitializeGraphics()
     if (!g_commandList.Initialize(device))
         return false;
 
-    GX::SwapChainDesc scDesc;
+    gx::SwapChainDesc scDesc;
     scDesc.hwnd   = g_app.GetWindow().GetHWND();
     scDesc.width  = g_app.GetWindow().GetWidth();
     scDesc.height = g_app.GetWindow().GetHeight();
@@ -390,12 +391,12 @@ bool InitializeRenderers()
     // レイヤーシステム初期化
     g_sceneLayer = g_layerStack.CreateLayer(device, "Scene", 0, w, h);
     if (!g_sceneLayer) return false;
-    g_sceneLayer->SetBlendMode(GX::LayerBlendMode::None);
+    g_sceneLayer->SetBlendMode(gx::LayerBlendMode::None);
     g_sceneLayer->SetPostFXEnabled(true);
 
     g_uiLayer = g_layerStack.CreateLayer(device, "UI", 1000, w, h);
     if (!g_uiLayer) return false;
-    g_uiLayer->SetBlendMode(GX::LayerBlendMode::Alpha);
+    g_uiLayer->SetBlendMode(gx::LayerBlendMode::Alpha);
 
     if (!g_compositor.Initialize(device, w, h))
         return false;
@@ -436,7 +437,7 @@ bool InitializeScene()
 
     // === GUI デモ構築（Phase 6c: XML + GUILoader） ===
     {
-        using namespace GX::GUI;
+        using namespace gx::GUI;
         uint32_t sw = g_app.GetWindow().GetWidth();
         uint32_t sh = g_app.GetWindow().GetHeight();
 
@@ -500,12 +501,12 @@ bool InitializeScene()
 
         // Canvas 描画コールバック
         loader.RegisterDrawCallback("onCanvasDraw",
-            [](GX::GUI::UIRenderer& renderer, const GX::GUI::LayoutRect& rect) {
+            [](gx::GUI::UIRenderer& renderer, const gx::GUI::LayoutRect& rect) {
             // 簡単な棒グラフデモ
             float barW = 30.0f;
             float gap = 10.0f;
             float values[] = { 0.3f, 0.7f, 0.5f, 0.9f, 0.4f, 0.6f, 0.8f, 0.2f };
-            GX::GUI::StyleColor colors[] = {
+            gx::GUI::StyleColor colors[] = {
                 {1.0f, 0.3f, 0.3f, 0.8f}, {0.3f, 1.0f, 0.3f, 0.8f},
                 {0.3f, 0.3f, 1.0f, 0.8f}, {1.0f, 1.0f, 0.3f, 0.8f},
                 {1.0f, 0.3f, 1.0f, 0.8f}, {0.3f, 1.0f, 1.0f, 0.8f},
@@ -530,12 +531,12 @@ bool InitializeScene()
     }
 
     // メッシュ生成
-    auto sphereData   = GX::MeshGenerator::CreateSphere(0.5f, 32, 16);
-    auto planeData    = GX::MeshGenerator::CreatePlane(40.0f, 40.0f, 40, 40);
-    auto boxData      = GX::MeshGenerator::CreateBox(1.0f, 1.0f, 1.0f);
-    auto cylinderData = GX::MeshGenerator::CreateCylinder(0.3f, 0.3f, 3.0f, 16, 1);
-    auto tallBoxData  = GX::MeshGenerator::CreateBox(2.0f, 0.5f, 3.0f);
-    auto wallData     = GX::MeshGenerator::CreateBox(0.3f, 3.0f, 6.0f);
+    auto sphereData   = gx::MeshGenerator::CreateSphere(0.5f, 32, 16);
+    auto planeData    = gx::MeshGenerator::CreatePlane(40.0f, 40.0f, 40, 40);
+    auto boxData      = gx::MeshGenerator::CreateBox(1.0f, 1.0f, 1.0f);
+    auto cylinderData = gx::MeshGenerator::CreateCylinder(0.3f, 0.3f, 3.0f, 16, 1);
+    auto tallBoxData  = gx::MeshGenerator::CreateBox(2.0f, 0.5f, 3.0f);
+    auto wallData     = gx::MeshGenerator::CreateBox(0.3f, 3.0f, 6.0f);
 
     g_sphereMesh   = g_renderer3D.CreateGPUMesh(sphereData);
     g_planeMesh    = g_renderer3D.CreateGPUMesh(planeData);
@@ -629,7 +630,7 @@ bool InitializeScene()
     // === SSRデモ: ミラーウォール ===
     {
         // 大きな薄い壁（鏡面）— 右側の明るいエリアに配置
-        auto mirrorData = GX::MeshGenerator::CreateBox(0.1f, 4.0f, 8.0f);
+        auto mirrorData = gx::MeshGenerator::CreateBox(0.1f, 4.0f, 8.0f);
         g_mirrorMesh = g_renderer3D.CreateGPUMesh(mirrorData);
         g_mirrorTransform.SetPosition(12.0f, 2.0f, 0.0f);
         // 完全な鏡面: metallic=1, roughness=0, 明るいシルバー
@@ -663,15 +664,15 @@ bool InitializeScene()
     }
 
     // ライト設定
-    GX::LightData lights[3];
-    lights[0] = GX::Light::CreateDirectional({ 0.3f, -1.0f, 0.5f }, { 1.0f, 0.98f, 0.95f }, 3.0f);
-    lights[1] = GX::Light::CreatePoint({ -3.0f, 3.0f, -3.0f }, 15.0f, { 1.0f, 0.95f, 0.9f }, 3.0f);
-    lights[2] = GX::Light::CreateSpot({ 4.0f, 4.0f, -2.0f }, { -0.5f, -1.0f, 0.3f },
+    gx::LightData lights[3];
+    lights[0] = gx::Light::CreateDirectional({ 0.3f, -1.0f, 0.5f }, { 1.0f, 0.98f, 0.95f }, 3.0f);
+    lights[1] = gx::Light::CreatePoint({ -3.0f, 3.0f, -3.0f }, 15.0f, { 1.0f, 0.95f, 0.9f }, 3.0f);
+    lights[2] = gx::Light::CreateSpot({ 4.0f, 4.0f, -2.0f }, { -0.5f, -1.0f, 0.3f },
                                         20.0f, 30.0f, { 1.0f, 0.8f, 0.3f }, 15.0f);
     g_renderer3D.SetLights(lights, 3, { 0.05f, 0.05f, 0.05f });
 
     // フォグ設定（Linear）
-    g_renderer3D.SetFog(GX::FogMode::Linear, { 0.7f, 0.7f, 0.7f }, 30.0f, 150.0f);
+    g_renderer3D.SetFog(gx::FogMode::Linear, { 0.7f, 0.7f, 0.7f }, 30.0f, 150.0f);
 
     // スカイボックスの太陽方向をDirectionalライトと合わせる
     g_renderer3D.GetSkybox().SetSun({ 0.3f, -1.0f, 0.5f }, 5.0f);
@@ -690,49 +691,49 @@ bool InitializeScene()
 
     // === Phase 8: 数学の検証 ===
     {
-        GX::Vector3 a(1, 2, 3), b(4, 5, 6);
+        gx::Vector3 a(1, 2, 3), b(4, 5, 6);
         float dot = a.Dot(b);    // 32
-        GX::Vector3 cross = a.Cross(b); // (-3, 6, -3)
+        gx::Vector3 cross = a.Cross(b); // (-3, 6, -3)
         float len = a.Length();  // 3.742...
         GX_LOG_INFO("Math Test: dot(1,2,3).(4,5,6)=%.1f  cross=(%.1f,%.1f,%.1f)  len=%.3f",
             dot, cross.x, cross.y, cross.z, len);
 
-        GX::Matrix4x4 m = GX::Matrix4x4::RotationY(GX::MathUtil::PI / 4.0f);
-        GX::Matrix4x4 inv = m.Inverse();
-        GX::Matrix4x4 identity = m * inv;
+        gx::Matrix4x4 m = gx::Matrix4x4::RotationY(gx::MathUtil::PI / 4.0f);
+        gx::Matrix4x4 inv = m.Inverse();
+        gx::Matrix4x4 identity = m * inv;
         GX_LOG_INFO("Math Test: M*M^-1 diagonal = (%.3f, %.3f, %.3f, %.3f)",
             identity._11, identity._22, identity._33, identity._44);
 
-        GX::Quaternion q = GX::Quaternion::FromAxisAngle(GX::Vector3(0, 1, 0), GX::MathUtil::PI / 2.0f);
-        GX::Vector3 rotated = q.RotateVector(GX::Vector3(1, 0, 0));
+        gx::Quaternion q = gx::Quaternion::FromAxisAngle(gx::Vector3(0, 1, 0), gx::MathUtil::PI / 2.0f);
+        gx::Vector3 rotated = q.RotateVector(gx::Vector3(1, 0, 0));
         GX_LOG_INFO("Math Test: Rotate (1,0,0) by Y90 = (%.3f, %.3f, %.3f)",
             rotated.x, rotated.y, rotated.z);
     }
 
     // === Phase 8: 2D当たり判定テスト ===
     {
-        GX::Circle c1({ 0.0f, 0.0f }, 1.0f);
-        GX::Circle c2({ 1.5f, 0.0f }, 1.0f);
-        bool hit = GX::Collision2D::TestCirclevsCircle(c1, c2);
+        gx::Circle c1({ 0.0f, 0.0f }, 1.0f);
+        gx::Circle c2({ 1.5f, 0.0f }, 1.0f);
+        bool hit = gx::Collision2D::TestCirclevsCircle(c1, c2);
         GX_LOG_INFO("Collision2D: Circle(0,0,r1) vs Circle(1.5,0,r1) = %s", hit ? "HIT" : "MISS");
 
-        GX::AABB2D box1({-1, -1}, {1, 1});
-        GX::AABB2D box2({0.5f, 0.5f}, {2, 2});
-        bool boxHit = GX::Collision2D::TestAABBvsAABB(box1, box2);
+        gx::AABB2D box1({-1, -1}, {1, 1});
+        gx::AABB2D box2({0.5f, 0.5f}, {2, 2});
+        bool boxHit = gx::Collision2D::TestAABBvsAABB(box1, box2);
         GX_LOG_INFO("Collision2D: AABB(-1,-1,1,1) vs AABB(0.5,0.5,2,2) = %s", boxHit ? "HIT" : "MISS");
     }
 
     // === Phase 8: 3D当たり判定テスト ===
     {
-        GX::Sphere s1({ 0, 0, 0 }, 1.0f);
-        GX::Sphere s2({ 3, 0, 0 }, 1.0f);
-        bool hit = GX::Collision3D::TestSphereVsSphere(s1, s2);
+        gx::Sphere s1({ 0, 0, 0 }, 1.0f);
+        gx::Sphere s2({ 3, 0, 0 }, 1.0f);
+        bool hit = gx::Collision3D::TestSphereVsSphere(s1, s2);
         GX_LOG_INFO("Collision3D: Sphere(0,r1) vs Sphere(3,r1) = %s", hit ? "HIT" : "MISS");
 
-        GX::Ray ray({ 0, 5, 0 }, { 0, -1, 0 });
-        GX::AABB3D box({ -1, -1, -1 }, { 1, 1, 1 });
+        gx::Ray ray({ 0, 5, 0 }, { 0, -1, 0 });
+        gx::AABB3D box({ -1, -1, -1 }, { 1, 1, 1 });
         float t;
-        bool rayHit = GX::Collision3D::RaycastAABB(ray, box, t);
+        bool rayHit = gx::Collision3D::RaycastAABB(ray, box, t);
         GX_LOG_INFO("Collision3D: Ray(0,5,0 -> 0,-1,0) vs AABB = %s t=%.2f", rayHit ? "HIT" : "MISS", t);
     }
 
@@ -742,19 +743,19 @@ bool InitializeScene()
 
         // 静的な床。Staticは動かないので固定地形に使う。
         auto* floor = g_physicsWorld2D.AddBody();
-        floor->bodyType = GX::BodyType2D::Static;
+        floor->bodyType = gx::BodyType2D::Static;
         floor->position = { 640.0f, 680.0f };
-        floor->shape.type = GX::ShapeType2D::AABB;
+        floor->shape.type = gx::ShapeType2D::AABB;
         floor->shape.halfExtents = { 600.0f, 20.0f };
 
         // 跳ねる円。Dynamicは重力で動き、反発する。
-        GX::Random rng(42);
+        gx::Random rng(42);
         for (int i = 0; i < k_NumPhys2DBodies; ++i)
         {
             auto* body = g_physicsWorld2D.AddBody();
-            body->bodyType = GX::BodyType2D::Dynamic;
+            body->bodyType = gx::BodyType2D::Dynamic;
             body->position = { 200.0f + i * 100.0f, 100.0f + rng.Float(0.0f, 200.0f) };
-            body->shape.type = GX::ShapeType2D::Circle;
+            body->shape.type = gx::ShapeType2D::Circle;
             body->shape.radius = 15.0f + rng.Float(0.0f, 15.0f);
             body->restitution = 0.6f + rng.Float(0.0f, 0.3f);
             body->mass = body->shape.radius * 0.1f;
@@ -770,9 +771,9 @@ bool InitializeScene()
 
             // 床（静的ボックス）
             g_floorShape = g_physicsWorld3D.CreateBoxShape({ 50.0f, 0.5f, 50.0f });
-            GX::PhysicsBodySettings floorSettings;
+            gx::PhysicsBodySettings floorSettings;
             floorSettings.position = { 0.0f, -0.5f, 0.0f };
-            floorSettings.motionType = GX::MotionType3D::Static;
+            floorSettings.motionType = gx::MotionType3D::Static;
             floorSettings.layer = 0;
             g_floorBodyID = g_physicsWorld3D.AddBody(g_floorShape, floorSettings);
 
@@ -783,16 +784,16 @@ bool InitializeScene()
 
             // 形状ごとの表示用メッシュを用意
             g_physSphereMesh = g_renderer3D.CreateGPUMesh(
-                GX::MeshGenerator::CreateSphere(0.4f, 16, 8));
+                gx::MeshGenerator::CreateSphere(0.4f, 16, 8));
             g_physBoxMesh = g_renderer3D.CreateGPUMesh(
-                GX::MeshGenerator::CreateBox(0.7f, 0.7f, 0.7f));
+                gx::MeshGenerator::CreateBox(0.7f, 0.7f, 0.7f));
             g_physCapsuleMesh = g_renderer3D.CreateGPUMesh(
-                GX::MeshGenerator::CreateCylinder(0.2f, 0.2f, 1.2f, 12, 1));
+                gx::MeshGenerator::CreateCylinder(0.2f, 0.2f, 1.2f, 12, 1));
 
             // 静的な坂（メッシュコライダーデモ）
             {
-                auto rampData = GX::MeshGenerator::CreateBox(4.0f, 0.3f, 3.0f);
-                std::vector<GX::Vector3> rampPositions;
+                auto rampData = gx::MeshGenerator::CreateBox(4.0f, 0.3f, 3.0f);
+                std::vector<gx::Vector3> rampPositions;
                 rampPositions.reserve(rampData.vertices.size());
                 for (auto& v : rampData.vertices)
                     rampPositions.push_back({ v.position.x, v.position.y, v.position.z });
@@ -803,26 +804,26 @@ bool InitializeScene()
                     rampData.indices.data(),
                     static_cast<uint32_t>(rampData.indices.size()));
 
-                GX::PhysicsBodySettings rampSettings;
+                gx::PhysicsBodySettings rampSettings;
                 rampSettings.position = { 5.0f, 1.5f, 0.0f };
-                rampSettings.rotation = GX::Quaternion::FromEuler(0.0f, 0.0f, -0.35f);
-                rampSettings.motionType = GX::MotionType3D::Static;
+                rampSettings.rotation = gx::Quaternion::FromEuler(0.0f, 0.0f, -0.35f);
+                rampSettings.motionType = gx::MotionType3D::Static;
                 rampSettings.layer = 0;
                 g_physicsWorld3D.AddBody(rampShape, rampSettings);
             }
 
             // 初期オブジェクトをいくつか追加（挙動を見やすくする）
-            GX::Random rng(123);
-            auto addPhysObj = [&](PhysShapeType type, const GX::Vector3& pos, const GX::Quaternion& rot,
+            gx::Random rng(123);
+            auto addPhysObj = [&](PhysShapeType type, const gx::Vector3& pos, const gx::Quaternion& rot,
                                   float r, float g, float b) {
-                GX::PhysicsBodySettings bs;
+                gx::PhysicsBodySettings bs;
                 bs.position = pos;
                 bs.rotation = rot;
-                bs.motionType = GX::MotionType3D::Dynamic;
+                bs.motionType = gx::MotionType3D::Dynamic;
                 bs.restitution = 0.5f;
                 bs.mass = 1.0f;
 
-                GX::PhysicsShape* shape = nullptr;
+                gx::PhysicsShape* shape = nullptr;
                 switch (type) {
                 case PhysShapeType::Sphere:  shape = g_ballShape; break;
                 case PhysShapeType::Box:     shape = g_boxPhysShape; break;
@@ -842,20 +843,20 @@ bool InitializeScene()
             for (int i = 0; i < 3; ++i)
                 addPhysObj(PhysShapeType::Sphere,
                     { rng.Float(-2, 2), 5.0f + i * 2.0f, rng.Float(-2, 2) },
-                    GX::Quaternion::Identity(), 0.9f, 0.3f, 0.1f);
+                    gx::Quaternion::Identity(), 0.9f, 0.3f, 0.1f);
 
             // 箱（傾きあり）
             for (int i = 0; i < 3; ++i)
                 addPhysObj(PhysShapeType::Box,
                     { rng.Float(-3, 3), 6.0f + i * 2.0f, rng.Float(-3, 3) },
-                    GX::Quaternion::FromEuler(rng.Float(-1, 1), rng.Float(-1, 1), rng.Float(-1, 1)),
+                    gx::Quaternion::FromEuler(rng.Float(-1, 1), rng.Float(-1, 1), rng.Float(-1, 1)),
                     0.2f, 0.5f, 0.9f);
 
             // カプセル
             for (int i = 0; i < 2; ++i)
                 addPhysObj(PhysShapeType::Capsule,
                     { rng.Float(-2, 2), 8.0f + i * 2.0f, rng.Float(-2, 2) },
-                    GX::Quaternion::FromEuler(rng.Float(-0.5f, 0.5f), 0, rng.Float(-0.5f, 0.5f)),
+                    gx::Quaternion::FromEuler(rng.Float(-0.5f, 0.5f), 0, rng.Float(-0.5f, 0.5f)),
                     0.1f, 0.8f, 0.3f);
 
             GX_LOG_INFO("Jolt Physics: Initialized, floor + ramp + %d objects", (int)g_physObjects.size());
@@ -890,11 +891,11 @@ void UpdateInput(float deltaTime)
     // トーンマッピングモード切替（トリガー入力で切替）
     auto& kb = g_inputManager.GetKeyboard();
     if (kb.IsKeyTriggered('1'))
-        g_postEffect.SetTonemapMode(GX::TonemapMode::Reinhard);
+        g_postEffect.SetTonemapMode(gx::TonemapMode::Reinhard);
     if (kb.IsKeyTriggered('2'))
-        g_postEffect.SetTonemapMode(GX::TonemapMode::ACES);
+        g_postEffect.SetTonemapMode(gx::TonemapMode::ACES);
     if (kb.IsKeyTriggered('3'))
-        g_postEffect.SetTonemapMode(GX::TonemapMode::Uncharted2);
+        g_postEffect.SetTonemapMode(gx::TonemapMode::Uncharted2);
 
     // Bloom のON/OFF
     if (kb.IsKeyTriggered('4'))
@@ -981,7 +982,7 @@ void UpdateInput(float deltaTime)
     if (kb.IsKeyTriggered('P'))
     {
         g_showProfiler = !g_showProfiler;
-        GX::GPUProfiler::Instance().SetEnabled(g_showProfiler);
+        gx::GPUProfiler::Instance().SetEnabled(g_showProfiler);
     }
 
     // F12: 設定保存
@@ -1001,7 +1002,7 @@ void UpdateInput(float deltaTime)
         g_postEffect.SetExposure((std::max)(g_postEffect.GetExposure() - 0.5f * deltaTime, 0.1f));
 
     auto& mouse = g_inputManager.GetMouse();
-    if (mouse.IsButtonTriggered(GX::MouseButton::Right))
+    if (mouse.IsButtonTriggered(gx::MouseButton::Right))
     {
         g_mouseCaptured = !g_mouseCaptured;
         if (g_mouseCaptured)
@@ -1045,10 +1046,10 @@ void UpdateInput(float deltaTime)
     // Phase 8: 3D物理オブジェクト追加（ランダム形状）
     if (kb.IsKeyTriggered(VK_F8) && g_physics3DInit && (int)g_physObjects.size() < k_MaxPhysObjects)
     {
-        GX::Random& rng = GX::Random::Global();
+        gx::Random& rng = gx::Random::Global();
         int shapeIdx = rng.Int(0, 2);
         PhysShapeType type = static_cast<PhysShapeType>(shapeIdx);
-        GX::PhysicsShape* shape = nullptr;
+        gx::PhysicsShape* shape = nullptr;
         float r = 0, g = 0, b = 0;
         switch (type) {
         case PhysShapeType::Sphere:  shape = g_ballShape;        r = rng.Float(0.5f, 1.0f); g = rng.Float(0.1f, 0.4f); b = rng.Float(0.05f, 0.2f); break;
@@ -1056,10 +1057,10 @@ void UpdateInput(float deltaTime)
         case PhysShapeType::Capsule: shape = g_capsulePhysShape; r = rng.Float(0.1f, 0.3f); g = rng.Float(0.6f, 1.0f); b = rng.Float(0.1f, 0.4f); break;
         }
 
-        GX::PhysicsBodySettings bs;
+        gx::PhysicsBodySettings bs;
         bs.position = { rng.Float(-4, 4), 8.0f + rng.Float(0, 4), rng.Float(-4, 4) };
-        bs.rotation = GX::Quaternion::FromEuler(rng.Float(-1, 1), rng.Float(-1, 1), rng.Float(-1, 1));
-        bs.motionType = GX::MotionType3D::Dynamic;
+        bs.rotation = gx::Quaternion::FromEuler(rng.Float(-1, 1), rng.Float(-1, 1), rng.Float(-1, 1));
+        bs.motionType = gx::MotionType3D::Dynamic;
         bs.restitution = 0.5f;
         bs.mass = 1.0f;
 
@@ -1075,7 +1076,7 @@ void UpdateInput(float deltaTime)
     // ムービープレイヤー操作
     if (kb.IsKeyTriggered(VK_F5))
     {
-        if (g_moviePlayer.GetState() == GX::MovieState::Playing)
+        if (g_moviePlayer.GetState() == gx::MovieState::Playing)
             g_moviePlayer.Pause();
         else
             g_moviePlayer.Play();
@@ -1106,7 +1107,7 @@ void RenderFrame(float deltaTime)
     UpdateInput(deltaTime);
 
     // Phase 9: シェーダーホットリロード更新（変更を即反映）
-    GX::ShaderHotReload::Instance().Update(deltaTime);
+    gx::ShaderHotReload::Instance().Update(deltaTime);
 
     // Phase 7: 非同期システム更新
     g_httpClient.Update();
@@ -1129,16 +1130,16 @@ void RenderFrame(float deltaTime)
     auto* cmdList = g_commandList.Get();
 
     // Phase 10: GPU Profiler フレーム開始
-    GX::GPUProfiler::Instance().BeginFrame(cmdList, g_frameIndex);
+    gx::GPUProfiler::Instance().BeginFrame(cmdList, g_frameIndex);
 
     // === シャドウパス ===
     // CSM(Cascaded Shadow Maps) + Spot + Point(6面キューブマップ)の3種。
     // DrawScene(false)で物理オブジェクトを省略してCB枠を節約する。
-    GX::GPUProfiler::Instance().BeginScope(cmdList, "Shadow");
+    gx::GPUProfiler::Instance().BeginScope(cmdList, "Shadow");
     g_renderer3D.UpdateShadow(g_camera);
 
     // CSMパス: カスケードごとにビューポートを変えて描画
-    for (uint32_t cascade = 0; cascade < GX::CascadedShadowMap::k_NumCascades; ++cascade)
+    for (uint32_t cascade = 0; cascade < gx::CascadedShadowMap::k_NumCascades; ++cascade)
     {
         g_renderer3D.BeginShadowPass(cmdList, g_frameIndex, cascade);
         DrawScene(false);
@@ -1158,10 +1159,10 @@ void RenderFrame(float deltaTime)
         g_renderer3D.EndPointShadowPass(face);
     }
 
-    GX::GPUProfiler::Instance().EndScope(cmdList);
+    gx::GPUProfiler::Instance().EndScope(cmdList);
 
     // === HDRシーン描画パス ===
-    GX::GPUProfiler::Instance().BeginScope(cmdList, "Scene");
+    gx::GPUProfiler::Instance().BeginScope(cmdList, "Scene");
     auto dsvHandle = g_renderer3D.GetDepthBuffer().GetDSVHandle();
     g_postEffect.BeginScene(cmdList, g_frameIndex, dsvHandle, g_camera);
 
@@ -1239,16 +1240,16 @@ void RenderFrame(float deltaTime)
     g_postEffect.SetCommandList4(g_commandList.Get4());
 
     // === ポストエフェクト: HDR → LDR (Sceneレイヤーに出力) ===
-    GX::GPUProfiler::Instance().EndScope(cmdList);
+    gx::GPUProfiler::Instance().EndScope(cmdList);
     g_postEffect.EndScene();
 
     // Sceneレイヤー → PostEffectPipeline.Resolve
-    GX::GPUProfiler::Instance().BeginScope(cmdList, "PostFX");
+    gx::GPUProfiler::Instance().BeginScope(cmdList, "PostFX");
     g_sceneLayer->GetRenderTarget().TransitionTo(cmdList, D3D12_RESOURCE_STATE_RENDER_TARGET);
     g_postEffect.Resolve(g_sceneLayer->GetRTVHandle(),
                          g_renderer3D.GetDepthBuffer(), g_camera, deltaTime);
     g_sceneLayer->GetRenderTarget().TransitionTo(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-    GX::GPUProfiler::Instance().EndScope(cmdList);
+    gx::GPUProfiler::Instance().EndScope(cmdList);
 
     // === GUI 更新 ===
     if (g_guiDemo)
@@ -1259,13 +1260,13 @@ void RenderFrame(float deltaTime)
         auto* progressWidget = g_uiContext.GetRoot() ? g_uiContext.GetRoot()->FindById("progressLoading") : nullptr;
         if (progressWidget)
         {
-            auto* pb = static_cast<GX::GUI::ProgressBar*>(progressWidget);
+            auto* pb = static_cast<gx::GUI::ProgressBar*>(progressWidget);
             pb->SetValue(fmod(g_totalTime * 0.15f, 1.0f));
         }
     }
 
     // === UIレイヤー: テキスト描画 ===
-    GX::GPUProfiler::Instance().BeginScope(cmdList, "UI");
+    gx::GPUProfiler::Instance().BeginScope(cmdList, "UI");
     g_uiLayer->Begin(cmdList);
     g_uiLayer->Clear(cmdList, 0, 0, 0, 0);
 
@@ -1283,13 +1284,13 @@ void RenderFrame(float deltaTime)
     {
         g_primBatch2D.Begin(cmdList, g_frameIndex);
 
-        std::vector<GX::RigidBody2D*> allBodies;
-        g_physicsWorld2D.QueryAABB(GX::AABB2D({-1000.0f, -1000.0f}, {2000.0f, 2000.0f}), allBodies);
+        std::vector<gx::RigidBody2D*> allBodies;
+        g_physicsWorld2D.QueryAABB(gx::AABB2D({-1000.0f, -1000.0f}, {2000.0f, 2000.0f}), allBodies);
         for (auto* body : allBodies)
         {
             float px = body->position.x;
             float py = body->position.y;
-            if (body->bodyType == GX::BodyType2D::Static)
+            if (body->bodyType == gx::BodyType2D::Static)
             {
                 float hw = body->shape.halfExtents.x;
                 float hh = body->shape.halfExtents.y;
@@ -1431,9 +1432,9 @@ void RenderFrame(float deltaTime)
                 {
                     switch (g_moviePlayer.GetState())
                     {
-                    case GX::MovieState::Playing: movieStateStr = L"Playing"; break;
-                    case GX::MovieState::Paused:  movieStateStr = L"Paused"; break;
-                    case GX::MovieState::Stopped: movieStateStr = L"Stopped"; break;
+                    case gx::MovieState::Playing: movieStateStr = L"Playing"; break;
+                    case gx::MovieState::Paused:  movieStateStr = L"Paused"; break;
+                    case gx::MovieState::Stopped: movieStateStr = L"Stopped"; break;
                     }
                 }
                 g_textRenderer.DrawFormatString(g_fontHandle, 10, 435, 0xFF88FFFF,
@@ -1454,7 +1455,7 @@ void RenderFrame(float deltaTime)
     g_spriteBatch.End();
 
     // === Shader Hot Reload エラーオーバーレイ / ステータス ===
-    if (GX::ShaderHotReload::Instance().HasError())
+    if (gx::ShaderHotReload::Instance().HasError())
     {
         // 赤半透明背景
         float sw = static_cast<float>(g_swapChain.GetWidth());
@@ -1465,7 +1466,7 @@ void RenderFrame(float deltaTime)
         g_spriteBatch.Begin(cmdList, g_frameIndex);
         if (g_fontHandle >= 0)
         {
-            auto& errMsg = GX::ShaderHotReload::Instance().GetErrorMessage();
+            auto& errMsg = gx::ShaderHotReload::Instance().GetErrorMessage();
             int wLen = MultiByteToWideChar(CP_UTF8, 0, errMsg.c_str(), -1, nullptr, 0);
             std::wstring wErr(wLen - 1, L'\0');
             MultiByteToWideChar(CP_UTF8, 0, errMsg.c_str(), -1, wErr.data(), wLen);
@@ -1489,7 +1490,7 @@ void RenderFrame(float deltaTime)
     // === GPU Profiler オーバーレイ ===
     if (g_showProfiler && g_fontHandle >= 0)
     {
-        auto& profiler = GX::GPUProfiler::Instance();
+        auto& profiler = gx::GPUProfiler::Instance();
         float sw = static_cast<float>(g_swapChain.GetWidth());
 
         // 背景ボックス
@@ -1530,7 +1531,7 @@ void RenderFrame(float deltaTime)
     }
 
     g_uiLayer->End();
-    GX::GPUProfiler::Instance().EndScope(cmdList);
+    gx::GPUProfiler::Instance().EndScope(cmdList);
 
     // === マスクデモ ===
     if (g_maskDemo)
@@ -1548,7 +1549,7 @@ void RenderFrame(float deltaTime)
     }
 
     // === コンポジション → バックバッファ ===
-    GX::GPUProfiler::Instance().BeginScope(cmdList, "Composite");
+    gx::GPUProfiler::Instance().BeginScope(cmdList, "Composite");
     D3D12_RESOURCE_BARRIER barrier = {};
     barrier.Type                   = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
     barrier.Transition.pResource   = g_swapChain.GetCurrentBackBuffer();
@@ -1564,10 +1565,10 @@ void RenderFrame(float deltaTime)
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
     barrier.Transition.StateAfter  = D3D12_RESOURCE_STATE_PRESENT;
     cmdList->ResourceBarrier(1, &barrier);
-    GX::GPUProfiler::Instance().EndScope(cmdList);
+    gx::GPUProfiler::Instance().EndScope(cmdList);
 
     // Phase 10: GPU Profiler フレーム終了
-    GX::GPUProfiler::Instance().EndFrame(cmdList);
+    gx::GPUProfiler::Instance().EndFrame(cmdList);
 
     // --- GPU実行 + Present ---
     g_commandList.Close();
@@ -1623,20 +1624,20 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
     // VFS(仮想ファイルシステム)にPhysicalFileProviderをマウントする。
     // これにより FileSystem::Instance().ReadFile("Assets/...") でファイルにアクセスできる。
     {
-        auto physProvider = std::make_shared<GX::PhysicalFileProvider>(".");
-        GX::FileSystem::Instance().Mount("", physProvider);
+        auto physProvider = std::make_shared<gx::PhysicalFileProvider>(".");
+        gx::FileSystem::Instance().Mount("", physProvider);
         GX_LOG_INFO("FileSystem: PhysicalFileProvider mounted at root");
     }
 
     // --- Phase 7: アーカイブデモ ---
     // .gxarcアーカイブの作成→読み戻し検証。LZ4圧縮+暗号化対応。
     {
-        GX::ArchiveWriter writer;
+        gx::ArchiveWriter writer;
         writer.SetPassword("testkey123");
         writer.SetCompression(true);
 
         // CSSファイルをアーカイブに詰める
-        auto cssData = GX::FileSystem::Instance().ReadFile("Assets/ui/menu.css");
+        auto cssData = gx::FileSystem::Instance().ReadFile("Assets/ui/menu.css");
         if (cssData.IsValid())
         {
             writer.AddFile("Assets/ui/menu.css", cssData.Data(), cssData.Size());
@@ -1648,7 +1649,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
             GX_LOG_INFO("Archive: test_archive.gxarc created");
 
             // 検証: 開いて読み戻す
-            auto arcProvider = std::make_shared<GX::ArchiveFileProvider>();
+            auto arcProvider = std::make_shared<gx::ArchiveFileProvider>();
             if (arcProvider->Open("test_archive.gxarc", "testkey123"))
             {
                 auto arcData = arcProvider->Read("Assets/ui/menu.css");
@@ -1664,7 +1665,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
     }
 
     // --- Phase 7: HTTPデモ（非同期） ---
-    g_httpClient.GetAsync("https://httpbin.org/get", [](GX::HTTPResponse resp) {
+    g_httpClient.GetAsync("https://httpbin.org/get", [](gx::HTTPResponse resp) {
         g_httpStatusCode = resp.statusCode;
         if (resp.IsSuccess())
             g_httpStatusText = std::format("OK ({} bytes)", resp.body.size());
@@ -1674,7 +1675,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
             resp.statusCode, resp.body.size());
     });
 
-    GX::ApplicationDesc appDesc;
+    gx::ApplicationDesc appDesc;
     appDesc.title  = L"GXLib Phase10 [GPUProfiler]";
     appDesc.width  = 1280;
     appDesc.height = 720;
@@ -1706,11 +1707,11 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
         return -1;
 
     // Phase 9: ShaderLibrary + ShaderHotReload（シェーダーの即時反映）
-    GX::ShaderLibrary::Instance().Initialize(g_device.GetDevice());
-    GX::ShaderHotReload::Instance().Initialize(g_device.GetDevice(), &g_commandQueue);
+    gx::ShaderLibrary::Instance().Initialize(g_device.GetDevice());
+    gx::ShaderHotReload::Instance().Initialize(g_device.GetDevice(), &g_commandQueue);
 
     // Phase 10: GPUプロファイラ
-    GX::GPUProfiler::Instance().Initialize(g_device.GetDevice(), g_commandQueue.GetQueue());
+    gx::GPUProfiler::Instance().Initialize(g_device.GetDevice(), g_commandQueue.GetQueue());
 
     // --- Phase 11: DXR レイトレーシング反射 ---
     // Device5(DXR対応デバイス)があればBLASを構築してRT反射を有効にする。
@@ -1721,24 +1722,24 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
         uint32_t w = g_app.GetWindow().GetWidth();
         uint32_t h = g_app.GetWindow().GetHeight();
 
-        g_rtReflections = std::make_unique<GX::RTReflections>();
+        g_rtReflections = std::make_unique<gx::RTReflections>();
         if (g_rtReflections->Initialize(device5, w, h))
         {
             // BLASビルド: コマンドリストを開いてBLASを構築し、GPU実行して待機
             g_commandList.Reset(0, nullptr);
             auto* cmdList4 = g_commandList.Get4();
 
-            auto buildBLAS = [&](GX::GPUMesh& mesh, uint32_t vertexCount, uint32_t stride) -> int {
+            auto buildBLAS = [&](gx::GPUMesh& mesh, uint32_t vertexCount, uint32_t stride) -> int {
                 return g_rtReflections->BuildBLAS(cmdList4,
                     mesh.vertexBuffer.GetResource(), vertexCount, stride,
                     mesh.indexBuffer.GetResource(), mesh.indexCount);
             };
 
             // Vertex3D_PBR stride = 48 bytes
-            constexpr uint32_t pbrStride = sizeof(GX::Vertex3D_PBR);
+            constexpr uint32_t pbrStride = sizeof(gx::Vertex3D_PBR);
 
             // 各メッシュのBLAS構築（頂点数はインデックス数/3の概算ではなく、VBサイズ/ストライドで算出）
-            auto getVertexCount = [&](GX::GPUMesh& mesh) -> uint32_t {
+            auto getVertexCount = [&](gx::GPUMesh& mesh) -> uint32_t {
                 auto desc = mesh.vertexBuffer.GetResource()->GetDesc();
                 return static_cast<uint32_t>(desc.Width / pbrStride);
             };
@@ -1764,10 +1765,10 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 
             // ライト設定 (メインレンダラーと同一のライト配列)
             {
-                GX::LightData rtLights[3];
-                rtLights[0] = GX::Light::CreateDirectional({ 0.3f, -1.0f, 0.5f }, { 1.0f, 0.98f, 0.95f }, 3.0f);
-                rtLights[1] = GX::Light::CreatePoint({ -3.0f, 3.0f, -3.0f }, 15.0f, { 1.0f, 0.95f, 0.9f }, 3.0f);
-                rtLights[2] = GX::Light::CreateSpot({ 4.0f, 4.0f, -2.0f }, { -0.5f, -1.0f, 0.3f },
+                gx::LightData rtLights[3];
+                rtLights[0] = gx::Light::CreateDirectional({ 0.3f, -1.0f, 0.5f }, { 1.0f, 0.98f, 0.95f }, 3.0f);
+                rtLights[1] = gx::Light::CreatePoint({ -3.0f, 3.0f, -3.0f }, 15.0f, { 1.0f, 0.95f, 0.9f }, 3.0f);
+                rtLights[2] = gx::Light::CreateSpot({ 4.0f, 4.0f, -2.0f }, { -0.5f, -1.0f, 0.3f },
                                                      20.0f, 30.0f, { 1.0f, 0.8f, 0.3f }, 15.0f);
                 g_rtReflections->SetLights(rtLights, 3, { 0.05f, 0.05f, 0.05f });
             }
@@ -1796,11 +1797,11 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
     g_moviePlayer.Close();
     g_postEffect.SetRTReflections(nullptr);
     g_rtReflections.reset();
-    GX::GPUProfiler::Instance().Shutdown();
-    GX::ShaderHotReload::Instance().Shutdown();
-    GX::ShaderLibrary::Instance().Shutdown();
+    gx::GPUProfiler::Instance().Shutdown();
+    gx::ShaderHotReload::Instance().Shutdown();
+    gx::ShaderLibrary::Instance().Shutdown();
     g_commandQueue.Flush();
-    GX::FileSystem::Instance().Clear();
+    gx::FileSystem::Instance().Clear();
     if (g_mouseCaptured) ShowCursor(TRUE);
     g_inputManager.Shutdown();
     g_fontManager.Shutdown();
@@ -1808,7 +1809,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 
     // DXGI/CRTの生存オブジェクトレポート: 解放忘れがあればOutput窓に一覧が出る
 #ifdef _DEBUG
-    GX::GraphicsDevice::ReportLiveObjects();
+    gx::GraphicsDevice::ReportLiveObjects();
     _CrtDumpMemoryLeaks();
 #endif
 

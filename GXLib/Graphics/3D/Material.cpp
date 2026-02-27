@@ -1,9 +1,9 @@
 /// @file Material.cpp
 /// @brief マテリアルマネージャーの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/3D/Material.h"
 
-namespace GX
+namespace gx
 {
 
 int MaterialManager::AllocateHandle()
@@ -92,4 +92,4 @@ bool MaterialManager::SetShaderHandle(int handle, int shaderHandle)
     return true;
 }
 
-} // namespace GX
+} // namespace gx

@@ -1,13 +1,13 @@
 /// @file TrailRenderer.cpp
 /// @brief トレイル（軌跡）レンダラーの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/3D/TrailRenderer.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 using namespace DirectX;
@@ -254,4 +254,4 @@ void TrailRenderer::Clear()
     m_pointCount = 0;
 }
 
-} // namespace GX
+} // namespace gx

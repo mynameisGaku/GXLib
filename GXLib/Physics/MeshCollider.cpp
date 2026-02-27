@@ -1,6 +1,6 @@
 /// @file MeshCollider.cpp
 /// @brief メッシュコライダーヘルパーの実装
-#include "pch.h"
+#include "pch_common.h"
 #include "Physics/MeshCollider.h"
 #include "Graphics/3D/Model.h"
 #include "Graphics/3D/Animator.h"
@@ -9,7 +9,7 @@
 #include "Graphics/3D/Vertex3D.h"
 #include <unordered_map>
 
-namespace GX
+namespace gx
 {
 
 namespace
@@ -367,4 +367,4 @@ void MeshCollider::Release(PhysicsWorld3D& world)
     }
 }
 
-} // namespace GX
+} // namespace gx

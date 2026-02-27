@@ -1,8 +1,8 @@
-#include "pch.h"
+#include "pch_graphics.h"
 #include "GUI/Widgets/Canvas.h"
 #include "GUI/UIRenderer.h"
 
-namespace GX { namespace GUI {
+namespace gx { namespace GUI {
 
 void Canvas::RenderSelf(UIRenderer& renderer)
 {
@@ -21,4 +21,4 @@ void Canvas::RenderSelf(UIRenderer& renderer)
         onDraw(renderer, globalRect);
 }
 
-}} // namespace GX::GUI
+}} // namespace gx::GUI

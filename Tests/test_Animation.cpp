@@ -6,7 +6,7 @@
 #include "Graphics/3D/AnimationClip.h"
 #include "Graphics/3D/Skeleton.h"
 
-using namespace GX;
+using namespace gx;
 
 // Helper: create 2-joint skeleton
 static Skeleton CreateTestSkeleton()

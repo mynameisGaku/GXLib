@@ -1,9 +1,9 @@
 /// @file AnimatorStateMachine.cpp
 /// @brief アニメーションステートマシンの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/3D/AnimatorStateMachine.h"
 
-namespace GX
+namespace gx
 {
 
 uint32_t AnimatorStateMachine::AddState(const AnimState& state)
@@ -246,4 +246,4 @@ void AnimatorStateMachine::Update(float deltaTime, uint32_t jointCount,
     }
 }
 
-} // namespace GX
+} // namespace gx

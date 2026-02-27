@@ -7,7 +7,7 @@
 
 #include <string>
 
-namespace GX { class Skybox; }
+namespace gx { class Skybox; }
 
 /// @brief スカイボックスのカラー・太陽・環境マップを編集するパネル
 class SkyboxPanel
@@ -15,11 +15,11 @@ class SkyboxPanel
 public:
     /// @brief スカイボックスパネルを独立ウィンドウとして描画する
     /// @param skybox 設定の反映先
-    void Draw(GX::Skybox& skybox);
+    void Draw(gx::Skybox& skybox);
 
     /// @brief タブコンテナ内埋め込み用（Begin/Endなし）
     /// @param skybox 設定の反映先
-    void DrawContent(GX::Skybox& skybox);
+    void DrawContent(gx::Skybox& skybox);
 
 private:
     std::string m_cubemapFaces[6];     ///< キューブマップ6面パス（プレースホルダー）

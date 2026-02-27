@@ -1,7 +1,7 @@
-#include "pch.h"
+#include "pch_common.h"
 #include "Physics/PhysicsWorld2D.h"
 
-namespace GX {
+namespace gx {
 
 PhysicsWorld2D::PhysicsWorld2D() = default;
 PhysicsWorld2D::~PhysicsWorld2D() = default;
@@ -303,4 +303,4 @@ void PhysicsWorld2D::QueryAABB(const AABB2D& area, std::vector<RigidBody2D*>& re
     }
 }
 
-} // namespace GX
+} // namespace gx

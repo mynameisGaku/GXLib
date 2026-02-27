@@ -1,10 +1,10 @@
-#include "pch.h"
+#include "pch_common.h"
 /// @file Entity.cpp
 /// @brief エンティティ実装
 
 #include "Core/Scene/Entity.h"
 
-namespace GX
+namespace gx
 {
 
 Entity::Entity(const std::string& name)
@@ -97,4 +97,4 @@ Sphere Entity::GetWorldBoundingSphere() const
     return Sphere(Vector3(wc.x, wc.y, wc.z), m_bounds.boundingSphereRadius * maxScale);
 }
 
-} // namespace GX
+} // namespace gx

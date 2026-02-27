@@ -6,7 +6,7 @@
 #include "Math/MathUtil.h"
 #include "Math/Random.h"
 
-using namespace GX;
+using namespace gx;
 
 // ============================================================================
 // MathUtil（汎用数学関数）

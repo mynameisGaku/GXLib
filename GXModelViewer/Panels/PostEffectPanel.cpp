@@ -18,7 +18,7 @@
 #include "Graphics/PostEffect/VolumetricLight.h"
 #include "Graphics/PostEffect/AutoExposure.h"
 
-void PostEffectPanel::Draw(GX::PostEffectPipeline& pipeline)
+void PostEffectPanel::Draw(gx::PostEffectPipeline& pipeline)
 {
     if (!ImGui::Begin("Post Effects"))
     {
@@ -29,12 +29,12 @@ void PostEffectPanel::Draw(GX::PostEffectPipeline& pipeline)
     ImGui::End();
 }
 
-void PostEffectPanel::DrawContent(GX::PostEffectPipeline& pipeline)
+void PostEffectPanel::DrawContent(gx::PostEffectPipeline& pipeline)
 {
     // --- Bloom ---
     if (ImGui::CollapsingHeader("Bloom", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        GX::Bloom& bloom = pipeline.GetBloom();
+        gx::Bloom& bloom = pipeline.GetBloom();
         bool enabled = bloom.IsEnabled();
         if (ImGui::Checkbox("Enabled##Bloom", &enabled))
             bloom.SetEnabled(enabled);
@@ -54,7 +54,7 @@ void PostEffectPanel::DrawContent(GX::PostEffectPipeline& pipeline)
     // --- SSAO ---
     if (ImGui::CollapsingHeader("SSAO"))
     {
-        GX::SSAO& ssao = pipeline.GetSSAO();
+        gx::SSAO& ssao = pipeline.GetSSAO();
         bool enabled = ssao.IsEnabled();
         if (ImGui::Checkbox("Enabled##SSAO", &enabled))
             ssao.SetEnabled(enabled);
@@ -78,7 +78,7 @@ void PostEffectPanel::DrawContent(GX::PostEffectPipeline& pipeline)
     // --- SSR ---
     if (ImGui::CollapsingHeader("SSR"))
     {
-        GX::SSR& ssr = pipeline.GetSSR();
+        gx::SSR& ssr = pipeline.GetSSR();
         bool enabled = ssr.IsEnabled();
         if (ImGui::Checkbox("Enabled##SSR", &enabled))
             ssr.SetEnabled(enabled);
@@ -110,7 +110,7 @@ void PostEffectPanel::DrawContent(GX::PostEffectPipeline& pipeline)
     // --- TAA ---
     if (ImGui::CollapsingHeader("TAA"))
     {
-        GX::TAA& taa = pipeline.GetTAA();
+        gx::TAA& taa = pipeline.GetTAA();
         bool enabled = taa.IsEnabled();
         if (ImGui::Checkbox("Enabled##TAA", &enabled))
             taa.SetEnabled(enabled);
@@ -126,7 +126,7 @@ void PostEffectPanel::DrawContent(GX::PostEffectPipeline& pipeline)
     // --- Depth of Field ---
     if (ImGui::CollapsingHeader("Depth of Field"))
     {
-        GX::DepthOfField& dof = pipeline.GetDoF();
+        gx::DepthOfField& dof = pipeline.GetDoF();
         bool enabled = dof.IsEnabled();
         if (ImGui::Checkbox("Enabled##DoF", &enabled))
             dof.SetEnabled(enabled);
@@ -150,7 +150,7 @@ void PostEffectPanel::DrawContent(GX::PostEffectPipeline& pipeline)
     // --- Motion Blur ---
     if (ImGui::CollapsingHeader("Motion Blur"))
     {
-        GX::MotionBlur& mb = pipeline.GetMotionBlur();
+        gx::MotionBlur& mb = pipeline.GetMotionBlur();
         bool enabled = mb.IsEnabled();
         if (ImGui::Checkbox("Enabled##MotionBlur", &enabled))
             mb.SetEnabled(enabled);
@@ -170,7 +170,7 @@ void PostEffectPanel::DrawContent(GX::PostEffectPipeline& pipeline)
     // --- Outline ---
     if (ImGui::CollapsingHeader("Outline"))
     {
-        GX::OutlineEffect& outline = pipeline.GetOutline();
+        gx::OutlineEffect& outline = pipeline.GetOutline();
         bool enabled = outline.IsEnabled();
         if (ImGui::Checkbox("Enabled##Outline", &enabled))
             outline.SetEnabled(enabled);
@@ -204,7 +204,7 @@ void PostEffectPanel::DrawContent(GX::PostEffectPipeline& pipeline)
     // --- Volumetric Light ---
     if (ImGui::CollapsingHeader("Volumetric Light"))
     {
-        GX::VolumetricLight& vl = pipeline.GetVolumetricLight();
+        gx::VolumetricLight& vl = pipeline.GetVolumetricLight();
         bool enabled = vl.IsEnabled();
         if (ImGui::Checkbox("Enabled##VolumetricLight", &enabled))
             vl.SetEnabled(enabled);
@@ -263,7 +263,7 @@ void PostEffectPanel::DrawContent(GX::PostEffectPipeline& pipeline)
     // --- Auto Exposure ---
     if (ImGui::CollapsingHeader("Auto Exposure"))
     {
-        GX::AutoExposure& ae = pipeline.GetAutoExposure();
+        gx::AutoExposure& ae = pipeline.GetAutoExposure();
         bool enabled = ae.IsEnabled();
         if (ImGui::Checkbox("Enabled##AutoExposure", &enabled))
             ae.SetEnabled(enabled);
@@ -296,7 +296,7 @@ void PostEffectPanel::DrawContent(GX::PostEffectPipeline& pipeline)
         const char* modeNames[] = { "Reinhard", "ACES", "Uncharted2" };
         int current = static_cast<int>(pipeline.GetTonemapMode());
         if (ImGui::Combo("Mode##Tonemap", &current, modeNames, 3))
-            pipeline.SetTonemapMode(static_cast<GX::TonemapMode>(current));
+            pipeline.SetTonemapMode(static_cast<gx::TonemapMode>(current));
 
         float exposure = pipeline.GetExposure();
         if (ImGui::SliderFloat("Exposure##Tonemap", &exposure, 0.1f, 10.0f, "%.2f"))

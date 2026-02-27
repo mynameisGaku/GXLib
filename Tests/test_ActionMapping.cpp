@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 #include "Input/ActionMapping.h"
 
-using namespace GX;
+using namespace gx;
 
 TEST(ActionMappingTest, DefineAction_Exists)
 {

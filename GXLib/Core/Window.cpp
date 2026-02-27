@@ -1,10 +1,10 @@
 /// @file Window.cpp
 /// @brief Window クラスの実装
-#include "pch.h"
+#include "pch_common.h"
 #include "Core/Window.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 Window::~Window()
@@ -81,14 +81,14 @@ bool Window::ProcessMessages()
     // PeekMessage でキューに溜まったメッセージを全部処理する（ノンブロッキング）。
     // GetMessage と違い、メッセージがなくても即座に返るのでゲームループ向き。
     MSG msg = {};
-    while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+    while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE))
     {
         if (msg.message == WM_QUIT)
         {
             return false;
         }
         TranslateMessage(&msg);
-        DispatchMessage(&msg);
+        DispatchMessageW(&msg);
     }
     return true;
 }
@@ -163,7 +163,7 @@ LRESULT CALLBACK Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
 
     }
 
-    return DefWindowProc(hwnd, msg, wParam, lParam);
+    return DefWindowProcW(hwnd, msg, wParam, lParam);
 }
 
-} // namespace GX
+} // namespace gx

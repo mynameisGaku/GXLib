@@ -1,7 +1,7 @@
-#include "pch.h"
+#include "pch_common.h"
 #include "Math/Spline.h"
 
-namespace GX {
+namespace gx {
 
 // ============================================================================
 // Control Point Management
@@ -348,4 +348,4 @@ float Spline::FindClosestParameter(const Vector3& point, int subdivisions) const
     return bestT;
 }
 
-} // namespace GX
+} // namespace gx

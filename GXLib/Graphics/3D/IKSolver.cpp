@@ -1,9 +1,9 @@
 /// @file IKSolver.cpp
 /// @brief CCD-IKソルバーの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/3D/IKSolver.h"
 
-namespace GX
+namespace gx
 {
 
 XMVECTOR CCDIKSolver::GetJointPosition(const XMFLOAT4X4* globalTransforms, int jointIndex)
@@ -149,4 +149,4 @@ void CCDIKSolver::RecomputeFK(int fromJoint, const Skeleton& skeleton,
     }
 }
 
-} // namespace GX
+} // namespace gx

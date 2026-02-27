@@ -1,10 +1,10 @@
 /// @file CascadedShadowMap.cpp
 /// @brief カスケードシャドウマップの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/3D/CascadedShadowMap.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool CascadedShadowMap::Initialize(ID3D12Device* device, DescriptorHeap* srvHeap, uint32_t srvStartIndex)
@@ -135,4 +135,4 @@ void CascadedShadowMap::ComputeCascadeLightVP(uint32_t cascade, const Camera3D& 
     XMStoreFloat4x4(&m_constants.lightVP[cascade], XMMatrixTranspose(lightVP));
 }
 
-} // namespace GX
+} // namespace gx

@@ -1,13 +1,13 @@
 /// @file Humanoid.cpp
 /// @brief ヒューマノイドのマッピング／リターゲット実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/3D/Humanoid.h"
 #include "ThirdParty/json.hpp"
 #include <filesystem>
 #include <fstream>
 #include <unordered_map>
 
-namespace GX
+namespace gx
 {
 
 static std::string ToLowerAscii(const std::string& s)
@@ -301,4 +301,4 @@ void HumanoidRetargeter::RetargetLocalPose(const TransformTRS* sourcePose,
     }
 }
 
-} // namespace GX
+} // namespace gx

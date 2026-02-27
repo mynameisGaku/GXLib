@@ -1,13 +1,13 @@
 /// @file ShaderRegistry.cpp
 /// @brief シェーダーモデルPSOレジストリの実装
 
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/3D/ShaderRegistry.h"
 #include "Graphics/3D/Vertex3D.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 /// シェーダーモデル列挙値からHLSLファイルパスを引く対応表
@@ -202,4 +202,4 @@ bool ShaderRegistry::Rebuild(ID3D12Device* device)
     return true;
 }
 
-} // namespace GX
+} // namespace gx

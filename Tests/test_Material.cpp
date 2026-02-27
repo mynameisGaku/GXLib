@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 #include "Graphics/3D/Material.h"
 
-using namespace GX;
+using namespace gx;
 
 static constexpr float kEps = 1e-5f;
 

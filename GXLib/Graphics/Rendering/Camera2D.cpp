@@ -3,10 +3,10 @@
 ///
 /// ビュー行列は「画面中心を原点にしてズーム・回転し、カメラ位置分だけ逆移動」する構成。
 /// SpriteBatch / PrimitiveBatch の SetProjectionMatrix() に渡す想定。
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Rendering/Camera2D.h"
 
-namespace GX
+namespace gx
 {
 
 XMMATRIX Camera2D::GetViewProjectionMatrix(uint32_t screenWidth, uint32_t screenHeight) const
@@ -44,4 +44,4 @@ XMMATRIX Camera2D::GetViewProjectionMatrix(uint32_t screenWidth, uint32_t screen
     return view * projection;
 }
 
-} // namespace GX
+} // namespace gx

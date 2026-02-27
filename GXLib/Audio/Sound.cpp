@@ -1,11 +1,11 @@
 /// @file Sound.cpp
 /// @brief WAVファイル読み込み・PCMデータ管理の実装
-#include "pch.h"
+#include "pch_audio.h"
 #include "Audio/Sound.h"
 #include "Core/Logger.h"
 #include <fstream>
 
-namespace GX
+namespace gx
 {
 
 /// WAVファイル内の各チャンク（fmt, data等）の先頭8バイト
@@ -106,4 +106,4 @@ bool Sound::LoadFromFile(const std::wstring& filePath)
     return true;
 }
 
-} // namespace GX
+} // namespace gx

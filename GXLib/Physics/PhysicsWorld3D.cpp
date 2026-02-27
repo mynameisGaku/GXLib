@@ -1,4 +1,4 @@
-#include "pch.h"
+#include "pch_common.h"
 #include "Physics/PhysicsWorld3D.h"
 #include "Core/Logger.h"
 
@@ -48,11 +48,11 @@ static bool JoltAssertFailedImpl(const char* inExpression, const char* inMessage
 namespace {
 
 // 変換ヘルパー
-inline JPH::Vec3 ToJolt(const GX::Vector3& v) { return JPH::Vec3(v.x, v.y, v.z); }
-inline JPH::Quat ToJolt(const GX::Quaternion& q) { return JPH::Quat(q.x, q.y, q.z, q.w); }
-inline GX::Vector3 FromJoltV(const JPH::Vec3& v) { return { v.GetX(), v.GetY(), v.GetZ() }; }
-inline GX::Vector3 FromJoltR(const JPH::RVec3& v) { return { static_cast<float>(v.GetX()), static_cast<float>(v.GetY()), static_cast<float>(v.GetZ()) }; }
-inline GX::Quaternion FromJoltQ(const JPH::Quat& q) { return { q.GetX(), q.GetY(), q.GetZ(), q.GetW() }; }
+inline JPH::Vec3 ToJolt(const gx::Vector3& v) { return JPH::Vec3(v.x, v.y, v.z); }
+inline JPH::Quat ToJolt(const gx::Quaternion& q) { return JPH::Quat(q.x, q.y, q.z, q.w); }
+inline gx::Vector3 FromJoltV(const JPH::Vec3& v) { return { v.GetX(), v.GetY(), v.GetZ() }; }
+inline gx::Vector3 FromJoltR(const JPH::RVec3& v) { return { static_cast<float>(v.GetX()), static_cast<float>(v.GetY()), static_cast<float>(v.GetZ()) }; }
+inline gx::Quaternion FromJoltQ(const JPH::Quat& q) { return { q.GetX(), q.GetY(), q.GetZ(), q.GetW() }; }
 
 // ブロードフェーズ用レイヤー
 namespace BroadPhaseLayers {
@@ -126,7 +126,7 @@ public:
 class ContactListenerImpl final : public JPH::ContactListener
 {
 public:
-    GX::PhysicsWorld3D* world = nullptr;
+    gx::PhysicsWorld3D* world = nullptr;
 
     JPH::ValidateResult OnContactValidate(const JPH::Body&, const JPH::Body&,
         JPH::RVec3Arg, const JPH::CollideShapeResult&) override
@@ -139,10 +139,10 @@ public:
     {
         if (world && world->onContactAdded)
         {
-            GX::PhysicsBodyID id1, id2;
+            gx::PhysicsBodyID id1, id2;
             id1.id = inBody1.GetID().GetIndexAndSequenceNumber();
             id2.id = inBody2.GetID().GetIndexAndSequenceNumber();
-            GX::Vector3 contactPt = FromJoltR(inManifold.GetWorldSpaceContactPointOn1(0));
+            gx::Vector3 contactPt = FromJoltR(inManifold.GetWorldSpaceContactPointOn1(0));
             world->onContactAdded(id1, id2, contactPt);
         }
     }
@@ -151,7 +151,7 @@ public:
     {
         if (world && world->onContactRemoved)
         {
-            GX::PhysicsBodyID id1, id2;
+            gx::PhysicsBodyID id1, id2;
             id1.id = inSubShapePair.GetBody1ID().GetIndexAndSequenceNumber();
             id2.id = inSubShapePair.GetBody2ID().GetIndexAndSequenceNumber();
             world->onContactRemoved(id1, id2);
@@ -161,7 +161,7 @@ public:
 
 } // anonymous namespace
 
-namespace GX {
+namespace gx {
 
 struct PhysicsWorld3D::Impl {
     std::unique_ptr<JPH::TempAllocatorImpl> tempAllocator;
@@ -560,7 +560,11 @@ Matrix4x4 PhysicsWorld3D::GetWorldTransform(PhysicsBodyID id) const
         static_cast<float>(pos.GetZ())
     );
 
-    return Matrix4x4::FromXMMATRIX(XMMatrixMultiply(rotMat, transMat));
+    XMFLOAT4X4 result;
+    XMStoreFloat4x4(&result, XMMatrixMultiply(rotMat, transMat));
+    Matrix4x4 mat;
+    std::memcpy(&mat, &result, sizeof(Matrix4x4));
+    return mat;
 }
 
 bool PhysicsWorld3D::IsActive(PhysicsBodyID id) const
@@ -601,4 +605,4 @@ PhysicsWorld3D::RaycastResult PhysicsWorld3D::Raycast(const Vector3& origin, con
     return result;
 }
 
-} // namespace GX
+} // namespace gx

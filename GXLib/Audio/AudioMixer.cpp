@@ -1,11 +1,11 @@
 /// @file AudioMixer.cpp
 /// @brief オーディオミキサーの実装
-#include "pch.h"
+#include "pch_audio.h"
 #include "Audio/AudioMixer.h"
 #include "Audio/AudioDevice.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool AudioMixer::Initialize(AudioDevice& device)
@@ -100,4 +100,4 @@ void AudioMixer::Shutdown()
     m_masterBus.Shutdown();
 }
 
-} // namespace GX
+} // namespace gx

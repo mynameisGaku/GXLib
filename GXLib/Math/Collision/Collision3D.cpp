@@ -1,7 +1,7 @@
-#include "pch.h"
+#include "pch_common.h"
 #include "Math/Collision/Collision3D.h"
 
-namespace GX {
+namespace gx {
 
 // --- 視錐台 ---
 
@@ -49,10 +49,9 @@ Frustum Frustum::FromViewProjection(const XMMATRIX& viewProj)
 OBB::OBB(const Vector3& center, const Vector3& halfExtents, const Matrix4x4& rotation)
     : center(center), halfExtents(halfExtents)
 {
-    XMMATRIX m = rotation.ToXMMATRIX();
-    axes[0] = Vector3::TransformNormal(Vector3(1, 0, 0), m);
-    axes[1] = Vector3::TransformNormal(Vector3(0, 1, 0), m);
-    axes[2] = Vector3::TransformNormal(Vector3(0, 0, 1), m);
+    axes[0] = Vector3::TransformNormal(Vector3(1, 0, 0), rotation);
+    axes[1] = Vector3::TransformNormal(Vector3(0, 1, 0), rotation);
+    axes[2] = Vector3::TransformNormal(Vector3(0, 0, 1), rotation);
 }
 
 // --- 3D衝突判定 ---
@@ -429,4 +428,4 @@ Vector3 ClosestPointOnLine(const Vector3& point, const Vector3& lineA, const Vec
 }
 
 } // namespace Collision3D
-} // namespace GX
+} // namespace gx

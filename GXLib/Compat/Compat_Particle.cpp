@@ -6,17 +6,17 @@
 #include "Graphics/Rendering/ParticleSystem2D.h"
 #include "Graphics/Rendering/ParticleEmitter2D.h"
 
-using Ctx = GX_Internal::CompatContext;
+using Ctx = gx_internal::CompatContext;
 
 int CreateParticle2D(int textureHandle, float x, float y, int count)
 {
     auto& ctx = Ctx::Instance();
 
-    GX::EmitterConfig2D config;
+    gx::EmitterConfig2D config;
     config.textureHandle = textureHandle;
     config.burstCount = count;
     config.emissionRate = 0.0f;
-    config.blendMode = GX::BlendMode::Add;
+    config.blendMode = gx::BlendMode::Add;
     config.maxParticles = static_cast<uint32_t>((std::max)(count, 100));
 
     int handle = ctx.particleSystem2D.AddEmitter(config);

@@ -1,13 +1,13 @@
 /// @file PrimitiveBatch3D.cpp
 /// @brief 3Dプリミティブバッチの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/3D/PrimitiveBatch3D.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool PrimitiveBatch3D::Initialize(ID3D12Device* device)
@@ -406,4 +406,4 @@ void PrimitiveBatch3D::End()
     m_cmdList->DrawInstanced(m_vertexCount, 1, 0, 0);
 }
 
-} // namespace GX
+} // namespace gx

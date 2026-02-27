@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 #include "Graphics/3D/Transform3D.h"
 
-using namespace GX;
+using namespace gx;
 
 TEST(Transform3DTest, DefaultState)
 {

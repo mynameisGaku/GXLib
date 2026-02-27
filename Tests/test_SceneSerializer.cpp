@@ -6,8 +6,9 @@
 #include "Core/Scene/Scene.h"
 #include "Core/Scene/SceneSerializer.h"
 #include "Core/Scene/Components.h"
+#include "Graphics/3D/GraphicsComponents.h"
 
-using namespace GX;
+using namespace gx;
 
 TEST(SceneSerializerTest, ToJsonString_EmptyScene)
 {

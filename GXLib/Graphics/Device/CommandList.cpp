@@ -1,10 +1,10 @@
 /// @file CommandList.cpp
 /// @brief コマンドリストの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Device/CommandList.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool CommandList::Initialize(ID3D12Device* device, D3D12_COMMAND_LIST_TYPE type)
@@ -77,4 +77,4 @@ bool CommandList::Close()
     return true;
 }
 
-} // namespace GX
+} // namespace gx

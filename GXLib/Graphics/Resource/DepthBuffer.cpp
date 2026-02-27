@@ -1,10 +1,10 @@
 /// @file DepthBuffer.cpp
 /// @brief 深度バッファの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Resource/DepthBuffer.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool DepthBuffer::Create(ID3D12Device* device, uint32_t width, uint32_t height, DXGI_FORMAT format)
@@ -208,4 +208,4 @@ void DepthBuffer::TransitionTo(ID3D12GraphicsCommandList* cmdList, D3D12_RESOURC
     m_currentState = newState;
 }
 
-} // namespace GX
+} // namespace gx

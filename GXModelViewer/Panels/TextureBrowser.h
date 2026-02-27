@@ -13,7 +13,7 @@ class TextureBrowser
 public:
     /// @brief テクスチャブラウザパネルを描画する
     /// @param texManager テクスチャ一覧の取得元
-    void Draw(GX::TextureManager& texManager);
+    void Draw(gx::TextureManager& texManager);
 
 private:
     int m_selectedHandle = -1;      ///< 選択中のテクスチャハンドル（-1=未選択）

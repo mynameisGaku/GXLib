@@ -1,8 +1,8 @@
-#include "pch.h"
+#include "pch_graphics.h"
 #include "GUI/Widgets/Button.h"
 #include "GUI/UIRenderer.h"
 
-namespace GX { namespace GUI {
+namespace gx { namespace GUI {
 
 float Button::GetIntrinsicWidth() const
 {
@@ -48,4 +48,4 @@ void Button::RenderSelf(UIRenderer& renderer)
     // ボタンは子を持たないのが一般的
 }
 
-}} // namespace GX::GUI
+}} // namespace gx::GUI

@@ -1,7 +1,7 @@
-#include "pch.h"
+#include "pch_common.h"
 #include "Math/Random.h"
 
-namespace GX {
+namespace gx {
 
 Random::Random()
 {
@@ -114,4 +114,4 @@ Random& Random::Global()
     return instance;
 }
 
-} // namespace GX
+} // namespace gx

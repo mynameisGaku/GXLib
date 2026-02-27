@@ -1,8 +1,8 @@
-#include "pch.h"
+#include "pch_common.h"
 #include "IO/AsyncLoader.h"
 #include "Core/Logger.h"
 
-namespace GX {
+namespace gx {
 
 AsyncLoader::AsyncLoader()
 {
@@ -106,4 +106,4 @@ void AsyncLoader::WorkerLoop()
     }
 }
 
-} // namespace GX
+} // namespace gx

@@ -18,17 +18,17 @@
 struct SceneEntity
 {
     std::string      name;                              ///< エンティティ名（ファイル名から自動設定）
-    GX::Transform3D  transform;                         ///< ワールドトランスフォーム
-    GX::Model*       model = nullptr;                   ///< モデルへの非所有参照
-    std::unique_ptr<GX::Model> ownedModel;              ///< インポートしたモデルの所有権
-    GX::Material     materialOverride;                  ///< エンティティ全体に適用する上書きマテリアル
+    gx::Transform3D  transform;                         ///< ワールドトランスフォーム
+    gx::Model*       model = nullptr;                   ///< モデルへの非所有参照
+    std::unique_ptr<gx::Model> ownedModel;              ///< インポートしたモデルの所有権
+    gx::Material     materialOverride;                  ///< エンティティ全体に適用する上書きマテリアル
     bool             useMaterialOverride = false;       ///< マテリアルオーバーライドを有効にするか
     int              parentIndex = -1;                  ///< 親エンティティのインデックス（-1=ルート）
     bool             visible = true;                    ///< 表示ON/OFF
     std::string      sourcePath;                        ///< インポート元ファイルパス（シーン保存用）
 
     // --- アニメーション ---
-    std::unique_ptr<GX::Animator> animator;             ///< スキンドモデル用Animator
+    std::unique_ptr<gx::Animator> animator;             ///< スキンドモデル用Animator
     int  selectedClipIndex = -1;                        ///< タイムラインで選択中のクリップインデックス
 
     // --- 表示制御 ---

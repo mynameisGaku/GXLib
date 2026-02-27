@@ -1,9 +1,9 @@
 /// @file Timer.cpp
 /// @brief Timer クラスの実装
-#include "pch.h"
+#include "pch_common.h"
 #include "Core/Timer.h"
 
-namespace GX
+namespace gx
 {
 
 Timer::Timer()
@@ -58,4 +58,4 @@ void Timer::Tick()
     }
 }
 
-} // namespace GX
+} // namespace gx

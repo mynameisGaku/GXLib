@@ -1,9 +1,9 @@
 /// @file Skeleton.cpp
 /// @brief スケルトンの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/3D/Skeleton.h"
 
-namespace GX
+namespace gx
 {
 
 void Skeleton::ComputeGlobalTransforms(const XMFLOAT4X4* localTransforms,
@@ -51,4 +51,4 @@ int Skeleton::FindJointIndex(const std::string& name) const
     return -1;
 }
 
-} // namespace GX
+} // namespace gx

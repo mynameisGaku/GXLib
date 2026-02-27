@@ -1,14 +1,14 @@
 /// @file ContactShadows.cpp
 /// @brief Screen Space Contact Shadows の実装
 
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/PostEffect/ContactShadows.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool ContactShadows::Initialize(ID3D12Device* device, uint32_t width, uint32_t height)
@@ -218,4 +218,4 @@ void ContactShadows::OnResize(ID3D12Device* device, uint32_t width, uint32_t hei
     m_shadowRT.Create(device, width, height, DXGI_FORMAT_R8_UNORM);
 }
 
-} // namespace GX
+} // namespace gx

@@ -19,7 +19,7 @@ enum class SimulationState
 struct EntitySnapshot
 {
     std::string      name;
-    GX::Transform3D  transform;
+    gx::Transform3D  transform;
     int              parentIndex = -1;
     bool             visible = true;
 };

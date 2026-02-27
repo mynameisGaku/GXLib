@@ -1,10 +1,10 @@
-#include "pch.h"
+#include "pch_common.h"
 #include "IO/Archive.h"
 #include "IO/Crypto.h"
 #include "Core/Logger.h"
 #include "ThirdParty/lz4.h"
 
-namespace GX {
+namespace gx {
 
 // アーカイブ形式の定数 (識別子やフラグ)
 static constexpr uint8_t k_Magic[8] = { 'G','X','A','R','C',0,0,0 };
@@ -44,6 +44,18 @@ bool Archive::Open(const std::string& filePath, const std::string& password)
     file.read(reinterpret_cast<char*>(&flags), 4);
     file.read(reinterpret_cast<char*>(&reserved), 4);
 
+    if (!file.good())
+    {
+        GX_LOG_ERROR("Archive: Failed to read TOC header from: %s", filePath.c_str());
+        return false;
+    }
+
+    if (entryCount > 1000000)
+    {
+        GX_LOG_ERROR("Archive: Too many entries (%u)", entryCount);
+        return false;
+    }
+
     if (tocSize > 256 * 1024 * 1024)
     {
         GX_LOG_ERROR("Archive: TOC too large (%u bytes)", tocSize);
@@ -65,6 +77,11 @@ bool Archive::Open(const std::string& filePath, const std::string& password)
     // TOCデータを読む（各ファイルのパス・オフセット・サイズが格納されている）
     std::vector<uint8_t> tocData(tocSize);
     file.read(reinterpret_cast<char*>(tocData.data()), tocSize);
+    if (!file.good())
+    {
+        GX_LOG_ERROR("Archive: Failed to read TOC data from: %s", filePath.c_str());
+        return false;
+    }
 
     // 暗号化されていればTOCを復号する
     if (m_encrypted)
@@ -377,4 +394,4 @@ bool ArchiveWriter::Save(const std::string& outputPath)
     return true;
 }
 
-} // namespace GX
+} // namespace gx

@@ -9,6 +9,7 @@ FetchContent_Declare(googletest
     GIT_TAG        v1.15.2
 )
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 # テストソース
@@ -46,11 +47,16 @@ set(TEST_SOURCES
     test_IK.cpp
     test_AnimatorStateMachine.cpp
     test_BlendSystem.cpp
+    # Phase 5: DI + テスタビリティ
+    test_ServiceLocator.cpp
 )
 
 add_executable(GXLibTests ${TEST_SOURCES})
 target_link_libraries(GXLibTests PRIVATE GXLib GTest::gtest GTest::gtest_main)
-target_include_directories(GXLibTests PRIVATE ${CMAKE_SOURCE_DIR}/GXLib)
+target_include_directories(GXLibTests PRIVATE
+    ${CMAKE_SOURCE_DIR}/GXLib
+    ${CMAKE_SOURCE_DIR}
+)
 
 # CTest 連携
 include(GoogleTest)

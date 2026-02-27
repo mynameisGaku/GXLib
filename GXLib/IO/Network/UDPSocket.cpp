@@ -1,12 +1,12 @@
 /// @file UDPSocket.cpp
 /// @brief UDPソケット実装 — Winsock2 API ラッパー
-#include "pch.h"
+#include "pch_common.h"
 #include <WinSock2.h>
 #include <ws2tcpip.h>
 #include "IO/Network/UDPSocket.h"
 #include "Core/Logger.h"
 
-namespace GX {
+namespace gx {
 
 UDPSocket::UDPSocket()
 {
@@ -90,4 +90,4 @@ void UDPSocket::SetNonBlocking(bool nonBlocking)
     ioctlsocket(m_socket, FIONBIO, &mode);
 }
 
-} // namespace GX
+} // namespace gx

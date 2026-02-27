@@ -9,7 +9,7 @@
 #include "Audio/AudioMixer.h"
 #include "Audio/AudioBus.h"
 
-void AudioPanel::Draw(GX::AudioMixer& mixer)
+void AudioPanel::Draw(gx::AudioMixer& mixer)
 {
     if (!ImGui::Begin("Audio"))
     {
@@ -20,7 +20,7 @@ void AudioPanel::Draw(GX::AudioMixer& mixer)
     ImGui::End();
 }
 
-void AudioPanel::DrawContent(GX::AudioMixer& mixer)
+void AudioPanel::DrawContent(gx::AudioMixer& mixer)
 {
     if (ImGui::CollapsingHeader("Buses", ImGuiTreeNodeFlags_DefaultOpen))
     {

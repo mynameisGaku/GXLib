@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 #include "Math/Collision/Collision3D.h"
 
-using namespace GX;
+using namespace gx;
 
 // ============================================================================
 // AABB3D vs AABB3D（軸平行境界ボックス同士）

@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 #include "Math/Quaternion.h"
 
-using namespace GX;
+using namespace gx;
 
 TEST(QuaternionTest, IdentityIsDefault)
 {

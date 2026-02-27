@@ -1,11 +1,11 @@
 /// @file GraphicsDevice.cpp
 /// @brief D3D12デバイス初期化の実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Device/GraphicsDevice.h"
 #include "Core/Logger.h"
 #include <dxgidebug.h>
 
-namespace GX
+namespace gx
 {
 
 bool GraphicsDevice::Initialize(bool enableDebugLayer, bool enableGPUValidation)
@@ -177,4 +177,4 @@ bool GraphicsDevice::SelectAdapter()
     return false;
 }
 
-} // namespace GX
+} // namespace gx

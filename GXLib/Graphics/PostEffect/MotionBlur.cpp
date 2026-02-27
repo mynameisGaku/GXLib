@@ -5,14 +5,14 @@
 /// 前フレームVP行列で再投影して速度ベクトルを計算、HDR空間でブラーを行う。
 ///
 /// 2テクスチャ(scene + depth)を使うため、DoFと同様に専用SRVヒープを使用
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/PostEffect/MotionBlur.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool MotionBlur::Initialize(ID3D12Device* device, uint32_t width, uint32_t height)
@@ -195,4 +195,4 @@ void MotionBlur::OnResize(ID3D12Device* device, uint32_t width, uint32_t height)
     m_height = height;
 }
 
-} // namespace GX
+} // namespace gx

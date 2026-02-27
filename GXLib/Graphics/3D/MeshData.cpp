@@ -1,10 +1,10 @@
 /// @file MeshData.cpp
 /// @brief プリミティブメッシュ生成の実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/3D/MeshData.h"
 #include <cmath>
 
-namespace GX
+namespace gx
 {
 
 MeshData MeshGenerator::CreateBox(float width, float height, float depth)
@@ -289,4 +289,4 @@ MeshData MeshGenerator::CreateCylinder(float topRadius, float bottomRadius, floa
     return mesh;
 }
 
-} // namespace GX
+} // namespace gx

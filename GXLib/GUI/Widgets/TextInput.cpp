@@ -1,8 +1,8 @@
-#include "pch.h"
+#include "pch_graphics.h"
 #include "GUI/Widgets/TextInput.h"
 #include "GUI/UIRenderer.h"
 
-namespace GX { namespace GUI {
+namespace gx { namespace GUI {
 
 // ============================================================================
 // wstring → string（UTF-8変換）
@@ -584,4 +584,4 @@ void TextInput::RenderSelf(UIRenderer& renderer)
     renderer.PopScissor();
 }
 
-}} // namespace GX::GUI
+}} // namespace gx::GUI

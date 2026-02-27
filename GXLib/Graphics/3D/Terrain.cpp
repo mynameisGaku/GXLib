@@ -1,12 +1,12 @@
 /// @file Terrain.cpp
 /// @brief ハイトマップ地形レンダラーの実装
 
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/3D/Terrain.h"
 #include "Core/Logger.h"
 #include <cmath>
 
-namespace GX
+namespace gx
 {
 
 // ============================================================================
@@ -317,4 +317,4 @@ float Terrain::GetHeight(float x, float z) const
     return h0 + (h1 - h0) * fz;
 }
 
-} // namespace GX
+} // namespace gx

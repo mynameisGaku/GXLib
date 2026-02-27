@@ -1,11 +1,11 @@
 /// @file ShaderHotReload.cpp
 /// @brief シェーダーホットリロード実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Pipeline/ShaderHotReload.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 ShaderHotReload& ShaderHotReload::Instance()
@@ -136,4 +136,4 @@ void ShaderHotReload::Shutdown()
     GX_LOG_INFO("ShaderHotReload: Shutdown");
 }
 
-} // namespace GX
+} // namespace gx

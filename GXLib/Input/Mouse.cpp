@@ -1,9 +1,9 @@
 /// @file Mouse.cpp
 /// @brief マウス入力管理の実装
-#include "pch.h"
+#include "pch_common.h"
 #include "Input/Mouse.h"
 
-namespace GX
+namespace gx
 {
 
 void Mouse::Initialize()
@@ -71,4 +71,4 @@ bool Mouse::IsButtonReleased(int button) const
     return !m_currentButtons[button] && m_previousButtons[button];
 }
 
-} // namespace GX
+} // namespace gx

@@ -1,11 +1,11 @@
-#include "pch.h"
+#include "pch_graphics.h"
 /// @file ParticleEmitter2D.cpp
 /// @brief 2Dパーティクルエミッター実装
 
 #include "Graphics/Rendering/ParticleEmitter2D.h"
 #include "Math/MathUtil.h"
 
-namespace GX
+namespace gx
 {
 
 void ParticleEmitter2D::Initialize(const EmitterConfig2D& config)
@@ -197,4 +197,4 @@ int ParticleEmitter2D::FindDeadParticle()
     return -1;
 }
 
-} // namespace GX
+} // namespace gx

@@ -1,8 +1,8 @@
-#include "pch.h"
+#include "pch_graphics.h"
 #include "GUI/Widgets/Image.h"
 #include "GUI/UIRenderer.h"
 
-namespace GX { namespace GUI {
+namespace gx { namespace GUI {
 
 void Image::Update(float deltaTime)
 {
@@ -77,4 +77,4 @@ void Image::RenderSelf(UIRenderer& renderer)
     }
 }
 
-}} // namespace GX::GUI
+}} // namespace gx::GUI

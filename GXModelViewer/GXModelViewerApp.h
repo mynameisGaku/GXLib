@@ -162,34 +162,34 @@ private:
     void DrawSkeletonOverlay(const SceneEntity& entity);
 
     // --- GXLibコアオブジェクト ---
-    GX::Application     m_app;             ///< ウィンドウ・タイマー管理
-    GX::GraphicsDevice  m_graphicsDevice;  ///< D3D12デバイス（デバッグレイヤー対応）
-    GX::CommandQueue    m_commandQueue;    ///< GPUコマンドキュー
-    GX::CommandList     m_commandList;     ///< ダブルバッファ対応コマンドリスト
-    GX::SwapChain       m_swapChain;       ///< スワップチェーン（OSウィンドウ用）
+    gx::Application     m_app;             ///< ウィンドウ・タイマー管理
+    gx::GraphicsDevice  m_graphicsDevice;  ///< D3D12デバイス（デバッグレイヤー対応）
+    gx::CommandQueue    m_commandQueue;    ///< GPUコマンドキュー
+    gx::CommandList     m_commandList;     ///< ダブルバッファ対応コマンドリスト
+    gx::SwapChain       m_swapChain;       ///< スワップチェーン（OSウィンドウ用）
 
     // --- 3Dレンダリング ---
-    GX::Renderer3D           m_renderer3D;  ///< PBR/Toonレンダラ（CSM、マテリアル管理内蔵）
-    GX::Camera3D             m_camera;      ///< オービットカメラ
-    GX::PostEffectPipeline   m_postEffect;  ///< HDR→トーンマップ→FXAA等のポストエフェクトチェーン
+    gx::Renderer3D           m_renderer3D;  ///< PBR/Toonレンダラ（CSM、マテリアル管理内蔵）
+    gx::Camera3D             m_camera;      ///< オービットカメラ
+    gx::PostEffectPipeline   m_postEffect;  ///< HDR→トーンマップ→FXAA等のポストエフェクトチェーン
 
     // --- シーンデータ ---
     SceneGraph          m_sceneGraph;       ///< エンティティ管理（選択・削除・親子関係）
     InfiniteGrid        m_infiniteGrid;     ///< Y=0平面の無限グリッド描画
 
     // --- リソース管理 ---
-    GX::AudioManager    m_audioManager;     ///< オーディオシステム（AudioPanel用）
-    GX::ModelLoader     m_modelLoader;      ///< glTF/FBX/OBJ/GXMDモデル読み込み
-    GX::MaterialManager m_materialManager;  ///< マテリアルハンドル管理（Renderer3D内部とは別）
-    GX::TextureManager  m_textureManager;   ///< テクスチャハンドル管理
+    gx::AudioManager    m_audioManager;     ///< オーディオシステム（AudioPanel用）
+    gx::ModelLoader     m_modelLoader;      ///< glTF/FBX/OBJ/GXMDモデル読み込み
+    gx::MaterialManager m_materialManager;  ///< マテリアルハンドル管理（Renderer3D内部とは別）
+    gx::TextureManager  m_textureManager;   ///< テクスチャハンドル管理
 
     // --- ImGui ---
-    GX::DescriptorHeap  m_imguiSrvHeap;         ///< ImGui専用SRVヒープ（shader-visible、256エントリ）
+    gx::DescriptorHeap  m_imguiSrvHeap;         ///< ImGui専用SRVヒープ（shader-visible、256エントリ）
     bool                m_imguiInitialized = false;
 
     // --- ビューポートレンダーターゲット ---
     // 3Dシーン→m_viewportRT(LDR)→ImGui::Imageで表示
-    GX::RenderTarget    m_viewportRT;
+    gx::RenderTarget    m_viewportRT;
     uint32_t            m_viewportWidth  = 0;
     uint32_t            m_viewportHeight = 0;
     bool                m_viewportNeedsResize = false;  ///< ImGuiウィンドウサイズ変更時にtrueになる
@@ -202,7 +202,7 @@ private:
     ImVec2              m_viewportImageSize = {};   ///< ビューポート画像のサイズ
 
     // --- フレーム同期 ---
-    uint64_t m_frameFenceValues[GX::SwapChain::k_BufferCount] = {};
+    uint64_t m_frameFenceValues[gx::SwapChain::k_BufferCount] = {};
     uint32_t m_frameIndex = 0;
     float    m_totalTime  = 0.0f;  ///< 累積経過時間（シェーダーアニメーション用）
 

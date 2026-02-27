@@ -18,15 +18,15 @@ public:
 
     /// @brief ライティングパネルを独立ウィンドウとして描画する
     /// @param renderer ライト設定の反映先
-    void Draw(GX::Renderer3D& renderer);
+    void Draw(gx::Renderer3D& renderer);
 
     /// @brief タブコンテナ内埋め込み用（Begin/Endなし）
     /// @param renderer ライト設定の反映先
-    void DrawContent(GX::Renderer3D& renderer);
+    void DrawContent(gx::Renderer3D& renderer);
 
     /// @brief 現在のライトデータ配列を取得する
     /// @return ライトデータの読み取り専用参照
-    const std::vector<GX::LightData>& GetLights() const { return m_lights; }
+    const std::vector<gx::LightData>& GetLights() const { return m_lights; }
 
     /// @brief アンビエントカラーを取得する
     /// @return RGB float[3]へのポインタ
@@ -35,7 +35,7 @@ public:
 private:
     static constexpr int k_MaxLights = 16;  ///< ライト最大数
 
-    std::vector<GX::LightData> m_lights;
+    std::vector<gx::LightData> m_lights;
     float m_ambientColor[3] = { 0.15f, 0.15f, 0.18f };
     bool  m_dirty = true;  ///< パラメータ変更時にtrueにし、次のDrawContentでRenderer3Dに反映
 };

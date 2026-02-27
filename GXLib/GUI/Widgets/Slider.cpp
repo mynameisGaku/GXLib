@@ -1,8 +1,8 @@
-#include "pch.h"
+#include "pch_graphics.h"
 #include "GUI/Widgets/Slider.h"
 #include "GUI/UIRenderer.h"
 
-namespace GX { namespace GUI {
+namespace gx { namespace GUI {
 
 void Slider::SetValue(float v)
 {
@@ -101,4 +101,4 @@ void Slider::RenderSelf(UIRenderer& renderer)
     renderer.DrawRect(thumbRect, thumbStyle, 1.0f);
 }
 
-}} // namespace GX::GUI
+}} // namespace gx::GUI

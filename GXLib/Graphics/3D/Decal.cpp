@@ -1,14 +1,15 @@
-#include "pch.h"
+#include "pch_graphics.h"
 /// @file Decal.cpp
 /// @brief デカールシステム（Deferred Box Projection）の実装
 
 #include "Graphics/3D/Decal.h"
+#include "Math/MathConvert.h"
 #include "Graphics/3D/Camera3D.h"
 #include "Graphics/Resource/TextureManager.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 
-namespace GX
+namespace gx
 {
 
 // ============================================================================
@@ -353,7 +354,7 @@ void DecalSystem::Render(ID3D12GraphicsCommandList* cmdList,
         cb.invViewProj = invViewProjF;
         XMStoreFloat4x4(&cb.decalWorld, XMMatrixTranspose(XMMatrixMultiply(decalWorldMat, viewProj)));
         XMStoreFloat4x4(&cb.decalInvWorld, XMMatrixTranspose(decalInvWorldMat));
-        cb.decalColor = decal.color.ToXMFLOAT4();
+        cb.decalColor = ToXMFLOAT4(decal.color);
 
         // 寿命によるフェードアウト
         if (decal.lifetime > 0.0f)
@@ -438,4 +439,4 @@ void DecalSystem::Shutdown()
     m_initialized = false;
 }
 
-} // namespace GX
+} // namespace gx

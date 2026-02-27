@@ -1,13 +1,13 @@
 /// @file Skybox.cpp
 /// @brief プロシージャルスカイボックスの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/3D/Skybox.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool Skybox::Initialize(ID3D12Device* device)
@@ -146,4 +146,4 @@ void Skybox::Draw(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
     cmdList->DrawIndexedInstanced(36, 1, 0, 0, 0);
 }
 
-} // namespace GX
+} // namespace gx

@@ -3,14 +3,14 @@
 ///
 /// 深度 Sobel + 法線エッジでアウトラインを検出し、シーンに合成する。
 /// SSR/MotionBlurと同じ 2-SRV 専用ヒープパターンを使用。
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/PostEffect/OutlineEffect.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool OutlineEffect::Initialize(ID3D12Device* device, uint32_t width, uint32_t height)
@@ -184,4 +184,4 @@ void OutlineEffect::OnResize(ID3D12Device* device, uint32_t width, uint32_t heig
     m_height = height;
 }
 
-} // namespace GX
+} // namespace gx

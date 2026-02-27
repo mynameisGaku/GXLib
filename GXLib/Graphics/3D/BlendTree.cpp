@@ -1,9 +1,9 @@
 /// @file BlendTree.cpp
 /// @brief ブレンドツリーの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/3D/BlendTree.h"
 
-namespace GX
+namespace gx
 {
 
 void BlendTree::AddNode(const BlendTreeNode& node)
@@ -299,4 +299,4 @@ void BlendTree::Evaluate2D(float time, uint32_t jointCount,
     }
 }
 
-} // namespace GX
+} // namespace gx

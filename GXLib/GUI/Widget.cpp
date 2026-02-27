@@ -1,9 +1,9 @@
-#include "pch.h"
+#include "pch_graphics.h"
 #include "GUI/Widget.h"
 #include "GUI/UIRenderer.h"
 #include "Math/Transform2D.h"
 
-namespace GX { namespace GUI {
+namespace gx { namespace GUI {
 
 // ウィジェットのCSS transformプロパティ(translate/rotate/scale)からアフィン変換行列を構築する。
 // pivot基準で変換するため、Pivot座標への移動→変換→逆移動の手順を踏む。
@@ -234,4 +234,4 @@ void Widget::UpdateStyleTransition(float deltaTime, const Style& targetStyle)
     m_renderStyle = LerpVisual(m_startStyle, targetStyle, eased);
 }
 
-}} // namespace GX::GUI
+}} // namespace gx::GUI

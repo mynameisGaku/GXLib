@@ -1,12 +1,12 @@
 /// @file Tilemap.cpp
 /// @brief 2Dタイルマップの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Rendering/Tilemap.h"
 #include "GUI/XMLParser.h"
 #include "IO/FileSystem.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool Tilemap::LoadFromTMX(const std::string& path, TextureManager& texManager)
@@ -264,4 +264,4 @@ void Tilemap::TileToWorld(int tileX, int tileY, float& outWorldX, float& outWorl
     outWorldY = static_cast<float>(tileY * m_tileHeight);
 }
 
-} // namespace GX
+} // namespace gx

@@ -1,10 +1,10 @@
 /// @file Application.cpp
 /// @brief Application クラスの実装
-#include "pch.h"
+#include "pch_common.h"
 #include "Core/Application.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool Application::Initialize(const ApplicationDesc& desc)
@@ -12,6 +12,8 @@ bool Application::Initialize(const ApplicationDesc& desc)
     GX_LOG_INFO("Initializing GXLib Application...");
 
     // ApplicationDesc → WindowDesc に変換してウィンドウを作成
+    m_userTitle = desc.title;
+
     WindowDesc windowDesc;
     windowDesc.title  = desc.title;
     windowDesc.width  = desc.width;
@@ -50,13 +52,13 @@ void Application::Run(std::function<void(float)> updateCallback)
             updateCallback(m_timer.GetDeltaTime());
         }
 
-        // タイトルバーに FPS を表示（デバッグ用、1 秒ごとに更新）
+        // タイトルバーに FPS を表示（1 秒ごとに更新）
         static float titleUpdateTimer = 0.0f;
         titleUpdateTimer += m_timer.GetDeltaTime();
         if (titleUpdateTimer >= 1.0f)
         {
             wchar_t title[256];
-            swprintf_s(title, L"GXLib [BUILD v3] FPS: %.1f", m_timer.GetFPS());
+            swprintf_s(title, L"%s [FPS: %.1f]", m_userTitle.c_str(), m_timer.GetFPS());
             m_window.SetTitle(title);
             titleUpdateTimer = 0.0f;
         }
@@ -69,4 +71,4 @@ void Application::Shutdown()
     m_running = false;
 }
 
-} // namespace GX
+} // namespace gx

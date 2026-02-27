@@ -9,14 +9,14 @@
 ///
 /// 合成パスでは3テクスチャを使うため、専用の3スロットSRVヒープを使用
 /// (D3D12はSetDescriptorHeaps時に1つのCBV_SRV_UAVヒープしかバインドできない)
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/PostEffect/DepthOfField.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool DepthOfField::Initialize(ID3D12Device* device, uint32_t width, uint32_t height)
@@ -407,4 +407,4 @@ void DepthOfField::OnResize(ID3D12Device* device, uint32_t width, uint32_t heigh
     m_blurRT.Create(device, halfW, halfH, DXGI_FORMAT_R16G16B16A16_FLOAT);
 }
 
-} // namespace GX
+} // namespace gx

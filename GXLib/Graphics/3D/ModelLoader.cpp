@@ -2,7 +2,7 @@
 /// @file ModelLoader.cpp
 /// @brief 3Dモデルローダー（glTF/FBX/OBJ）
 
-#include "pch.h"
+#include "pch_graphics.h"
 
 #define CGLTF_IMPLEMENTATION
 #include "cgltf.h"
@@ -23,7 +23,7 @@
 #include <fbxsdk.h>
 #endif
 
-namespace GX
+namespace gx
 {
 
 namespace
@@ -1651,4 +1651,4 @@ std::unique_ptr<Model> ModelLoader::LoadFromFile(const std::wstring& filePath,
     return nullptr;
 }
 
-} // namespace GX
+} // namespace gx

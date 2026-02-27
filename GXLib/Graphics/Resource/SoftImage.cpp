@@ -1,13 +1,13 @@
 /// @file SoftImage.cpp
 /// @brief CPU側での画像ピクセル操作の実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Resource/SoftImage.h"
 #include "Core/Logger.h"
 
 // stb_imageの実装定義(STB_IMAGE_IMPLEMENTATION)はTexture.cppにあるため、ここではヘッダのみ
 #include "ThirdParty/stb_image.h"
 
-namespace GX
+namespace gx
 {
 
 bool SoftImage::Create(uint32_t width, uint32_t height)
@@ -95,4 +95,4 @@ void SoftImage::Clear(uint32_t color)
     }
 }
 
-} // namespace GX
+} // namespace gx

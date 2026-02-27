@@ -3,14 +3,14 @@
 ///
 /// GPU Gems 3 スクリーン空間ラディアルブラー方式。
 /// SSR/MotionBlur/Outlineと同じ 2-SRV 専用ヒープパターンを使用。
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/PostEffect/VolumetricLight.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool VolumetricLight::Initialize(ID3D12Device* device, uint32_t width, uint32_t height)
@@ -229,4 +229,4 @@ void VolumetricLight::OnResize(ID3D12Device* device, uint32_t width, uint32_t he
     m_height = height;
 }
 
-} // namespace GX
+} // namespace gx

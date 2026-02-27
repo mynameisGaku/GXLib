@@ -1,13 +1,13 @@
 /// @file RTGI.cpp
 /// @brief DXR グローバルイルミネーション実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/RayTracing/RTGI.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Graphics/Device/BarrierBatch.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool RTGI::Initialize(ID3D12Device5* device, uint32_t width, uint32_t height)
@@ -918,4 +918,4 @@ void RTGI::OnResize(ID3D12Device* device, uint32_t w, uint32_t h)
     }
 }
 
-} // namespace GX
+} // namespace gx

@@ -1,9 +1,9 @@
 /// @file Animator.cpp
 /// @brief アニメーターの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/3D/Animator.h"
 
-namespace GX
+namespace gx
 {
 
 void Animator::SetSkeleton(Skeleton* skeleton)
@@ -365,4 +365,4 @@ void Animator::Update(float deltaTime)
     m_skeleton->ComputeBoneMatrices(m_globalTransforms.data(), m_boneConstants.boneMatrices);
 }
 
-} // namespace GX
+} // namespace gx

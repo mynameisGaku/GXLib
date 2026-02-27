@@ -1,10 +1,10 @@
-#include "pch.h"
+#include "pch_graphics.h"
 #include "GUI/StyleSheet.h"
 #include "GUI/Widget.h"
 #include "GUI/Widgets/Button.h"
 #include "IO/FileSystem.h"
 
-namespace GX { namespace GUI {
+namespace gx { namespace GUI {
 
 // ============================================================================
 // ウィジェット種別 → 文字列
@@ -344,7 +344,7 @@ std::vector<StyleProperty> StyleSheet::ParsePropertyBlock(const std::vector<Toke
 
 bool StyleSheet::LoadFromFile(const std::string& path)
 {
-    auto fileData = GX::FileSystem::Instance().ReadFile(path);
+    auto fileData = gx::FileSystem::Instance().ReadFile(path);
     if (!fileData.IsValid())
     {
         // 直接ファイルI/Oにフォールバック
@@ -799,4 +799,4 @@ void StyleSheet::ApplyToTree(Widget* root) const
         ApplyToTree(child.get());
 }
 
-}} // namespace GX::GUI
+}} // namespace gx::GUI

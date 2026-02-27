@@ -7,7 +7,7 @@
 
 #include "Scene/SceneGraph.h"
 
-namespace GX { class Animator; }
+namespace gx { class Animator; }
 
 /// @brief ジョイント階層ツリーとボーン詳細（TRS/行列）を表示するパネル
 class SkeletonPanel
@@ -16,10 +16,10 @@ public:
     /// @brief スケルトンパネルを独立ウィンドウとして描画する
     /// @param scene シーングラフ（選択エンティティ・ボーンの読み書き先）
     /// @param animator ローカルポーズ・グローバルトランスフォームの取得元
-    void Draw(SceneGraph& scene, const GX::Animator* animator);
+    void Draw(SceneGraph& scene, const gx::Animator* animator);
 
     /// @brief タブコンテナ内埋め込み用（Begin/Endなし）
-    void DrawContent(SceneGraph& scene, const GX::Animator* animator);
+    void DrawContent(SceneGraph& scene, const gx::Animator* animator);
 
 private:
     /// @brief ジョイントツリーを再帰的に描画する
@@ -27,6 +27,6 @@ private:
     /// @param scene ボーン選択状態の読み書き先
     /// @param animator ローカルポーズの取得元（TRS表示用）
     /// @param jointIndex 描画対象のジョイントインデックス
-    void DrawJointTree(const GX::Skeleton* skeleton, SceneGraph& scene,
-                       const GX::Animator* animator, int jointIndex);
+    void DrawJointTree(const gx::Skeleton* skeleton, SceneGraph& scene,
+                       const gx::Animator* animator, int jointIndex);
 };

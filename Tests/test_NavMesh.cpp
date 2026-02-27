@@ -6,7 +6,7 @@
 #include "AI/NavMesh.h"
 #include "AI/NavAgent.h"
 
-using namespace GX;
+using namespace gx;
 
 TEST(NavMeshTest, Build_FlatGrid)
 {

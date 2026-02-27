@@ -9,7 +9,7 @@
 
 #include "Graphics/3D/Skybox.h"
 
-void SkyboxPanel::Draw(GX::Skybox& skybox)
+void SkyboxPanel::Draw(gx::Skybox& skybox)
 {
     if (!ImGui::Begin("Skybox"))
     {
@@ -20,7 +20,7 @@ void SkyboxPanel::Draw(GX::Skybox& skybox)
     ImGui::End();
 }
 
-void SkyboxPanel::DrawContent(GX::Skybox& skybox)
+void SkyboxPanel::DrawContent(gx::Skybox& skybox)
 {
     // --- Cubemap Faces ---
     if (ImGui::CollapsingHeader("Cubemap Faces"))

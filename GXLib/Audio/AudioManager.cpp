@@ -1,12 +1,12 @@
 /// @file AudioManager.cpp
 /// @brief オーディオマネージャーの実装（3Dサウンド + ミキサー対応）
-#include "pch.h"
+#include "pch_audio.h"
 #include "Audio/AudioManager.h"
 #include "Audio/AudioListener.h"
 #include "Audio/AudioEmitter.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool AudioManager::Initialize()
@@ -222,4 +222,4 @@ void AudioManager::ReleaseSound(int handle)
     m_freeHandles.push_back(handle);  // ハンドルをフリーリストへ返却
 }
 
-} // namespace GX
+} // namespace gx

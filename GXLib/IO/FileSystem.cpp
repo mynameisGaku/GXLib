@@ -1,8 +1,8 @@
-#include "pch.h"
+#include "pch_common.h"
 #include "IO/FileSystem.h"
 #include "Core/Logger.h"
 
-namespace GX {
+namespace gx {
 
 FileSystem& FileSystem::Instance()
 {
@@ -127,4 +127,4 @@ void FileSystem::Clear()
     m_mounts.clear();
 }
 
-} // namespace GX
+} // namespace gx

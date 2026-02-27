@@ -1,14 +1,15 @@
-#include "pch.h"
+#include "pch_common.h"
 /// @file SceneSerializer.cpp
 /// @brief シーン直列化実装
 
 #include "Core/Scene/SceneSerializer.h"
+#include "Graphics/3D/GraphicsComponents.h"
 #include "Core/Logger.h"
 #include "ThirdParty/json.hpp"
 
 using json = nlohmann::json;
 
-namespace GX
+namespace gx
 {
 
 // --- ヘルパー: XMFLOAT3 → JSON ---
@@ -289,4 +290,4 @@ bool SceneSerializer::LoadFromJson(Scene& scene, const std::string& filePath,
     return FromJsonString(scene, content, modelLoader);
 }
 
-} // namespace GX
+} // namespace gx

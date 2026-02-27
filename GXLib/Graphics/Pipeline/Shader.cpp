@@ -1,10 +1,10 @@
 /// @file Shader.cpp
 /// @brief シェーダーコンパイルの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Pipeline/Shader.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool Shader::Initialize()
@@ -292,4 +292,4 @@ ShaderBlob Shader::CompileLibrary(const std::wstring& filePath)
     return result;
 }
 
-} // namespace GX
+} // namespace gx

@@ -1,6 +1,6 @@
 /// @file ScriptBindings.cpp
 /// @brief Lua バインディングの実装
-#include "pch.h"
+#include "pch_common.h"
 #include "Script/ScriptBindings.h"
 
 #ifdef GX_ENABLE_LUA
@@ -17,7 +17,7 @@
 #include "Input/Mouse.h"
 #include "Input/InputManager.h"
 
-namespace GX
+namespace gx
 {
 namespace ScriptBindings
 {
@@ -135,6 +135,6 @@ void RegisterDrawing(sol::state& lua, SpriteBatch* batch, TextureManager* texMan
 }
 
 } // namespace ScriptBindings
-} // namespace GX
+} // namespace gx
 
 #endif // GX_ENABLE_LUA

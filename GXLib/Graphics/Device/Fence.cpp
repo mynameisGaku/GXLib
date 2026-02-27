@@ -1,10 +1,10 @@
 /// @file Fence.cpp
 /// @brief GPU同期用フェンスの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Device/Fence.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 Fence::~Fence()
@@ -67,4 +67,4 @@ void Fence::WaitForGPU(ID3D12CommandQueue* queue)
     WaitForValue(value);
 }
 
-} // namespace GX
+} // namespace gx

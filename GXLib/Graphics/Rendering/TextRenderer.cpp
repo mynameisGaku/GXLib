@@ -3,12 +3,12 @@
 ///
 /// 文字列を1文字ずつ走査し、FontManager からグリフ情報（アトラス上のUV矩形）を取得して
 /// SpriteBatch::DrawRectGraph で描画する。改行文字は行送り処理を行う。
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Rendering/TextRenderer.h"
 #include "Graphics/Rendering/SpriteBatch.h"
 #include <cstdarg>
 
-namespace GX
+namespace gx
 {
 
 void TextRenderer::Initialize(SpriteBatch* spriteBatch, FontManager* fontManager)
@@ -374,4 +374,4 @@ void TextRenderer::DrawStringInRect(int fontHandle, float x, float y, float widt
     }
 }
 
-} // namespace GX
+} // namespace gx

@@ -1,10 +1,10 @@
 /// @file AudioBus.cpp
 /// @brief オーディオバスの実装
-#include "pch.h"
+#include "pch_audio.h"
 #include "Audio/AudioBus.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 AudioBus::~AudioBus()
@@ -83,4 +83,4 @@ void AudioBus::Shutdown()
     }
 }
 
-} // namespace GX
+} // namespace gx

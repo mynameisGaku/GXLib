@@ -1,9 +1,9 @@
 /// @file AnimationPlayer.cpp
 /// @brief アニメーションプレイヤーの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/3D/AnimationPlayer.h"
 
-namespace GX
+namespace gx
 {
 
 void AnimationPlayer::SetSkeleton(Skeleton* skeleton)
@@ -92,4 +92,4 @@ void AnimationPlayer::Update(float deltaTime)
     m_skeleton->ComputeBoneMatrices(m_globalTransforms.data(), m_boneConstants.boneMatrices);
 }
 
-} // namespace GX
+} // namespace gx

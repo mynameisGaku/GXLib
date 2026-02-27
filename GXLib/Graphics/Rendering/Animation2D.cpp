@@ -3,10 +3,10 @@
 ///
 /// 経過時間をタイマーに加算し、現在のコマの表示時間を超えたら次のコマへ進む。
 /// 非ループ時は最終コマで停止し、finished フラグを立てる。
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Rendering/Animation2D.h"
 
-namespace GX
+namespace gx
 {
 
 void Animation2D::AddFrames(const int* handles, int count, float frameDuration)
@@ -62,4 +62,4 @@ void Animation2D::Reset()
     m_finished = false;
 }
 
-} // namespace GX
+} // namespace gx

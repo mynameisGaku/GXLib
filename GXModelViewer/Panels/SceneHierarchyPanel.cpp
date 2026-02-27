@@ -127,7 +127,7 @@ void SceneHierarchyPanel::Draw(SceneGraph& scene)
         // Draw bone tree inside expanded skinned entity
         if (hasSkeleton && nodeOpen)
         {
-            const GX::Skeleton* skeleton = entity->model->GetSkeleton();
+            const gx::Skeleton* skeleton = entity->model->GetSkeleton();
             const auto& joints = skeleton->GetJoints();
             for (size_t j = 0; j < joints.size(); ++j)
             {
@@ -188,7 +188,7 @@ void SceneHierarchyPanel::DrawContextMenu(SceneGraph& /*scene*/, int /*entityCou
     }
 }
 
-void SceneHierarchyPanel::DrawBoneTree(const GX::Skeleton* skeleton, SceneGraph& scene, int jointIndex)
+void SceneHierarchyPanel::DrawBoneTree(const gx::Skeleton* skeleton, SceneGraph& scene, int jointIndex)
 {
     const auto& joints = skeleton->GetJoints();
     if (jointIndex < 0 || jointIndex >= static_cast<int>(joints.size()))

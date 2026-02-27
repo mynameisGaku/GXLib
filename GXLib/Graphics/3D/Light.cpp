@@ -1,9 +1,9 @@
 /// @file Light.cpp
 /// @brief ライト作成ヘルパーの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/3D/Light.h"
 
-namespace GX
+namespace gx
 {
 
 LightData Light::CreateDirectional(const XMFLOAT3& direction, const XMFLOAT3& color, float intensity)
@@ -51,4 +51,4 @@ LightData Light::CreateSpot(const XMFLOAT3& position, const XMFLOAT3& direction,
     return light;
 }
 
-} // namespace GX
+} // namespace gx

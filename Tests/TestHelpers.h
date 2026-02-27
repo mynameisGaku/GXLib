@@ -8,7 +8,7 @@
 #include "Graphics/3D/Skeleton.h"
 #include "Graphics/3D/AnimationClip.h"
 
-namespace GX::TestHelpers
+namespace gx::TestHelpers
 {
 
 /// @brief Compare two XMFLOAT3 values within epsilon
@@ -146,4 +146,4 @@ inline AnimationClip CreateMultiJointClip(const std::string& name, float duratio
     return clip;
 }
 
-} // namespace GX::TestHelpers
+} // namespace gx::TestHelpers

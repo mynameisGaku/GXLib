@@ -1,12 +1,12 @@
 /// @file HiZBuffer.cpp
 /// @brief Hi-Z オクルージョンカリング実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/3D/HiZBuffer.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Device/BarrierBatch.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool HiZBuffer::Initialize(ID3D12Device* device, uint32_t width, uint32_t height)
@@ -421,4 +421,4 @@ void HiZBuffer::OnResize(ID3D12Device* device, uint32_t width, uint32_t height)
     CreateHiZTexture(device);
 }
 
-} // namespace GX
+} // namespace gx

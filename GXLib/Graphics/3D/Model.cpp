@@ -1,9 +1,9 @@
 /// @file Model.cpp
 /// @brief モデルクラスの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/3D/Model.h"
 
-namespace GX
+namespace gx
 {
 
 const SubMesh* Model::GetSubMesh(uint32_t index) const
@@ -97,4 +97,4 @@ int Model::FindAnimationIndex(const std::string& name) const
     return -1;
 }
 
-} // namespace GX
+} // namespace gx

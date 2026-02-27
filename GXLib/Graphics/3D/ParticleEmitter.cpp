@@ -1,9 +1,9 @@
 /// @file ParticleEmitter.cpp
 /// @brief パーティクルエミッターの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/3D/ParticleEmitter.h"
 
-namespace GX
+namespace gx
 {
 
 void ParticleEmitter::Initialize(const ParticleEmitterConfig& config)
@@ -215,4 +215,4 @@ void ParticleEmitter::SpawnParticle()
     m_particles.push_back(p);
 }
 
-} // namespace GX
+} // namespace gx

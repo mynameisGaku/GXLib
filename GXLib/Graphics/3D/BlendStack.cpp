@@ -1,9 +1,9 @@
 /// @file BlendStack.cpp
 /// @brief ブレンドスタックの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/3D/BlendStack.h"
 
-namespace GX
+namespace gx
 {
 
 void BlendStack::SetLayer(uint32_t index, const BlendLayer& layer)
@@ -145,4 +145,4 @@ void BlendStack::Update(float deltaTime, uint32_t jointCount,
     }
 }
 
-} // namespace GX
+} // namespace gx

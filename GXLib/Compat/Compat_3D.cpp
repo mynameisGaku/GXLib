@@ -3,21 +3,9 @@
 #include "pch.h"
 #include "Compat/GXLib.h"
 #include "Compat/CompatContext.h"
+#include "Compat/CompatUtil.h"
 
-using Ctx = GX_Internal::CompatContext;
-
-/// TCHAR文字列をstd::wstringに変換するヘルパー
-static std::wstring ToWString(const TCHAR* str)
-{
-#ifdef UNICODE
-    return std::wstring(str);
-#else
-    int len = MultiByteToWideChar(CP_ACP, 0, str, -1, nullptr, 0);
-    std::wstring result(len - 1, L'\0');
-    MultiByteToWideChar(CP_ACP, 0, str, -1, result.data(), len);
-    return result;
-#endif
-}
+using Ctx = gx_internal::CompatContext;
 
 // ============================================================================
 // カメラ
@@ -45,11 +33,11 @@ int SetCameraNearFar(float nearZ, float farZ)
 // ============================================================================
 // ハンドルベースのモデル管理。フリーリストから再利用するか新規割り当て。
 // スケルトン付きモデルの場合はAnimatorも初期化してバインドポーズを適用する。
-int LoadModel(const TCHAR* filePath)
+int LoadModel(const char* filePath)
 {
     auto& ctx = Ctx::Instance();
     auto model = ctx.modelLoader.LoadFromFile(
-        ToWString(filePath),
+        gx_internal::ToWString(filePath),
         ctx.device,
         ctx.spriteBatch.GetTextureManager(),
         ctx.renderer3D.GetMaterialManager());
@@ -61,7 +49,7 @@ int LoadModel(const TCHAR* filePath)
         ctx.models.resize(handle + 1);
 
     ctx.models[handle].model = std::move(model);
-    ctx.models[handle].transform = GX::Transform3D();
+    ctx.models[handle].transform = gx::Transform3D();
     ctx.models[handle].valid = true;
 
     if (ctx.models[handle].model && ctx.models[handle].model->HasSkeleton())
@@ -189,7 +177,7 @@ int GetModelMaterialHandle(int handle, int materialIndex)
 int CreateMaterial()
 {
     auto& ctx = Ctx::Instance();
-    GX::Material mat;
+    gx::Material mat;
     return ctx.renderer3D.GetMaterialManager().CreateMaterial(mat);
 }
 
@@ -204,7 +192,7 @@ int SetMaterialParam(int materialHandle, const GX_MATERIAL_PARAM* param)
 {
     if (!param) return -1;
     auto& ctx = Ctx::Instance();
-    GX::Material* mat = ctx.renderer3D.GetMaterialManager().GetMaterial(materialHandle);
+    gx::Material* mat = ctx.renderer3D.GetMaterialManager().GetMaterial(materialHandle);
     if (!mat) return -1;
 
     mat->constants.albedoFactor = { param->albedoR, param->albedoG, param->albedoB, param->albedoA };
@@ -219,14 +207,14 @@ int SetMaterialParam(int materialHandle, const GX_MATERIAL_PARAM* param)
 int SetMaterialTexture(int materialHandle, int slot, int textureHandle)
 {
     auto& ctx = Ctx::Instance();
-    GX::MaterialTextureSlot slotEnum;
+    gx::MaterialTextureSlot slotEnum;
     switch (slot)
     {
-    case GX_MATERIAL_TEX_ALBEDO:     slotEnum = GX::MaterialTextureSlot::Albedo; break;
-    case GX_MATERIAL_TEX_NORMAL:     slotEnum = GX::MaterialTextureSlot::Normal; break;
-    case GX_MATERIAL_TEX_METALROUGH: slotEnum = GX::MaterialTextureSlot::MetalRoughness; break;
-    case GX_MATERIAL_TEX_AO:         slotEnum = GX::MaterialTextureSlot::AO; break;
-    case GX_MATERIAL_TEX_EMISSIVE:   slotEnum = GX::MaterialTextureSlot::Emissive; break;
+    case GX_MATERIAL_TEX_ALBEDO:     slotEnum = gx::MaterialTextureSlot::Albedo; break;
+    case GX_MATERIAL_TEX_NORMAL:     slotEnum = gx::MaterialTextureSlot::Normal; break;
+    case GX_MATERIAL_TEX_METALROUGH: slotEnum = gx::MaterialTextureSlot::MetalRoughness; break;
+    case GX_MATERIAL_TEX_AO:         slotEnum = gx::MaterialTextureSlot::AO; break;
+    case GX_MATERIAL_TEX_EMISSIVE:   slotEnum = gx::MaterialTextureSlot::Emissive; break;
     default: return -1;
     }
     return ctx.renderer3D.GetMaterialManager().SetTexture(materialHandle, slotEnum, textureHandle) ? 0 : -1;
@@ -238,13 +226,13 @@ int SetMaterialShader(int materialHandle, int shaderHandle)
     return ctx.renderer3D.GetMaterialManager().SetShaderHandle(materialHandle, shaderHandle) ? 0 : -1;
 }
 
-int CreateMaterialShader(const TCHAR* vsPath, const TCHAR* psPath)
+int CreateMaterialShader(const char* vsPath, const char* psPath)
 {
     if (!vsPath || !psPath) return -1;
     auto& ctx = Ctx::Instance();
-    GX::ShaderProgramDesc desc;
-    desc.vsPath = ToWString(vsPath);
-    desc.psPath = ToWString(psPath);
+    gx::ShaderProgramDesc desc;
+    desc.vsPath = gx_internal::ToWString(vsPath);
+    desc.psPath = gx_internal::ToWString(psPath);
     return ctx.renderer3D.CreateMaterialShader(desc);
 }
 

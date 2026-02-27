@@ -6,8 +6,8 @@
 #include "GUI/XMLParser.h"
 
 // Avoid ambiguity with MSXML::XMLDocument from Windows SDK
-using GXXMLDocument = GX::GUI::XMLDocument;
-using GX::GUI::XMLNode;
+using GXXMLDocument = gx::GUI::XMLDocument;
+using gx::GUI::XMLNode;
 
 // ==================== Basic Parsing ====================
 

@@ -1,8 +1,8 @@
-#include "pch.h"
+#include "pch_graphics.h"
 #include "GUI/Widgets/CheckBox.h"
 #include "GUI/UIRenderer.h"
 
-namespace GX { namespace GUI {
+namespace gx { namespace GUI {
 
 void CheckBox::SetChecked(bool checked)
 {
@@ -77,4 +77,4 @@ void CheckBox::RenderSelf(UIRenderer& renderer)
     }
 }
 
-}} // namespace GX::GUI
+}} // namespace gx::GUI

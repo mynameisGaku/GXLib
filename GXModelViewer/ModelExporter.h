@@ -1,6 +1,6 @@
 #pragma once
 /// @file ModelExporter.h
-/// @brief GX::ModelからGXMD/GXANバイナリへのエクスポート
+/// @brief gx::ModelからGXMD/GXANバイナリへのエクスポート
 ///
 /// ビューア上で編集したマテリアルやテクスチャパスも含めてバイナリ出力する。
 /// 内部でgxconv中間表現(Scene)に変換し、gxconv::GxmdExporter/GxanExporterで書き出す。
@@ -10,7 +10,7 @@
 #include "Graphics/Resource/TextureManager.h"
 #include <string>
 
-/// @brief GX::ModelをGXMD/GXANバイナリにエクスポートするユーティリティ
+/// @brief gx::ModelをGXMD/GXANバイナリにエクスポートするユーティリティ
 class ModelExporter
 {
 public:
@@ -21,8 +21,8 @@ public:
     /// @param outputPath 出力先ファイルパス
     /// @return 成功時true
     static bool ExportToGxmd(const SceneEntity& entity,
-                             GX::MaterialManager& matManager,
-                             GX::TextureManager& texManager,
+                             gx::MaterialManager& matManager,
+                             gx::TextureManager& texManager,
                              const std::string& outputPath);
 
     /// @brief 選択エンティティのアニメーションをGXANバイナリに書き出す

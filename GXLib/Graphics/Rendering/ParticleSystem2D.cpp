@@ -1,10 +1,10 @@
-#include "pch.h"
+#include "pch_graphics.h"
 /// @file ParticleSystem2D.cpp
 /// @brief 2Dパーティクルシステム実装
 
 #include "Graphics/Rendering/ParticleSystem2D.h"
 
-namespace GX
+namespace gx
 {
 
 int ParticleSystem2D::AddEmitter(const EmitterConfig2D& config)
@@ -112,4 +112,4 @@ uint32_t ParticleSystem2D::GetAliveCount() const
     return total;
 }
 
-} // namespace GX
+} // namespace gx

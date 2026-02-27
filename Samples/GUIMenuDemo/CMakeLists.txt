@@ -1,1 +1,0 @@
-gxlib_add_sample(GUIMenuDemo)

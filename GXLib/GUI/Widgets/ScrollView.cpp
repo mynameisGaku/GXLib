@@ -1,8 +1,8 @@
-#include "pch.h"
+#include "pch_graphics.h"
 #include "GUI/Widgets/ScrollView.h"
 #include "GUI/UIRenderer.h"
 
-namespace GX { namespace GUI {
+namespace gx { namespace GUI {
 
 void ScrollView::ComputeContentHeight()
 {
@@ -87,4 +87,4 @@ void ScrollView::RenderChildren(UIRenderer& /*renderer*/)
     // 子の描画はRenderSelf内でクリッピング付きで行うため、ここでは何もしない
 }
 
-}} // namespace GX::GUI
+}} // namespace gx::GUI

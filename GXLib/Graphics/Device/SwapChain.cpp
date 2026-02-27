@@ -1,11 +1,11 @@
 /// @file SwapChain.cpp
 /// @brief スワップチェーンの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Device/SwapChain.h"
 #include "Graphics/Device/Fence.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool SwapChain::Initialize(IDXGIFactory6* factory,
@@ -138,4 +138,4 @@ void SwapChain::CreateRenderTargetViews(ID3D12Device* device)
     }
 }
 
-} // namespace GX
+} // namespace gx

@@ -1,11 +1,11 @@
 /// @file Logger.cpp
 /// @brief Logger クラスの実装
-#include "pch.h"
+#include "pch_common.h"
 #include "Core/Logger.h"
 #include <cstdio>
 #include <cstdarg>
 
-namespace GX
+namespace gx
 {
 
 // Info / Warn / Error は可変長引数を va_list に変換して共通の Log() に委譲する
@@ -57,4 +57,4 @@ void Logger::Log(LogLevel level, const char* format, va_list args)
     printf("%s", output);
 }
 
-} // namespace GX
+} // namespace gx

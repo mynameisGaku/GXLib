@@ -9,6 +9,9 @@
 cmake_minimum_required(VERSION 3.24)
 project(GXLib VERSION 0.1.0 LANGUAGES CXX)
 
+# Visual Studio ソリューションフォルダを有効化（プロジェクトをグループ整理）
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
 # FBX SDK (optional)
 set(FBX_SDK_ROOT "${CMAKE_SOURCE_DIR}/ThirdParty/FBXSDK/2020.3.9" CACHE PATH "FBX SDK root")
 set(FBX_SDK_FOUND FALSE)
@@ -41,7 +44,9 @@ FetchContent_Declare(JoltPhysics
 set(ENABLE_ALL_WARNINGS OFF CACHE BOOL "" FORCE)
 set(INTERPROCEDURAL_OPTIMIZATION OFF CACHE BOOL "" FORCE)
 set(USE_STATIC_MSVC_RUNTIME_LIBRARY OFF CACHE BOOL "" FORCE)
+set(ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(JoltPhysics)
+set_target_properties(Jolt PROPERTIES FOLDER "ThirdParty")
 
 # Lua 5.4 (FetchContent)
 option(GX_ENABLE_LUA "Enable Lua scripting support" ON)
@@ -60,7 +65,7 @@ if (GX_ENABLE_LUA)
 
     add_library(lua_static STATIC ${LUA_SOURCES})
     target_include_directories(lua_static PUBLIC ${lua_SOURCE_DIR})
-    set_target_properties(lua_static PROPERTIES LANGUAGE C)
+    set_target_properties(lua_static PROPERTIES LANGUAGE C FOLDER "ThirdParty")
     set_source_files_properties(${LUA_SOURCES} PROPERTIES
         SKIP_PRECOMPILE_HEADERS ON
         LANGUAGE C
@@ -70,6 +75,7 @@ if (GX_ENABLE_LUA)
     endif()
 
     # sol2 (header-only)
+    set(SOL2_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
     FetchContent_Declare(sol2
         GIT_REPOSITORY https://github.com/ThePhD/sol2.git
         GIT_TAG        v3.3.1
@@ -77,98 +83,69 @@ if (GX_ENABLE_LUA)
     FetchContent_MakeAvailable(sol2)
 endif()
 
-# 繝・せ繝域怏蜉ｹ蛹・
-enable_testing()
+# SDK ライブラリのみビルド (ツール・テスト・サンプルを除外)
+option(GX_SDK_ONLY "Build only SDK libraries (skip tools, tests, samples)" OFF)
 
-# 繧ｵ繝悶・繝ｭ繧ｸ繧ｧ繧ｯ繝医ｒ霑ｽ蜉
+# SDK に必要なライブラリ
 add_subdirectory(GXLib)
-add_subdirectory(Sandbox)
-add_subdirectory(Tests)
-
-# Asset pipeline tools
-add_subdirectory(gxconv)
 add_subdirectory(gxloader)
-add_subdirectory(gxpak)
 
-# =============================================================================
-# 繧ｵ繝ｳ繝励Ν繝励Ο繧ｸ繧ｧ繧ｯ繝亥・騾壹・繧ｯ繝ｭ
-# =============================================================================
-macro(gxlib_add_sample SAMPLE_NAME)
-    add_executable(${SAMPLE_NAME} WIN32 main.cpp)
-    target_link_libraries(${SAMPLE_NAME} PRIVATE GXLib)
-    target_include_directories(${SAMPLE_NAME} PRIVATE
-        ${CMAKE_SOURCE_DIR}/GXLib
-    )
+if (NOT GX_SDK_ONLY)
+    enable_testing()
+    add_subdirectory(Game)
+    add_subdirectory(Sandbox)
+    add_subdirectory(Tests)
+    add_subdirectory(gxconv)
+    add_subdirectory(gxpak)
+    add_subdirectory(GXModelViewer)
 
-    # Shaders/Assets 繧貞・蜉帙ョ繧｣繝ｬ繧ｯ繝医Μ縺ｫ繧ｳ繝斐・
-    add_custom_command(TARGET ${SAMPLE_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${CMAKE_SOURCE_DIR}/Shaders"
-            "$<TARGET_FILE_DIR:${SAMPLE_NAME}>/Shaders"
-        COMMENT "Copying shaders for ${SAMPLE_NAME}..."
-    )
-    add_custom_command(TARGET ${SAMPLE_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${CMAKE_SOURCE_DIR}/Assets"
-            "$<TARGET_FILE_DIR:${SAMPLE_NAME}>/Assets"
-        COMMENT "Copying assets for ${SAMPLE_NAME}..."
-    )
+    # スタートアッププロジェクト
+    set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT Game)
 
-    if (FBX_SDK_FOUND)
-        add_custom_command(TARGET ${SAMPLE_NAME} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "$<IF:$<CONFIG:Debug>,${FBX_SDK_DLL_DEBUG},${FBX_SDK_DLL_RELEASE}>"
-                "$<TARGET_FILE_DIR:${SAMPLE_NAME}>"
-            COMMENT "Copying FBX SDK runtime for ${SAMPLE_NAME}..."
-        )
+    # ソリューションフォルダ整理
+    set_target_properties(gxconv         PROPERTIES FOLDER "Tools")
+    set_target_properties(gxloader       PROPERTIES FOLDER "Tools")
+    set_target_properties(gxpak          PROPERTIES FOLDER "Tools")
+    set_target_properties(GXModelViewer  PROPERTIES FOLDER "Tools")
+    set_target_properties(Sandbox        PROPERTIES FOLDER "Tools")
+    set_target_properties(GXLibTests     PROPERTIES FOLDER "Tests")
+    if (TARGET gtest)
+        set_target_properties(gtest        PROPERTIES FOLDER "ThirdParty")
     endif()
+    if (TARGET gtest_main)
+        set_target_properties(gtest_main   PROPERTIES FOLDER "ThirdParty")
+    endif()
+    if (TARGET gmock)
+        set_target_properties(gmock        PROPERTIES FOLDER "ThirdParty")
+    endif()
+    if (TARGET gmock_main)
+        set_target_properties(gmock_main   PROPERTIES FOLDER "ThirdParty")
+    endif()
+endif()
 
-    # VS 繝・ヰ繝・ぎ菴懈･ｭ繝・ぅ繝ｬ繧ｯ繝医Μ
-    set_target_properties(${SAMPLE_NAME} PROPERTIES
-        VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:${SAMPLE_NAME}>"
-    )
-endmacro()
+# =============================================================================
+# install() ルール — cmake --install で SDK パッケージを生成
+#
+# 使い方:
+#   cmake --build build --config Release
+#   cmake --install build --prefix GXLib-SDK --config Release
+# =============================================================================
 
-# 繧ｵ繝ｳ繝励Ν繝励Ο繧ｸ繧ｧ繧ｯ繝・
-add_subdirectory(Samples/Shooting2D)
-add_subdirectory(Samples/Platformer2D)
-add_subdirectory(Samples/Walkthrough3D)
-add_subdirectory(Samples/GUIMenuDemo)
-add_subdirectory(Samples/PostEffectShowcase)
-add_subdirectory(Samples/EasyHello)
-add_subdirectory(Samples/DXRShowcase)
-add_subdirectory(Samples/InstanceShowcase)
-add_subdirectory(Samples/Audio3DShowcase)
-add_subdirectory(Samples/ParticleShowcase)
-add_subdirectory(Samples/ActionMappingShowcase)
-add_subdirectory(Samples/IBLShowcase)
-add_subdirectory(Samples/IKShowcase)
-add_subdirectory(Samples/Particle2DShowcase)
-add_subdirectory(Samples/SceneShowcase)
-add_subdirectory(Samples/GPUParticleShowcase)
-add_subdirectory(Samples/NavmeshShowcase)
-add_subdirectory(Samples/TrailShowcase)
-add_subdirectory(Samples/SplineShowcase)
-add_subdirectory(Samples/WireframeShowcase)
-add_subdirectory(Samples/TextLayoutShowcase)
-add_subdirectory(Samples/ProfilerShowcase)
-add_subdirectory(Samples/MultiThreadShowcase)
-add_subdirectory(Samples/LuaShowcase)
-add_subdirectory(Samples/TilemapShowcase)
+# gxloader, Jolt ライブラリ
+install(TARGETS gxloader Jolt ARCHIVE DESTINATION lib/$<CONFIG>)
 
-# Phase 42: 不足サンプル (Tier 1-2)
-add_subdirectory(Samples/AnimationBlendingShowcase)
-add_subdirectory(Samples/Physics2DShowcase)
-add_subdirectory(Samples/Physics3DShowcase)
-add_subdirectory(Samples/RenderLayerShowcase)
-add_subdirectory(Samples/DecalShowcase)
-add_subdirectory(Samples/TerrainShowcase)
-add_subdirectory(Samples/LODShowcase)
-add_subdirectory(Samples/AudioMixerShowcase)
+# gxformat ヘッダー
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/gxformat/ DESTINATION include/gxformat FILES_MATCHING PATTERN "*.h")
 
-# GXModelViewer (ImGui-based 3D model viewer)
-add_subdirectory(GXModelViewer)
+# gxloader ヘッダー
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/gxloader/ DESTINATION include/gxloader FILES_MATCHING PATTERN "*.h")
 
-# Sandbox繧偵せ繧ｿ繝ｼ繝医い繝・・繝励Ο繧ｸ繧ｧ繧ｯ繝医↓險ｭ螳・
-set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT Sandbox)
+# シェーダー（実行時必須）
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/Shaders/ DESTINATION Shaders FILES_MATCHING PATTERN "*.hlsl" PATTERN "*.hlsli")
+
+# CMake パッケージ設定（find_package(GXLib) 用）
+install(FILES ${CMAKE_SOURCE_DIR}/cmake/GXLibConfig.cmake DESTINATION cmake)
+
+# スターターテンプレート
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/template/ DESTINATION template)
 

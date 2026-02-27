@@ -1,9 +1,9 @@
 /// @file Keyboard.cpp
 /// @brief キーボード入力管理の実装
-#include "pch.h"
+#include "pch_common.h"
 #include "Input/Keyboard.h"
 
-namespace GX
+namespace gx
 {
 
 void Keyboard::Initialize()
@@ -62,4 +62,4 @@ bool Keyboard::IsKeyReleased(int key) const
     return !m_currentState[key] && m_previousState[key];
 }
 
-} // namespace GX
+} // namespace gx

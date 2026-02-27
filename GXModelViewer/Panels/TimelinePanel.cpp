@@ -10,7 +10,7 @@
 #include "Graphics/3D/AnimationClip.h"
 #include "Graphics/3D/Model.h"
 
-void TimelinePanel::Draw(GX::Animator* animator, const GX::Model* model,
+void TimelinePanel::Draw(gx::Animator* animator, const gx::Model* model,
                           float deltaTime, int* selectedClipIndex)
 {
     if (!ImGui::Begin("Timeline"))
@@ -67,14 +67,14 @@ void TimelinePanel::Draw(GX::Animator* animator, const GX::Model* model,
     ImGui::Separator();
 
     // --- Current clip info ---
-    const GX::AnimationClip* currentClip = animator->GetCurrentClip();
+    const gx::AnimationClip* currentClip = animator->GetCurrentClip();
     float duration = currentClip ? currentClip->GetDuration() : 0.0f;
     float currentTime = animator->GetCurrentTime();
 
     const char* modeName = "Simple";
-    if (animator->GetAnimMode() == GX::Animator::AnimMode::BlendStack)
+    if (animator->GetAnimMode() == gx::Animator::AnimMode::BlendStack)
         modeName = "BlendStack";
-    else if (animator->GetAnimMode() == GX::Animator::AnimMode::StateMachine)
+    else if (animator->GetAnimMode() == gx::Animator::AnimMode::StateMachine)
         modeName = "StateMachine";
 
     ImGui::Text("Mode: %s  |  %s", modeName,

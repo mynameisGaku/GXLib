@@ -4,7 +4,7 @@
 /// エフェクトチェーン:
 /// HDR Scene → [Bloom] → [ColorGrading(HDR)] → [Tonemapping(HDR→LDR)]
 ///           → [FXAA(LDR)] → [Vignette+ChromAb(LDR)] → Backbuffer
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/PostEffect/PostEffectPipeline.h"
 #include "Graphics/PostEffect/PostEffectSettings.h"
 #include "Graphics/Pipeline/RootSignature.h"
@@ -15,8 +15,23 @@
 #include "Graphics/RayTracing/RTGI.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
+
+// ============================================================================
+// GPU定数バッファ構造体（ヘッダーから移動 — 内部実装詳細）
+// ============================================================================
+
+/// トーンマッピング用定数バッファ
+struct TonemapConstants { uint32_t mode; float exposure; float padding[2]; };
+/// FXAA (Fast Approximate Anti-Aliasing) 用定数バッファ
+struct FXAAConstants    { float rcpFrameX; float rcpFrameY; float qualitySubpix; float edgeThreshold; };
+/// ビネット+色収差用定数バッファ
+struct VignetteConstants{ float intensity; float radius; float chromaticStrength; float padding; };
+/// カラーグレーディング用定数バッファ
+struct ColorGradingConstants { float exposure; float contrast; float saturation; float temperature; };
+
+// ============================================================================
 
 bool PostEffectPipeline::Initialize(ID3D12Device* device, uint32_t width, uint32_t height)
 {
@@ -348,7 +363,7 @@ void PostEffectPipeline::EndScene()
 
 void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
                                   DepthBuffer& depthBuffer, const Camera3D& camera,
-                                  float deltaTime)
+                                  float deltaTime, PostFXFlag mask)
 {
     // 累積時間更新
     m_elapsedTime += deltaTime;
@@ -363,7 +378,7 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
     RenderTarget* currentHDR = &m_hdrRT;
 
     // RTGI (GI加算合成, SSAOの前)
-    if (m_rtGI && m_rtGI->IsEnabled() && m_cmdList4)
+    if (m_rtGI && m_rtGI->IsEnabled() && m_cmdList4 && HasFlag(mask, PostFXFlag::RTGI))
     {
         RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
         m_rtGI->SetNormalRT(&m_normalRT);
@@ -372,7 +387,7 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
     }
 
     // SSAO (HDRシーンにインプレース乗算合成)
-    if (m_ssao.IsEnabled())
+    if (m_ssao.IsEnabled() && HasFlag(mask, PostFXFlag::SSAO))
     {
         m_ssao.Execute(m_cmdList, m_frameIndex, *currentHDR, depthBuffer, camera);
         // hdrRT にインプレース乗算合成されるので currentHDR は変わらない
@@ -381,7 +396,7 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
     }
 
     // コンタクトシャドウ (SSAOの直後, HDRシーンにインプレース乗算合成)
-    if (m_contactShadows.IsEnabled())
+    if (m_contactShadows.IsEnabled() && HasFlag(mask, PostFXFlag::ContactShadows))
     {
         m_contactShadows.Execute(m_cmdList, m_frameIndex, *currentHDR, depthBuffer,
                                   camera, m_mainLightDirection);
@@ -390,7 +405,7 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
 
     // 反射: DXR RT反射 (排他) または SSR
     bool rtUsed = false;
-    if (m_rtReflections && m_rtReflections->IsEnabled() && m_cmdList4)
+    if (m_rtReflections && m_rtReflections->IsEnabled() && m_cmdList4 && HasFlag(mask, PostFXFlag::Reflections))
     {
         RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
         m_rtReflections->SetNormalRT(&m_normalRT);
@@ -400,7 +415,7 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
     }
 
     // SSR (HDR空間, SSAOの後) — RT反射と排他
-    if (!rtUsed && m_ssr.IsEnabled())
+    if (!rtUsed && m_ssr.IsEnabled() && HasFlag(mask, PostFXFlag::Reflections))
     {
         RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
         m_ssr.Execute(m_cmdList, m_frameIndex, *currentHDR, *dest, depthBuffer, m_normalRT, camera);
@@ -408,7 +423,7 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
     }
 
     // ボリューメトリックライト (HDR空間, SSRの後・Bloomの前)
-    if (m_volumetricLight.IsEnabled())
+    if (m_volumetricLight.IsEnabled() && HasFlag(mask, PostFXFlag::VolumetricLight))
     {
         RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
         m_volumetricLight.Execute(m_cmdList, m_frameIndex, *currentHDR, *dest, depthBuffer, camera);
@@ -416,7 +431,7 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
     }
 
     // ボリューメトリッククラウド (HDR空間, ゴッドレイの後・Bloomの前)
-    if (m_volumetricClouds.IsEnabled())
+    if (m_volumetricClouds.IsEnabled() && HasFlag(mask, PostFXFlag::VolumetricClouds))
     {
         RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
         m_volumetricClouds.Execute(m_cmdList, m_frameIndex, *currentHDR, *dest,
@@ -425,7 +440,7 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
     }
 
     // ブルーム
-    if (m_bloom.IsEnabled())
+    if (m_bloom.IsEnabled() && HasFlag(mask, PostFXFlag::Bloom))
     {
         RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
         m_bloom.Execute(m_cmdList, m_frameIndex, *currentHDR, *dest);
@@ -434,7 +449,7 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
     }
 
     // DoF (HDR空間, Bloomの後)
-    if (m_dof.IsEnabled())
+    if (m_dof.IsEnabled() && HasFlag(mask, PostFXFlag::DoF))
     {
         RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
         m_dof.Execute(m_cmdList, m_frameIndex, *currentHDR, *dest, depthBuffer, camera);
@@ -442,7 +457,7 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
     }
 
     // モーションブラー (HDR空間, DoFの後)
-    if (m_motionBlur.IsEnabled())
+    if (m_motionBlur.IsEnabled() && HasFlag(mask, PostFXFlag::MotionBlur))
     {
         RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
         m_motionBlur.Execute(m_cmdList, m_frameIndex, *currentHDR, *dest, depthBuffer, camera);
@@ -453,7 +468,7 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
     m_motionBlur.UpdatePreviousVP(camera);
 
     // アウトライン (HDR空間, MotionBlurの後)
-    if (m_outline.IsEnabled())
+    if (m_outline.IsEnabled() && HasFlag(mask, PostFXFlag::Outline))
     {
         RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
         m_outline.Execute(m_cmdList, m_frameIndex, *currentHDR, *dest, depthBuffer, camera);
@@ -461,7 +476,7 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
     }
 
     // TAA (HDR空間, Outlineの後・ColorGradingの前)
-    if (m_taa.IsEnabled())
+    if (m_taa.IsEnabled() && HasFlag(mask, PostFXFlag::TAA))
     {
         RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
         m_taa.Execute(m_cmdList, m_frameIndex, *currentHDR, *dest, depthBuffer, camera);
@@ -472,7 +487,7 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
     m_taa.AdvanceFrame();
 
     // カラーグレーディング (HDR空間)
-    if (m_colorGradingEnabled)
+    if (m_colorGradingEnabled && HasFlag(mask, PostFXFlag::ColorGrading))
     {
         RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
         ColorGradingConstants cgc = {};
@@ -489,13 +504,15 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
     // 自動露出 (トーンマッピング直前)
     // ========================================
     float exposure = m_exposure;
-    if (m_autoExposure.IsEnabled())
+    if (m_autoExposure.IsEnabled() && HasFlag(mask, PostFXFlag::AutoExposure))
         exposure = m_autoExposure.ComputeExposure(m_cmdList, m_frameIndex, *currentHDR, deltaTime);
 
     // ========================================
     // トーンマッピング + LDRチェーン
     // ========================================
-    bool hasLDREffects = m_fxaaEnabled || m_vignetteEnabled;
+    bool fxaaMasked     = m_fxaaEnabled && HasFlag(mask, PostFXFlag::FXAA);
+    bool vignetteMasked = m_vignetteEnabled && HasFlag(mask, PostFXFlag::Vignette);
+    bool hasLDREffects  = fxaaMasked || vignetteMasked;
 
     if (!hasLDREffects)
     {
@@ -521,11 +538,11 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
     // LDRチェーン: [FXAA] → [Vignette]
     // 最後のエフェクトは直接バックバッファに描画する
     // ========================================
-    bool vignetteIsLast = m_vignetteEnabled;
-    bool fxaaIsLast = m_fxaaEnabled && !m_vignetteEnabled;
+    bool vignetteIsLast = vignetteMasked;
+    bool fxaaIsLast = fxaaMasked && !vignetteMasked;
 
     // FXAA
-    if (m_fxaaEnabled)
+    if (fxaaMasked)
     {
         FXAAConstants fc = {};
         fc.rcpFrameX      = 1.0f / static_cast<float>(m_width);
@@ -549,7 +566,7 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
     }
 
     // ビネット + 色収差
-    if (m_vignetteEnabled)
+    if (vignetteMasked)
     {
         VignetteConstants vc = {};
         vc.intensity        = m_vignetteIntensity;
@@ -604,4 +621,4 @@ bool PostEffectPipeline::SaveSettings(const std::string& filePath) const
     return PostEffectSettings::Save(filePath, *this);
 }
 
-} // namespace GX
+} // namespace gx

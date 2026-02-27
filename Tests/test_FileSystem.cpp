@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 #include "IO/FileSystem.h"
 
-using namespace GX;
+using namespace gx;
 
 /// Test in-memory file provider
 class MockFileProvider : public IFileProvider

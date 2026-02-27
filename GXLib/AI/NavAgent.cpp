@@ -1,11 +1,11 @@
-#include "pch.h"
+#include "pch_common.h"
 /// @file NavAgent.cpp
 /// @brief Navigation agent implementation
 
 #include "AI/NavAgent.h"
 #include "AI/NavMesh.h"
 
-namespace GX
+namespace gx
 {
 
 // ============================================================================
@@ -147,4 +147,4 @@ void NavAgent::Update(float deltaTime)
     }
 }
 
-} // namespace GX
+} // namespace gx

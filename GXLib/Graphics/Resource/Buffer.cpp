@@ -1,10 +1,10 @@
 /// @file Buffer.cpp
 /// @brief GPUバッファの作成・管理の実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Resource/Buffer.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool Buffer::CreateVertexBuffer(ID3D12Device* device, const void* data, uint32_t size, uint32_t stride)
@@ -161,4 +161,4 @@ void Buffer::Unmap()
         m_resource->Unmap(0, nullptr);
 }
 
-} // namespace GX
+} // namespace gx

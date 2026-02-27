@@ -13,7 +13,7 @@
 #include <algorithm>
 #include <cmath>
 
-void BlendTreeEditor::Draw(GX::BlendTree* blendTree)
+void BlendTreeEditor::Draw(gx::BlendTree* blendTree)
 {
     if (!ImGui::Begin("Blend Tree"))
     {
@@ -28,10 +28,10 @@ void BlendTreeEditor::Draw(GX::BlendTree* blendTree)
         return;
     }
 
-    GX::BlendTreeType type = blendTree->GetType();
+    gx::BlendTreeType type = blendTree->GetType();
     const auto& nodes = blendTree->GetNodes();
 
-    const char* typeName = (type == GX::BlendTreeType::Simple1D) ? "Simple 1D" : "Simple Directional 2D";
+    const char* typeName = (type == gx::BlendTreeType::Simple1D) ? "Simple 1D" : "Simple Directional 2D";
     ImGui::Text("Type: %s", typeName);
     ImGui::Text("Nodes: %d", static_cast<int>(nodes.size()));
     ImGui::Separator();
@@ -46,7 +46,7 @@ void BlendTreeEditor::Draw(GX::BlendTree* blendTree)
     // ============================================================
     // 1D Blend Tree
     // ============================================================
-    if (type == GX::BlendTreeType::Simple1D)
+    if (type == gx::BlendTreeType::Simple1D)
     {
         // Parameter slider
         float param = blendTree->GetParameter();
@@ -238,12 +238,12 @@ void BlendTreeEditor::Draw(GX::BlendTree* blendTree)
     ImGui::Separator();
     ImGui::Text("Nodes:");
 
-    if (ImGui::BeginTable("BlendNodes", (type == GX::BlendTreeType::Simple1D) ? 3 : 4,
+    if (ImGui::BeginTable("BlendNodes", (type == gx::BlendTreeType::Simple1D) ? 3 : 4,
                           ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
     {
         ImGui::TableSetupColumn("Index", ImGuiTableColumnFlags_WidthFixed, 40.0f);
         ImGui::TableSetupColumn("Clip");
-        if (type == GX::BlendTreeType::Simple1D)
+        if (type == gx::BlendTreeType::Simple1D)
         {
             ImGui::TableSetupColumn("Threshold", ImGuiTableColumnFlags_WidthFixed, 80.0f);
         }
@@ -266,7 +266,7 @@ void BlendTreeEditor::Draw(GX::BlendTree* blendTree)
             else
                 ImGui::TextDisabled("(none)");
 
-            if (type == GX::BlendTreeType::Simple1D)
+            if (type == gx::BlendTreeType::Simple1D)
             {
                 ImGui::TableSetColumnIndex(2);
                 ImGui::Text("%.2f", nodes[i].threshold);

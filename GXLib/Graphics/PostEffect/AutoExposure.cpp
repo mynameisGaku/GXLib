@@ -3,14 +3,14 @@
 ///
 /// HDR→256x256 log輝度→64→16→4→1 ダウンサンプル→CPUリードバック→露出計算
 /// ピクセルシェーダーベース（CSインフラ不要）、2フレームリングバッファでストール回避。
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/PostEffect/AutoExposure.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 // k_Sizes の定義
@@ -286,4 +286,4 @@ void AutoExposure::OnResize(ID3D12Device* device, uint32_t width, uint32_t heigh
     (void)height;
 }
 
-} // namespace GX
+} // namespace gx

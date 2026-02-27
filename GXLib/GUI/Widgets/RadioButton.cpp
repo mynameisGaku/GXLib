@@ -1,8 +1,8 @@
-#include "pch.h"
+#include "pch_graphics.h"
 #include "GUI/Widgets/RadioButton.h"
 #include "GUI/UIRenderer.h"
 
-namespace GX { namespace GUI {
+namespace gx { namespace GUI {
 
 void RadioButton::SetSelected(bool selected)
 {
@@ -106,4 +106,4 @@ void RadioButton::RenderSelf(UIRenderer& renderer)
     }
 }
 
-}} // namespace GX::GUI
+}} // namespace gx::GUI

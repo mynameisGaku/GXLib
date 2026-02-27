@@ -5,11 +5,11 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "ThirdParty/stb_image.h"
 
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Resource/Texture.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool Texture::LoadFromFile(ID3D12Device* device,
@@ -371,4 +371,4 @@ bool Texture::UpdatePixels(ID3D12Device* device,
     return true;
 }
 
-} // namespace GX
+} // namespace gx

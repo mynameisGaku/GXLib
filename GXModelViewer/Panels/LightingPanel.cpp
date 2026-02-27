@@ -18,11 +18,11 @@ void LightingPanel::Initialize()
     // Set up default lights matching GXModelViewerApp's initial setup
     m_lights.clear();
 
-    GX::LightData dirLight = GX::Light::CreateDirectional(
+    gx::LightData dirLight = gx::Light::CreateDirectional(
         { 0.3f, -1.0f, 0.5f }, { 1.0f, 0.98f, 0.95f }, 3.0f);
     m_lights.push_back(dirLight);
 
-    GX::LightData pointLight = GX::Light::CreatePoint(
+    gx::LightData pointLight = gx::Light::CreatePoint(
         { -3.0f, 4.0f, -3.0f }, 20.0f, { 1.0f, 0.95f, 0.9f }, 2.0f);
     m_lights.push_back(pointLight);
 
@@ -32,7 +32,7 @@ void LightingPanel::Initialize()
     m_dirty = true;
 }
 
-void LightingPanel::Draw(GX::Renderer3D& renderer)
+void LightingPanel::Draw(gx::Renderer3D& renderer)
 {
     if (!ImGui::Begin("Lighting"))
     {
@@ -43,7 +43,7 @@ void LightingPanel::Draw(GX::Renderer3D& renderer)
     ImGui::End();
 }
 
-void LightingPanel::DrawContent(GX::Renderer3D& renderer)
+void LightingPanel::DrawContent(gx::Renderer3D& renderer)
 {
     // Ambient color
     if (ImGui::ColorEdit3("Ambient", m_ambientColor))
@@ -58,7 +58,7 @@ void LightingPanel::DrawContent(GX::Renderer3D& renderer)
     if (!canAdd) ImGui::BeginDisabled();
     if (ImGui::Button("Add Light"))
     {
-        GX::LightData newLight = GX::Light::CreateDirectional(
+        gx::LightData newLight = gx::Light::CreateDirectional(
             { 0.0f, -1.0f, 0.0f }, { 1.0f, 1.0f, 1.0f }, 1.0f);
         m_lights.push_back(newLight);
         m_dirty = true;
@@ -76,7 +76,7 @@ void LightingPanel::DrawContent(GX::Renderer3D& renderer)
     {
         ImGui::PushID(i);
 
-        GX::LightData& light = m_lights[i];
+        gx::LightData& light = m_lights[i];
 
         char header[64];
         const char* typeNames[] = { "Directional", "Point", "Spot" };
@@ -96,8 +96,8 @@ void LightingPanel::DrawContent(GX::Renderer3D& renderer)
             }
 
             // Direction (Directional and Spot)
-            if (light.type == static_cast<uint32_t>(GX::LightType::Directional) ||
-                light.type == static_cast<uint32_t>(GX::LightType::Spot))
+            if (light.type == static_cast<uint32_t>(gx::LightType::Directional) ||
+                light.type == static_cast<uint32_t>(gx::LightType::Spot))
             {
                 if (ImGui::DragFloat3("Direction", &light.direction.x, 0.01f, -1.0f, 1.0f))
                 {
@@ -116,8 +116,8 @@ void LightingPanel::DrawContent(GX::Renderer3D& renderer)
             }
 
             // Position (Point and Spot)
-            if (light.type == static_cast<uint32_t>(GX::LightType::Point) ||
-                light.type == static_cast<uint32_t>(GX::LightType::Spot))
+            if (light.type == static_cast<uint32_t>(gx::LightType::Point) ||
+                light.type == static_cast<uint32_t>(gx::LightType::Spot))
             {
                 if (ImGui::DragFloat3("Position", &light.position.x, 0.1f))
                 {
@@ -138,8 +138,8 @@ void LightingPanel::DrawContent(GX::Renderer3D& renderer)
             }
 
             // Range (Point and Spot)
-            if (light.type == static_cast<uint32_t>(GX::LightType::Point) ||
-                light.type == static_cast<uint32_t>(GX::LightType::Spot))
+            if (light.type == static_cast<uint32_t>(gx::LightType::Point) ||
+                light.type == static_cast<uint32_t>(gx::LightType::Spot))
             {
                 if (ImGui::SliderFloat("Range", &light.range, 0.1f, 100.0f))
                 {
@@ -148,7 +148,7 @@ void LightingPanel::DrawContent(GX::Renderer3D& renderer)
             }
 
             // Spot angle (Spot only)
-            if (light.type == static_cast<uint32_t>(GX::LightType::Spot))
+            if (light.type == static_cast<uint32_t>(gx::LightType::Spot))
             {
                 // spotAngle is stored as cos(theta); convert to degrees for editing
                 float angleDeg = acosf((std::max)(-1.0f, (std::min)(1.0f, light.spotAngle))) * (180.0f / XM_PI);

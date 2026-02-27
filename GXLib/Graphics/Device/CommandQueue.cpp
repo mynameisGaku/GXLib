@@ -1,10 +1,10 @@
 /// @file CommandQueue.cpp
 /// @brief コマンドキューの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Device/CommandQueue.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool CommandQueue::Initialize(ID3D12Device* device, D3D12_COMMAND_LIST_TYPE type)
@@ -49,4 +49,4 @@ void CommandQueue::Flush()
     m_fence.WaitForGPU(m_queue.Get());
 }
 
-} // namespace GX
+} // namespace gx

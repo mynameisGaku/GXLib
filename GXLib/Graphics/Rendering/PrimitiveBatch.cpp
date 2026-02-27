@@ -3,7 +3,7 @@
 ///
 /// 三角形トポロジ（塗りつぶし図形）と線分トポロジ（枠線）で別々のPSO・頂点バッファを持ち、
 /// End() 時に FlushTriangles → FlushLines の順で描画する。
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Rendering/PrimitiveBatch.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
@@ -15,7 +15,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace GX
+namespace gx
 {
 
 XMFLOAT4 PrimitiveBatch::ColorToFloat4(uint32_t color)
@@ -339,4 +339,4 @@ void PrimitiveBatch::ResetProjectionMatrix()
     m_useCustomProjection = false;
 }
 
-} // namespace GX
+} // namespace gx

@@ -1,6 +1,6 @@
 /// @file PostEffectSettings.cpp
 /// @brief ポストエフェクト設定のJSON読み書き実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/PostEffect/PostEffectSettings.h"
 #include "Graphics/PostEffect/PostEffectPipeline.h"
 #include "Graphics/RayTracing/RTReflections.h"
@@ -15,7 +15,7 @@
 
 using json = nlohmann::json;
 
-namespace GX
+namespace gx
 {
 
 bool PostEffectSettings::Load(const std::string& filePath, PostEffectPipeline& pipeline)
@@ -360,4 +360,4 @@ bool PostEffectSettings::Save(const std::string& filePath, const PostEffectPipel
     return true;
 }
 
-} // namespace GX
+} // namespace gx

@@ -1,10 +1,10 @@
 /// @file IndirectCommandBuffer.cpp
 /// @brief GPU間接描画用コマンドバッファの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Device/IndirectCommandBuffer.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool IndirectCommandBuffer::Initialize(ID3D12Device* device, uint32_t maxCommands,
@@ -118,4 +118,4 @@ void IndirectCommandBuffer::Execute(ID3D12GraphicsCommandList* cmdList)
                              m_argumentBuffer.Get(), 0, nullptr, 0);
 }
 
-} // namespace GX
+} // namespace gx

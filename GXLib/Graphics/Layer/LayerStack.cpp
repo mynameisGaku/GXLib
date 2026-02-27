@@ -1,10 +1,10 @@
 /// @file LayerStack.cpp
 /// @brief レイヤースタック管理の実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Layer/LayerStack.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 RenderLayer* LayerStack::CreateLayer(ID3D12Device* device, const std::string& name,
@@ -74,4 +74,4 @@ void LayerStack::SortLayers()
     m_needsSort = false;
 }
 
-} // namespace GX
+} // namespace gx

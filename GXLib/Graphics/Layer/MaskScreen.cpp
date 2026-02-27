@@ -1,13 +1,13 @@
 /// @file MaskScreen.cpp
 /// @brief DXLib互換マスクスクリーンの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Layer/MaskScreen.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool MaskScreen::Create(ID3D12Device* device, uint32_t w, uint32_t h)
@@ -194,4 +194,4 @@ void MaskScreen::OnResize(ID3D12Device* device, uint32_t w, uint32_t h)
     m_maskLayer.OnResize(device, w, h);
 }
 
-} // namespace GX
+} // namespace gx

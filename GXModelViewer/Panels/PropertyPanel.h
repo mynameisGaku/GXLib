@@ -26,12 +26,12 @@ public:
     /// @param snapT 移動スナップ値の参照
     /// @param snapR 回転スナップ値の参照
     /// @param snapS スケールスナップ値の参照
-    void Draw(SceneGraph& scene, GX::MaterialManager& matManager, GX::TextureManager& texManager,
+    void Draw(SceneGraph& scene, gx::MaterialManager& matManager, gx::TextureManager& texManager,
               ImGuizmo::OPERATION& gizmoOp, ImGuizmo::MODE& gizmoMode,
               bool& useSnap, float& snapT, float& snapR, float& snapS);
 
     /// @brief タブコンテナ内埋め込み用（Begin/Endなし）
-    void DrawContent(SceneGraph& scene, GX::MaterialManager& matManager, GX::TextureManager& texManager,
+    void DrawContent(SceneGraph& scene, gx::MaterialManager& matManager, gx::TextureManager& texManager,
                      ImGuizmo::OPERATION& gizmoOp, ImGuizmo::MODE& gizmoMode,
                      bool& useSnap, float& snapT, float& snapR, float& snapS);
 
@@ -43,18 +43,18 @@ private:
     void DrawMaterialOverrideSection(SceneEntity& entity);
 
     /// @brief モデル本体のサブメッシュ別マテリアルを直接編集するUI
-    void DrawModelMaterials(SceneEntity& entity, GX::MaterialManager& matManager,
-                            GX::TextureManager& texManager);
+    void DrawModelMaterials(SceneEntity& entity, gx::MaterialManager& matManager,
+                            gx::TextureManager& texManager);
 
     /// @brief シェーダーモデル固有パラメータの編集UI（Toon/Phong/Subsurface/ClearCoat等）
     void DrawShaderModelParams(gxfmt::ShaderModelParams& params, gxfmt::ShaderModel model);
 
     /// @brief テクスチャスロットのBrowse/Clear UIを描画する
-    void DrawTextureSlots(GX::Material* mat, int matHandle, GX::MaterialManager& matManager,
-                          GX::TextureManager& texManager, int submeshIndex);
+    void DrawTextureSlots(gx::Material* mat, int matHandle, gx::MaterialManager& matManager,
+                          gx::TextureManager& texManager, int submeshIndex);
 
     /// @brief テクスチャファイルダイアログの結果を処理する
-    void HandleTextureDialog(GX::MaterialManager& matManager, GX::TextureManager& texManager);
+    void HandleTextureDialog(gx::MaterialManager& matManager, gx::TextureManager& texManager);
 
     char m_nameBuffer[256] = {};  ///< エンティティ名編集バッファ
 

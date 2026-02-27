@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 #include "Math/Color.h"
 
-using namespace GX;
+using namespace gx;
 
 TEST(ColorTest, DefaultConstructor)
 {

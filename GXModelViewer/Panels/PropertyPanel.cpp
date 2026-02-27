@@ -18,7 +18,7 @@
 static constexpr float k_DegToRad = XM_PI / 180.0f;
 static constexpr float k_RadToDeg = 180.0f / XM_PI;
 
-void PropertyPanel::Draw(SceneGraph& scene, GX::MaterialManager& matManager, GX::TextureManager& texManager,
+void PropertyPanel::Draw(SceneGraph& scene, gx::MaterialManager& matManager, gx::TextureManager& texManager,
                          ImGuizmo::OPERATION& gizmoOp, ImGuizmo::MODE& gizmoMode,
                          bool& useSnap, float& snapT, float& snapR, float& snapS)
 {
@@ -31,7 +31,7 @@ void PropertyPanel::Draw(SceneGraph& scene, GX::MaterialManager& matManager, GX:
     ImGui::End();
 }
 
-void PropertyPanel::DrawContent(SceneGraph& scene, GX::MaterialManager& matManager, GX::TextureManager& texManager,
+void PropertyPanel::DrawContent(SceneGraph& scene, gx::MaterialManager& matManager, gx::TextureManager& texManager,
                                 ImGuizmo::OPERATION& gizmoOp, ImGuizmo::MODE& gizmoMode,
                                 bool& useSnap, float& snapT, float& snapR, float& snapS)
 {
@@ -170,7 +170,7 @@ void PropertyPanel::DrawMaterialOverrideSection(SceneEntity& entity)
         return;
     }
 
-    GX::Material& mat = entity.materialOverride;
+    gx::Material& mat = entity.materialOverride;
 
     // Shader Model combo
     const char* shaderModelItems[] = { "Standard", "Unlit", "Toon", "Phong", "Subsurface", "ClearCoat" };
@@ -215,8 +215,8 @@ void PropertyPanel::DrawMaterialOverrideSection(SceneEntity& entity)
     DrawShaderModelParams(mat.shaderParams, mat.shaderModel);
 }
 
-void PropertyPanel::DrawModelMaterials(SceneEntity& entity, GX::MaterialManager& matManager,
-                                       GX::TextureManager& texManager)
+void PropertyPanel::DrawModelMaterials(SceneEntity& entity, gx::MaterialManager& matManager,
+                                       gx::TextureManager& texManager)
 {
     if (!entity.model) return;
     if (!ImGui::CollapsingHeader("Model Materials", ImGuiTreeNodeFlags_DefaultOpen)) return;
@@ -233,7 +233,7 @@ void PropertyPanel::DrawModelMaterials(SceneEntity& entity, GX::MaterialManager&
         int matHandle = subMeshes[i].materialHandle;
         if (matHandle < 0) continue;
 
-        GX::Material* mat = matManager.GetMaterial(matHandle);
+        gx::Material* mat = matManager.GetMaterial(matHandle);
         if (!mat) continue;
 
         ImGui::PushID(static_cast<int>(i));
@@ -387,8 +387,8 @@ void PropertyPanel::DrawShaderModelParams(gxfmt::ShaderModelParams& params, gxfm
     }
 }
 
-void PropertyPanel::DrawTextureSlots(GX::Material* mat, int matHandle, GX::MaterialManager& /*matManager*/,
-                                     GX::TextureManager& texManager, int submeshIndex)
+void PropertyPanel::DrawTextureSlots(gx::Material* mat, int matHandle, gx::MaterialManager& /*matManager*/,
+                                     gx::TextureManager& texManager, int submeshIndex)
 {
     if (!mat) return;
 
@@ -452,7 +452,7 @@ void PropertyPanel::DrawTextureSlots(GX::Material* mat, int matHandle, GX::Mater
     ImGui::TreePop();
 }
 
-void PropertyPanel::HandleTextureDialog(GX::MaterialManager& matManager, GX::TextureManager& texManager)
+void PropertyPanel::HandleTextureDialog(gx::MaterialManager& matManager, gx::TextureManager& texManager)
 {
     if (ImGuiFileDialog::Instance()->Display("BrowseTexDlg",
         ImGuiWindowFlags_NoCollapse, ImVec2(400, 300)))
@@ -467,7 +467,7 @@ void PropertyPanel::HandleTextureDialog(GX::MaterialManager& matManager, GX::Tex
 
             if (texHandle >= 0 && m_pendingTexMatHandle >= 0 && m_pendingTexSlot >= 0)
             {
-                GX::Material* mat = matManager.GetMaterial(m_pendingTexMatHandle);
+                gx::Material* mat = matManager.GetMaterial(m_pendingTexMatHandle);
                 if (mat)
                 {
                     int* handles[] = {

@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 #include "IO/Crypto.h"
 
-using namespace GX;
+using namespace gx;
 
 TEST(CryptoTest, AES256_EncryptDecrypt)
 {

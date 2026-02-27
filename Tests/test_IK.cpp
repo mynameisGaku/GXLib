@@ -7,8 +7,8 @@
 #include "Graphics/3D/LookAtIK.h"
 #include "TestHelpers.h"
 
-using namespace GX;
-using namespace GX::TestHelpers;
+using namespace gx;
+using namespace gx::TestHelpers;
 
 // ==================== IKChain ====================
 

@@ -22,7 +22,7 @@ static int OutputPinId(int stateIndex) { return stateIndex * 1000; }
 static int InputPinId(int stateIndex)  { return stateIndex * 1000 + 1; }
 static int LinkId(int transitionIndex) { return transitionIndex + 10000; }
 
-void AnimatorPanel::Draw(GX::AnimatorStateMachine* stateMachine)
+void AnimatorPanel::Draw(gx::AnimatorStateMachine* stateMachine)
 {
     if (!ImGui::Begin("Animator State Machine"))
     {
@@ -42,7 +42,7 @@ void AnimatorPanel::Draw(GX::AnimatorStateMachine* stateMachine)
     bool transitioning = stateMachine->IsTransitioning();
 
     // Info header
-    const GX::AnimState* curState = stateMachine->GetCurrentState();
+    const gx::AnimState* curState = stateMachine->GetCurrentState();
     if (curState)
     {
         ImGui::Text("Current State: %s", curState->name.c_str());
@@ -72,7 +72,7 @@ void AnimatorPanel::Draw(GX::AnimatorStateMachine* stateMachine)
     // Draw state nodes
     for (uint32_t i = 0; i < stateCount; ++i)
     {
-        const GX::AnimState* state = stateMachine->GetState(i);
+        const gx::AnimState* state = stateMachine->GetState(i);
         if (!state)
             continue;
 
@@ -101,7 +101,7 @@ void AnimatorPanel::Draw(GX::AnimatorStateMachine* stateMachine)
         }
         else if (state->blendTree)
         {
-            const char* typeName = (state->blendTree->GetType() == GX::BlendTreeType::Simple1D)
+            const char* typeName = (state->blendTree->GetType() == gx::BlendTreeType::Simple1D)
                                        ? "1D" : "2D";
             ImGui::Text("BlendTree (%s)", typeName);
         }
@@ -160,7 +160,7 @@ void AnimatorPanel::Draw(GX::AnimatorStateMachine* stateMachine)
     // --- Selected node details ---
     if (m_selectedNode >= 0 && m_selectedNode < static_cast<int>(stateCount))
     {
-        const GX::AnimState* state = stateMachine->GetState(static_cast<uint32_t>(m_selectedNode));
+        const gx::AnimState* state = stateMachine->GetState(static_cast<uint32_t>(m_selectedNode));
         if (state)
         {
             ImGui::Separator();

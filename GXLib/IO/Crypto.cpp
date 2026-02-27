@@ -1,11 +1,11 @@
-#include "pch.h"
+#include "pch_common.h"
 #include "IO/Crypto.h"
 #include "Core/Logger.h"
 #include <bcrypt.h>
 
 #pragma comment(lib, "bcrypt.lib")
 
-namespace GX {
+namespace gx {
 
 // BCrypt API の流れ: アルゴリズムオープン → CBCモード設定 → 対称鍵生成 → 暗号化 → 後片付け
 // BCryptEncryptはIVの内容を破壊するため、2回呼ぶ前にIVをコピーし直す必要がある。
@@ -178,4 +178,4 @@ void Crypto::GenerateRandomBytes(uint8_t* buffer, size_t size)
     BCryptGenRandom(nullptr, buffer, (ULONG)size, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
 }
 
-} // namespace GX
+} // namespace gx

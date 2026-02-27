@@ -1,10 +1,10 @@
 /// @file FootIK.cpp
 /// @brief 足IKの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/3D/FootIK.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 void FootIK::Setup(const Skeleton& skeleton,
@@ -100,4 +100,4 @@ void FootIK::Apply(XMFLOAT4X4* localTransforms,
     processLeg(m_rightLeg, m_rightFootIndex);
 }
 
-} // namespace GX
+} // namespace gx

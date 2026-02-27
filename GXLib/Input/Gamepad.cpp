@@ -1,9 +1,9 @@
 /// @file Gamepad.cpp
 /// @brief ゲームパッド入力管理の実装（XInput）
-#include "pch.h"
+#include "pch_common.h"
 #include "Input/Gamepad.h"
 
-namespace GX
+namespace gx
 {
 
 void Gamepad::Initialize()
@@ -125,4 +125,4 @@ float Gamepad::GetRightTrigger(int pad) const
     return ApplyTriggerDeadZone(m_pads[pad].state.Gamepad.bRightTrigger);
 }
 
-} // namespace GX
+} // namespace gx

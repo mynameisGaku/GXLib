@@ -37,7 +37,7 @@ static void QuatToEuler(const XMFLOAT4& q, float& pitch, float& yaw, float& roll
     yaw = atan2f(siny, cosy) * k_RadToDeg;
 }
 
-void SkeletonPanel::Draw(SceneGraph& scene, const GX::Animator* animator)
+void SkeletonPanel::Draw(SceneGraph& scene, const gx::Animator* animator)
 {
     if (!ImGui::Begin("Skeleton"))
     {
@@ -48,7 +48,7 @@ void SkeletonPanel::Draw(SceneGraph& scene, const GX::Animator* animator)
     ImGui::End();
 }
 
-void SkeletonPanel::DrawContent(SceneGraph& scene, const GX::Animator* animator)
+void SkeletonPanel::DrawContent(SceneGraph& scene, const gx::Animator* animator)
 {
     const SceneEntity* entity = scene.GetEntity(scene.selectedEntity);
     if (!entity || !entity->model || !entity->model->HasSkeleton())
@@ -57,7 +57,7 @@ void SkeletonPanel::DrawContent(SceneGraph& scene, const GX::Animator* animator)
         return;
     }
 
-    const GX::Skeleton* skeleton = entity->model->GetSkeleton();
+    const gx::Skeleton* skeleton = entity->model->GetSkeleton();
     const auto& joints = skeleton->GetJoints();
 
     ImGui::Text("Joints: %u", static_cast<uint32_t>(joints.size()));
@@ -179,8 +179,8 @@ void SkeletonPanel::DrawContent(SceneGraph& scene, const GX::Animator* animator)
     }
 }
 
-void SkeletonPanel::DrawJointTree(const GX::Skeleton* skeleton, SceneGraph& scene,
-                                   const GX::Animator* animator, int jointIndex)
+void SkeletonPanel::DrawJointTree(const gx::Skeleton* skeleton, SceneGraph& scene,
+                                   const gx::Animator* animator, int jointIndex)
 {
     const auto& joints = skeleton->GetJoints();
     if (jointIndex < 0 || jointIndex >= static_cast<int>(joints.size()))

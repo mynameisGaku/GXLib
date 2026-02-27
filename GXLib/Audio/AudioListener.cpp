@@ -1,11 +1,9 @@
 /// @file AudioListener.cpp
 /// @brief 3Dオーディオリスナーの実装
-#include "pch.h"
+#include "pch_audio.h"
 #include "Audio/AudioListener.h"
-#include "Graphics/3D/Camera3D.h"
-#include <x3daudio.h>
 
-namespace GX
+namespace gx
 {
 
 AudioListener::AudioListener()
@@ -34,27 +32,23 @@ void AudioListener::SetVelocity(const XMFLOAT3& vel)
     m_listener.Velocity = { vel.x, vel.y, vel.z };
 }
 
-void AudioListener::UpdateFromCamera(const Camera3D& camera, float deltaTime)
+void AudioListener::UpdateFromTransform(const XMFLOAT3& position, const XMFLOAT3& forward,
+                                          const XMFLOAT3& up, float deltaTime)
 {
-    // カメラの位置・方向を取得
-    XMFLOAT3 pos = camera.GetPosition();
-    XMFLOAT3 fwd = camera.GetForward();
-    XMFLOAT3 up  = camera.GetUp();
-
     // 速度を前フレームの位置差分から計算（ドップラー効果用）
     if (deltaTime > 0.0f)
     {
         float invDt = 1.0f / deltaTime;
-        m_listener.Velocity.x = (pos.x - m_prevPosition.x) * invDt;
-        m_listener.Velocity.y = (pos.y - m_prevPosition.y) * invDt;
-        m_listener.Velocity.z = (pos.z - m_prevPosition.z) * invDt;
+        m_listener.Velocity.x = (position.x - m_prevPosition.x) * invDt;
+        m_listener.Velocity.y = (position.y - m_prevPosition.y) * invDt;
+        m_listener.Velocity.z = (position.z - m_prevPosition.z) * invDt;
     }
 
-    m_listener.Position    = { pos.x, pos.y, pos.z };
-    m_listener.OrientFront = { fwd.x, fwd.y, fwd.z };
+    m_listener.Position    = { position.x, position.y, position.z };
+    m_listener.OrientFront = { forward.x, forward.y, forward.z };
     m_listener.OrientTop   = { up.x, up.y, up.z };
 
-    m_prevPosition = pos;
+    m_prevPosition = position;
 }
 
-} // namespace GX
+} // namespace gx

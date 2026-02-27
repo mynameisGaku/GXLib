@@ -7,14 +7,14 @@
 /// 3. Blur: 各レベルで H blur(mipRT[i] → blurTemp[i]) + V blur(blurTemp[i] → mipRT[i])
 /// 4. Upsample: mipRT[4] → mipRT[3]にadd → ... → mipRT[0]にadd
 /// 5. Composite: destRTにhdrRTをコピーし、mipRT[0]をアディティブ合成
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/PostEffect/Bloom.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool Bloom::Initialize(ID3D12Device* device, uint32_t width, uint32_t height)
@@ -310,4 +310,4 @@ void Bloom::OnResize(ID3D12Device* device, uint32_t width, uint32_t height)
     CreateMipRenderTargets(device, width, height);
 }
 
-} // namespace GX
+} // namespace gx

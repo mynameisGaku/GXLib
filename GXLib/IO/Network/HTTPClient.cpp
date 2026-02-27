@@ -1,11 +1,11 @@
 /// @file HTTPClient.cpp
 /// @brief HTTPクライアント実装 — WinHTTP API ラッパー
-#include "pch.h"
+#include "pch_common.h"
 #include <winhttp.h>
 #include "IO/Network/HTTPClient.h"
 #include "Core/Logger.h"
 
-namespace GX {
+namespace gx {
 
 HTTPClient::HTTPClient()
 {
@@ -259,4 +259,4 @@ void HTTPClient::Update()
     }
 }
 
-} // namespace GX
+} // namespace gx

@@ -6,8 +6,8 @@
 #include "Graphics/3D/AnimatorStateMachine.h"
 #include "TestHelpers.h"
 
-using namespace GX;
-using namespace GX::TestHelpers;
+using namespace gx;
+using namespace gx::TestHelpers;
 
 // Persistent test clips (must outlive the ASM that references them)
 static AnimationClip s_idleClip  = CreateSimpleClip("Idle", 2.0f, 0.0f, 0.0f, 0.0f);

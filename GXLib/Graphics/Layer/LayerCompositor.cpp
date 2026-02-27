@@ -1,13 +1,13 @@
 /// @file LayerCompositor.cpp
 /// @brief レイヤーコンポジターの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Layer/LayerCompositor.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool LayerCompositor::Initialize(ID3D12Device* device, uint32_t w, uint32_t h)
@@ -307,4 +307,4 @@ void LayerCompositor::OnResize(ID3D12Device* device, uint32_t w, uint32_t h)
     m_height = h;
 }
 
-} // namespace GX
+} // namespace gx

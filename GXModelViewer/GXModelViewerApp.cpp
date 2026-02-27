@@ -39,7 +39,7 @@ bool GXModelViewerApp::Initialize(HINSTANCE hInstance, uint32_t width, uint32_t 
     m_height = height;
 
     // Create application window
-    GX::ApplicationDesc appDesc;
+    gx::ApplicationDesc appDesc;
     appDesc.title  = title;
     appDesc.width  = width;
     appDesc.height = height;
@@ -99,7 +99,7 @@ bool GXModelViewerApp::Initialize(HINSTANCE hInstance, uint32_t width, uint32_t 
         return false;
 
     // Swap chain
-    GX::SwapChainDesc scDesc;
+    gx::SwapChainDesc scDesc;
     scDesc.hwnd   = m_app.GetWindow().GetHWND();
     scDesc.width  = width;
     scDesc.height = height;
@@ -116,7 +116,7 @@ bool GXModelViewerApp::Initialize(HINSTANCE hInstance, uint32_t width, uint32_t 
     // PostEffectPipeline (HDR -> tonemap -> backbuffer)
     if (!m_postEffect.Initialize(device, width, height))
         return false;
-    m_postEffect.SetTonemapMode(GX::TonemapMode::ACES);
+    m_postEffect.SetTonemapMode(gx::TonemapMode::ACES);
     m_postEffect.SetFXAAEnabled(true);
 
     // Set up skybox
@@ -125,16 +125,16 @@ bool GXModelViewerApp::Initialize(HINSTANCE hInstance, uint32_t width, uint32_t 
 
     // Initialize infinite grid
     {
-        GX::Shader gridShader;
+        gx::Shader gridShader;
         gridShader.Initialize();
         if (!m_infiniteGrid.Initialize(device, gridShader))
             GX_LOG_WARN("InfiniteGrid initialization failed");
     }
 
     // Set up default lights
-    GX::LightData lights[2];
-    lights[0] = GX::Light::CreateDirectional({ 0.3f, -1.0f, 0.5f }, { 1.0f, 0.98f, 0.95f }, 3.0f);
-    lights[1] = GX::Light::CreatePoint({ -3.0f, 4.0f, -3.0f }, 20.0f, { 1.0f, 0.95f, 0.9f }, 2.0f);
+    gx::LightData lights[2];
+    lights[0] = gx::Light::CreateDirectional({ 0.3f, -1.0f, 0.5f }, { 1.0f, 0.98f, 0.95f }, 3.0f);
+    lights[1] = gx::Light::CreatePoint({ -3.0f, 4.0f, -3.0f }, 20.0f, { 1.0f, 0.95f, 0.9f }, 2.0f);
     m_renderer3D.SetLights(lights, 2, { 0.15f, 0.15f, 0.18f });
 
     // Initialize lighting panel
@@ -209,7 +209,7 @@ void GXModelViewerApp::InitImGui()
     ImGui_ImplDX12_InitInfo initInfo = {};
     initInfo.Device            = device;
     initInfo.CommandQueue      = m_commandQueue.GetQueue();
-    initInfo.NumFramesInFlight = GX::SwapChain::k_BufferCount;
+    initInfo.NumFramesInFlight = gx::SwapChain::k_BufferCount;
     initInfo.RTVFormat         = DXGI_FORMAT_R8G8B8A8_UNORM;
     initInfo.SrvDescriptorHeap = m_imguiSrvHeap.GetHeap();
 
@@ -218,7 +218,7 @@ void GXModelViewerApp::InitImGui()
                                        D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu,
                                        D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu) {
         // We stored the DescriptorHeap pointer in UserData during init
-        auto* heap = static_cast<GX::DescriptorHeap*>(info->UserData);
+        auto* heap = static_cast<gx::DescriptorHeap*>(info->UserData);
         uint32_t idx = heap->AllocateIndex();
         *out_cpu = heap->GetCPUHandle(idx);
         *out_gpu = heap->GetGPUHandle(idx);
@@ -381,11 +381,11 @@ void GXModelViewerApp::BuildMainMenuBar()
                 {
                     std::string newName = src->name + " (Copy)";
                     XMFLOAT3 srcPos = src->transform.GetPosition();
-                    GX::Transform3D srcTransform = src->transform;
-                    GX::Material srcMat = src->materialOverride;
+                    gx::Transform3D srcTransform = src->transform;
+                    gx::Material srcMat = src->materialOverride;
                     bool srcUseMat = src->useMaterialOverride;
                     int srcParent = src->parentIndex;
-                    GX::Model* srcModel = src->model;
+                    gx::Model* srcModel = src->model;
 
                     int newIdx = m_sceneGraph.AddEntity(newName);
                     m_sceneGraph.selectedEntity = newIdx;
@@ -881,11 +881,11 @@ void GXModelViewerApp::UpdateUI()
             {
                 std::string newName = src->name + " (Copy)";
                 XMFLOAT3 srcPos = src->transform.GetPosition();
-                GX::Transform3D srcTransform = src->transform;
-                GX::Material srcMat = src->materialOverride;
+                gx::Transform3D srcTransform = src->transform;
+                gx::Material srcMat = src->materialOverride;
                 bool srcUseMat = src->useMaterialOverride;
                 int srcParent = src->parentIndex;
-                GX::Model* srcModel = src->model;
+                gx::Model* srcModel = src->model;
 
                 int newIdx = m_sceneGraph.AddEntity(newName);
                 m_sceneGraph.selectedEntity = newIdx;
@@ -1091,7 +1091,7 @@ void GXModelViewerApp::ImportModel(const std::string& filePath)
     // スキンドモデルならAnimator作成
     if (entity->model->HasSkeleton())
     {
-        entity->animator = std::make_unique<GX::Animator>();
+        entity->animator = std::make_unique<gx::Animator>();
         entity->animator->SetSkeleton(entity->model->GetSkeleton());
         if (entity->model->GetAnimationCount() > 0)
         {
@@ -1162,7 +1162,7 @@ void GXModelViewerApp::ImportAnimation(const std::string& filePath)
     std::string ext = (dot != std::string::npos) ? filePath.substr(dot) : "";
     for (auto& c : ext) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
 
-    GX::Skeleton* skeleton = entity->model->GetSkeleton();
+    gx::Skeleton* skeleton = entity->model->GetSkeleton();
 
     // Extract clip name from file name
     std::string clipBaseName = filePath;
@@ -1185,11 +1185,11 @@ void GXModelViewerApp::ImportAnimation(const std::string& filePath)
             return;
         }
 
-        GX::AnimationClip clip;
+        gx::AnimationClip clip;
         clip.SetName(clipBaseName);
         clip.SetDuration(loaded->duration);
 
-        std::unordered_map<int, GX::AnimationChannel> channelMap;
+        std::unordered_map<int, gx::AnimationChannel> channelMap;
         for (const auto& ch : loaded->channels)
         {
             int jointIdx = skeleton->FindJointIndex(ch.boneName);
@@ -1197,7 +1197,7 @@ void GXModelViewerApp::ImportAnimation(const std::string& filePath)
 
             auto& animCh = channelMap[jointIdx];
             animCh.jointIndex = jointIdx;
-            animCh.interpolation = static_cast<GX::InterpolationType>(ch.interpolation);
+            animCh.interpolation = static_cast<gx::InterpolationType>(ch.interpolation);
 
             if (ch.target == 0)
                 for (const auto& key : ch.vecKeys)
@@ -1220,9 +1220,9 @@ void GXModelViewerApp::ImportAnimation(const std::string& filePath)
     {
         // FBX/glTF/GXMD: load full model temporarily, extract animations via bone name remapping
         auto* device = m_graphicsDevice.GetDevice();
-        GX::TextureManager tmpTexMgr;
+        gx::TextureManager tmpTexMgr;
         tmpTexMgr.Initialize(device, m_commandQueue.GetQueue());
-        GX::MaterialManager tmpMatMgr;
+        gx::MaterialManager tmpMatMgr;
 
         auto srcModel = m_modelLoader.LoadFromFile(wpath, device, tmpTexMgr, tmpMatMgr);
         if (!srcModel)
@@ -1237,7 +1237,7 @@ void GXModelViewerApp::ImportAnimation(const std::string& filePath)
             return;
         }
 
-        const GX::Skeleton* srcSkeleton = srcModel->GetSkeleton();
+        const gx::Skeleton* srcSkeleton = srcModel->GetSkeleton();
         if (!srcSkeleton)
         {
             GX_LOG_ERROR("Source file has no skeleton for bone remapping: %s", filePath.c_str());
@@ -1249,7 +1249,7 @@ void GXModelViewerApp::ImportAnimation(const std::string& filePath)
 
         for (const auto& srcClip : srcAnims)
         {
-            GX::AnimationClip newClip;
+            gx::AnimationClip newClip;
             std::string name = srcClip.GetName();
             if (name.empty())
                 name = clipBaseName + "_" + std::to_string(importedCount);
@@ -1267,7 +1267,7 @@ void GXModelViewerApp::ImportAnimation(const std::string& filePath)
                 int targetIdx = skeleton->FindJointIndex(boneName);
                 if (targetIdx < 0) continue;
 
-                GX::AnimationChannel newCh;
+                gx::AnimationChannel newCh;
                 newCh.jointIndex = targetIdx;
                 newCh.interpolation = srcCh.interpolation;
                 newCh.translationKeys = srcCh.translationKeys;
@@ -1416,7 +1416,7 @@ void GXModelViewerApp::RenderFrame(float deltaTime)
     m_renderer3D.UpdateShadow(m_camera);
 
     // CSMパス（4カスケード）
-    for (uint32_t cascade = 0; cascade < GX::CascadedShadowMap::k_NumCascades; ++cascade)
+    for (uint32_t cascade = 0; cascade < gx::CascadedShadowMap::k_NumCascades; ++cascade)
     {
         m_renderer3D.BeginShadowPass(cmdList, m_frameIndex, cascade);
         DrawSceneForShadow();
@@ -1957,7 +1957,7 @@ bool GXModelViewerApp::ComputeEntityAABB(const SceneEntity& entity, XMFLOAT3& ou
         if (!cpuData || cpuData->skinnedVertices.empty()) return false;
 
         // Compute bone matrices (globalTransform * inverseBindMatrix)
-        XMFLOAT4X4 boneMatrices[GX::BoneConstants::k_MaxBones];
+        XMFLOAT4X4 boneMatrices[gx::BoneConstants::k_MaxBones];
         entity.model->GetSkeleton()->ComputeBoneMatrices(gt.data(), boneMatrices);
 
         // CPU skinning: transform each vertex by its weighted bone matrices
@@ -2024,8 +2024,8 @@ void GXModelViewerApp::HandleViewportPicking()
     XMVECTOR dir = XMVector3Normalize(farPt - nearPt);
     XMStoreFloat3(&rayDir3, dir);
 
-    GX::Ray ray(GX::Vector3(rayOrigin.x, rayOrigin.y, rayOrigin.z),
-                GX::Vector3(rayDir3.x, rayDir3.y, rayDir3.z));
+    gx::Ray ray(gx::Vector3(rayOrigin.x, rayOrigin.y, rayOrigin.z),
+                gx::Vector3(rayDir3.x, rayDir3.y, rayDir3.z));
 
     int bestEntity = -1;
     float bestT = 1e30f;
@@ -2053,14 +2053,14 @@ void GXModelViewerApp::HandleViewportPicking()
         XMStoreFloat3(&lo, localOrigin);
         XMStoreFloat3(&ld, localDir);
 
-        GX::Ray localRay(GX::Vector3(lo.x, lo.y, lo.z),
-                         GX::Vector3(ld.x, ld.y, ld.z));
-        GX::AABB3D localAABB(
-            GX::Vector3(localMin.x, localMin.y, localMin.z),
-            GX::Vector3(localMax.x, localMax.y, localMax.z));
+        gx::Ray localRay(gx::Vector3(lo.x, lo.y, lo.z),
+                         gx::Vector3(ld.x, ld.y, ld.z));
+        gx::AABB3D localAABB(
+            gx::Vector3(localMin.x, localMin.y, localMin.z),
+            gx::Vector3(localMax.x, localMax.y, localMax.z));
 
         float hitT = 0.0f;
-        if (GX::Collision3D::RaycastAABB(localRay, localAABB, hitT))
+        if (gx::Collision3D::RaycastAABB(localRay, localAABB, hitT))
         {
             // Convert local hit distance to world distance for comparison
             XMVECTOR localHitPt = localOrigin + localDir * hitT;
@@ -2086,7 +2086,7 @@ void GXModelViewerApp::CreatePrimitive(PrimitiveRequest request)
     if (request == PrimitiveRequest::None) return;
 
     const char* name = "Entity";
-    GX::MeshData meshData;
+    gx::MeshData meshData;
     bool hasMesh = false;
 
     switch (request)
@@ -2096,27 +2096,27 @@ void GXModelViewerApp::CreatePrimitive(PrimitiveRequest request)
         break;
     case PrimitiveRequest::Cube:
         name = "Cube";
-        meshData = GX::MeshGenerator::CreateBox(1.0f, 1.0f, 1.0f);
+        meshData = gx::MeshGenerator::CreateBox(1.0f, 1.0f, 1.0f);
         hasMesh = true;
         break;
     case PrimitiveRequest::Sphere:
         name = "Sphere";
-        meshData = GX::MeshGenerator::CreateSphere(0.5f, 32, 32);
+        meshData = gx::MeshGenerator::CreateSphere(0.5f, 32, 32);
         hasMesh = true;
         break;
     case PrimitiveRequest::Plane:
         name = "Plane";
-        meshData = GX::MeshGenerator::CreatePlane(10.0f, 10.0f, 1, 1);
+        meshData = gx::MeshGenerator::CreatePlane(10.0f, 10.0f, 1, 1);
         hasMesh = true;
         break;
     case PrimitiveRequest::Cylinder:
         name = "Cylinder";
-        meshData = GX::MeshGenerator::CreateCylinder(0.5f, 0.5f, 2.0f, 32, 1);
+        meshData = gx::MeshGenerator::CreateCylinder(0.5f, 0.5f, 2.0f, 32, 1);
         hasMesh = true;
         break;
     case PrimitiveRequest::Cone:
         name = "Cone";
-        meshData = GX::MeshGenerator::CreateCylinder(0.0f, 0.5f, 2.0f, 32, 1);
+        meshData = gx::MeshGenerator::CreateCylinder(0.0f, 0.5f, 2.0f, 32, 1);
         hasMesh = true;
         break;
     default:
@@ -2139,21 +2139,21 @@ void GXModelViewerApp::CreatePrimitive(PrimitiveRequest request)
         SceneEntity* entity = m_sceneGraph.GetEntity(idx);
         if (entity)
         {
-            entity->ownedModel = std::make_unique<GX::Model>();
+            entity->ownedModel = std::make_unique<gx::Model>();
             auto& mesh = entity->ownedModel->GetMesh();
 
             ID3D12Device* device = m_graphicsDevice.GetDevice();
             mesh.CreateVertexBuffer(device,
                 meshData.vertices.data(),
-                static_cast<uint32_t>(meshData.vertices.size() * sizeof(GX::Vertex3D_PBR)),
-                sizeof(GX::Vertex3D_PBR));
+                static_cast<uint32_t>(meshData.vertices.size() * sizeof(gx::Vertex3D_PBR)),
+                sizeof(gx::Vertex3D_PBR));
             mesh.CreateIndexBuffer(device,
                 meshData.indices.data(),
                 static_cast<uint32_t>(meshData.indices.size() * sizeof(uint32_t)),
                 DXGI_FORMAT_R32_UINT);
 
             // Create default grey material
-            GX::Material defaultMat;
+            gx::Material defaultMat;
             defaultMat.shaderParams.baseColor[0] = 0.6f;
             defaultMat.shaderParams.baseColor[1] = 0.6f;
             defaultMat.shaderParams.baseColor[2] = 0.6f;
@@ -2165,7 +2165,7 @@ void GXModelViewerApp::CreatePrimitive(PrimitiveRequest request)
             defaultMat.constants.metallicFactor = 0.0f;
             int matHandle = m_materialManager.CreateMaterial(defaultMat);
 
-            GX::SubMesh subMesh;
+            gx::SubMesh subMesh;
             subMesh.indexCount = static_cast<uint32_t>(meshData.indices.size());
             subMesh.indexOffset = 0;
             subMesh.vertexOffset = 0;
@@ -2176,7 +2176,7 @@ void GXModelViewerApp::CreatePrimitive(PrimitiveRequest request)
             entity->model = entity->ownedModel.get();
 
             // Store CPU data for export/AABB
-            GX::MeshCPUData cpuData;
+            gx::MeshCPUData cpuData;
             cpuData.staticVertices = meshData.vertices;
             cpuData.indices = meshData.indices;
             entity->ownedModel->SetCPUData(std::move(cpuData));
@@ -2246,6 +2246,6 @@ void GXModelViewerApp::Shutdown()
     m_app.Shutdown();
 
 #ifdef _DEBUG
-    GX::GraphicsDevice::ReportLiveObjects();
+    gx::GraphicsDevice::ReportLiveObjects();
 #endif
 }

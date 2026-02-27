@@ -1,6 +1,6 @@
 /// @file SSAO.cpp
 /// @brief Screen Space Ambient Occlusion の実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/PostEffect/SSAO.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
@@ -8,7 +8,7 @@
 #include "Core/Logger.h"
 #include <random>
 
-namespace GX
+namespace gx
 {
 
 void SSAO::GenerateKernel()
@@ -342,4 +342,4 @@ void SSAO::OnResize(ID3D12Device* device, uint32_t width, uint32_t height)
     m_blurTempRT.Create(device, width, height, DXGI_FORMAT_R8_UNORM);
 }
 
-} // namespace GX
+} // namespace gx

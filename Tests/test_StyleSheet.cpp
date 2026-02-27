@@ -6,7 +6,7 @@
 #include "GUI/StyleSheet.h"
 #include "GUI/Style.h"
 
-using namespace GX::GUI;
+using namespace gx::GUI;
 
 TEST(StyleTest, StyleLength_Px)
 {

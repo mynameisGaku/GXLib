@@ -1,10 +1,10 @@
 /// @file AudioDevice.cpp
 /// @brief XAudio2オーディオデバイス管理の実装
-#include "pch.h"
+#include "pch_audio.h"
 #include "Audio/AudioDevice.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 AudioDevice::~AudioDevice()
@@ -113,4 +113,4 @@ void AudioDevice::SetMasterVolume(float volume)
     }
 }
 
-} // namespace GX
+} // namespace gx

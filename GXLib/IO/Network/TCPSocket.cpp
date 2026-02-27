@@ -1,12 +1,12 @@
 /// @file TCPSocket.cpp
 /// @brief TCPソケット実装 — Winsock2 API ラッパー
-#include "pch.h"
+#include "pch_common.h"
 #include <WinSock2.h>
 #include <ws2tcpip.h>
 #include "IO/Network/TCPSocket.h"
 #include "Core/Logger.h"
 
-namespace GX {
+namespace gx {
 
 bool TCPSocket::s_wsaInitialized = false;
 
@@ -119,4 +119,4 @@ bool TCPSocket::HasData() const
     return select(0, &readSet, nullptr, nullptr, &timeout) > 0;
 }
 
-} // namespace GX
+} // namespace gx

@@ -1,10 +1,10 @@
 /// @file RTAccelerationStructure.cpp
 /// @brief DXR アクセラレーション構造の実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/RayTracing/RTAccelerationStructure.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool RTAccelerationStructure::Initialize(ID3D12Device5* device)
@@ -204,4 +204,4 @@ D3D12_GPU_VIRTUAL_ADDRESS RTAccelerationStructure::GetTLASAddress() const
     return 0;
 }
 
-} // namespace GX
+} // namespace gx

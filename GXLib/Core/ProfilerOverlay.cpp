@@ -1,4 +1,4 @@
-#include "pch.h"
+#include "pch_common.h"
 /// @file ProfilerOverlay.cpp
 /// @brief ゲーム内プロファイラオーバーレイ実装
 
@@ -8,7 +8,7 @@
 #include "Graphics/Rendering/TextRenderer.h"
 #include "Graphics/Device/GPUProfiler.h"
 
-namespace GX
+namespace gx
 {
 
 void ProfilerOverlay::Initialize(SpriteBatch* spriteBatch, PrimitiveBatch* primitiveBatch,
@@ -167,4 +167,4 @@ void ProfilerOverlay::DrawGraph(float deltaTime)
     }
 }
 
-} // namespace GX
+} // namespace gx

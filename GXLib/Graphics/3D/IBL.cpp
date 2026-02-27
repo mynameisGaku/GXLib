@@ -1,12 +1,12 @@
 /// @file IBL.cpp
 /// @brief IBL（イメージベースドライティング）リソース生成の実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/3D/IBL.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool IBL::Initialize(ID3D12Device* device, ID3D12CommandQueue* cmdQueue,
@@ -736,4 +736,4 @@ bool IBL::GeneratePrefilteredMap(ID3D12Device* device, ID3D12CommandQueue* cmdQu
     return true;
 }
 
-} // namespace GX
+} // namespace gx

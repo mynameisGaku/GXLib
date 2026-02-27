@@ -1,7 +1,7 @@
-#include "pch.h"
+#include "pch_common.h"
 #include "Math/Collision/Collision2D.h"
 
-namespace GX {
+namespace gx {
 
 // --- Polygon2D ---
 
@@ -313,4 +313,4 @@ bool SweepCirclevsCircle(const Circle& a, const Vector2& velA,
 }
 
 } // namespace Collision2D
-} // namespace GX
+} // namespace gx

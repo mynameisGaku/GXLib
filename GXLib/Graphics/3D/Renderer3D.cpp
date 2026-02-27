@@ -1,6 +1,6 @@
 /// @file Renderer3D.cpp
 /// @brief 3Dレンダラーの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/3D/Renderer3D.h"
 #include "Graphics/3D/ShaderModelConstants.h"
 #include "Graphics/Pipeline/RootSignature.h"
@@ -9,8 +9,59 @@
 #include "Graphics/Device/BarrierBatch.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
+
+// ============================================================================
+// GPU定数バッファ構造体（ヘッダーから移動 — 内部実装詳細）
+// ============================================================================
+
+/// @brief オブジェクト定数バッファ（b0スロット）
+struct ObjectConstants
+{
+    XMFLOAT4X4 world;                  ///< ワールド変換行列
+    XMFLOAT4X4 worldInverseTranspose;  ///< ワールド逆転置行列（法線変換用）
+};
+
+/// @brief 1フレームあたりの最大オブジェクト数
+static constexpr uint32_t k_MaxObjectsPerFrame = 512;
+
+/// @brief フレーム定数バッファ（b1スロット、1008B）
+struct FrameConstants
+{
+    XMFLOAT4X4 view;
+    XMFLOAT4X4 projection;
+    XMFLOAT4X4 viewProjection;
+    XMFLOAT3   cameraPosition;
+    float      time;
+    XMFLOAT4X4 lightVP[ShadowConstants::k_NumCascades];
+    float      cascadeSplits[ShadowConstants::k_NumCascades];
+    float      shadowMapSize;
+    uint32_t   shadowEnabled;
+    float      _fogPad[2];
+    XMFLOAT3   fogColor;
+    float      fogStart;
+    float      fogEnd;
+    float      fogDensity;
+    uint32_t   fogMode;
+    uint32_t   shadowDebugMode;
+    XMFLOAT4X4 spotLightVP;
+    float      spotShadowMapSize;
+    int32_t    spotShadowLightIndex;
+    float      _spotPad[2];
+    XMFLOAT4X4 pointLightVP[6];
+    float      pointShadowMapSize;
+    int32_t    pointShadowLightIndex;
+    float      _pointPad[2];
+};
+
+static_assert(offsetof(FrameConstants, shadowEnabled) == 484, "shadowEnabled offset mismatch");
+static_assert(offsetof(FrameConstants, fogColor) == 496, "fogColor offset mismatch");
+static_assert(offsetof(FrameConstants, spotLightVP) == 528, "spotLightVP offset mismatch");
+static_assert(offsetof(FrameConstants, pointLightVP) == 608, "pointLightVP offset mismatch");
+static_assert(sizeof(FrameConstants) == 1008, "FrameConstants size mismatch");
+
+// ============================================================================
 
 bool Renderer3D::Initialize(ID3D12Device* device, ID3D12CommandQueue* cmdQueue,
                               uint32_t screenWidth, uint32_t screenHeight)
@@ -1598,4 +1649,4 @@ void Renderer3D::OnResize(uint32_t width, uint32_t height)
         m_depthBuffer.CreateWithOwnSRV(m_device, width, height);
 }
 
-} // namespace GX
+} // namespace gx

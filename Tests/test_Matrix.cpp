@@ -4,8 +4,9 @@
 #include "pch.h"
 #include <gtest/gtest.h>
 #include "Math/Matrix4x4.h"
+#include "Math/MathConvert.h"
 
-using namespace GX;
+using namespace gx;
 
 TEST(Matrix4x4Test, DefaultIsIdentity)
 {
@@ -105,8 +106,8 @@ TEST(Matrix4x4Test, Determinant)
 TEST(Matrix4x4Test, ToFromXMMATRIX)
 {
     Matrix4x4 original = Matrix4x4::Translation(7, 8, 9);
-    XMMATRIX xm = original.ToXMMATRIX();
-    Matrix4x4 restored = Matrix4x4::FromXMMATRIX(xm);
+    XMMATRIX xm = ToXMMATRIX(original);
+    Matrix4x4 restored = FromXMMATRIX(xm);
 
     EXPECT_NEAR(restored._41, 7.0f, 1e-5f);
     EXPECT_NEAR(restored._42, 8.0f, 1e-5f);

@@ -1,8 +1,8 @@
-#include "pch.h"
+#include "pch_common.h"
 #include "IO/FileWatcher.h"
 #include "Core/Logger.h"
 
-namespace GX {
+namespace gx {
 
 FileWatcher::FileWatcher()
 {
@@ -214,4 +214,4 @@ void FileWatcher::Stop()
     m_watches.clear();
 }
 
-} // namespace GX
+} // namespace gx

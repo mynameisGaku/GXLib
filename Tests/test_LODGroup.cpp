@@ -7,7 +7,7 @@
 #include "Graphics/3D/Camera3D.h"
 #include "Graphics/3D/Transform3D.h"
 
-using namespace GX;
+using namespace gx;
 
 // Use distinguishable dummy pointers (not dereferenced)
 static Model* const dummyLOD0 = reinterpret_cast<Model*>(static_cast<uintptr_t>(0x10));

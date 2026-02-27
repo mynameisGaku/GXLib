@@ -14,7 +14,7 @@ using json = nlohmann::json;
 // ============================================================
 // Transform3D <-> JSON 変換ヘルパー
 // ============================================================
-static json SerializeTransform(const GX::Transform3D& transform)
+static json SerializeTransform(const gx::Transform3D& transform)
 {
     const auto& pos = transform.GetPosition();
     const auto& rot = transform.GetRotation();
@@ -27,7 +27,7 @@ static json SerializeTransform(const GX::Transform3D& transform)
     };
 }
 
-static void DeserializeTransform(GX::Transform3D& transform, const json& j)
+static void DeserializeTransform(gx::Transform3D& transform, const json& j)
 {
     if (j.contains("position") && j["position"].is_array() && j["position"].size() == 3)
     {
@@ -57,7 +57,7 @@ static void DeserializeTransform(GX::Transform3D& transform, const json& j)
 // ============================================================
 // MaterialConstants <-> JSON 変換ヘルパー
 // ============================================================
-static json SerializeMaterial(const GX::Material& mat)
+static json SerializeMaterial(const gx::Material& mat)
 {
     json j;
     const auto& c = mat.constants;
@@ -72,7 +72,7 @@ static json SerializeMaterial(const GX::Material& mat)
     return j;
 }
 
-static void DeserializeMaterial(GX::Material& mat, const json& j)
+static void DeserializeMaterial(gx::Material& mat, const json& j)
 {
     auto& c = mat.constants;
 

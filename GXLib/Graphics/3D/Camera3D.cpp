@@ -1,9 +1,9 @@
 /// @file Camera3D.cpp
 /// @brief 3Dカメラの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/3D/Camera3D.h"
 
-namespace GX
+namespace gx
 {
 
 void Camera3D::SetPerspective(float fovY, float aspect, float nearZ, float farZ)
@@ -197,4 +197,4 @@ void Camera3D::UpdateVectors() const
     m_dirtyVectors = false;
 }
 
-} // namespace GX
+} // namespace gx

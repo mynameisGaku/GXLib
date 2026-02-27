@@ -1,1 +1,0 @@
-gxlib_add_sample(Physics2DShowcase)

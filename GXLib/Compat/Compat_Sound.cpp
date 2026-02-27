@@ -3,30 +3,18 @@
 #include "pch.h"
 #include "Compat/GXLib.h"
 #include "Compat/CompatContext.h"
+#include "Compat/CompatUtil.h"
 #include "Audio/AudioEmitter.h"
 #include "Audio/AudioListener.h"
 
-using Ctx = GX_Internal::CompatContext;
-
-/// TCHAR文字列をstd::wstringに変換するヘルパー
-static std::wstring ToWString(const TCHAR* str)
-{
-#ifdef UNICODE
-    return std::wstring(str);
-#else
-    int len = MultiByteToWideChar(CP_ACP, 0, str, -1, nullptr, 0);
-    std::wstring result(len - 1, L'\0');
-    MultiByteToWideChar(CP_ACP, 0, str, -1, result.data(), len);
-    return result;
-#endif
-}
+using Ctx = gx_internal::CompatContext;
 
 // ============================================================================
 // SE (効果音)
 // ============================================================================
-int LoadSoundMem(const TCHAR* filePath)
+int LoadSoundMem(const char* filePath)
 {
-    return Ctx::Instance().audioManager.LoadSound(ToWString(filePath));
+    return Ctx::Instance().audioManager.LoadSound(gx_internal::ToWString(filePath));
 }
 
 // GX_PLAYTYPE_LOOPの場合はBGMチャネル（PlayMusic）で再生する。
@@ -75,10 +63,10 @@ int CheckSoundMem(int handle)
 // ============================================================================
 // BGM（背景音楽）
 // ============================================================================
-int PlayMusic(const TCHAR* filePath, int playType)
+int PlayMusic(const char* filePath, int playType)
 {
     auto& ctx = Ctx::Instance();
-    int handle = ctx.audioManager.LoadSound(ToWString(filePath));
+    int handle = ctx.audioManager.LoadSound(gx_internal::ToWString(filePath));
     if (handle < 0) return -1;
     bool loop = (playType == GX_PLAYTYPE_LOOP);
     ctx.audioManager.PlayMusic(handle, loop);

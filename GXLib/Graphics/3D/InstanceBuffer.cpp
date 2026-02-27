@@ -1,10 +1,10 @@
 /// @file InstanceBuffer.cpp
 /// @brief インスタンシング描画用データバッファの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/3D/InstanceBuffer.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool InstanceBuffer::Initialize(ID3D12Device* device, uint32_t maxInstances)
@@ -77,4 +77,4 @@ D3D12_GPU_VIRTUAL_ADDRESS InstanceBuffer::GetGPUVirtualAddress(uint32_t frameInd
     return m_buffer.GetGPUVirtualAddress(frameIndex);
 }
 
-} // namespace GX
+} // namespace gx

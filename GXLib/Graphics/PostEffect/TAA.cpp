@@ -3,14 +3,14 @@
 ///
 /// MotionBlur.cppパターンを踏襲。3テクスチャ(scene + history + depth)を
 /// 専用SRVヒープで管理し、Halton(2,3)ジッターでサブピクセル蓄積を行う。
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/PostEffect/TAA.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 /// Halton準乱数列: 低不一致性を持つ準乱数で、ランダムよりも均一にピクセル内を
@@ -353,4 +353,4 @@ void TAA::OnResize(ID3D12Device* device, uint32_t width, uint32_t height)
     m_hasHistory = false;
 }
 
-} // namespace GX
+} // namespace gx

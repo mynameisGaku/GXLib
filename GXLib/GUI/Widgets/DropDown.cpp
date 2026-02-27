@@ -1,8 +1,8 @@
-#include "pch.h"
+#include "pch_graphics.h"
 #include "GUI/Widgets/DropDown.h"
 #include "GUI/UIRenderer.h"
 
-namespace GX { namespace GUI {
+namespace gx { namespace GUI {
 
 static std::wstring Utf8ToWide(const std::string& utf8)
 {
@@ -200,4 +200,4 @@ void DropDown::RenderSelf(UIRenderer& renderer)
     }
 }
 
-}} // namespace GX::GUI
+}} // namespace gx::GUI

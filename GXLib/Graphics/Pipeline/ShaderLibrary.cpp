@@ -1,10 +1,10 @@
 /// @file ShaderLibrary.cpp
 /// @brief シェーダーライブラリ実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 ShaderLibrary& ShaderLibrary::Instance()
@@ -308,4 +308,4 @@ std::wstring ShaderLibrary::NormalizePath(const std::wstring& path)
     return result;
 }
 
-} // namespace GX
+} // namespace gx

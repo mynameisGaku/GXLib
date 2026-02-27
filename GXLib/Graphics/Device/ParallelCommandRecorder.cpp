@@ -1,11 +1,11 @@
 /// @file ParallelCommandRecorder.cpp
 /// @brief マルチスレッドコマンド記録の実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Device/ParallelCommandRecorder.h"
 #include "Graphics/Device/CommandQueue.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 ParallelCommandRecorder::~ParallelCommandRecorder()
@@ -116,4 +116,4 @@ void ParallelCommandRecorder::RecordAndExecute(CommandQueue& queue, uint32_t fra
     m_jobs.clear();
 }
 
-} // namespace GX
+} // namespace gx

@@ -1,10 +1,10 @@
 /// @file RenderTarget.cpp
 /// @brief オフスクリーンレンダーターゲットの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Resource/RenderTarget.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 bool RenderTarget::Create(ID3D12Device* device, uint32_t width, uint32_t height, DXGI_FORMAT format)
@@ -106,4 +106,4 @@ void RenderTarget::TransitionTo(ID3D12GraphicsCommandList* cmdList, D3D12_RESOUR
     m_currentState = newState;
 }
 
-} // namespace GX
+} // namespace gx

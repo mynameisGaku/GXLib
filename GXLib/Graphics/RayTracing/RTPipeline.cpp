@@ -1,11 +1,11 @@
 /// @file RTPipeline.cpp
 /// @brief DXR State Object + Shader Table の実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/RayTracing/RTPipeline.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 // シェーダーテーブルのアライメント定数
@@ -358,4 +358,4 @@ void RTPipeline::DispatchRays(ID3D12GraphicsCommandList4* cmdList, uint32_t widt
     cmdList->DispatchRays(&dispatchDesc);
 }
 
-} // namespace GX
+} // namespace gx

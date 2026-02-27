@@ -28,7 +28,7 @@ static const char* FormatName(DXGI_FORMAT fmt)
     }
 }
 
-void TextureBrowser::Draw(GX::TextureManager& texManager)
+void TextureBrowser::Draw(gx::TextureManager& texManager)
 {
     if (!ImGui::Begin("Texture Browser"))
     {
@@ -49,9 +49,9 @@ void TextureBrowser::Draw(GX::TextureManager& texManager)
 
     int displayed = 0;
 
-    for (int handle = 0; handle < static_cast<int>(GX::TextureManager::k_MaxTextures); ++handle)
+    for (int handle = 0; handle < static_cast<int>(gx::TextureManager::k_MaxTextures); ++handle)
     {
-        GX::Texture* tex = texManager.GetTexture(handle);
+        gx::Texture* tex = texManager.GetTexture(handle);
         if (!tex)
             continue;
 
@@ -104,7 +104,7 @@ void TextureBrowser::Draw(GX::TextureManager& texManager)
     // --- Selected texture details ---
     if (m_selectedHandle >= 0)
     {
-        GX::Texture* sel = texManager.GetTexture(m_selectedHandle);
+        gx::Texture* sel = texManager.GetTexture(m_selectedHandle);
         if (sel)
         {
             ImGui::Separator();

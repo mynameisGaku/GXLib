@@ -1,10 +1,10 @@
 /// @file RootSignature.cpp
 /// @brief ルートシグネチャビルダーの実装
-#include "pch.h"
+#include "pch_graphics.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Core/Logger.h"
 
-namespace GX
+namespace gx
 {
 
 RootSignatureBuilder& RootSignatureBuilder::AddCBV(uint32_t shaderRegister, uint32_t space,
@@ -158,4 +158,4 @@ ComPtr<ID3D12RootSignature> RootSignatureBuilder::Build(ID3D12Device* device)
     return rootSignature;
 }
 
-} // namespace GX
+} // namespace gx

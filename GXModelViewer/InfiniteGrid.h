@@ -19,14 +19,14 @@ public:
     /// @param device D3D12デバイス
     /// @param shader コンパイルに使うShaderオブジェクト
     /// @return 成功時true
-    bool Initialize(ID3D12Device* device, GX::Shader& shader);
+    bool Initialize(ID3D12Device* device, gx::Shader& shader);
 
     /// @brief グリッドを描画する。Renderer3D.End()の後、PostEffect.EndScene()の前に呼ぶ。
     /// @param cmdList 描画先コマンドリスト
     /// @param frameIndex ダブルバッファのフレームインデックス
     /// @param camera カメラ（VP逆行列とカメラ位置を使用）
     void Draw(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
-              const GX::Camera3D& camera);
+              const gx::Camera3D& camera);
 
     float gridScale     = 1.0f;    ///< 副グリッドの間隔（ワールド単位）
     float fadeDistance   = 100.0f;  ///< グリッドがフェードアウトする距離
@@ -48,5 +48,5 @@ private:
 
     ComPtr<ID3D12RootSignature> m_rootSig;
     ComPtr<ID3D12PipelineState> m_pso;
-    GX::DynamicBuffer           m_cbuffer;
+    gx::DynamicBuffer           m_cbuffer;
 };

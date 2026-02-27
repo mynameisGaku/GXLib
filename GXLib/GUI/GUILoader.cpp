@@ -1,4 +1,4 @@
-#include "pch.h"
+#include "pch_graphics.h"
 #include "GUI/GUILoader.h"
 #include "GUI/UIRenderer.h"
 #include "GUI/StyleSheet.h"
@@ -20,7 +20,7 @@
 #include "GUI/Widgets/TextInput.h"
 #include "Core/Logger.h"
 
-namespace GX { namespace GUI {
+namespace gx { namespace GUI {
 
 // ============================================================================
 // UTF-8 → wstring 変換
@@ -678,4 +678,4 @@ int GUILoader::ResolveTextureHandle(const std::string& texName) const
     return -1;
 }
 
-}} // namespace GX::GUI
+}} // namespace gx::GUI
