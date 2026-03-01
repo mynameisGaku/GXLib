@@ -6,7 +6,8 @@ add_executable(gxpak
 )
 
 target_include_directories(gxpak PRIVATE
-    ${CMAKE_SOURCE_DIR}/gxformat
+    ${CMAKE_SOURCE_DIR}/extern
+    ${CMAKE_SOURCE_DIR}/extern/gxformat
     ${CMAKE_SOURCE_DIR}/GXLib/ThirdParty
 )
 

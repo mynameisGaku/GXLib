@@ -1,5 +1,5 @@
 /// @file test_AnimatorStateMachine.cpp
-/// @brief AnimatorStateMachine state/transition/trigger/float condition tests
+/// @brief AnimatorStateMachineのステート/遷移/トリガー/float条件テスト
 
 #include "pch.h"
 #include <gtest/gtest.h>
@@ -9,7 +9,7 @@
 using namespace gx;
 using namespace gx::TestHelpers;
 
-// Persistent test clips (must outlive the ASM that references them)
+// 永続テストクリップ（ASMが参照する間、生存し続ける必要がある）
 static AnimationClip s_idleClip  = CreateSimpleClip("Idle", 2.0f, 0.0f, 0.0f, 0.0f);
 static AnimationClip s_walkClip  = CreateSimpleClip("Walk", 1.0f, 1.0f, 0.0f, 0.0f);
 static AnimationClip s_runClip   = CreateSimpleClip("Run",  0.5f, 3.0f, 0.0f, 0.0f);
@@ -35,7 +35,7 @@ static AnimatorStateMachine MakeSimpleASM()
     return asm_;
 }
 
-// ==================== State Management ====================
+// ==================== ステート管理 ====================
 
 TEST(ASMTest, AddState_ReturnsIndex)
 {
@@ -96,7 +96,7 @@ TEST(ASMTest, SetCurrentState)
     EXPECT_EQ(asm_.GetCurrentState()->name, "Walk");
 }
 
-// ==================== Transitions ====================
+// ==================== 遷移 ====================
 
 TEST(ASMTest, AddTransition)
 {
@@ -126,7 +126,7 @@ TEST(ASMTest, IsTransitioning_Default)
     EXPECT_FALSE(asm_.IsTransitioning());
 }
 
-// ==================== Trigger-based Transition ====================
+// ==================== トリガーベースの遷移 ====================
 
 TEST(ASMTest, Trigger_ChangesState)
 {
@@ -140,7 +140,7 @@ TEST(ASMTest, Trigger_ChangesState)
 
     asm_.SetTrigger("Walk");
 
-    // Update to process transition
+    // 遷移を処理するために更新
     TransformTRS pose[1];
     asm_.Update(0.01f, 1, nullptr, pose);
     EXPECT_TRUE(asm_.IsTransitioning());
@@ -159,10 +159,10 @@ TEST(ASMTest, Trigger_CompletesTransition)
     asm_.SetTrigger("Walk");
 
     TransformTRS pose[1];
-    // Update past transition duration
+    // 遷移時間を超えるまで更新
     asm_.Update(0.05f, 1, nullptr, pose);
     asm_.Update(0.05f, 1, nullptr, pose);
-    asm_.Update(0.05f, 1, nullptr, pose);  // Extra frame to complete
+    asm_.Update(0.05f, 1, nullptr, pose);  // 完了のための追加フレーム
 
     EXPECT_EQ(asm_.GetCurrentStateIndex(), 1u);
 }
@@ -171,13 +171,13 @@ TEST(ASMTest, Trigger_WrongState)
 {
     AnimatorStateMachine asm_ = MakeSimpleASM();
     AnimTransition trans;
-    trans.fromState = 1;  // from Walk
-    trans.toState = 0;    // to Idle
+    trans.fromState = 1;  // Walkから
+    trans.toState = 0;    // Idleへ
     trans.duration = 0.2f;
     trans.triggerName = "Stop";
     asm_.AddTransition(trans);
 
-    // Currently in state 0 (Idle), setting "Stop" should not trigger
+    // 現在ステート0（Idle）にいるので、"Stop"トリガーは発火しないはず
     asm_.SetTrigger("Stop");
     TransformTRS pose[1];
     asm_.Update(0.01f, 1, nullptr, pose);
@@ -194,13 +194,13 @@ TEST(ASMTest, Trigger_NonExistentTrigger)
     trans.triggerName = "Walk";
     asm_.AddTransition(trans);
 
-    asm_.SetTrigger("Fly");  // Wrong trigger
+    asm_.SetTrigger("Fly");  // 間違ったトリガー
     TransformTRS pose[1];
     asm_.Update(0.01f, 1, nullptr, pose);
     EXPECT_EQ(asm_.GetCurrentStateIndex(), 0u);
 }
 
-// ==================== Float Parameters ====================
+// ==================== Floatパラメータ ====================
 
 TEST(ASMTest, Float_DefaultZero)
 {
@@ -232,7 +232,7 @@ TEST(ASMTest, Float_Overwrite)
     EXPECT_NEAR(asm_.GetFloat("speed"), 5.0f, 1e-5f);
 }
 
-// ==================== Exit Time Transition ====================
+// ==================== 終了時間による遷移 ====================
 
 TEST(ASMTest, ExitTime_Transition)
 {
@@ -247,19 +247,19 @@ TEST(ASMTest, ExitTime_Transition)
     trans.toState = 1;
     trans.duration = 0.1f;
     trans.hasExitTime = true;
-    trans.exitTimeNorm = 1.0f;  // At end of clip
+    trans.exitTimeNorm = 1.0f;  // クリップの終端
     asm_.AddTransition(trans);
 
     TransformTRS pose[1];
-    // Update enough to reach exit time (idle duration = 2.0s)
+    // 終了時間に到達するまで十分に更新（idleの長さ = 2.0秒）
     for (int i = 0; i < 250; ++i)
         asm_.Update(0.01f, 1, nullptr, pose);
 
-    // After 2.5s total, should have transitioned to Walk
+    // 合計2.5秒後、Walkに遷移しているはず
     EXPECT_EQ(asm_.GetCurrentStateIndex(), 1u);
 }
 
-// ==================== Update produces valid pose ====================
+// ==================== 更新で有効なポーズが生成される ====================
 
 TEST(ASMTest, Update_ProducesValidPose)
 {
@@ -280,7 +280,7 @@ TEST(ASMTest, Update_WithBindPose)
     EXPECT_FALSE(std::isnan(pose[0].translation.x));
 }
 
-// ==================== Chain Transitions ====================
+// ==================== 連鎖遷移 ====================
 
 TEST(ASMTest, ChainTransition)
 {
@@ -299,20 +299,20 @@ TEST(ASMTest, ChainTransition)
 
     TransformTRS pose[1];
 
-    // Transition A -> B
+    // 遷移 A -> B
     asm_.SetTrigger("GoB");
     for (int i = 0; i < 20; ++i)
         asm_.Update(0.01f, 1, nullptr, pose);
     EXPECT_EQ(asm_.GetCurrentStateIndex(), 1u);
 
-    // Transition B -> C
+    // 遷移 B -> C
     asm_.SetTrigger("GoC");
     for (int i = 0; i < 20; ++i)
         asm_.Update(0.01f, 1, nullptr, pose);
     EXPECT_EQ(asm_.GetCurrentStateIndex(), 2u);
 }
 
-// ==================== AnimState properties ====================
+// ==================== AnimStateプロパティ ====================
 
 TEST(ASMTest, StateProperties)
 {

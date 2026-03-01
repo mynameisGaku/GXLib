@@ -136,7 +136,7 @@ TEST(FrameAllocatorTest, CapacityExhausted)
     void* p1 = alloc.Allocate(32);
     EXPECT_NE(p1, nullptr);
 
-    void* p2 = alloc.Allocate(64);  // exceeds remaining
+    void* p2 = alloc.Allocate(64);  // 残量を超過
     EXPECT_EQ(p2, nullptr);
 }
 

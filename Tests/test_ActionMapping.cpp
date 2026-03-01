@@ -1,5 +1,5 @@
 /// @file test_ActionMapping.cpp
-/// @brief ActionMapping structure tests
+/// @brief ActionMapping構造体のテスト
 
 #include "pch.h"
 #include <gtest/gtest.h>
@@ -12,7 +12,7 @@ TEST(ActionMappingTest, DefineAction_Exists)
     ActionMapping am;
     am.DefineAction("Jump", { InputBinding::Key(VK_SPACE) });
     const auto& state = am.GetAction("Jump");
-    // Initial state should be all false/zero
+    // 初期状態はすべてfalse/ゼロであること
     EXPECT_FALSE(state.pressed);
     EXPECT_FALSE(state.triggered);
     EXPECT_FALSE(state.released);

@@ -22,7 +22,7 @@ TEST(CryptoTest, AES256_EncryptDecrypt)
     // 暗号化
     auto encrypted = Crypto::Encrypt(data, size, key, iv);
     EXPECT_FALSE(encrypted.empty());
-    EXPECT_NE(encrypted.size(), size); // Encrypted data differs in size (padding)
+    EXPECT_NE(encrypted.size(), size); // 暗号化データはサイズが異なる（パディング）
 
     // 復号
     auto decrypted = Crypto::Decrypt(encrypted.data(), encrypted.size(), key, iv);

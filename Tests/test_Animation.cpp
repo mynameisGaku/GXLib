@@ -1,5 +1,5 @@
 /// @file test_Animation.cpp
-/// @brief AnimationClip / Skeleton / TransformTRS tests
+/// @brief AnimationClip / Skeleton / TransformTRS のテスト
 
 #include "pch.h"
 #include <gtest/gtest.h>
@@ -8,7 +8,7 @@
 
 using namespace gx;
 
-// Helper: create 2-joint skeleton
+// ヘルパー: 2ジョイントのスケルトンを作成
 static Skeleton CreateTestSkeleton()
 {
     Skeleton skel;
@@ -29,7 +29,7 @@ static Skeleton CreateTestSkeleton()
     return skel;
 }
 
-// Helper: create simple animation clip
+// ヘルパー: シンプルなアニメーションクリップを作成
 static AnimationClip CreateTestClip(float duration = 1.0f)
 {
     AnimationClip clip;
@@ -142,7 +142,7 @@ TEST(AnimationTest, AnimationClip_SampleTRS_Interpolated)
     AnimationClip clip = CreateTestClip(1.0f);
     TransformTRS pose[1];
     clip.SampleTRS(0.5f, 1, pose);
-    // At t=0.5, translation should be midway between (0,0,0) and (1,0,0)
+    // t=0.5では、平行移動は(0,0,0)と(1,0,0)の中間であるべき
     EXPECT_NEAR(pose[0].translation.x, 0.5f, 0.05f);
 }
 
@@ -175,8 +175,8 @@ TEST(AnimationTest, Skeleton_ComputeGlobalTransforms)
     XMFLOAT4X4 global[2];
     skel.ComputeGlobalTransforms(local, global);
 
-    // Root global == root local (identity)
+    // ルートのグローバル変換 == ルートのローカル変換（単位行列）
     EXPECT_NEAR(global[0]._41, 0.0f, 1e-5f);
-    // Child global = parent * child = Identity * Translation(0,1,0)
+    // 子のグローバル変換 = 親 * 子 = 単位行列 * Translation(0,1,0)
     EXPECT_NEAR(global[1]._42, 1.0f, 1e-5f);
 }

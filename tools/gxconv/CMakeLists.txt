@@ -15,7 +15,8 @@ add_executable(gxconv ${GXCONV_SOURCES})
 
 target_include_directories(gxconv PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/gxformat
+    ${CMAKE_SOURCE_DIR}/extern
+    ${CMAKE_SOURCE_DIR}/extern/gxformat
     ${CMAKE_SOURCE_DIR}/GXLib/ThirdParty
 )
 

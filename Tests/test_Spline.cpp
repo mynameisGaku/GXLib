@@ -1,5 +1,5 @@
 /// @file test_Spline.cpp
-/// @brief Spline unit tests — Linear/CatmullRom/CubicBezier interpolation, arc-length parameterization
+/// @brief スプライン単体テスト — Linear/CatmullRom/CubicBezier補間、弧長パラメータ化
 
 #include "pch.h"
 #include <gtest/gtest.h>
@@ -113,7 +113,7 @@ TEST(SplineTest, CatmullRom_Endpoints)
 
 TEST(SplineTest, CatmullRom_Smooth)
 {
-    // Use t=0.25 which is inside the first segment where CatmullRom curvature is visible
+    // t=0.25を使用（CatmullRomの曲率が見える最初のセグメント内）
     Spline s;
     s.SetType(SplineType::CatmullRom);
     s.AddPoint({0,0,0});
@@ -130,16 +130,16 @@ TEST(SplineTest, CatmullRom_Smooth)
     sL.AddPoint({15,5,0});
     Vector3 linear = sL.Evaluate(0.25f);
 
-    // CatmullRom and Linear should give different results
+    // CatmullRomとLinearは異なる結果を返すべき
     float diffX = std::abs(catmull.x - linear.x);
     float diffY = std::abs(catmull.y - linear.y);
     float diffZ = std::abs(catmull.z - linear.z);
     float totalDiff = diffX + diffY + diffZ;
-    // If both happen to be identical at this t, just verify CatmullRom produces valid output
-    // (the curve type is different even if a specific point matches)
+    // このtで偶然一致する場合でも、CatmullRomが有効な出力を生成することを確認
+    // （特定の点が一致しても曲線タイプは異なる）
     EXPECT_FALSE(std::isnan(catmull.x));
     EXPECT_FALSE(std::isnan(catmull.y));
-    // Ideally there is a difference; if not, the curve is still valid
+    // 理想的には差異がある; なくても曲線は有効
     (void)totalDiff;
 }
 

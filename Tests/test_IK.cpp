@@ -1,5 +1,5 @@
 /// @file test_IK.cpp
-/// @brief CCDIKSolver / LookAtIK tests
+/// @brief CCDIKSolver / LookAtIK のテスト
 
 #include "pch.h"
 #include <gtest/gtest.h>
@@ -39,7 +39,7 @@ TEST(IKTest, Solve_ReachableTarget)
     Skeleton skel = CreateChainSkeleton3();
     uint32_t n = skel.GetJointCount();
 
-    // Initialize local transforms from skeleton
+    // スケルトンからローカル変換を初期化
     std::vector<XMFLOAT4X4> local(n);
     for (uint32_t i = 0; i < n; ++i)
         local[i] = skel.GetJoints()[i].localTransform;
@@ -53,13 +53,13 @@ TEST(IKTest, Solve_ReachableTarget)
     chain.tolerance = 0.01f;
     chain.maxIterations = 30;
 
-    // Target near original position (easily reachable)
+    // 元の位置に近いターゲット（容易に到達可能）
     XMFLOAT3 target = {0.5f, 1.5f, 0.0f};
 
     CCDIKSolver solver;
     bool converged = solver.Solve(chain, target, skel, local.data(), global.data());
 
-    // Verify effector is near target
+    // エフェクターがターゲットに近いことを確認
     XMFLOAT3 effectorPos = {global[2]._41, global[2]._42, global[2]._43};
     float dist = sqrtf(
         (effectorPos.x - target.x) * (effectorPos.x - target.x) +
@@ -86,12 +86,12 @@ TEST(IKTest, Solve_UnreachableTarget)
     chain.tolerance = 0.001f;
     chain.maxIterations = 20;
 
-    // Target way too far to reach (chain length ~2 units)
+    // 到達不可能な遠すぎるターゲット（チェーン長は約2単位）
     XMFLOAT3 target = {100.0f, 100.0f, 100.0f};
 
     CCDIKSolver solver;
     bool converged = solver.Solve(chain, target, skel, local.data(), global.data());
-    // Should not converge but should not crash
+    // 収束しないがクラッシュもしないべき
     EXPECT_FALSE(converged);
 }
 
@@ -107,7 +107,7 @@ TEST(IKTest, Solve_AlreadyAtTarget)
     std::vector<XMFLOAT4X4> global(n);
     skel.ComputeGlobalTransforms(local.data(), global.data());
 
-    // Target is exactly where the effector already is
+    // ターゲットはエフェクターが既にいる位置と完全に一致
     XMFLOAT3 target = {global[2]._41, global[2]._42, global[2]._43};
 
     IKChain chain;
@@ -142,7 +142,7 @@ TEST(IKTest, Solve_SingleJointChain)
     XMFLOAT3 target = {0.5f, 1.5f, 0.0f};
 
     CCDIKSolver solver;
-    // Should not crash with single joint chain
+    // 単一ジョイントチェーンでもクラッシュしないべき
     solver.Solve(chain, target, skel, local.data(), global.data());
     EXPECT_FALSE(std::isnan(global[2]._41));
 }
@@ -208,7 +208,7 @@ TEST(LookAtIKTest, Apply_NoSetup)
 
     LookAtIK lookAt;
     Transform3D worldTf;
-    // Should not crash even without setup
+    // セットアップなしでもクラッシュしないべき
     lookAt.Apply(local.data(), global.data(), skel, worldTf,
                  XMFLOAT3{0, 0, 5}, 1.0f);
     EXPECT_FALSE(std::isnan(global[0]._41));
@@ -228,7 +228,7 @@ TEST(LookAtIKTest, Apply_WithSetup)
     Transform3D worldTf;
     lookAt.Apply(local.data(), global.data(), skel, worldTf,
                  XMFLOAT3{5, 2, 0}, 1.0f);
-    // Should not produce NaN
+    // NaNを生成しないべき
     EXPECT_FALSE(std::isnan(global[2]._41));
     EXPECT_FALSE(std::isnan(global[2]._42));
 }
@@ -242,7 +242,7 @@ TEST(LookAtIKTest, Apply_WeightZero)
         local[i] = skel.GetJoints()[i].localTransform;
     skel.ComputeGlobalTransforms(local.data(), global.data());
 
-    // Save original head transform
+    // 元の頭の変換を保存
     XMFLOAT4X4 originalHead = global[2];
 
     LookAtIK lookAt;
@@ -251,7 +251,7 @@ TEST(LookAtIKTest, Apply_WeightZero)
     lookAt.Apply(local.data(), global.data(), skel, worldTf,
                  XMFLOAT3{100, 0, 0}, 0.0f);
 
-    // With weight=0, head should not move
+    // weight=0では、頭は動かないべき
     EXPECT_NEAR(global[2]._41, originalHead._41, 0.01f);
     EXPECT_NEAR(global[2]._42, originalHead._42, 0.01f);
     EXPECT_NEAR(global[2]._43, originalHead._43, 0.01f);
@@ -275,7 +275,7 @@ TEST(LookAtIKTest, Apply_Disabled)
     lookAt.Apply(local.data(), global.data(), skel, worldTf,
                  XMFLOAT3{100, 0, 0}, 1.0f);
 
-    // Disabled: head should not move
+    // 無効化: 頭は動かないべき
     EXPECT_NEAR(global[2]._41, originalHead._41, 0.01f);
     EXPECT_NEAR(global[2]._42, originalHead._42, 0.01f);
 }

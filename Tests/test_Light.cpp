@@ -1,5 +1,5 @@
 /// @file test_Light.cpp
-/// @brief Light factory functions and LightData struct tests
+/// @brief ライトファクトリ関数とLightData構造体のテスト
 
 #include "pch.h"
 #include <gtest/gtest.h>
@@ -44,8 +44,8 @@ TEST(LightTest, Directional_DirectionValues)
 TEST(LightTest, Directional_RangeIgnored)
 {
     LightData ld = Light::CreateDirectional({0, -1, 0}, {1, 1, 1}, 1.0f);
-    // Directional light has no meaningful range
-    // Just verify the struct is valid
+    // ディレクショナルライトには有効な範囲がない
+    // 構造体が有効であることだけ確認
     EXPECT_FALSE(std::isnan(ld.range));
 }
 
@@ -120,7 +120,7 @@ TEST(LightTest, Spot_DirectionNormalized)
 TEST(LightTest, Spot_AngleDeg)
 {
     LightData ld = Light::CreateSpot({0, 0, 0}, {0, -1, 0}, 10.0f, 60.0f, {1, 1, 1}, 1.0f);
-    // spotAngle should store some form of the angle (degrees or cos half-angle)
+    // spotAngleは角度を何らかの形式で格納すべき（度数またはcos半角）
     EXPECT_FALSE(std::isnan(ld.spotAngle));
     EXPECT_NE(ld.spotAngle, 0.0f);
 }
@@ -139,7 +139,7 @@ TEST(LightTest, Spot_Color)
 
 TEST(LightTest, Constants_MaxLights)
 {
-    EXPECT_EQ(LightConstants::k_MaxLights, 16u);
+    EXPECT_EQ(LightConstants::k_MaxLights, 256u);
 }
 
 TEST(LightTest, Constants_DefaultStruct)
@@ -157,7 +157,7 @@ TEST(LightTest, LightType_Values)
     EXPECT_EQ(static_cast<uint32_t>(LightType::Spot), 2u);
 }
 
-// ==================== Multiple lights ====================
+// ==================== 複数ライト ====================
 
 TEST(LightTest, MultipleLights_DifferentTypes)
 {

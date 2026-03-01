@@ -1,5 +1,5 @@
 /// @file test_Transform3D.cpp
-/// @brief Transform3D unit tests
+/// @brief Transform3D 単体テスト
 
 #include "pch.h"
 #include <gtest/gtest.h>
@@ -117,7 +117,7 @@ TEST(Transform3DTest, WorldInverseTranspose_Exists)
     t.SetScale(2.0f, 1.0f, 0.5f);
     XMFLOAT4X4 mat;
     XMStoreFloat4x4(&mat, t.GetWorldInverseTranspose());
-    // Verify no NaN values
+    // NaN値がないことを確認
     EXPECT_FALSE(std::isnan(mat._11));
     EXPECT_FALSE(std::isnan(mat._22));
     EXPECT_FALSE(std::isnan(mat._33));

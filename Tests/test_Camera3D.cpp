@@ -1,5 +1,5 @@
 /// @file test_Camera3D.cpp
-/// @brief Camera3D perspective/ortho/LookAt/forward/jitter/mode tests
+/// @brief Camera3D 透視投影/正射影/LookAt/前方ベクトル/ジッター/モードのテスト
 
 #include "pch.h"
 #include <gtest/gtest.h>
@@ -17,7 +17,7 @@ static Camera3D MakePerspCam()
     return cam;
 }
 
-// ==================== Defaults ====================
+// ==================== デフォルト値 ====================
 
 TEST(Camera3DTest, Default_Position)
 {
@@ -25,7 +25,7 @@ TEST(Camera3DTest, Default_Position)
     const auto& pos = cam.GetPosition();
     EXPECT_NEAR(pos.x, 0.0f, kEps);
     EXPECT_NEAR(pos.y, 0.0f, kEps);
-    EXPECT_NEAR(pos.z, -5.0f, kEps);  // Default position is (0,0,-5)
+    EXPECT_NEAR(pos.z, -5.0f, kEps);  // デフォルト位置は(0,0,-5)
 }
 
 TEST(Camera3DTest, Default_Mode)
@@ -34,7 +34,7 @@ TEST(Camera3DTest, Default_Mode)
     EXPECT_EQ(cam.GetMode(), CameraMode::Free);
 }
 
-// ==================== Perspective ====================
+// ==================== 透視投影 ====================
 
 TEST(Camera3DTest, SetPerspective_FOV)
 {
@@ -52,7 +52,7 @@ TEST(Camera3DTest, ProjectionMatrix_NotZero)
     XMMATRIX proj = cam.GetProjectionMatrix();
     XMFLOAT4X4 m;
     XMStoreFloat4x4(&m, proj);
-    // Perspective matrix has non-zero diagonal
+    // 透視投影行列の対角成分はゼロでない
     EXPECT_GT(fabsf(m._11), kEps);
     EXPECT_GT(fabsf(m._22), kEps);
     EXPECT_GT(fabsf(m._33), kEps);
@@ -64,11 +64,11 @@ TEST(Camera3DTest, ViewMatrix_AtOrigin)
     XMMATRIX view = cam.GetViewMatrix();
     XMFLOAT4X4 m;
     XMStoreFloat4x4(&m, view);
-    // View matrix at origin looking forward: identity-like rotation part
+    // 原点で前方を向いたビュー行列: 回転部分は単位行列に近い
     EXPECT_FALSE(std::isnan(m._11));
 }
 
-// ==================== Orthographic ====================
+// ==================== 正射影 ====================
 
 TEST(Camera3DTest, SetOrthographic)
 {
@@ -89,7 +89,7 @@ TEST(Camera3DTest, OrthoProjectionMatrix_NotZero)
     EXPECT_GT(fabsf(m._22), kEps);
 }
 
-// ==================== Position ====================
+// ==================== 位置 ====================
 
 TEST(Camera3DTest, SetPosition_Float3)
 {
@@ -119,7 +119,7 @@ TEST(Camera3DTest, LookAt_Forward)
     cam.SetPosition(0.0f, 0.0f, -5.0f);
     cam.LookAt(XMFLOAT3{0.0f, 0.0f, 0.0f});
     XMFLOAT3 fwd = cam.GetForward();
-    // Should look along +Z (toward origin from -5z)
+    // +Z方向を向いているべき（-5zから原点に向かって）
     EXPECT_GT(fwd.z, 0.5f);
 }
 
@@ -128,13 +128,13 @@ TEST(Camera3DTest, LookAt_SetsPitchYaw)
     Camera3D cam = MakePerspCam();
     cam.SetPosition(0.0f, 0.0f, -10.0f);
     cam.LookAt(XMFLOAT3{10.0f, 0.0f, 0.0f});
-    // Looking from -10z toward +10x: forward should have +x and +z components
+    // -10zから+10xに向かって見る: 前方ベクトルは+xと+z成分を持つべき
     XMFLOAT3 fwd = cam.GetForward();
     EXPECT_GT(fwd.x, 0.3f);
     EXPECT_GT(fwd.z, 0.3f);
 }
 
-// ==================== Forward / Right / Up ====================
+// ==================== 前方 / 右 / 上ベクトル ====================
 
 TEST(Camera3DTest, Forward_IsUnit)
 {
@@ -171,7 +171,7 @@ TEST(Camera3DTest, ForwardRight_Orthogonal)
     EXPECT_NEAR(dot, 0.0f, 0.01f);
 }
 
-// ==================== Rotate ====================
+// ==================== 回転 ====================
 
 TEST(Camera3DTest, Rotate_ChangesPitchYaw)
 {
@@ -187,11 +187,11 @@ TEST(Camera3DTest, SetPitch_Clamps)
 {
     Camera3D cam = MakePerspCam();
     cam.SetPitch(XM_PIDIV2 + 1.0f);
-    // Pitch should be clamped (implementation typically limits to ~+-89deg)
+    // ピッチはクランプされるべき（実装では通常約+-89度に制限）
     EXPECT_LE(cam.GetPitch(), XM_PIDIV2 + 0.01f);
 }
 
-// ==================== Movement ====================
+// ==================== 移動 ====================
 
 TEST(Camera3DTest, MoveForward)
 {
@@ -265,14 +265,14 @@ TEST(Camera3DTest, JitteredProjection_DiffersFromNormal)
     XMFLOAT4X4 n, j;
     XMStoreFloat4x4(&n, normal);
     XMStoreFloat4x4(&j, jittered);
-    // Jittered matrix should differ in translation components
+    // ジッター行列は平行移動成分が異なるべき
     bool differs = false;
     for (int i = 0; i < 16; ++i)
         if (fabsf((&n._11)[i] - (&j._11)[i]) > kEps) differs = true;
     EXPECT_TRUE(differs);
 }
 
-// ==================== Camera Modes ====================
+// ==================== カメラモード ====================
 
 TEST(Camera3DTest, SetMode_FPS)
 {
@@ -320,7 +320,7 @@ TEST(Camera3DTest, TPS_Distance)
     cam.SetMode(CameraMode::TPS);
     cam.SetTPSDistance(10.0f);
     cam.SetTarget(XMFLOAT3{0, 0, 0});
-    // View matrix should place camera behind target
+    // ビュー行列はカメラをターゲットの後ろに配置すべき
     XMMATRIX view = cam.GetViewMatrix();
     XMFLOAT4X4 m;
     XMStoreFloat4x4(&m, view);

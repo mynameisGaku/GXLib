@@ -1,15 +1,15 @@
 /// @file test_XMLParser.cpp
-/// @brief XMLDocument / XMLNode parser tests
+/// @brief XMLDocument / XMLNode パーサーのテスト
 
 #include "pch.h"
 #include <gtest/gtest.h>
 #include "GUI/XMLParser.h"
 
-// Avoid ambiguity with MSXML::XMLDocument from Windows SDK
+// Windows SDKのMSXML::XMLDocumentとの曖昧さを回避
 using GXXMLDocument = gx::GUI::XMLDocument;
 using gx::GUI::XMLNode;
 
-// ==================== Basic Parsing ====================
+// ==================== 基本パース ====================
 
 TEST(XMLParserTest, LoadFromString_EmptyFails)
 {
@@ -43,7 +43,7 @@ TEST(XMLParserTest, LoadFromString_WithText)
     EXPECT_EQ(doc.GetRoot()->text, "Hello");
 }
 
-// ==================== Attributes ====================
+// ==================== 属性 ====================
 
 TEST(XMLParserTest, Attribute_Single)
 {
@@ -91,7 +91,7 @@ TEST(XMLParserTest, Attribute_EmptyValue)
     EXPECT_EQ(root->GetAttribute("name"), "");
 }
 
-// ==================== Children ====================
+// ==================== 子要素 ====================
 
 TEST(XMLParserTest, Children_Single)
 {
@@ -132,7 +132,7 @@ TEST(XMLParserTest, Children_DeeplyNested)
     EXPECT_EQ(root->children[0]->children[0]->children[0]->tag, "d");
 }
 
-// ==================== Text Content ====================
+// ==================== テキストコンテンツ ====================
 
 TEST(XMLParserTest, Text_Simple)
 {
@@ -155,7 +155,7 @@ TEST(XMLParserTest, Text_Empty)
     EXPECT_TRUE(doc.GetRoot()->text.empty());
 }
 
-// ==================== Mixed Content ====================
+// ==================== 混合コンテンツ ====================
 
 TEST(XMLParserTest, Mixed_AttributesAndChildren)
 {
@@ -176,7 +176,7 @@ TEST(XMLParserTest, Mixed_AttributesAndText)
     EXPECT_EQ(root->text, "Error");
 }
 
-// ==================== Error Handling ====================
+// ==================== エラー処理 ====================
 
 TEST(XMLParserTest, Error_InvalidXML)
 {
@@ -189,10 +189,10 @@ TEST(XMLParserTest, Error_MismatchedTags)
 {
     GXXMLDocument doc;
     bool ok = doc.LoadFromString("<open></close>");
-    // Parser is lenient: logs error but may still return true with partial result
-    // Just verify it doesn't crash and produces some root
+    // パーサーは寛容: エラーをログに出力するが、部分的な結果でtrueを返す場合がある
+    // クラッシュせず、何らかのルートを生成することだけ確認
     (void)ok;
-    // Either fails or produces a node
+    // 失敗するか、ノードを生成するか
     EXPECT_TRUE(ok || doc.GetRoot() == nullptr);
 }
 
@@ -203,7 +203,7 @@ TEST(XMLParserTest, Error_NoRoot)
     EXPECT_FALSE(ok);
 }
 
-// ==================== Realistic GUI XML ====================
+// ==================== 実践的なGUI XML ====================
 
 TEST(XMLParserTest, GUILayout)
 {
@@ -225,7 +225,7 @@ TEST(XMLParserTest, GUILayout)
     EXPECT_EQ(root->children[2]->text, "Version 1.0");
 }
 
-// ==================== Multiple Parses ====================
+// ==================== 複数回パース ====================
 
 TEST(XMLParserTest, ReloadDocument)
 {

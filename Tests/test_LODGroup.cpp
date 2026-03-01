@@ -1,5 +1,5 @@
 /// @file test_LODGroup.cpp
-/// @brief LODGroup LOD selection logic tests
+/// @brief LODGroup LOD選択ロジックのテスト
 
 #include "pch.h"
 #include <gtest/gtest.h>
@@ -9,7 +9,7 @@
 
 using namespace gx;
 
-// Use distinguishable dummy pointers (not dereferenced)
+// 識別可能なダミーポインタを使用（デリファレンスしない）
 static Model* const dummyLOD0 = reinterpret_cast<Model*>(static_cast<uintptr_t>(0x10));
 static Model* const dummyLOD1 = reinterpret_cast<Model*>(static_cast<uintptr_t>(0x20));
 static Model* const dummyLOD2 = reinterpret_cast<Model*>(static_cast<uintptr_t>(0x30));
@@ -42,10 +42,10 @@ TEST(LODGroupTest, AddLevel_Count)
 TEST(LODGroupTest, AddLevel_SortedByScreenPct)
 {
     LODGroup lod;
-    lod.AddLevel(dummyLOD2, 0.05f);  // Lowest detail first
-    lod.AddLevel(dummyLOD0, 0.5f);   // Highest detail
-    lod.AddLevel(dummyLOD1, 0.2f);   // Mid detail
-    // GetLevel(0) should be the highest screenPercentage
+    lod.AddLevel(dummyLOD2, 0.05f);  // 最低詳細度を最初に
+    lod.AddLevel(dummyLOD0, 0.5f);   // 最高詳細度
+    lod.AddLevel(dummyLOD1, 0.2f);   // 中間詳細度
+    // GetLevel(0)は最大のscreenPercentageであるべき
     EXPECT_GE(lod.GetLevel(0).screenPercentage, lod.GetLevel(1).screenPercentage);
     EXPECT_GE(lod.GetLevel(1).screenPercentage, lod.GetLevel(2).screenPercentage);
 }
@@ -65,11 +65,11 @@ TEST(LODGroupTest, SelectLOD_Close)
     lod.AddLevel(dummyLOD0, 0.5f);
     lod.AddLevel(dummyLOD1, 0.2f);
     lod.AddLevel(dummyLOD2, 0.05f);
-    Camera3D cam = MakeTestCamera(0, 0, -2);  // Very close
+    Camera3D cam = MakeTestCamera(0, 0, -2);  // 非常に近い
     Transform3D t;
     t.SetPosition(0, 0, 0);
     Model* selected = lod.SelectLOD(cam, t, 1.0f);
-    // Should select LOD0 (highest detail) when close
+    // 近いときはLOD0（最高詳細度）を選択すべき
     EXPECT_EQ(selected, dummyLOD0);
 }
 
@@ -79,11 +79,11 @@ TEST(LODGroupTest, SelectLOD_Far)
     lod.AddLevel(dummyLOD0, 0.5f);
     lod.AddLevel(dummyLOD1, 0.2f);
     lod.AddLevel(dummyLOD2, 0.05f);
-    Camera3D cam = MakeTestCamera(0, 0, -500);  // Very far
+    Camera3D cam = MakeTestCamera(0, 0, -500);  // 非常に遠い
     Transform3D t;
     t.SetPosition(0, 0, 0);
     Model* selected = lod.SelectLOD(cam, t, 1.0f);
-    // Should select lowest LOD when far away
+    // 遠いときは最低LODを選択すべき
     EXPECT_EQ(selected, dummyLOD2);
 }
 
@@ -92,7 +92,7 @@ TEST(LODGroupTest, SelectLOD_CullDistance)
     LODGroup lod;
     lod.AddLevel(dummyLOD0, 0.5f);
     lod.SetCullDistance(50.0f);
-    Camera3D cam = MakeTestCamera(0, 0, -100);  // Beyond cull distance
+    Camera3D cam = MakeTestCamera(0, 0, -100);  // カリング距離を超えている
     Transform3D t;
     t.SetPosition(0, 0, 0);
     Model* selected = lod.SelectLOD(cam, t, 1.0f);
@@ -103,7 +103,7 @@ TEST(LODGroupTest, SelectLOD_NoCullDistance)
 {
     LODGroup lod;
     lod.AddLevel(dummyLOD0, 0.5f);
-    lod.SetCullDistance(0.0f);  // No culling
+    lod.SetCullDistance(0.0f);  // カリングなし
     Camera3D cam = MakeTestCamera(0, 0, -100);
     Transform3D t;
     t.SetPosition(0, 0, 0);

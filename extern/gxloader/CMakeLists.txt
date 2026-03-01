@@ -9,7 +9,8 @@ add_library(gxloader STATIC
 
 target_include_directories(gxloader PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/gxformat
+    ${CMAKE_SOURCE_DIR}/extern
+    ${CMAKE_SOURCE_DIR}/extern/gxformat
     ${CMAKE_SOURCE_DIR}/GXLib/ThirdParty
 )
 

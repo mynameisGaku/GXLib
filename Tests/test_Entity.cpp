@@ -1,5 +1,5 @@
 /// @file test_Entity.cpp
-/// @brief Entity / Scene unit tests — component management, parent-child hierarchy, scene operations
+/// @brief Entity / Scene 単体テスト — コンポーネント管理、親子階層、シーン操作
 
 #include "pch.h"
 #include <gtest/gtest.h>
@@ -71,7 +71,7 @@ TEST(SceneTest, DestroyEntity)
     Scene scene;
     Entity* e = scene.CreateEntity("ToDestroy");
     scene.DestroyEntity(e);
-    scene.Update(0.0f);  // deferred destruction
+    scene.Update(0.0f);  // 遅延破棄
     EXPECT_EQ(scene.FindEntity("ToDestroy"), nullptr);
 }
 
@@ -80,13 +80,13 @@ TEST(SceneTest, RootEntities)
     Scene scene;
     Entity* root = scene.CreateEntity("Root");
     Entity* child = scene.CreateEntity("Child");
-    // Both initially in root list (CreateEntity adds to m_rootEntities)
+    // 両方とも初期状態ではルートリストに含まれる（CreateEntityがm_rootEntitiesに追加）
     EXPECT_EQ(scene.GetRootEntities().size(), 2u);
-    // SetParent establishes hierarchy on Entity side
+    // SetParentはEntity側で階層を確立する
     child->SetParent(root);
     EXPECT_EQ(child->GetParent(), root);
     EXPECT_EQ(root->GetChildren().size(), 1u);
-    // Root should still be in root entities list
+    // ルートはまだルートエンティティリストに含まれるべき
     bool foundRoot = false;
     for (auto* r : scene.GetRootEntities())
         if (r == root) foundRoot = true;

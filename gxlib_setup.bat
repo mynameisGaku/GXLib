@@ -216,7 +216,7 @@ if errorlevel 1 (
 )
 pushd "!GXLIB_SRC!"
 git sparse-checkout init --cone
-git sparse-checkout set CMakeLists.txt GXLib gxformat gxloader Shaders cmake template
+git sparse-checkout set CMakeLists.txt GXLib extern Shaders cmake template
 git checkout
 popd
 echo.
@@ -380,11 +380,22 @@ if errorlevel 1 (
     pause
     exit /b 1
 )
+
+:: --- .sln をプロジェクトルートに配置 (vcxproj パスに build/ を付与) ---
+set "SLN_BUILD=!PROJECT_DIR!\build\!PROJECT_NAME!.sln"
+set "SLN_ROOT=!PROJECT_DIR!\!PROJECT_NAME!.sln"
+set "PS1=%TEMP%\gxlib_sln.ps1"
+>"!PS1!" echo $src = '!SLN_BUILD!'
+>>"!PS1!" echo $dst = '!SLN_ROOT!'
+>>"!PS1!" echo (Get-Content $src) -replace '(\w+\.vcxproj)', 'build/$1' ^| Set-Content $dst -Encoding UTF8
+powershell -NoProfile -ExecutionPolicy Bypass -File "!PS1!"
+del "!PS1!" >nul 2>&1
+
 echo.
 echo   %GREEN%プロジェクト作成完了！%RESET%
 echo.
 echo   フォルダ      : !PROJECT_DIR!
-echo   ソリューション: !PROJECT_DIR!\build\!PROJECT_NAME!.sln
+echo   ソリューション: !SLN_ROOT!
 echo.
 
 :: --- Visual Studio で開く ---
@@ -393,7 +404,7 @@ set /p "OPEN_VS=  Visual Studio で開きますか? [Y/n]: "
 if /i "!OPEN_VS!"=="n" goto :project_done
 echo.
 echo   Visual Studio を起動しています...
-start "" "!PROJECT_DIR!\build\!PROJECT_NAME!.sln"
+start "" "!SLN_ROOT!"
 
 :project_done
 goto :done

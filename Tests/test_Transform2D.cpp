@@ -1,5 +1,5 @@
 /// @file test_Transform2D.cpp
-/// @brief Transform2D struct + free function tests
+/// @brief Transform2D 構造体 + フリー関数のテスト
 
 #include "pch.h"
 #include <gtest/gtest.h>
@@ -160,7 +160,7 @@ TEST(Transform2DTest, Multiply_ScaleThenTranslate)
 {
     Transform2D s = Transform2D::Scale(2.0f, 2.0f);
     Transform2D t = Transform2D::Translation(3.0f, 4.0f);
-    // Scale applied first (rhs), then translate (lhs)
+    // スケールが先に適用（右辺）、その後平行移動（左辺）
     Transform2D result = Multiply(t, s);
     XMFLOAT2 p = TransformPoint(result, 1.0f, 1.0f);
     EXPECT_NEAR(p.x, 5.0f, kEps);  // 1*2 + 3
@@ -171,7 +171,7 @@ TEST(Transform2DTest, Multiply_TranslateThenScale)
 {
     Transform2D t = Transform2D::Translation(3.0f, 4.0f);
     Transform2D s = Transform2D::Scale(2.0f, 2.0f);
-    // Translate first (rhs), then scale (lhs)
+    // 平行移動が先に適用（右辺）、その後スケール（左辺）
     Transform2D result = Multiply(s, t);
     XMFLOAT2 p = TransformPoint(result, 1.0f, 1.0f);
     EXPECT_NEAR(p.x, 8.0f, kEps);  // (1+3)*2
@@ -184,7 +184,7 @@ TEST(Transform2DTest, Multiply_RotateThenTranslate)
     Transform2D t = Transform2D::Translation(5.0f, 0.0f);
     Transform2D result = Multiply(t, r);
     XMFLOAT2 p = TransformPoint(result, 1.0f, 0.0f);
-    EXPECT_NEAR(p.x, 5.0f, 1e-4f);  // rotated (0,1) + translate (5,0)
+    EXPECT_NEAR(p.x, 5.0f, 1e-4f);  // 回転後(0,1) + 平行移動(5,0)
     EXPECT_NEAR(p.y, 1.0f, 1e-4f);
 }
 
@@ -225,7 +225,7 @@ TEST(Transform2DTest, Inverse_RoundTrip)
     Transform2D inv = Inverse(t);
     Transform2D product = Multiply(t, inv);
 
-    // Product should be identity
+    // 積は単位行列であるべき
     EXPECT_NEAR(product.a, 1.0f, 1e-4f);
     EXPECT_NEAR(product.b, 0.0f, 1e-4f);
     EXPECT_NEAR(product.c, 0.0f, 1e-4f);
@@ -255,7 +255,7 @@ TEST(Transform2DTest, Inverse_TransformPointRoundTrip)
     EXPECT_NEAR(restored.y, original.y, 1e-3f);
 }
 
-// ==================== Default Constructor ====================
+// ==================== デフォルトコンストラクタ ====================
 
 TEST(Transform2DTest, DefaultConstructor_IsIdentity)
 {

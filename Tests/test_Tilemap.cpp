@@ -1,5 +1,5 @@
 /// @file test_Tilemap.cpp
-/// @brief Tilemap Create/GetTile/SetTile/WorldToTile/TileToWorld tests (GPU-free)
+/// @brief Tilemap Create/GetTile/SetTile/WorldToTile/TileToWorldのテスト（GPU不要）
 
 #include "pch.h"
 #include <gtest/gtest.h>
@@ -53,7 +53,7 @@ TEST(TilemapTest, Create_NoLayers)
     EXPECT_EQ(map.GetLayerCount(), 0);
 }
 
-// ==================== Layers ====================
+// ==================== レイヤー ====================
 
 TEST(TilemapTest, AddLayer_Single)
 {
@@ -235,11 +235,11 @@ TEST(TilemapTest, AddTileset)
     ts.tileCount = 64;
     ts.textureHandle = -1;
     map.AddTileset(ts);
-    // Just verify it doesn't crash
+    // クラッシュしないことだけ確認
     EXPECT_EQ(map.GetWidth(), 10);
 }
 
-// ==================== Different tile sizes ====================
+// ==================== 異なるタイルサイズ ====================
 
 TEST(TilemapTest, NonSquareTiles)
 {

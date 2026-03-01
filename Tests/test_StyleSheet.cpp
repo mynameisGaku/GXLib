@@ -1,5 +1,5 @@
 /// @file test_StyleSheet.cpp
-/// @brief StyleSheet CSS parsing and StyleLength/StyleColor tests
+/// @brief StyleSheet CSSパースとStyleLength/StyleColorのテスト
 
 #include "pch.h"
 #include <gtest/gtest.h>

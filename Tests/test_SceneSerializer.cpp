@@ -1,5 +1,5 @@
 /// @file test_SceneSerializer.cpp
-/// @brief SceneSerializer JSON round-trip tests
+/// @brief SceneSerializer JSONラウンドトリップテスト
 
 #include "pch.h"
 #include <gtest/gtest.h>

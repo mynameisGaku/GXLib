@@ -11,81 +11,90 @@
 namespace gxconv
 {
 
+/// @brief 中間表現の頂点データ（インポーター→エクスポーター間の共通形式）
 struct IntermediateVertex
 {
-    float position[3] = {};
-    float normal[3]   = {};
-    float texcoord[2] = {};
-    float tangent[4]  = {}; // w = bitangent sign
-    uint32_t joints[4] = {};
-    float weights[4]  = {};
+    float position[3] = {};    ///< 頂点位置 (x, y, z)
+    float normal[3]   = {};    ///< 法線ベクトル (x, y, z)
+    float texcoord[2] = {};    ///< テクスチャ座標 (u, v)
+    float tangent[4]  = {};    ///< 接線ベクトル (x, y, z, w)。w はバイタンジェントの符号
+    uint32_t joints[4] = {};   ///< スキニング用ボーンインデックス（最大4本）
+    float weights[4]  = {};    ///< スキニング用ボーンウェイト（最大4本、合計1.0）
 };
 
+/// @brief 中間表現のメッシュデータ（頂点配列＋インデックス配列）
 struct IntermediateMesh
 {
-    std::string name;
-    std::vector<IntermediateVertex> vertices;
-    std::vector<uint32_t> indices;
-    uint32_t materialIndex = 0;
-    bool hasSkinning = false;
+    std::string name;                          ///< メッシュ名
+    std::vector<IntermediateVertex> vertices;   ///< 頂点配列
+    std::vector<uint32_t> indices;             ///< インデックス配列（三角形リスト）
+    uint32_t materialIndex = 0;                ///< 使用するマテリアルのインデックス
+    bool hasSkinning = false;                  ///< スキニングデータを持つか
 };
 
+/// @brief 中間表現のマテリアルデータ
 struct IntermediateMaterial
 {
-    std::string name;
-    gxfmt::ShaderModel shaderModel = gxfmt::ShaderModel::Standard;
-    gxfmt::ShaderModelParams params{};
-    std::string texturePaths[8]; // same slots as ShaderModelParams::textureNames
+    std::string name;              ///< マテリアル名
+    gxfmt::ShaderModel shaderModel = gxfmt::ShaderModel::Standard; ///< シェーダーモデル種別
+    gxfmt::ShaderModelParams params{};  ///< シェーダーモデル固有パラメータ
+    std::string texturePaths[8];   ///< テクスチャファイルパス（ShaderModelParams::textureNamesと同スロット順）
 };
 
+/// @brief 中間表現のスケルトンジョイント（ボーン）
 struct IntermediateJoint
 {
-    std::string name;
-    int32_t parentIndex = -1;
+    std::string name;              ///< ジョイント名
+    int32_t parentIndex = -1;      ///< 親ジョイントのインデックス（-1=ルート）
     float inverseBindMatrix[16] = {
         1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1
-    };
-    float localTranslation[3] = {};
-    float localRotation[4]    = { 0, 0, 0, 1 }; // quaternion x,y,z,w
-    float localScale[3]       = { 1, 1, 1 };
+    };                             ///< 逆バインド行列（4x4、行優先）
+    float localTranslation[3] = {};    ///< ローカル位置 (x, y, z)
+    float localRotation[4]    = { 0, 0, 0, 1 }; ///< ローカル回転クォータニオン (x, y, z, w)
+    float localScale[3]       = { 1, 1, 1 };    ///< ローカルスケール (x, y, z)
 };
 
+/// @brief Vec3キーフレーム（位置・スケール用）
 struct IntermediateKeyframeVec3
 {
-    float time;
-    float value[3];
+    float time;       ///< キーフレーム時刻（秒）
+    float value[3];   ///< 値 (x, y, z)
 };
 
+/// @brief クォータニオンキーフレーム（回転用）
 struct IntermediateKeyframeQuat
 {
-    float time;
-    float value[4]; // x,y,z,w
+    float time;       ///< キーフレーム時刻（秒）
+    float value[4];   ///< クォータニオン (x, y, z, w)
 };
 
+/// @brief アニメーションチャンネル（1ジョイントの1プロパティに対応）
 struct IntermediateAnimChannel
 {
-    uint32_t jointIndex = 0;
-    std::string boneName; // for GXAN name-based output
-    uint8_t target = 0;   // 0=Translation, 1=Rotation, 2=Scale
-    uint8_t interpolation = 0; // 0=Linear, 1=Step, 2=CubicSpline
-    std::vector<IntermediateKeyframeVec3> vecKeys;
-    std::vector<IntermediateKeyframeQuat> quatKeys;
+    uint32_t jointIndex = 0;       ///< 対象ジョイントのインデックス
+    std::string boneName;          ///< ボーン名（GXAN名前ベース出力用）
+    uint8_t target = 0;            ///< 対象プロパティ（0=Translation, 1=Rotation, 2=Scale）
+    uint8_t interpolation = 0;     ///< 補間モード（0=Linear, 1=Step, 2=CubicSpline）
+    std::vector<IntermediateKeyframeVec3> vecKeys;   ///< Vec3キーフレーム配列（Translation/Scale用）
+    std::vector<IntermediateKeyframeQuat> quatKeys;  ///< クォータニオンキーフレーム配列（Rotation用）
 };
 
+/// @brief アニメーションクリップ（複数チャンネルの集合）
 struct IntermediateAnimation
 {
-    std::string name;
-    float duration = 0.0f;
-    std::vector<IntermediateAnimChannel> channels;
+    std::string name;              ///< アニメーション名
+    float duration = 0.0f;         ///< 総再生時間（秒）
+    std::vector<IntermediateAnimChannel> channels; ///< チャンネル配列
 };
 
+/// @brief 中間表現のシーン全体（インポート結果をまとめるコンテナ）
 struct Scene
 {
-    std::vector<IntermediateMesh>      meshes;
-    std::vector<IntermediateMaterial>  materials;
-    std::vector<IntermediateJoint>     skeleton;
-    std::vector<IntermediateAnimation> animations;
-    bool hasSkeleton = false;
+    std::vector<IntermediateMesh>      meshes;      ///< メッシュ配列
+    std::vector<IntermediateMaterial>  materials;    ///< マテリアル配列
+    std::vector<IntermediateJoint>     skeleton;     ///< スケルトンジョイント配列
+    std::vector<IntermediateAnimation> animations;   ///< アニメーション配列
+    bool hasSkeleton = false;                        ///< スケルトンを持つか
 };
 
 /// Compute tangent vectors for a mesh using triangle differential method

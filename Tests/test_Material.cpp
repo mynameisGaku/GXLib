@@ -1,5 +1,5 @@
 /// @file test_Material.cpp
-/// @brief Material / MaterialManager / MaterialConstants tests
+/// @brief Material / MaterialManager / MaterialConstants のテスト
 
 #include "pch.h"
 #include <gtest/gtest.h>
@@ -154,7 +154,7 @@ TEST(MaterialManagerTest, ReuseHandleAfterRelease)
     int h1 = mgr.CreateMaterial(mat);
     mgr.ReleaseMaterial(h1);
     int h2 = mgr.CreateMaterial(mat);
-    // Freelist should reuse the handle
+    // フリーリストがハンドルを再利用するはず
     EXPECT_EQ(h1, h2);
 }
 

@@ -1,24 +1,145 @@
+# =============================================================================
 # Doxyfile — GXLib API Documentation
-# doxygen Doxyfile で docs/api/ に HTML を生成
+# doxygen-awesome-css テーマ適用済み
+#
+# 使い方:
+#   doxygen docs/Doxyfile
+#   → docs/api/html/index.html をブラウザで開く
+#
+# CMake 経由:
+#   cmake --build build --target docs
+# =============================================================================
 
+# ---------------------------------------------------------------------------
+# Project
+# ---------------------------------------------------------------------------
 PROJECT_NAME           = "GXLib"
 PROJECT_NUMBER         = "0.1.0"
 PROJECT_BRIEF          = "DirectX 12 2D/3D Game Engine"
 OUTPUT_DIRECTORY       = docs/api
-INPUT                  = GXLib
+
+# ---------------------------------------------------------------------------
+# Input
+# ---------------------------------------------------------------------------
+INPUT                  = GXLib \
+                         Shaders \
+                         docs/mainpage.md \
+                         docs/doxygen_modules.dox
 RECURSIVE              = YES
-FILE_PATTERNS          = *.h *.cpp
-EXCLUDE_PATTERNS       = */ThirdParty/*
+FILE_PATTERNS          = *.h *.cpp *.hlsl *.hlsli *.md *.dox
+EXCLUDE_PATTERNS       = */ThirdParty/* \
+                         */build/* \
+                         */extern/*
+EXTENSION_MAPPING      = hlsl=C++ hlsli=C++
 INPUT_ENCODING         = UTF-8
-GENERATE_HTML          = YES
-GENERATE_LATEX         = NO
-HTML_OUTPUT            = html
+
+# mainpage.md をランディングページに
+USE_MDFILE_AS_MAINPAGE = docs/mainpage.md
+
+# ---------------------------------------------------------------------------
+# Extraction
+# ---------------------------------------------------------------------------
 EXTRACT_ALL            = YES
 EXTRACT_PRIVATE        = NO
 EXTRACT_STATIC         = YES
+EXTRACT_LOCAL_CLASSES  = YES
+EXTRACT_ANON_NSPACES  = NO
+
+# ---------------------------------------------------------------------------
+# Source browsing
+# ---------------------------------------------------------------------------
 SOURCE_BROWSER         = YES
 INLINE_SOURCES         = NO
+REFERENCED_BY_RELATION = YES
+REFERENCES_RELATION    = YES
+STRIP_CODE_COMMENTS    = NO
+
+# ---------------------------------------------------------------------------
+# HTML output — doxygen-awesome-css テーマ
+# ---------------------------------------------------------------------------
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+
+# Sidebar treeview (doxygen-awesome-css sidebar-only 推奨)
+GENERATE_TREEVIEW      = YES
+FULL_SIDEBAR           = NO
+DISABLE_INDEX          = YES
+
+# Light mode base (ダークモードはJS切替)
+HTML_COLORSTYLE        = LIGHT
+
+# Custom header with JS extensions
+HTML_HEADER            = docs/header.html
+
+# doxygen-awesome CSS (3ファイル)
+HTML_EXTRA_STYLESHEET  = docs/doxygen-awesome-css/doxygen-awesome.css \
+                         docs/doxygen-awesome-css/doxygen-awesome-sidebar-only.css \
+                         docs/doxygen-awesome-css/doxygen-awesome-sidebar-only-darkmode-toggle.css \
+                         docs/custom.css
+
+# doxygen-awesome JS extensions (4ファイル)
+HTML_EXTRA_FILES       = docs/doxygen-awesome-css/doxygen-awesome-darkmode-toggle.js \
+                         docs/doxygen-awesome-css/doxygen-awesome-fragment-copy-button.js \
+                         docs/doxygen-awesome-css/doxygen-awesome-paragraph-link.js \
+                         docs/doxygen-awesome-css/doxygen-awesome-interactive-toc.js
+
+# ---------------------------------------------------------------------------
+# Search
+# ---------------------------------------------------------------------------
+SEARCHENGINE           = YES
+SERVER_BASED_SEARCH    = NO
+
+# ---------------------------------------------------------------------------
+# LaTeX (無効)
+# ---------------------------------------------------------------------------
+GENERATE_LATEX         = NO
+
+# ---------------------------------------------------------------------------
+# Preprocessor
+# ---------------------------------------------------------------------------
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = NO
+PREDEFINED             = GX_ENABLE_LUA \
+                         _WIN32 \
+                         NOMINMAX \
+                         WIN32_LEAN_AND_MEAN \
+                         __cplusplus=202002L \
+                         GX_API= \
+                         GX_EXPORT=
+
+# ---------------------------------------------------------------------------
+# Grouping
+# ---------------------------------------------------------------------------
+GROUP_GRAPHS           = YES
+
+# ---------------------------------------------------------------------------
+# C++ specific
+# ---------------------------------------------------------------------------
+BUILTIN_STL_SUPPORT    = YES
+CPP_CLI_SUPPORT        = NO
+
+# ---------------------------------------------------------------------------
+# Dot / graphs (disabled — Graphviz not required)
+# ---------------------------------------------------------------------------
 HAVE_DOT               = NO
+
+# ---------------------------------------------------------------------------
+# Warnings / output
+# ---------------------------------------------------------------------------
 QUIET                  = YES
 WARN_IF_UNDOCUMENTED   = NO
-BUILTIN_STL_SUPPORT    = YES
+WARN_IF_DOC_ERROR      = YES
+WARN_NO_PARAMDOC       = NO
+
+# ---------------------------------------------------------------------------
+# Misc
+# ---------------------------------------------------------------------------
+MARKDOWN_SUPPORT       = YES
+AUTOLINK_SUPPORT       = YES
+TAB_SIZE               = 4
+OPTIMIZE_OUTPUT_FOR_C  = NO
+SORT_MEMBER_DOCS       = YES
+SORT_BRIEF_DOCS        = NO
+SHOW_NAMESPACES        = YES
+SHOW_FILES             = YES
