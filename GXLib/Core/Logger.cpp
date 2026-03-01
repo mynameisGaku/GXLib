@@ -2,6 +2,7 @@
 /// @brief Logger クラスの実装
 #include "pch_common.h"
 #include "Core/Logger.h"
+#include "Core/CrashReporter.h"
 #include <cstdio>
 #include <cstdarg>
 
@@ -55,6 +56,12 @@ void Logger::Log(LogLevel level, const char* format, va_list args)
 
     // コンソールアプリとしてアタッチされていれば標準出力にも出る
     printf("%s", output);
+
+    // CrashReporter のログバッファに転送
+    if (CrashReporter::Instance().IsInitialized())
+    {
+        CrashReporter::Instance().AddLogLine(output);
+    }
 }
 
 } // namespace gx

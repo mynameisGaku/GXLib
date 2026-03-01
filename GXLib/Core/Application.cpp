@@ -3,12 +3,21 @@
 #include "pch_common.h"
 #include "Core/Application.h"
 #include "Core/Logger.h"
+#include "Core/CrashReporter.h"
 
 namespace gx
 {
 
 bool Application::Initialize(const ApplicationDesc& desc)
 {
+    // CrashReporter 初期化（最初に行う）
+    if (!CrashReporter::Instance().IsInitialized())
+    {
+        CrashReporterConfig crashCfg;
+        CrashReporter::Instance().Initialize(crashCfg);
+        CrashReporter::Instance().InstallHandler();
+    }
+
     GX_LOG_INFO("Initializing GXLib Application...");
 
     // ApplicationDesc → WindowDesc に変換してウィンドウを作成
@@ -24,6 +33,9 @@ bool Application::Initialize(const ApplicationDesc& desc)
         GX_LOG_ERROR("Failed to initialize window");
         return false;
     }
+
+    // ウィンドウ作成後に CrashReporter にハンドルを設定
+    CrashReporter::Instance().SetWindowHandle(m_window.GetHWND());
 
     m_timer.Reset();
     m_running = true;
@@ -69,6 +81,12 @@ void Application::Shutdown()
 {
     GX_LOG_INFO("Shutting down application...");
     m_running = false;
+
+    // CrashReporter シャットダウン
+    if (CrashReporter::Instance().IsInitialized())
+    {
+        CrashReporter::Instance().Shutdown();
+    }
 }
 
 } // namespace gx

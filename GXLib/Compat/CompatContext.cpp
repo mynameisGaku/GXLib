@@ -5,6 +5,7 @@
 #include "Compat/CompatTypes.h"
 #include "Compat/CompatUtil.h"
 #include "Core/Logger.h"
+#include "Core/CrashReporter.h"
 #include "Audio/IAudioDevice.h"
 
 namespace gx_internal
@@ -18,6 +19,14 @@ CompatContext& CompatContext::Instance()
 
 bool CompatContext::Initialize()
 {
+    // CrashReporter 初期化（Application より前に行う）
+    if (!gx::CrashReporter::Instance().IsInitialized())
+    {
+        gx::CrashReporterConfig crashCfg;
+        gx::CrashReporter::Instance().Initialize(crashCfg);
+        gx::CrashReporter::Instance().InstallHandler();
+    }
+
     GX_LOG_INFO("CompatContext: Initializing...");
 
     // アプリケーション初期化
@@ -30,6 +39,9 @@ bool CompatContext::Initialize()
         GX_LOG_ERROR("CompatContext: Failed to initialize Application");
         return false;
     }
+
+    // ウィンドウ作成後に CrashReporter にハンドルを設定
+    gx::CrashReporter::Instance().SetWindowHandle(app.GetWindow().GetHWND());
 
     screenWidth  = static_cast<uint32_t>(graphWidth);
     screenHeight = static_cast<uint32_t>(graphHeight);
@@ -146,6 +158,12 @@ void CompatContext::Shutdown()
     audioManager.Shutdown();
     fontManager.Shutdown();
     app.Shutdown();
+
+    // CrashReporter シャットダウン（最後に行う）
+    if (gx::CrashReporter::Instance().IsInitialized())
+    {
+        gx::CrashReporter::Instance().Shutdown();
+    }
 
     GX_LOG_INFO("CompatContext: Shutdown complete");
 }
