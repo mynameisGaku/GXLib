@@ -136,14 +136,75 @@ void NavAgent::Update(float deltaTime)
     if (moveStep > dist) moveStep = dist; // Don't overshoot
 
     float invDist = 1.0f / dist;
-    m_position.x += dx * invDist * moveStep;
-    m_position.z += dz * invDist * moveStep;
+    float velX = dx * invDist * moveStep;
+    float velZ = dz * invDist * moveStep;
+    m_position.x += velX;
+    m_position.z += velZ;
+
+    // Store last velocity for queries
+    if (deltaTime > 0.0f)
+    {
+        m_lastVelocity = { velX / deltaTime, 0.0f, velZ / deltaTime };
+    }
 
     // Update Y from navmesh cell height
     if (m_navMesh && m_navMesh->IsBuilt() && m_currentPathIndex < static_cast<int>(m_path.size()))
     {
         XMFLOAT3 wp = m_path[m_currentPathIndex];
         m_position.y = wp.y + height;
+    }
+}
+
+// ============================================================================
+// UpdateWithNeighbors (RVO obstacle avoidance)
+// ============================================================================
+void NavAgent::UpdateWithNeighbors(float deltaTime, const std::vector<NavAgent*>& neighbors)
+{
+    if (!enableAvoidance || neighbors.empty())
+    {
+        Update(deltaTime);
+        return;
+    }
+
+    // Store position before update
+    XMFLOAT3 prevPos = m_position;
+
+    // Normal path-following update
+    Update(deltaTime);
+
+    // Compute displacement from the update
+    float dx = m_position.x - prevPos.x;
+    float dz = m_position.z - prevPos.z;
+
+    // Check for collisions with neighbor agents and push out
+    for (const NavAgent* other : neighbors)
+    {
+        if (!other || other == this) continue;
+
+        float relX = other->m_position.x - m_position.x;
+        float relZ = other->m_position.z - m_position.z;
+        float distSq = relX * relX + relZ * relZ;
+        float combinedRadius = radius + other->radius;
+
+        if (distSq < combinedRadius * combinedRadius && distSq > 0.0001f)
+        {
+            float dist = std::sqrt(distSq);
+            float overlap = combinedRadius - dist;
+            float pushX = -(relX / dist) * overlap * 0.5f;
+            float pushZ = -(relZ / dist) * overlap * 0.5f;
+            m_position.x += pushX;
+            m_position.z += pushZ;
+        }
+    }
+
+    // Update last velocity
+    if (deltaTime > 0.0f)
+    {
+        m_lastVelocity = {
+            (m_position.x - prevPos.x) / deltaTime,
+            0.0f,
+            (m_position.z - prevPos.z) / deltaTime
+        };
     }
 }
 

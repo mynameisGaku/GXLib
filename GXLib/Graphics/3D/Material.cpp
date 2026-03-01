@@ -78,6 +78,21 @@ bool MaterialManager::SetTexture(int handle, MaterialTextureSlot slot, int textu
         if (textureHandle >= 0) mat->constants.flags |= MaterialFlags::HasEmissiveMap;
         else mat->constants.flags &= ~MaterialFlags::HasEmissiveMap;
         break;
+    case MaterialTextureSlot::ToonRamp:
+        mat->toonRampMapHandle = textureHandle;
+        if (textureHandle >= 0) mat->constants.flags |= MaterialFlags::HasToonRampMap;
+        else mat->constants.flags &= ~MaterialFlags::HasToonRampMap;
+        break;
+    case MaterialTextureSlot::SubsurfaceMap:
+        mat->subsurfaceMapHandle = textureHandle;
+        if (textureHandle >= 0) mat->constants.flags |= MaterialFlags::HasSubsurfaceMap;
+        else mat->constants.flags &= ~MaterialFlags::HasSubsurfaceMap;
+        break;
+    case MaterialTextureSlot::ClearCoatMask:
+        mat->clearCoatMaskMapHandle = textureHandle;
+        if (textureHandle >= 0) mat->constants.flags |= MaterialFlags::HasClearCoatMaskMap;
+        else mat->constants.flags &= ~MaterialFlags::HasClearCoatMaskMap;
+        break;
     default:
         return false;
     }

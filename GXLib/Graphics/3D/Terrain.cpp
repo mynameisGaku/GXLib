@@ -273,13 +273,15 @@ bool Terrain::CreateFromHeightmap(ID3D12Device* device,
 void Terrain::BuildMesh(ID3D12Device* device, const std::vector<Vertex3D_PBR>& vertices,
                           const std::vector<uint32_t>& indices)
 {
+    m_indexCount = static_cast<uint32_t>(indices.size());
+
+    if (!device) return; // CPU-only mode: skip GPU buffer creation
+
     uint32_t vbSize = static_cast<uint32_t>(vertices.size() * sizeof(Vertex3D_PBR));
     m_vertexBuffer.CreateVertexBuffer(device, vertices.data(), vbSize, sizeof(Vertex3D_PBR));
 
     uint32_t ibSize = static_cast<uint32_t>(indices.size() * sizeof(uint32_t));
     m_indexBuffer.CreateIndexBuffer(device, indices.data(), ibSize, DXGI_FORMAT_R32_UINT);
-
-    m_indexCount = static_cast<uint32_t>(indices.size());
 }
 
 float Terrain::GetHeight(float x, float z) const

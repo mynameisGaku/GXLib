@@ -105,18 +105,18 @@ float4 PSSSR(FullscreenVSOutput input) : SV_Target
     // Fresnel: F0=0.04 (非金属デフォルト) — SSR はマテリアル情報なしのため一律適用
     float fresnel = 0.04 + 0.96 * pow(saturate(1.0 - NdotV), 5.0);
 
-    // === Screen-space ray marching ===
+    // === スクリーン空間レイマーチング ===
     float3 rayOrigin = viewPos + viewNormal * 0.02;
     float3 rayEnd = rayOrigin + reflDir * maxDistance;
 
-    // Clip to near plane
+    // ニアプレーンにクリップ
     if (rayEnd.z < nearZ)
     {
         float t = (rayOrigin.z - nearZ) / (rayOrigin.z - rayEnd.z);
         rayEnd = lerp(rayOrigin, rayEnd, max(t, 0.01));
     }
 
-    // Project start/end to clip space, then to UV + depth
+    // 始点/終点をクリップ空間に射影し、UV + 深度に変換
     float4 H0 = mul(float4(rayOrigin, 1.0), projection);
     float4 H1 = mul(float4(rayEnd, 1.0), projection);
 
@@ -125,7 +125,7 @@ float4 PSSSR(FullscreenVSOutput input) : SV_Target
     float  d0  = H0.z / H0.w;
     float  d1  = H1.z / H1.w;
 
-    // Screen-space pixel distance
+    // スクリーン空間のピクセル距離
     float2 deltaUV = uv1 - uv0;
     float2 deltaPx = deltaUV * float2(screenWidth, screenHeight);
     float pixelDist = max(abs(deltaPx.x), abs(deltaPx.y));
@@ -133,7 +133,7 @@ float4 PSSSR(FullscreenVSOutput input) : SV_Target
     if (pixelDist < 1.0)
         return sceneColor;
 
-    // Step count: 1 pixel per step, capped by maxSteps
+    // ステップ数: 1ピクセルにつき1ステップ、maxStepsで上限
     int totalSteps = min(int(pixelDist), maxSteps);
     float invPixelDist = 1.0 / pixelDist;
 
@@ -157,10 +157,10 @@ float4 PSSSR(FullscreenVSOutput input) : SV_Target
             continue;
         }
 
-        // Perspective-correct ray depth at this screen position
+        // このスクリーン位置での透視補正済みレイ深度
         float rayD = d0 + (d1 - d0) * k;
 
-        // View-space Z comparison (distance-independent thickness)
+        // ビュー空間Z比較（距離に依存しない厚み判定）
         float surfaceZ = ViewZFromDepth(sceneD);
         float rayZ = ViewZFromDepth(rayD);
         float depthDiff = rayZ - surfaceZ;
@@ -176,7 +176,7 @@ float4 PSSSR(FullscreenVSOutput input) : SV_Target
         prevK = k;
     }
 
-    // Binary refinement in screen space
+    // スクリーン空間でのバイナリ精緻化
     if (hit)
     {
         float lo = prevK;

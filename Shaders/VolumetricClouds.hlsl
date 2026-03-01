@@ -1,9 +1,8 @@
 /// @file VolumetricClouds.hlsl
-/// @brief Volumetric Clouds - Raymarching pixel shader
+/// @brief ボリュメトリッククラウド — レイマーチングピクセルシェーダー
 ///
-/// Fullscreen pass that raymarches through a cloud layer defined by
-/// bottom/top altitude. Uses FBM noise for cloud density and
-/// Beer-Lambert law for light scattering.
+/// 底面/上面高度で定義される雲レイヤーをレイマーチングするフルスクリーンパス。
+/// FBMノイズで雲密度を生成し、Beer-Lambert則で光散乱を計算する。
 
 #include "Fullscreen.hlsli"
 
@@ -12,12 +11,12 @@ cbuffer CloudConstants : register(b0)
     float4x4 invViewProjection;
     float3   cameraPosition;
     float    time;
-    float3   sunDirection;   // normalised, towards the sun
-    float    cloudBottom;    // world-space altitude of cloud bottom
+    float3   sunDirection;   // 正規化済み、太陽方向
+    float    cloudBottom;    // ワールド空間での雲底面の高度
     float3   sunColor;
-    float    cloudTop;       // world-space altitude of cloud top
-    float    coverage;       // 0-1 cloud coverage
-    float    densityMul;     // density multiplier
+    float    cloudTop;       // ワールド空間での雲上面の高度
+    float    coverage;       // 0-1 雲の被覆率
+    float    densityMul;     // 密度乗数
     float    windSpeed;
     float    silverLining;
     float3   windDirection;
@@ -30,7 +29,7 @@ Texture2D<float4> sceneTexture : register(t0);
 Texture2D<float>  depthTexture : register(t1);
 SamplerState      linearSampler : register(s0);
 
-// --- Hash / Noise utilities ---
+// --- ハッシュ / ノイズユーティリティ ---
 
 float hash(float3 p)
 {
@@ -79,34 +78,34 @@ float fbm(float3 p, int octaves)
     return value;
 }
 
-// --- Cloud density ---
+// --- 雲密度 ---
 
 float sampleCloudDensity(float3 pos)
 {
-    // Normalise altitude within cloud layer
+    // 雲レイヤー内の高度を正規化
     float heightFraction = saturate((pos.y - cloudBottom) / max(cloudTop - cloudBottom, 0.001));
 
-    // Vertical profile: rounded shape (thicker in middle)
+    // 垂直プロファイル: 丸みのある形状（中央が厚い）
     float heightGradient = 4.0 * heightFraction * (1.0 - heightFraction);
 
-    // Wind-driven offset
+    // 風によるオフセット
     float3 windOffset = windDirection * windSpeed * time * 0.01;
     float3 samplePos = pos * 0.0003 + windOffset;
 
-    // FBM base shape (4 octaves)
+    // FBMベースシェイプ（4オクターブ）
     float shape = fbm(samplePos, 4);
 
-    // Coverage remap: shift noise to control how much sky is covered
+    // 被覆率リマップ: ノイズをシフトして空の被覆量を制御
     float base = saturate(shape - (1.0 - coverage)) / max(coverage, 0.01);
 
-    // Detail noise (higher frequency, subtle)
+    // ディテールノイズ（高周波、微細）
     float detail = fbm(samplePos * 3.0 + float3(0, time * 0.005, 0), 3);
     base = saturate(base - detail * 0.3);
 
     return base * heightGradient * densityMul;
 }
 
-// --- Light march (Beer-Lambert in-scattering) ---
+// --- ライトマーチ（Beer-Lambert内散乱）---
 
 float lightMarch(float3 pos)
 {
@@ -118,27 +117,27 @@ float lightMarch(float3 pos)
     {
         pos += sunDirection * stepSize;
 
-        // Stop if above cloud layer
+        // 雲レイヤーの上に出たら終了
         if (pos.y > cloudTop) break;
 
         density += max(sampleCloudDensity(pos), 0.0) * stepSize;
     }
 
-    // Beer-Lambert transmittance
+    // Beer-Lambert透過率
     float transmittance = exp(-density * 0.5);
 
-    // Silver lining: forward scattering (Henyey-Greenstein approximation)
+    // シルバーライニング: 前方散乱（Henyey-Greenstein近似）
     float silver = exp(-density * 0.1) * silverLining;
 
     return transmittance + silver;
 }
 
-// --- Ray-layer intersection ---
+// --- レイとレイヤーの交差判定 ---
 
-// Returns (tMin, tMax) for a ray hitting the horizontal slab [yBottom, yTop]
+// 水平スラブ [yBottom, yTop] にヒットするレイの (tMin, tMax) を返す
 float2 intersectCloudLayer(float3 origin, float3 dir)
 {
-    // Avoid division by near-zero
+    // ゼロ近傍による除算を回避
     if (abs(dir.y) < 0.0001)
     {
         if (origin.y >= cloudBottom && origin.y <= cloudTop)
@@ -160,43 +159,43 @@ float2 intersectCloudLayer(float3 origin, float3 dir)
     return float2(tMin, tMax);
 }
 
-// --- Main pixel shader ---
+// --- メインピクセルシェーダー ---
 
 float4 PSMain(FullscreenVSOutput input) : SV_Target
 {
-    // Scene colour (pass-through base)
+    // シーンカラー（パススルーベース）
     float4 sceneColor = sceneTexture.Sample(linearSampler, input.uv);
 
-    // Reconstruct world-space ray
+    // ワールド空間レイを再構築
     float2 ndc = float2(input.uv.x * 2.0 - 1.0, (1.0 - input.uv.y) * 2.0 - 1.0);
     float4 worldFar = mul(float4(ndc, 1.0, 1.0), invViewProjection);
     worldFar /= worldFar.w;
 
     float3 rayDir = normalize(worldFar.xyz - cameraPosition);
 
-    // Scene depth (linear)
+    // シーン深度（リニア）
     float rawDepth = depthTexture.Sample(linearSampler, input.uv);
     float4 worldDepthPos = mul(float4(ndc, rawDepth, 1.0), invViewProjection);
     worldDepthPos /= worldDepthPos.w;
     float sceneDistance = length(worldDepthPos.xyz - cameraPosition);
 
-    // Intersect cloud layer
+    // 雲レイヤーとの交差判定
     float2 tRange = intersectCloudLayer(cameraPosition, rayDir);
 
     if (tRange.x < 0.0)
-        return sceneColor; // Ray misses cloud layer
+        return sceneColor; // レイが雲レイヤーに到達しない
 
-    // Clamp to scene depth (don't render clouds behind geometry)
+    // シーン深度にクランプ（ジオメトリの背後に雲を描画しない）
     tRange.y = min(tRange.y, sceneDistance);
     if (tRange.x >= tRange.y)
         return sceneColor;
 
-    // Ray march
+    // レイマーチ
     float stepSize = (tRange.y - tRange.x) / max((float)marchSteps, 1.0);
     float transmittance = 1.0;
     float3 lightEnergy = float3(0, 0, 0);
 
-    float t = tRange.x + stepSize * 0.5; // Start at half-step
+    float t = tRange.x + stepSize * 0.5; // ハーフステップから開始
 
     [loop]
     for (int i = 0; i < marchSteps; ++i)
@@ -211,13 +210,13 @@ float4 PSMain(FullscreenVSOutput input) : SV_Target
         if (density > 0.001)
         {
             float lightTransmit = lightMarch(pos);
-            float3 ambient = float3(0.4, 0.45, 0.5); // Sky ambient
+            float3 ambient = float3(0.4, 0.45, 0.5); // 空のアンビエント
 
             float3 lightContrib = sunColor * lightTransmit + ambient;
             float extinction = density * stepSize;
             float sampleTransmittance = exp(-extinction);
 
-            // Energy integration (Beer-Lambert)
+            // エネルギー積分（Beer-Lambert）
             lightEnergy += lightContrib * density * stepSize * transmittance;
             transmittance *= sampleTransmittance;
         }
@@ -225,7 +224,7 @@ float4 PSMain(FullscreenVSOutput input) : SV_Target
         t += stepSize;
     }
 
-    // Composite clouds over scene
+    // 雲をシーン上に合成
     float3 cloudColor = lightEnergy;
     float3 finalColor = sceneColor.rgb * transmittance + cloudColor;
 

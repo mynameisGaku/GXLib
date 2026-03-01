@@ -26,6 +26,11 @@ PSOutput PSMain(PSInput input)
     // --- AO ---
     float ao = SampleAO(input.texcoord);
 
+#if defined(DEFERRED_PATH)
+    float3 emissive = SampleEmissive(input.texcoord);
+    return WriteGBuffer(input, N, albedo, 0.0f, gRoughness, ao, emissive);
+#endif
+
     // --- View方向 ---
     float3 V = normalize(gCameraPosition - input.posW);
 
@@ -95,8 +100,9 @@ PSOutput PSMain(PSInput input)
 
     // --- MRT出力 ---
     PSOutput output;
-    output.color  = float4(finalColor, albedo.a);
-    output.normal = EncodeNormal(N, 0.0f, gRoughness); // Phong: non-metallic
-    output.albedo = float4(albedo.rgb, 1.0);
+    output.color    = float4(finalColor, albedo.a);
+    output.normal   = EncodeNormal(N, 0.0f, gRoughness); // Phong: non-metallic
+    output.albedo   = float4(albedo.rgb, 1.0);
+    output.velocity = EncodeVelocity(input.currClipPos, input.prevClipPos);
     return output;
 }

@@ -113,6 +113,11 @@ PSInput VSMain_Outline(VSInput_Outline input)
     float4 posV = mul(posW, gView);
     output.viewZ = posV.z;
 
+    // 速度バッファ用クリップ空間座標
+    output.currClipPos = posH;
+    float4 prevPosW = mul(posL, previousWorld);
+    output.prevClipPos = mul(prevPosW, gViewProjection);
+
     return output;
 }
 
@@ -137,9 +142,10 @@ PSOutput PSMain_Outline(PSInput input)
     // 影領域でアウトラインを暗くする（0.5〜1.0の範囲でソフト変調）
     float3 outlineColor = blendedColor * lerp(0.5f, 1.0f, shadow);
 
-    output.color  = float4(outlineColor, 1.0f);
-    output.normal = float4(0.5f, 0.5f, 1.0f, 0.5f);
-    output.albedo = float4(outlineColor, 1.0f);
+    output.color    = float4(outlineColor, 1.0f);
+    output.normal   = float4(0.5f, 0.5f, 1.0f, 0.5f);
+    output.albedo   = float4(outlineColor, 1.0f);
+    output.velocity = EncodeVelocity(input.currClipPos, input.prevClipPos);
 
     return output;
 }

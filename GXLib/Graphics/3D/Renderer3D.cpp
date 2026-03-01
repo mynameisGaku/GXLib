@@ -251,7 +251,7 @@ bool Renderer3D::CreatePipelineState(ID3D12Device* device)
     // t0-t7: テクスチャスロット (albedo/normal/met-rough/AO/emissive/toonRamp/subsurface/clearCoat)
     // t8-t13: シャドウマップ (CSM×4 + Spot + Point)
     // t14: InstanceData (インスタンシング)
-    // t15: IBL拡散照射キューブマップ  t16: IBL鏡面プリフィルタキューブマップ  t17: BRDF LUT
+    // t15: IBL拡散照射キューブマップ  t16: IBL鏡面プリフィルタキューブマップ  t17: BRDF LUT  t18: HeightMap (POM)
     // s0: リニアWrapサンプラ  s1: リニアClampサンプラ(IBL/BRDF LUT)  s2: PCF比較サンプラ（影のソフト化）
     RootSignatureBuilder rsBuilder;
     m_rootSignature = rsBuilder
@@ -286,6 +286,8 @@ bool Renderer3D::CreatePipelineState(ID3D12Device* device)
                             D3D12_SHADER_VISIBILITY_PIXEL)  // t16: IBL鏡面プリフィルタマップ
         .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 17, 1, 0,
                             D3D12_SHADER_VISIBILITY_PIXEL)  // t17: BRDF LUT
+        .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 18, 1, 0,
+                            D3D12_SHADER_VISIBILITY_PIXEL)  // t18: HeightMap (POM)
         .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, UINT_MAX, 1,
                             D3D12_SHADER_VISIBILITY_PIXEL,
                             D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE)  // t0[]: Bindless (space1)
@@ -966,8 +968,8 @@ void Renderer3D::Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
     ID3D12DescriptorHeap* heaps[] = { m_textureManager.GetSRVHeap().GetHeap() };
     m_cmdList->SetDescriptorHeaps(1, heaps);
 
-    // Bindlessテクスチャ: ヒープ全体を space1 にバインド (root param 18)
-    m_cmdList->SetGraphicsRootDescriptorTable(18,
+    // Bindlessテクスチャ: ヒープ全体を space1 にバインド (root param 19)
+    m_cmdList->SetGraphicsRootDescriptorTable(19,
         m_textureManager.GetSRVHeap().GetGPUHandle(0));
 
     // フレーム・ライト定数バッファをバインド
@@ -1116,6 +1118,7 @@ void Renderer3D::SetMaterial(const Material& material)
     bindTex(10, material.toonRampMapHandle,      m_defaultWhiteTex);
     bindTex(11, material.subsurfaceMapHandle,    m_defaultWhiteTex);
     bindTex(12, material.clearCoatMaskMapHandle, m_defaultBlackTex);
+    bindTex(18, -1, m_defaultBlackTex);  // t18: HeightMap (POM) — デフォルト黒
 
     // Bindless テクスチャインデックス (b5)
     // ハンドルからSRVヒープインデックスを解決し、cbufferでシェーダーに渡す
@@ -1142,7 +1145,7 @@ void Renderer3D::SetMaterial(const Material& material)
         memcpy(m_bindlessCBMapped + m_bindlessCBOffset, &indices, sizeof(indices));
     }
     m_cmdList->SetGraphicsRootConstantBufferView(
-        19, m_bindlessIndicesCB.GetGPUVirtualAddress(m_frameIndex) + m_bindlessCBOffset);
+        20, m_bindlessIndicesCB.GetGPUVirtualAddress(m_frameIndex) + m_bindlessCBOffset);
     m_bindlessCBOffset += 256;
 }
 

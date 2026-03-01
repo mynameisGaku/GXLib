@@ -26,6 +26,10 @@ PSOutput PSMain(PSInput input)
     // --- エミッシブ ---
     float3 emissive = SampleEmissive(input.texcoord);
 
+#if defined(DEFERRED_PATH)
+    return WriteGBuffer(input, N, albedo, 0.0f, 1.0f, 1.0f, emissive);
+#endif
+
     // Unlitではライティングなし: アルベド + エミッシブがそのまま最終色
     float3 finalColor = albedo.rgb + emissive;
 
@@ -34,8 +38,9 @@ PSOutput PSMain(PSInput input)
 
     // --- MRT出力 ---
     PSOutput output;
-    output.color  = float4(finalColor, albedo.a);
-    output.normal = EncodeNormal(N, 0.0f, 1.0f); // Unlit: metallic=0, roughness=1
-    output.albedo = float4(albedo.rgb, 1.0);
+    output.color    = float4(finalColor, albedo.a);
+    output.normal   = EncodeNormal(N, 0.0f, 1.0f); // Unlit: metallic=0, roughness=1
+    output.albedo   = float4(albedo.rgb, 1.0);
+    output.velocity = EncodeVelocity(input.currClipPos, input.prevClipPos);
     return output;
 }

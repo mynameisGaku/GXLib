@@ -22,6 +22,7 @@ cbuffer ObjectConstants : register(b0)
 {
     float4x4 world;                 // ワールド変換行列
     float4x4 worldInverseTranspose; // 法線変換用（ワールド逆転置行列）
+    float4x4 previousWorld;         // 前フレームのワールド変換行列（速度バッファ用）
 };
 
 #define NUM_SHADOW_CASCADES 4
@@ -152,6 +153,7 @@ cbuffer BoneConstants : register(b4)
 #define HAS_TOON_RAMP_MAP     (1 << 5)  // Toonランプテクスチャあり
 #define HAS_SUBSURFACE_MAP    (1 << 6)  // サブサーフェス厚みマップあり
 #define HAS_CLEARCOAT_MASK_MAP (1 << 7) // クリアコートマスクマップあり
+#define HAS_HEIGHT_MAP         (1 << 8) // ハイトマップあり（POM用）
 
 // ============================================================================
 // インスタンシング用StructuredBuffer (t14)
@@ -180,6 +182,7 @@ Texture2D    tEmissive     : register(t4);  // エミッシブマップ
 Texture2D    tToonRamp     : register(t5);  // Toonランプテクスチャ
 Texture2D    tSubsurface   : register(t6);  // SSS厚みマップ (R)
 Texture2D    tClearCoatMask : register(t7); // クリアコートマスク (R)
+Texture2D    tHeightMap     : register(t18); // ハイトマップ (POM用)
 SamplerState sLinearWrap   : register(s0);  // リニアラップサンプラー
 
 // ============================================================================
@@ -231,18 +234,37 @@ struct PSInput
     float3 tangentW : TANGENT;     // ワールド接線
     float  bitangentSign : BTSIGN; // 従接線の符号 (tangent.w)
     float  viewZ    : VIEWZ;      // ビュー空間Z (CSMカスケード選択用)
+    float4 currClipPos : CLIPPOS0; // 現フレームのクリップ空間座標（速度バッファ用）
+    float4 prevClipPos : CLIPPOS1; // 前フレームのクリップ空間座標（速度バッファ用）
 };
 
 // ============================================================================
-// PSOutput（3 MRT: color, normal, albedo）
+// PSOutput
 // ============================================================================
 
+#if defined(DEFERRED_PATH)
+// Deferred GBuffer出力 (4 MRT):
+//   Target0: Normal.xyz + Roughness (R16G16B16A16_FLOAT)
+//   Target1: Albedo.rgb + Metallic  (R8G8B8A8_UNORM)
+//   Target2: Emissive.rgb + AO      (R8G8B8A8_UNORM — エミッシブは0-1にクランプ)
+//   Target3: Velocity               (R16G16_FLOAT)
 struct PSOutput
 {
-    float4 color  : SV_Target0; // HDRライティング結果
-    float4 normal : SV_Target1; // エンコード済み法線 + メタリック/ラフネス (SSR/RTGI用)
-    float4 albedo : SV_Target2; // ライティング前のアルベド (RTGI用)
+    float4 gbuffer0 : SV_Target0; // Normal.xyz + Roughness
+    float4 gbuffer1 : SV_Target1; // Albedo.rgb + Metallic
+    float4 gbuffer2 : SV_Target2; // Emissive.rgb(scaled) + AO
+    float2 velocity : SV_Target3; // Per-object MotionBlur速度
 };
+#else
+// Forward MRT出力 (4 MRT):
+struct PSOutput
+{
+    float4 color    : SV_Target0; // HDRライティング結果
+    float4 normal   : SV_Target1; // エンコード済み法線 + メタリック/ラフネス (SSR/RTGI用)
+    float4 albedo   : SV_Target2; // ライティング前のアルベド (RTGI用)
+    float2 velocity : SV_Target3; // スクリーン空間速度ベクトル（Per-object MotionBlur用）
+};
+#endif
 
 // ============================================================================
 // 頂点シェーダー
@@ -309,6 +331,16 @@ PSInput VSMain(VSInput input
     // ビュー空間Z計算（カスケード選択用）
     float4 posV = mul(posW, gView);
     output.viewZ = posV.z;
+
+    // 速度バッファ用クリップ空間座標（Per-object MotionBlur）
+    output.currClipPos = output.posH;
+#if defined(INSTANCED)
+    // インスタンシング時は前フレーム行列なし → 同一座標（速度ゼロ）
+    output.prevClipPos = output.posH;
+#else
+    float4 prevPosW = mul(posL, previousWorld);
+    output.prevClipPos = mul(prevPosW, gViewProjection);
+#endif
 
     return output;
 }
@@ -398,12 +430,40 @@ float3 ApplyFog(float3 color, float3 posW)
     return color;
 }
 
+/// @brief 速度ベクトルをエンコード（Per-object MotionBlur用）
+/// 現フレームと前フレームのクリップ空間座標からスクリーン空間速度を計算する
+float2 EncodeVelocity(float4 currClip, float4 prevClip)
+{
+    float2 currNDC = currClip.xy / currClip.w;
+    float2 prevNDC = prevClip.xy / prevClip.w;
+    // NDC差分をそのまま速度として出力（-2〜+2の範囲）
+    return (currNDC - prevNDC) * 0.5f;
+}
+
 /// @brief 法線エンコード（MRT出力用、[0,1]にマップ + メタリック/ラフネスパック）
 float4 EncodeNormal(float3 N, float metallic, float roughness)
 {
     float packedMR = clamp(roughness, 0.01, 0.99) + (metallic > 0.5 ? 1.0 : 0.0);
     return float4(N * 0.5f + 0.5f, packedMR);
 }
+
+#if defined(DEFERRED_PATH)
+/// @brief Deferred GBuffer出力ヘルパー
+/// ライティング計算をスキップし、マテリアル属性をGBufferに書き込む
+PSOutput WriteGBuffer(PSInput input, float3 N, float4 albedo,
+                       float metallic, float roughness, float ao, float3 emissive)
+{
+    PSOutput output;
+    output.gbuffer0 = float4(N * 0.5f + 0.5f, roughness);
+    output.gbuffer1 = float4(albedo.rgb, metallic);
+    // エミッシブを0-1に正規化（HDR値は後でスケール復元）
+    float emissiveMax = max(max(emissive.r, emissive.g), max(emissive.b, 0.001f));
+    float emissiveScale = min(emissiveMax, 1.0f) / emissiveMax;
+    output.gbuffer2 = float4(emissive * emissiveScale, ao);
+    output.velocity = EncodeVelocity(input.currClipPos, input.prevClipPos);
+    return output;
+}
+#endif
 
 /// シャドウファクターを保持する構造体
 struct ShadowInfo
@@ -479,6 +539,79 @@ float GetLightShadow(uint lightIndex, float cascadeShadow, float3 posW, float3 N
                                    gPointLightVP, gPointShadowMapSize);
     }
     return 1.0f;
+}
+
+// ============================================================================
+// Parallax Occlusion Mapping (POM)
+// ============================================================================
+
+/// @brief POM用定数（gMaterialFlags の HAS_HEIGHT_MAP ビットで有効化）
+/// gReflectance の後の領域は ShaderModelConstants 内で未使用なので
+/// POM パラメータはランタイムで32bit定数として渡す想定。
+/// ここでは簡易版として gNormalScale と gAOStrength を流用しない形式を用いる。
+static const float g_POMHeightScale = 0.05;
+static const uint  g_POMMinLayers   = 8;
+static const uint  g_POMMaxLayers   = 32;
+
+/// @brief Parallax Occlusion Mapping によるUV変位を計算
+/// @param uv 入力テクスチャ座標
+/// @param viewDirTS 接線空間でのビュー方向（正規化済み）
+/// @param heightScale 高さスケール
+/// @param minLayers 最小サンプリングレイヤー数
+/// @param maxLayers 最大サンプリングレイヤー数
+/// @return POM適用後のUV座標
+float2 ParallaxOcclusionMap(float2 uv, float3 viewDirTS,
+                             float heightScale, uint minLayers, uint maxLayers)
+{
+    // View angle に基づくレイヤー数の補間
+    float numLayers = lerp((float)maxLayers, (float)minLayers, abs(viewDirTS.z));
+
+    float layerDepth = 1.0 / numLayers;
+    float currentLayerDepth = 0.0;
+    float2 P = viewDirTS.xy / viewDirTS.z * heightScale;
+    float2 deltaUV = P / numLayers;
+
+    float2 currentUV = uv;
+    float currentHeight = tHeightMap.Sample(sLinearWrap, currentUV).r;
+
+    [loop]
+    for (uint i = 0; i < (uint)numLayers; i++)
+    {
+        if (currentLayerDepth >= currentHeight)
+            break;
+        currentUV -= deltaUV;
+        currentHeight = tHeightMap.Sample(sLinearWrap, currentUV).r;
+        currentLayerDepth += layerDepth;
+    }
+
+    // Occlusion interpolation (between current and previous layer)
+    float2 prevUV = currentUV + deltaUV;
+    float afterDepth = currentHeight - currentLayerDepth;
+    float beforeDepth = tHeightMap.Sample(sLinearWrap, prevUV).r - currentLayerDepth + layerDepth;
+    float weight = afterDepth / (afterDepth - beforeDepth);
+    return lerp(currentUV, prevUV, weight);
+}
+
+/// @brief POM UV変換を適用（HAS_HEIGHT_MAP フラグが立っている場合のみ）
+/// @param input ピクセルシェーダー入力
+/// @param uv 元のUV座標
+/// @return POM適用後のUV座標（無効時はそのまま返す）
+float2 ApplyPOM(PSInput input, float2 uv)
+{
+    if (!(gMaterialFlags & HAS_HEIGHT_MAP))
+        return uv;
+
+    // 接線空間行列を構築
+    float3 N = normalize(input.normalW);
+    float3 T = normalize(input.tangentW);
+    float3 B = cross(N, T) * input.bitangentSign;
+    float3x3 TBN = float3x3(T, B, N);
+
+    // ワールド空間のビュー方向を接線空間に変換
+    float3 viewDir = normalize(gCameraPosition - input.posW);
+    float3 viewDirTS = mul(TBN, viewDir);
+
+    return ParallaxOcclusionMap(uv, viewDirTS, g_POMHeightScale, g_POMMinLayers, g_POMMaxLayers);
 }
 
 #endif // SHADER_MODEL_COMMON_HLSLI

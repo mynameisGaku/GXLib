@@ -19,6 +19,12 @@
 #include <Jolt/Physics/Body/BodyActivationListener.h>
 #include <Jolt/Physics/Collision/RayCast.h>
 #include <Jolt/Physics/Collision/CastResult.h>
+#include <Jolt/Physics/Collision/ShapeCast.h>
+#include <Jolt/Physics/Collision/CollisionCollectorImpl.h>
+#include <Jolt/Physics/Constraints/FixedConstraint.h>
+#include <Jolt/Physics/Constraints/HingeConstraint.h>
+#include <Jolt/Physics/Constraints/PointConstraint.h>
+#include <Jolt/Physics/Constraints/ConeConstraint.h>
 
 JPH_SUPPRESS_WARNINGS
 
@@ -172,6 +178,8 @@ struct PhysicsWorld3D::Impl {
     ObjectLayerPairFilter objectPairFilter;
     ContactListenerImpl contactListener;
     std::vector<PhysicsShape*> ownedShapes;
+    std::vector<JPH::Ref<JPH::Constraint>> ownedConstraints; ///< コンストレイント管理
+    uint32_t nextConstraintID = 0;                             ///< コンストレイントID割り当て
     bool initialized = false;
 };
 
@@ -232,6 +240,18 @@ bool PhysicsWorld3D::Initialize(uint32_t maxBodies)
 void PhysicsWorld3D::Shutdown()
 {
     if (!m_impl->initialized) return;
+
+    // コンストレイントを解放
+    for (auto& constraint : m_impl->ownedConstraints)
+    {
+        if (constraint != nullptr)
+        {
+            m_impl->physicsSystem->RemoveConstraint(constraint.GetPtr());
+            constraint = nullptr;
+        }
+    }
+    m_impl->ownedConstraints.clear();
+    m_impl->nextConstraintID = 0;
 
     for (auto* shape : m_impl->ownedShapes)
     {
@@ -603,6 +623,316 @@ PhysicsWorld3D::RaycastResult PhysicsWorld3D::Raycast(const Vector3& origin, con
     }
 
     return result;
+}
+
+// ----- スイープ / オーバーラップ -----
+
+std::vector<PhysicsWorld3D::SweepResult> PhysicsWorld3D::SphereCast(
+    const Vector3& origin, float radius, const Vector3& direction, float maxDistance)
+{
+    std::vector<SweepResult> results;
+    if (!m_impl->initialized) return results;
+
+    JPH::SphereShape sphere(radius);
+    JPH::RShapeCast shapeCast(
+        &sphere,
+        JPH::Vec3::sReplicate(1.0f),
+        JPH::RMat44::sTranslation(JPH::RVec3(origin.x, origin.y, origin.z)),
+        JPH::Vec3(direction.x * maxDistance, direction.y * maxDistance, direction.z * maxDistance)
+    );
+
+    JPH::AllHitCollisionCollector<JPH::CastShapeCollector> collector;
+
+    struct AllBPFilter : public JPH::BroadPhaseLayerFilter {
+        bool ShouldCollide(JPH::BroadPhaseLayer) const override { return true; }
+    };
+    struct AllObjFilter : public JPH::ObjectLayerFilter {
+        bool ShouldCollide(JPH::ObjectLayer) const override { return true; }
+    };
+    AllBPFilter bpFilter;
+    AllObjFilter objFilter;
+    JPH::BodyFilter bodyFilter;
+    JPH::ShapeFilter shapeFilter;
+
+    m_impl->physicsSystem->GetNarrowPhaseQuery().CastShape(
+        shapeCast, JPH::ShapeCastSettings(),
+        JPH::RVec3::sZero(), collector,
+        bpFilter, objFilter, bodyFilter, shapeFilter);
+
+    for (auto& hit : collector.mHits)
+    {
+        SweepResult r;
+        r.bodyID.id = hit.mBodyID2.GetIndexAndSequenceNumber();
+        r.fraction = hit.mFraction;
+        r.point = FromJoltR(shapeCast.GetPointOnRay(hit.mFraction));
+        r.normal = FromJoltV(hit.mPenetrationAxis.Normalized());
+        results.push_back(r);
+    }
+    return results;
+}
+
+std::vector<PhysicsWorld3D::SweepResult> PhysicsWorld3D::BoxCast(
+    const Vector3& origin, const Vector3& halfExtents, const Quaternion& rotation,
+    const Vector3& direction, float maxDistance)
+{
+    std::vector<SweepResult> results;
+    if (!m_impl->initialized) return results;
+
+    JPH::BoxShape box(ToJolt(halfExtents));
+    JPH::RMat44 startTransform = JPH::RMat44::sRotationTranslation(
+        ToJolt(rotation),
+        JPH::RVec3(origin.x, origin.y, origin.z)
+    );
+    JPH::RShapeCast shapeCast(
+        &box,
+        JPH::Vec3::sReplicate(1.0f),
+        startTransform,
+        JPH::Vec3(direction.x * maxDistance, direction.y * maxDistance, direction.z * maxDistance)
+    );
+
+    JPH::AllHitCollisionCollector<JPH::CastShapeCollector> collector;
+
+    struct AllBPFilter : public JPH::BroadPhaseLayerFilter {
+        bool ShouldCollide(JPH::BroadPhaseLayer) const override { return true; }
+    };
+    struct AllObjFilter : public JPH::ObjectLayerFilter {
+        bool ShouldCollide(JPH::ObjectLayer) const override { return true; }
+    };
+    AllBPFilter bpFilter;
+    AllObjFilter objFilter;
+    JPH::BodyFilter bodyFilter;
+    JPH::ShapeFilter shapeFilter;
+
+    m_impl->physicsSystem->GetNarrowPhaseQuery().CastShape(
+        shapeCast, JPH::ShapeCastSettings(),
+        JPH::RVec3::sZero(), collector,
+        bpFilter, objFilter, bodyFilter, shapeFilter);
+
+    for (auto& hit : collector.mHits)
+    {
+        SweepResult r;
+        r.bodyID.id = hit.mBodyID2.GetIndexAndSequenceNumber();
+        r.fraction = hit.mFraction;
+        r.point = FromJoltR(shapeCast.GetPointOnRay(hit.mFraction));
+        r.normal = FromJoltV(hit.mPenetrationAxis.Normalized());
+        results.push_back(r);
+    }
+    return results;
+}
+
+std::vector<PhysicsWorld3D::OverlapResult> PhysicsWorld3D::OverlapSphere(
+    const Vector3& center, float radius)
+{
+    std::vector<OverlapResult> results;
+    if (!m_impl->initialized) return results;
+
+    JPH::SphereShape sphere(radius);
+    JPH::AllHitCollisionCollector<JPH::CollideShapeCollector> collector;
+
+    struct AllBPFilter : public JPH::BroadPhaseLayerFilter {
+        bool ShouldCollide(JPH::BroadPhaseLayer) const override { return true; }
+    };
+    struct AllObjFilter : public JPH::ObjectLayerFilter {
+        bool ShouldCollide(JPH::ObjectLayer) const override { return true; }
+    };
+    AllBPFilter bpFilter;
+    AllObjFilter objFilter;
+    JPH::BodyFilter bodyFilter;
+    JPH::ShapeFilter shapeFilter;
+
+    JPH::RMat44 transform = JPH::RMat44::sTranslation(JPH::RVec3(center.x, center.y, center.z));
+
+    m_impl->physicsSystem->GetNarrowPhaseQuery().CollideShape(
+        &sphere, JPH::Vec3::sReplicate(1.0f), transform,
+        JPH::CollideShapeSettings(), JPH::RVec3::sZero(),
+        collector, bpFilter, objFilter, bodyFilter, shapeFilter);
+
+    for (auto& hit : collector.mHits)
+    {
+        OverlapResult r;
+        r.bodyID.id = hit.mBodyID2.GetIndexAndSequenceNumber();
+        results.push_back(r);
+    }
+    return results;
+}
+
+std::vector<PhysicsWorld3D::OverlapResult> PhysicsWorld3D::OverlapBox(
+    const Vector3& center, const Vector3& halfExtents, const Quaternion& rotation)
+{
+    std::vector<OverlapResult> results;
+    if (!m_impl->initialized) return results;
+
+    JPH::BoxShape box(ToJolt(halfExtents));
+    JPH::AllHitCollisionCollector<JPH::CollideShapeCollector> collector;
+
+    struct AllBPFilter : public JPH::BroadPhaseLayerFilter {
+        bool ShouldCollide(JPH::BroadPhaseLayer) const override { return true; }
+    };
+    struct AllObjFilter : public JPH::ObjectLayerFilter {
+        bool ShouldCollide(JPH::ObjectLayer) const override { return true; }
+    };
+    AllBPFilter bpFilter;
+    AllObjFilter objFilter;
+    JPH::BodyFilter bodyFilter;
+    JPH::ShapeFilter shapeFilter;
+
+    JPH::RMat44 transform = JPH::RMat44::sRotationTranslation(
+        ToJolt(rotation),
+        JPH::RVec3(center.x, center.y, center.z)
+    );
+
+    m_impl->physicsSystem->GetNarrowPhaseQuery().CollideShape(
+        &box, JPH::Vec3::sReplicate(1.0f), transform,
+        JPH::CollideShapeSettings(), JPH::RVec3::sZero(),
+        collector, bpFilter, objFilter, bodyFilter, shapeFilter);
+
+    for (auto& hit : collector.mHits)
+    {
+        OverlapResult r;
+        r.bodyID.id = hit.mBodyID2.GetIndexAndSequenceNumber();
+        results.push_back(r);
+    }
+    return results;
+}
+
+// ----- コンストレイント -----
+
+PhysicsConstraintID PhysicsWorld3D::CreateFixedConstraint(
+    PhysicsBodyID bodyA, PhysicsBodyID bodyB, const FixedConstraintSettings& settings)
+{
+    PhysicsConstraintID result;
+    if (!m_impl->initialized || !bodyA.IsValid() || !bodyB.IsValid()) return result;
+
+    JPH::BodyLockWrite lockA(m_impl->physicsSystem->GetBodyLockInterfaceNoLock(), JPH::BodyID(bodyA.id));
+    JPH::BodyLockWrite lockB(m_impl->physicsSystem->GetBodyLockInterfaceNoLock(), JPH::BodyID(bodyB.id));
+    if (!lockA.Succeeded() || !lockB.Succeeded()) return result;
+
+    JPH::FixedConstraintSettings jphSettings;
+    jphSettings.mAutoDetectPoint = settings.autoDetect;
+    if (!settings.autoDetect)
+    {
+        jphSettings.mPoint1 = JPH::RVec3(settings.point1.x, settings.point1.y, settings.point1.z);
+        jphSettings.mPoint2 = JPH::RVec3(settings.point2.x, settings.point2.y, settings.point2.z);
+    }
+
+    JPH::Ref<JPH::Constraint> constraint = jphSettings.Create(lockA.GetBody(), lockB.GetBody());
+    m_impl->physicsSystem->AddConstraint(constraint.GetPtr());
+
+    result.id = m_impl->nextConstraintID++;
+    // Ensure vector is large enough
+    if (result.id >= m_impl->ownedConstraints.size())
+        m_impl->ownedConstraints.resize(result.id + 1);
+    m_impl->ownedConstraints[result.id] = constraint;
+    return result;
+}
+
+PhysicsConstraintID PhysicsWorld3D::CreateHingeConstraint(
+    PhysicsBodyID bodyA, PhysicsBodyID bodyB, const HingeConstraintSettings& settings)
+{
+    PhysicsConstraintID result;
+    if (!m_impl->initialized || !bodyA.IsValid() || !bodyB.IsValid()) return result;
+
+    JPH::BodyLockWrite lockA(m_impl->physicsSystem->GetBodyLockInterfaceNoLock(), JPH::BodyID(bodyA.id));
+    JPH::BodyLockWrite lockB(m_impl->physicsSystem->GetBodyLockInterfaceNoLock(), JPH::BodyID(bodyB.id));
+    if (!lockA.Succeeded() || !lockB.Succeeded()) return result;
+
+    JPH::HingeConstraintSettings jphSettings;
+    jphSettings.mPoint1 = JPH::RVec3(settings.point1.x, settings.point1.y, settings.point1.z);
+    jphSettings.mHingeAxis1 = ToJolt(settings.hingeAxis1);
+    jphSettings.mNormalAxis1 = ToJolt(settings.normalAxis1);
+    jphSettings.mPoint2 = JPH::RVec3(settings.point2.x, settings.point2.y, settings.point2.z);
+    jphSettings.mHingeAxis2 = ToJolt(settings.hingeAxis2);
+    jphSettings.mNormalAxis2 = ToJolt(settings.normalAxis2);
+    jphSettings.mLimitsMin = settings.limitsMin;
+    jphSettings.mLimitsMax = settings.limitsMax;
+    jphSettings.mMaxFrictionTorque = settings.maxFrictionTorque;
+
+    JPH::Ref<JPH::Constraint> constraint = jphSettings.Create(lockA.GetBody(), lockB.GetBody());
+    m_impl->physicsSystem->AddConstraint(constraint.GetPtr());
+
+    result.id = m_impl->nextConstraintID++;
+    if (result.id >= m_impl->ownedConstraints.size())
+        m_impl->ownedConstraints.resize(result.id + 1);
+    m_impl->ownedConstraints[result.id] = constraint;
+    return result;
+}
+
+PhysicsConstraintID PhysicsWorld3D::CreatePointConstraint(
+    PhysicsBodyID bodyA, PhysicsBodyID bodyB, const PointConstraintSettings& settings)
+{
+    PhysicsConstraintID result;
+    if (!m_impl->initialized || !bodyA.IsValid() || !bodyB.IsValid()) return result;
+
+    JPH::BodyLockWrite lockA(m_impl->physicsSystem->GetBodyLockInterfaceNoLock(), JPH::BodyID(bodyA.id));
+    JPH::BodyLockWrite lockB(m_impl->physicsSystem->GetBodyLockInterfaceNoLock(), JPH::BodyID(bodyB.id));
+    if (!lockA.Succeeded() || !lockB.Succeeded()) return result;
+
+    JPH::PointConstraintSettings jphSettings;
+    jphSettings.mPoint1 = JPH::RVec3(settings.point1.x, settings.point1.y, settings.point1.z);
+    jphSettings.mPoint2 = JPH::RVec3(settings.point2.x, settings.point2.y, settings.point2.z);
+
+    JPH::Ref<JPH::Constraint> constraint = jphSettings.Create(lockA.GetBody(), lockB.GetBody());
+    m_impl->physicsSystem->AddConstraint(constraint.GetPtr());
+
+    result.id = m_impl->nextConstraintID++;
+    if (result.id >= m_impl->ownedConstraints.size())
+        m_impl->ownedConstraints.resize(result.id + 1);
+    m_impl->ownedConstraints[result.id] = constraint;
+    return result;
+}
+
+PhysicsConstraintID PhysicsWorld3D::CreateConeConstraint(
+    PhysicsBodyID bodyA, PhysicsBodyID bodyB, const ConeConstraintSettings& settings)
+{
+    PhysicsConstraintID result;
+    if (!m_impl->initialized || !bodyA.IsValid() || !bodyB.IsValid()) return result;
+
+    JPH::BodyLockWrite lockA(m_impl->physicsSystem->GetBodyLockInterfaceNoLock(), JPH::BodyID(bodyA.id));
+    JPH::BodyLockWrite lockB(m_impl->physicsSystem->GetBodyLockInterfaceNoLock(), JPH::BodyID(bodyB.id));
+    if (!lockA.Succeeded() || !lockB.Succeeded()) return result;
+
+    JPH::ConeConstraintSettings jphSettings;
+    jphSettings.mPoint1 = JPH::RVec3(settings.point1.x, settings.point1.y, settings.point1.z);
+    jphSettings.mTwistAxis1 = ToJolt(settings.twistAxis1);
+    jphSettings.mPoint2 = JPH::RVec3(settings.point2.x, settings.point2.y, settings.point2.z);
+    jphSettings.mTwistAxis2 = ToJolt(settings.twistAxis2);
+    jphSettings.mHalfConeAngle = settings.halfConeAngle;
+
+    JPH::Ref<JPH::Constraint> constraint = jphSettings.Create(lockA.GetBody(), lockB.GetBody());
+    m_impl->physicsSystem->AddConstraint(constraint.GetPtr());
+
+    result.id = m_impl->nextConstraintID++;
+    if (result.id >= m_impl->ownedConstraints.size())
+        m_impl->ownedConstraints.resize(result.id + 1);
+    m_impl->ownedConstraints[result.id] = constraint;
+    return result;
+}
+
+void PhysicsWorld3D::DestroyConstraint(PhysicsConstraintID id)
+{
+    if (!m_impl->initialized || !id.IsValid()) return;
+    if (id.id >= m_impl->ownedConstraints.size()) return;
+
+    auto& constraint = m_impl->ownedConstraints[id.id];
+    if (constraint != nullptr)
+    {
+        m_impl->physicsSystem->RemoveConstraint(constraint.GetPtr());
+        constraint = nullptr;
+    }
+}
+
+// ----- 内部アクセサ -----
+
+void* PhysicsWorld3D::GetInternalPhysicsSystem() const
+{
+    if (!m_impl->initialized) return nullptr;
+    return m_impl->physicsSystem.get();
+}
+
+void* PhysicsWorld3D::GetInternalTempAllocator() const
+{
+    if (!m_impl->initialized) return nullptr;
+    return m_impl->tempAllocator.get();
 }
 
 } // namespace gx

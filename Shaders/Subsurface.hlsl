@@ -82,6 +82,13 @@ PSOutput PSMain(PSInput input)
     // --- AO ---
     float ao = SampleAO(input.texcoord);
 
+#if defined(DEFERRED_PATH)
+    {
+        float3 emissive = SampleEmissive(input.texcoord);
+        return WriteGBuffer(input, N, albedo, gMetallic, gRoughness, ao, emissive);
+    }
+#endif
+
     // --- SSS厚みマップ ---
     float sssThickness = gThickness;
     if (gMaterialFlags & HAS_SUBSURFACE_MAP)
@@ -167,8 +174,9 @@ PSOutput PSMain(PSInput input)
 
     // --- MRT出力 ---
     PSOutput output;
-    output.color  = float4(finalColor, albedo.a);
-    output.normal = EncodeNormal(N, metallic, roughness);
-    output.albedo = float4(albedo.rgb, 1.0);
+    output.color    = float4(finalColor, albedo.a);
+    output.normal   = EncodeNormal(N, metallic, roughness);
+    output.albedo   = float4(albedo.rgb, 1.0);
+    output.velocity = EncodeVelocity(input.currClipPos, input.prevClipPos);
     return output;
 }

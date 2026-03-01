@@ -85,6 +85,20 @@ AudioBus* AudioMixer::CreateBus(const std::string& name)
     return m_customBuses.back().get();
 }
 
+AudioBus* AudioMixer::GetBusByName(const std::string& name)
+{
+    if (name == "Master") return &m_masterBus;
+    if (name == "BGM")    return &m_bgmBus;
+    if (name == "SE")     return &m_seBus;
+    if (name == "Voice")  return &m_voiceBus;
+
+    for (auto& bus : m_customBuses)
+    {
+        if (bus->GetName() == name) return bus.get();
+    }
+    return nullptr;
+}
+
 void AudioMixer::Shutdown()
 {
     for (auto& bus : m_customBuses)

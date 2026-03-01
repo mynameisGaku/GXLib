@@ -52,6 +52,7 @@ bool NavMesh::Build(float worldMinX, float worldMinZ,
         cell.costMultiplier = 1.0f;
     }
 
+    m_baseGrid = m_grid; // save base state for obstacle restore
     m_built = true;
     Logger::Info("NavMesh::Build - %dx%d grid (cellSize=%.2f)", m_gridWidth, m_gridHeight, cellSize);
     return true;
@@ -299,7 +300,7 @@ void NavMesh::SetCellCost(int cellX, int cellZ, float costMultiplier)
 // FindPath (A*)
 // ============================================================================
 bool NavMesh::FindPath(const XMFLOAT3& start, const XMFLOAT3& end,
-                       std::vector<XMFLOAT3>& path) const
+                       std::vector<XMFLOAT3>& path, bool smooth) const
 {
     path.clear();
     if (!m_built) return false;
@@ -588,6 +589,120 @@ float NavMesh::Heuristic(int x1, int z1, int x2, int z2)
     int mn = std::min(dx, dz);
     int mx = std::max(dx, dz);
     return static_cast<float>(mx) + 0.414f * static_cast<float>(mn);
+}
+
+// ============================================================================
+// Dynamic Obstacles
+// ============================================================================
+
+uint32_t NavMesh::AddObstacleAABB(float minX, float minZ, float maxX, float maxZ)
+{
+    Obstacle obs;
+    obs.type = ObstacleType::AABB;
+    obs.minX = minX; obs.minZ = minZ; obs.maxX = maxX; obs.maxZ = maxZ;
+    obs.centerX = obs.centerZ = obs.radius = 0.0f;
+    obs.handle = m_nextObstacleHandle++;
+    m_obstacles.push_back(obs);
+    ApplyObstacles();
+    return obs.handle;
+}
+
+uint32_t NavMesh::AddObstacleCylinder(float centerX, float centerZ, float radius)
+{
+    Obstacle obs;
+    obs.type = ObstacleType::Cylinder;
+    obs.centerX = centerX; obs.centerZ = centerZ; obs.radius = radius;
+    obs.minX = centerX - radius; obs.minZ = centerZ - radius;
+    obs.maxX = centerX + radius; obs.maxZ = centerZ + radius;
+    obs.handle = m_nextObstacleHandle++;
+    m_obstacles.push_back(obs);
+    ApplyObstacles();
+    return obs.handle;
+}
+
+void NavMesh::RemoveObstacle(uint32_t handle)
+{
+    m_obstacles.erase(
+        std::remove_if(m_obstacles.begin(), m_obstacles.end(),
+            [handle](const Obstacle& o) { return o.handle == handle; }),
+        m_obstacles.end());
+    ApplyObstacles();
+}
+
+void NavMesh::ClearObstacles()
+{
+    m_obstacles.clear();
+    ApplyObstacles();
+}
+
+void NavMesh::MoveObstacle(uint32_t handle, float newMinX, float newMinZ)
+{
+    for (auto& obs : m_obstacles)
+    {
+        if (obs.handle == handle)
+        {
+            float width = obs.maxX - obs.minX;
+            float depth = obs.maxZ - obs.minZ;
+            obs.minX = newMinX; obs.minZ = newMinZ;
+            obs.maxX = newMinX + width; obs.maxZ = newMinZ + depth;
+            if (obs.type == ObstacleType::Cylinder)
+            {
+                obs.centerX = newMinX + obs.radius;
+                obs.centerZ = newMinZ + obs.radius;
+            }
+            break;
+        }
+    }
+    ApplyObstacles();
+}
+
+void NavMesh::ApplyObstacles()
+{
+    if (m_baseGrid.empty()) return;
+    m_grid = m_baseGrid; // restore base
+
+    for (const auto& obs : m_obstacles)
+    {
+        // Determine which cells this obstacle covers
+        int minCX, minCZ, maxCX, maxCZ;
+        WorldToCell(obs.minX, obs.minZ, minCX, minCZ);
+        WorldToCell(obs.maxX, obs.maxZ, maxCX, maxCZ);
+
+        minCX = (std::max)(0, minCX);
+        minCZ = (std::max)(0, minCZ);
+        maxCX = (std::min)(m_gridWidth - 1, maxCX);
+        maxCZ = (std::min)(m_gridHeight - 1, maxCZ);
+
+        for (int z = minCZ; z <= maxCZ; ++z)
+        {
+            for (int x = minCX; x <= maxCX; ++x)
+            {
+                bool block = false;
+                if (obs.type == ObstacleType::AABB)
+                {
+                    block = true;
+                }
+                else // Cylinder
+                {
+                    float cx = m_worldMinX + (x + 0.5f) * m_cellSize;
+                    float cz = m_worldMinZ + (z + 0.5f) * m_cellSize;
+                    float dx = cx - obs.centerX;
+                    float dz = cz - obs.centerZ;
+                    block = (dx * dx + dz * dz) <= obs.radius * obs.radius;
+                }
+                if (block)
+                {
+                    m_grid[static_cast<size_t>(z) * m_gridWidth + x].walkable = false;
+                }
+            }
+        }
+    }
+}
+
+void NavMesh::RemoveObstacleEffects()
+{
+    if (!m_baseGrid.empty())
+        m_grid = m_baseGrid;
 }
 
 } // namespace gx

@@ -363,4 +363,26 @@ void SoundPlayer::CleanupFinishedVoices()
     m_activeVoiceCount = static_cast<int>(m_activeVoices.size());
 }
 
+// ============================================================================
+// StopByHandle (DxLib互換: ハンドルベースの停止)
+// ============================================================================
+
+void SoundPlayer::StopByHandle(int handle)
+{
+    // In the current architecture, 2D SE voices are not tracked by a user handle.
+    // This is a graceful no-op for compatibility.
+    (void)handle;
+}
+
+// ============================================================================
+// IsPlayingByHandle (DxLib互換: ハンドルベースの再生状態確認)
+// ============================================================================
+
+bool SoundPlayer::IsPlayingByHandle(int handle) const
+{
+    // Without per-handle tracking, always return false.
+    (void)handle;
+    return false;
+}
+
 } // namespace gx

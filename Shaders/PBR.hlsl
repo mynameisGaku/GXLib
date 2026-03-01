@@ -11,8 +11,13 @@
 /// 全ライトを走査してBRDF寄与を積算し、アンビエント・エミッシブと合算する。
 PSOutput PSMain(PSInput input)
 {
+    // --- Parallax Occlusion Mapping ---
+    float2 texcoord = ApplyPOM(input, input.texcoord);
+    // POM適用後のUVをinputに反映（ApplyNormalMap等が参照するため）
+    input.texcoord = texcoord;
+
     // --- アルベド ---
-    float4 albedo = SampleAlbedo(input.texcoord);
+    float4 albedo = SampleAlbedo(texcoord);
 
     // アルファカットオフ
     if (albedo.a < gAlphaCutoff)
@@ -26,7 +31,7 @@ PSOutput PSMain(PSInput input)
     float roughness = gRoughness;
     if (gMaterialFlags & HAS_METROUGH_MAP)
     {
-        float4 mr = tMetRough.Sample(sLinearWrap, input.texcoord);
+        float4 mr = tMetRough.Sample(sLinearWrap, texcoord);
         metallic  *= mr.b;  // glTF convention: B=metallic
         roughness *= mr.g;  // glTF convention: G=roughness
     }
@@ -43,7 +48,13 @@ PSOutput PSMain(PSInput input)
     }
 
     // --- AO ---
-    float ao = SampleAO(input.texcoord);
+    float ao = SampleAO(texcoord);
+
+#if defined(DEFERRED_PATH)
+    // Deferred: ライティングスキップ、GBuffer出力
+    float3 emissive = SampleEmissive(texcoord);
+    return WriteGBuffer(input, N, albedo, metallic, roughness, ao, emissive);
+#endif
 
     // --- View方向 ---
     float3 V = normalize(gCameraPosition - input.posW);
@@ -72,7 +83,7 @@ PSOutput PSMain(PSInput input)
     float3 ambient = iblContribution + gAmbientColor * albedo.rgb * ao;
 
     // エミッシブ
-    float3 emissive = SampleEmissive(input.texcoord);
+    float3 emissive = SampleEmissive(texcoord);
 
     float3 finalColor = ambient + Lo + emissive;
 
@@ -183,8 +194,9 @@ PSOutput PSMain(PSInput input)
 
     // HDRリニア値をそのまま出力（トーンマッピングはポストエフェクトで実行）
     PSOutput output;
-    output.color  = float4(finalColor, albedo.a);
-    output.normal = encodedNormal;
-    output.albedo = float4(albedo.rgb, 1.0);
+    output.color    = float4(finalColor, albedo.a);
+    output.normal   = encodedNormal;
+    output.albedo   = float4(albedo.rgb, 1.0);
+    output.velocity = EncodeVelocity(input.currClipPos, input.prevClipPos);
     return output;
 }

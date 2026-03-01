@@ -86,6 +86,13 @@ PSOutput PSMain(PSInput input)
     // --- AO ---
     float ao = SampleAO(input.texcoord);
 
+#if defined(DEFERRED_PATH)
+    {
+        float3 emissive = SampleEmissive(input.texcoord);
+        return WriteGBuffer(input, N, albedo, gMetallic, gRoughness, ao, emissive);
+    }
+#endif
+
     // --- クリアコートマスク ---
     float clearCoatMask = 1.0f;
     if (gMaterialFlags & HAS_CLEARCOAT_MASK_MAP)
@@ -174,8 +181,9 @@ PSOutput PSMain(PSInput input)
     float effectiveRoughness = lerp(roughness, gClearCoatRoughness, effectiveClearCoat);
 
     PSOutput output;
-    output.color  = float4(finalColor, albedo.a);
-    output.normal = EncodeNormal(N, metallic, effectiveRoughness);
-    output.albedo = float4(albedo.rgb, 1.0);
+    output.color    = float4(finalColor, albedo.a);
+    output.normal   = EncodeNormal(N, metallic, effectiveRoughness);
+    output.albedo   = float4(albedo.rgb, 1.0);
+    output.velocity = EncodeVelocity(input.currClipPos, input.prevClipPos);
     return output;
 }

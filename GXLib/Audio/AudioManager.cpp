@@ -222,4 +222,31 @@ void AudioManager::ReleaseSound(int handle)
     m_freeHandles.push_back(handle);  // ハンドルをフリーリストへ返却
 }
 
+// ============================================================================
+// StopSound (DxLib StopSoundMem相当)
+// ============================================================================
+
+void AudioManager::StopSound(int handle)
+{
+    if (handle < 0 || handle >= static_cast<int>(m_entries.size()))
+        return;
+    // Currently no per-handle voice tracking for 2D SE.
+    // StopAll could be used but would be too aggressive.
+    // This is a no-op placeholder for DxLib compat.
+}
+
+// ============================================================================
+// CheckSoundPlaying (DxLib CheckSoundMem相当)
+// ============================================================================
+
+int AudioManager::CheckSoundPlaying(int handle) const
+{
+    if (handle < 0 || handle >= static_cast<int>(m_entries.size()))
+        return -1;
+    if (!m_entries[handle].sound)
+        return -1;
+    // Without per-handle voice tracking, return 0 (not playing) for valid handles
+    return 0;
+}
+
 } // namespace gx

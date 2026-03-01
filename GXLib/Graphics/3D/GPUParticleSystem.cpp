@@ -652,6 +652,111 @@ void GPUParticleSystem::Draw(ID3D12GraphicsCommandList* cmdList,
 }
 
 // ============================================================================
+// CreateEmitter（VFXGraphからの一括パラメータ適用 + マルチエミッター管理）
+// ============================================================================
+
+int GPUParticleSystem::CreateEmitter(const GPUParticleEmitterConfig& config)
+{
+    // 既存のセッター経由でパラメータを反映する
+    SetEmitPosition({ 0.0f, 0.0f, 0.0f });
+    SetGravity({ config.gravity.x, config.gravity.y, config.gravity.z });
+    SetDrag(config.drag);
+    SetVelocityRange(
+        { config.initialVelocityMin.x, config.initialVelocityMin.y, config.initialVelocityMin.z },
+        { config.initialVelocityMax.x, config.initialVelocityMax.y, config.initialVelocityMax.z });
+    SetLifeRange(config.lifetimeMin, config.lifetimeMax);
+    SetSizeRange(config.startSizeMin, config.endSize);
+    SetColorRange(
+        { config.startColor.r, config.startColor.g, config.startColor.b, config.startColor.a },
+        { config.endColor.r, config.endColor.g, config.endColor.b, config.endColor.a });
+
+    // Register emitter instance for multi-emitter management
+    EmitterInstance inst;
+    inst.config = config;
+    inst.id = m_nextEmitterId++;
+    inst.enabled = true;
+    m_emitters.push_back(inst);
+
+    return inst.id;
+}
+
+// ============================================================================
+// 簡易初期化（nullptrデバイス対応、CPUモード用）
+// ============================================================================
+
+bool GPUParticleSystem::Initialize(std::nullptr_t, uint32_t maxTotalParticles)
+{
+    m_maxTotalParticles = maxTotalParticles;
+    m_maxParticles = maxTotalParticles;
+    m_emitters.clear();
+    m_nextEmitterId = 1;
+    m_activeParticleCount = 0;
+    // CPU-only mode: no GPU resources created
+    return true;
+}
+
+// ============================================================================
+// DestroyEmitter
+// ============================================================================
+
+void GPUParticleSystem::DestroyEmitter(int emitterId)
+{
+    auto it = std::remove_if(m_emitters.begin(), m_emitters.end(),
+        [emitterId](const EmitterInstance& e) { return e.id == emitterId; });
+    m_emitters.erase(it, m_emitters.end());
+}
+
+// ============================================================================
+// SetEmitterPosition
+// ============================================================================
+
+void GPUParticleSystem::SetEmitterPosition(int emitterId, const XMFLOAT3& position)
+{
+    for (auto& e : m_emitters)
+    {
+        if (e.id == emitterId)
+        {
+            e.position = position;
+            return;
+        }
+    }
+}
+
+// ============================================================================
+// SetEmitterEnabled
+// ============================================================================
+
+void GPUParticleSystem::SetEmitterEnabled(int emitterId, bool enabled)
+{
+    for (auto& e : m_emitters)
+    {
+        if (e.id == emitterId)
+        {
+            e.enabled = enabled;
+            return;
+        }
+    }
+}
+
+// ============================================================================
+// Burst (per-emitter)
+// ============================================================================
+
+void GPUParticleSystem::Burst(int emitterId, uint32_t count)
+{
+    // Find the emitter (validate it exists)
+    for (const auto& e : m_emitters)
+    {
+        if (e.id == emitterId)
+        {
+            // In CPU mode, just queue the emit count
+            m_pendingEmitCount += count;
+            return;
+        }
+    }
+}
+
+// ============================================================================
 // シャットダウン
 // ============================================================================
 
@@ -665,6 +770,10 @@ void GPUParticleSystem::Shutdown()
     m_drawRS.Reset();
     m_initialized = false;
     m_poolInitialized = false;
+    m_emitters.clear();
+    m_nextEmitterId = 1;
+    m_maxTotalParticles = 0;
+    m_activeParticleCount = 0;
 }
 
 } // namespace gx

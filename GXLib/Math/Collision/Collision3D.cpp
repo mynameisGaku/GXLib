@@ -427,5 +427,303 @@ Vector3 ClosestPointOnLine(const Vector3& point, const Vector3& lineA, const Vec
     return lineA + ab * t;
 }
 
+// --- カプセル判定 ---
+
+/// 2線分間の最短距離の二乗を返すヘルパー
+static float ClosestSegmentSegmentDistSq(const Vector3& p1, const Vector3& q1,
+                                          const Vector3& p2, const Vector3& q2,
+                                          float& s, float& t)
+{
+    Vector3 d1 = q1 - p1;
+    Vector3 d2 = q2 - p2;
+    Vector3 r = p1 - p2;
+
+    float a = d1.Dot(d1);
+    float e = d2.Dot(d2);
+    float f = d2.Dot(r);
+
+    if (a <= 1e-6f && e <= 1e-6f) { s = t = 0.0f; return r.LengthSquared(); }
+    if (a <= 1e-6f) { s = 0.0f; t = MathUtil::Clamp(f / e, 0.0f, 1.0f); }
+    else
+    {
+        float c = d1.Dot(r);
+        if (e <= 1e-6f) { t = 0.0f; s = MathUtil::Clamp(-c / a, 0.0f, 1.0f); }
+        else
+        {
+            float b = d1.Dot(d2);
+            float denom = a * e - b * b;
+            s = (denom != 0.0f) ? MathUtil::Clamp((b * f - c * e) / denom, 0.0f, 1.0f) : 0.0f;
+            t = (b * s + f) / e;
+            if (t < 0.0f) { t = 0.0f; s = MathUtil::Clamp(-c / a, 0.0f, 1.0f); }
+            else if (t > 1.0f) { t = 1.0f; s = MathUtil::Clamp((b - c) / a, 0.0f, 1.0f); }
+        }
+    }
+    Vector3 c1 = p1 + d1 * s;
+    Vector3 c2 = p2 + d2 * t;
+    return (c1 - c2).LengthSquared();
+}
+
+bool TestCapsuleVsCapsule(const Capsule& a, const Capsule& b)
+{
+    float s, t;
+    float distSq = ClosestSegmentSegmentDistSq(a.start, a.end, b.start, b.end, s, t);
+    float r = a.radius + b.radius;
+    return distSq <= r * r;
+}
+
+bool TestCapsuleVsSphere(const Capsule& capsule, const Sphere& sphere)
+{
+    Vector3 closest = ClosestPointOnLine(sphere.center, capsule.start, capsule.end);
+    float r = capsule.radius + sphere.radius;
+    return closest.DistanceSquared(sphere.center) <= r * r;
+}
+
+bool TestCapsuleVsAABB(const Capsule& capsule, const AABB3D& aabb)
+{
+    // Approximate: expand AABB by capsule radius and test segment vs AABB
+    AABB3D expanded = aabb.Expand(capsule.radius);
+    // Check if any point on the segment is in the expanded AABB
+    const int steps = 16;
+    for (int i = 0; i <= steps; ++i)
+    {
+        float t = static_cast<float>(i) / steps;
+        Vector3 p = capsule.start + (capsule.end - capsule.start) * t;
+        if (expanded.Contains(p)) return true;
+    }
+    // Also check closest point on AABB to segment endpoints
+    Vector3 closestToStart = ClosestPointOnAABB(capsule.start, aabb);
+    if (capsule.start.DistanceSquared(closestToStart) <= capsule.radius * capsule.radius) return true;
+    Vector3 closestToEnd = ClosestPointOnAABB(capsule.end, aabb);
+    if (capsule.end.DistanceSquared(closestToEnd) <= capsule.radius * capsule.radius) return true;
+    return false;
+}
+
+bool RaycastCapsule(const Ray& ray, const Capsule& capsule, float& outT)
+{
+    // Raycast against the infinite cylinder, then check against the two end caps
+    Vector3 d = capsule.end - capsule.start;
+    Vector3 m = ray.origin - capsule.start;
+    float dd = d.Dot(d);
+    float md = m.Dot(d);
+    float nd = ray.direction.Dot(d);
+    float mm = m.Dot(m);
+    float mn = m.Dot(ray.direction);
+    float nn = ray.direction.Dot(ray.direction);
+    float r = capsule.radius;
+
+    float a = dd * nn - nd * nd;
+    float b = dd * mn - nd * md;
+    float c = dd * (mm - r * r) - md * md;
+
+    // Try the cylinder
+    float bestT = 1e30f;
+    bool hit = false;
+    if (std::abs(a) > 1e-6f)
+    {
+        float disc = b * b - a * c;
+        if (disc >= 0.0f)
+        {
+            float sqrtDisc = std::sqrtf(disc);
+            float t1 = (-b - sqrtDisc) / a;
+            float t2 = (-b + sqrtDisc) / a;
+            for (float t : {t1, t2})
+            {
+                if (t >= 0.0f)
+                {
+                    float along = md + t * nd;
+                    if (along >= 0.0f && along <= dd && t < bestT)
+                    {
+                        bestT = t;
+                        hit = true;
+                    }
+                }
+            }
+        }
+    }
+    // Try the two end caps (spheres)
+    Sphere capStart(capsule.start, capsule.radius);
+    Sphere capEnd(capsule.end, capsule.radius);
+    float ts, te;
+    if (RaycastSphere(ray, capStart, ts) && ts < bestT) { bestT = ts; hit = true; }
+    if (RaycastSphere(ray, capEnd, te) && te < bestT) { bestT = te; hit = true; }
+
+    if (hit) outT = bestT;
+    return hit;
+}
+
+HitResult3D IntersectCapsuleVsSphere(const Capsule& capsule, const Sphere& sphere)
+{
+    HitResult3D result;
+    Vector3 closestOnSeg = ClosestPointOnLine(sphere.center, capsule.start, capsule.end);
+    Vector3 diff = sphere.center - closestOnSeg;
+    float dist = diff.Length();
+    float combinedR = capsule.radius + sphere.radius;
+
+    if (dist > combinedR) return result;
+
+    result.hit = true;
+    result.depth = combinedR - dist;
+    if (dist > 1e-6f)
+        result.normal = diff * (1.0f / dist);
+    else
+        result.normal = Vector3(0, 1, 0);
+    result.point = closestOnSeg + result.normal * capsule.radius;
+    return result;
+}
+
+Vector3 ClosestPointOnCapsule(const Vector3& point, const Capsule& capsule)
+{
+    Vector3 closestOnSeg = ClosestPointOnLine(point, capsule.start, capsule.end);
+    Vector3 diff = point - closestOnSeg;
+    float dist = diff.Length();
+    if (dist < 1e-6f) return closestOnSeg + Vector3(0, capsule.radius, 0);
+    return closestOnSeg + diff * (capsule.radius / dist);
+}
+
+// --- OBB vs OBB MTV ---
+
+HitResult3D IntersectOBBVsOBB(const OBB& a, const OBB& b)
+{
+    HitResult3D result;
+    Vector3 d = b.center - a.center;
+    float ha[3] = { a.halfExtents.x, a.halfExtents.y, a.halfExtents.z };
+    float hb[3] = { b.halfExtents.x, b.halfExtents.y, b.halfExtents.z };
+
+    float R[3][3], absR[3][3];
+    for (int i = 0; i < 3; ++i)
+        for (int j = 0; j < 3; ++j)
+        {
+            R[i][j] = a.axes[i].Dot(b.axes[j]);
+            absR[i][j] = std::abs(R[i][j]) + 1e-6f;
+        }
+
+    float t[3] = { d.Dot(a.axes[0]), d.Dot(a.axes[1]), d.Dot(a.axes[2]) };
+
+    float minOverlap = 1e30f;
+    Vector3 minAxis;
+
+    // Test A's axes
+    for (int i = 0; i < 3; ++i)
+    {
+        float ra = ha[i];
+        float rb = hb[0] * absR[i][0] + hb[1] * absR[i][1] + hb[2] * absR[i][2];
+        float overlap = (ra + rb) - std::abs(t[i]);
+        if (overlap < 0.0f) return result;
+        if (overlap < minOverlap) { minOverlap = overlap; minAxis = a.axes[i]; if (t[i] < 0) minAxis = minAxis * -1.0f; }
+    }
+
+    // Test B's axes
+    for (int j = 0; j < 3; ++j)
+    {
+        float ra = ha[0] * absR[0][j] + ha[1] * absR[1][j] + ha[2] * absR[2][j];
+        float rb = hb[j];
+        float proj = t[0] * R[0][j] + t[1] * R[1][j] + t[2] * R[2][j];
+        float overlap = (ra + rb) - std::abs(proj);
+        if (overlap < 0.0f) return result;
+        if (overlap < minOverlap) { minOverlap = overlap; minAxis = b.axes[j]; if (proj < 0) minAxis = minAxis * -1.0f; }
+    }
+
+    result.hit = true;
+    result.depth = minOverlap;
+    result.normal = minAxis;
+    result.point = (a.center + b.center) * 0.5f;
+    return result;
+}
+
+// --- GJK/EPA ---
+
+bool TestGJK(const SupportFunc& supportA, const SupportFunc& supportB)
+{
+    auto support = [&](const Vector3& dir) -> Vector3 {
+        return supportA(dir) - supportB(dir * -1.0f);
+    };
+
+    Vector3 dir(1, 0.5f, 0.25f); // non-axis-aligned initial direction
+    Vector3 simplex[4];
+    int simplexSize = 0;
+
+    simplex[0] = support(dir);
+    simplexSize = 1;
+    dir = simplex[0] * -1.0f;
+
+    for (int iter = 0; iter < 64; ++iter)
+    {
+        Vector3 a = support(dir);
+        if (a.Dot(dir) < 0.0f) return false;
+
+        simplex[simplexSize++] = a;
+
+        if (simplexSize == 2)
+        {
+            // Line case
+            Vector3 ab = simplex[0] - simplex[1];
+            Vector3 ao = simplex[1] * -1.0f;
+            dir = ab.Cross(ao).Cross(ab);
+            if (dir.LengthSquared() < 1e-10f) dir = Vector3(1, 0.5f, 0.25f);
+        }
+        else if (simplexSize == 3)
+        {
+            // Triangle case
+            Vector3 a0 = simplex[2] * -1.0f;
+            Vector3 ab = simplex[1] - simplex[2];
+            Vector3 ac = simplex[0] - simplex[2];
+            Vector3 normal = ab.Cross(ac);
+
+            if (normal.Dot(a0) > 0)
+                dir = normal;
+            else
+                dir = normal * -1.0f;
+        }
+        else if (simplexSize == 4)
+        {
+            // Tetrahedron case
+            Vector3 a0 = simplex[3] * -1.0f;
+            Vector3 ab = simplex[2] - simplex[3];
+            Vector3 ac = simplex[1] - simplex[3];
+            Vector3 ad = simplex[0] - simplex[3];
+
+            Vector3 abc = ab.Cross(ac);
+            Vector3 acd = ac.Cross(ad);
+            Vector3 adb = ad.Cross(ab);
+
+            if (abc.Dot(a0) > 0) { simplex[0] = simplex[1]; simplex[1] = simplex[2]; simplex[2] = simplex[3]; simplexSize = 3; dir = abc; }
+            else if (acd.Dot(a0) > 0) { simplex[0] = simplex[0]; simplex[1] = simplex[1]; simplex[2] = simplex[3]; simplexSize = 3; dir = acd; }
+            else if (adb.Dot(a0) > 0) { simplex[1] = simplex[0]; simplex[0] = simplex[2]; simplex[2] = simplex[3]; simplexSize = 3; dir = adb; }
+            else return true; // origin inside tetrahedron
+        }
+    }
+    return false;
+}
+
+HitResult3D IntersectGJKEPA(const SupportFunc& supportA, const SupportFunc& supportB)
+{
+    HitResult3D result;
+    if (!TestGJK(supportA, supportB)) return result;
+    // Simplified: use GJK to detect overlap, approximate depth using support function
+    result.hit = true;
+
+    // Sample multiple directions to find minimum penetration
+    Vector3 dirs[] = {
+        {1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}, {0,0,1}, {0,0,-1},
+        Vector3(1,1,0).Normalized(), Vector3(-1,1,0).Normalized(),
+        Vector3(0,1,1).Normalized(), Vector3(0,-1,1).Normalized(),
+        Vector3(1,0,1).Normalized(), Vector3(-1,0,-1).Normalized(),
+    };
+
+    float minDepth = 1e30f;
+    Vector3 minNormal(1, 0, 0);
+    for (const auto& dir : dirs)
+    {
+        Vector3 sa = supportA(dir);
+        Vector3 sb = supportB(dir * -1.0f);
+        float depth = dir.Dot(sa - sb);
+        if (depth < minDepth) { minDepth = depth; minNormal = dir; }
+    }
+
+    result.depth = (std::max)(0.0f, minDepth);
+    result.normal = minNormal;
+    return result;
+}
+
 } // namespace Collision3D
 } // namespace gx

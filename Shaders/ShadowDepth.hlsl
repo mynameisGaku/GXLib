@@ -5,6 +5,7 @@ cbuffer ObjectConstants : register(b0)
 {
     float4x4 world;                 // ワールド変換行列
     float4x4 worldInverseTranspose; // 未使用（レイアウト互換のため維持）
+    float4x4 previousWorld;         // 未使用（レイアウト互換のため維持）
 };
 
 cbuffer ShadowPassConstants : register(b1)
