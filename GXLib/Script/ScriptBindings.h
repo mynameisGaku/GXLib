@@ -14,6 +14,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_script
+/// @{
 
 class SpriteBatch;
 class TextureManager;
@@ -39,6 +41,7 @@ namespace ScriptBindings
 
 } // namespace ScriptBindings
 
+/// @}
 } // namespace gx
 
 #endif // GX_ENABLE_LUA

@@ -9,6 +9,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_postfx
+/// @{
 
 /// @brief ポストエフェクト個別フラグ（ビットマスク）
 enum class PostFXFlag : uint32_t
@@ -29,6 +31,9 @@ enum class PostFXFlag : uint32_t
     Vignette        = 1 << 12,
     RTGI            = 1 << 13,
     AutoExposure    = 1 << 14,
+    LensFlare       = 1 << 15,
+    VolumetricFog   = 1 << 16,
+    RTSoftShadows   = 1 << 17,
     All             = 0xFFFFFFFF
 };
 
@@ -67,4 +72,5 @@ inline constexpr bool HasFlag(PostFXFlag mask, PostFXFlag flag) noexcept
     return (static_cast<uint32_t>(mask) & static_cast<uint32_t>(flag)) != 0;
 }
 
+/// @}
 } // namespace gx

@@ -7,6 +7,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_2d
+/// @{
 
 /// @brief 2Dパーティクルシステム
 ///
@@ -63,4 +65,5 @@ private:
     int m_whiteTexture = -1; ///< テクスチャ無しパーティクル用の16x16白テクスチャ
 };
 
+/// @}
 } // namespace gx

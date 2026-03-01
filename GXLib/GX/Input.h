@@ -18,6 +18,8 @@ bool IsActionTriggered(const char* name);
 float GetActionAxis(const char* name);
 
 namespace gx {
+/// @addtogroup grp_gx_facade
+/// @{
 
 using ::CheckHitKey;
 using ::GetHitKeyStateAll;
@@ -47,4 +49,5 @@ namespace Key {
     static constexpr int Z = 0x2C, X = 0x2D;
 }
 
+/// @}
 } // namespace gx

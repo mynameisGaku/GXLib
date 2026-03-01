@@ -3,6 +3,8 @@
 /// @brief 3D物理シェイプのハンドル構造体 (Jolt Physics内部シェイプへのラッパー)
 
 namespace gx {
+/// @addtogroup grp_physics
+/// @{
 
 /// @brief 3D物理シェイプハンドル
 ///
@@ -13,4 +15,5 @@ struct PhysicsShape {
     void* internal = nullptr; ///< 内部ポインタ (JPH::ShapeRefC*)
 };
 
+/// @}
 } // namespace gx

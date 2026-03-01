@@ -10,6 +10,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_core
+/// @{
 
 /// @brief ログの重要度
 enum class LogLevel
@@ -44,6 +46,7 @@ private:
     static void Log(LogLevel level, const char* format, va_list args);
 };
 
+/// @}
 } // namespace gx
 
 /// @name ログ出力マクロ

@@ -2,6 +2,8 @@
 #include "Collision3D.h"
 
 namespace gx {
+/// @addtogroup grp_collision
+/// @{
 
 /// @brief BVH（境界ボリューム階層）テンプレート
 ///
@@ -218,4 +220,5 @@ private:
     std::vector<std::pair<T, AABB3D>> m_objects;
 };
 
+/// @}
 } // namespace gx

@@ -6,6 +6,8 @@
 #include "GUI/Widget.h"
 
 namespace gx { namespace GUI {
+/// @addtogroup grp_gui_widgets
+/// @{
 
 /// @brief カスタム描画エリア
 /// onDrawコールバックにUIRendererとレイアウト矩形が渡されるので、自由に描画できる。
@@ -27,4 +29,5 @@ public:
     std::function<void(UIRenderer&, const LayoutRect&)> onDraw;
 };
 
+/// @}
 }} // namespace gx::GUI

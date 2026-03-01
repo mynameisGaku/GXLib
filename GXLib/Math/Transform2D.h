@@ -5,6 +5,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_math
+/// @{
 
 /// @brief 2Dアフィン変換（平行移動・回転・拡大縮小を1つの行列で表現する）
 ///
@@ -106,4 +108,5 @@ inline Transform2D Inverse(const Transform2D& t)
     return o;
 }
 
+/// @}
 } // namespace gx

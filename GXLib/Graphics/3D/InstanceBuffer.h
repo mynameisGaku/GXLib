@@ -11,6 +11,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief 1インスタンスのGPUデータ (128B, 16Bアライン)
 struct InstanceData
@@ -74,4 +76,5 @@ private:
     uint32_t m_maxInstances = k_DefaultMaxInstances;
 };
 
+/// @}
 } // namespace gx

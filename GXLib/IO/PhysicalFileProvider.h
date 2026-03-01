@@ -5,6 +5,8 @@
 #include "IO/FileSystem.h"
 
 namespace gx {
+/// @addtogroup grp_io
+/// @{
 
 /// @brief ディスクファイルプロバイダー
 ///
@@ -39,4 +41,5 @@ private:
     std::string ResolvePath(const std::string& path) const;
 };
 
+/// @}
 } // namespace gx

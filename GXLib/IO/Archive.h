@@ -9,6 +9,8 @@
 #include "IO/FileSystem.h"
 
 namespace gx {
+/// @addtogroup grp_io
+/// @{
 
 /// @brief アーカイブ内のファイルエントリ情報
 struct ArchiveEntry {
@@ -98,4 +100,5 @@ private:
     bool m_compress = true;
 };
 
+/// @}
 } // namespace gx

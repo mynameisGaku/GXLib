@@ -1,8 +1,11 @@
 #pragma once
 #include "Math/Vector3.h"
 #include "Math/Matrix4x4.h"
+#include <functional>
 
 namespace gx {
+/// @addtogroup grp_collision
+/// @{
 
 // --- 3D形状定義 ---
 
@@ -175,6 +178,31 @@ struct OBB {
     /// @param halfExtents 各軸の半サイズ
     /// @param rotation 回転行列
     OBB(const Vector3& center, const Vector3& halfExtents, const Matrix4x4& rotation);
+};
+
+/// @brief 3Dカプセル形状（線分+半径）
+///
+/// 2つの端点と半径で定義される。キャラクターの当たり判定などに使う。
+struct Capsule {
+    Vector3 start;       ///< 線分の始点
+    Vector3 end;         ///< 線分の終点
+    float radius = 0.0f; ///< 半径
+
+    Capsule() = default;
+
+    /// @brief 始点・終点・半径で初期化する
+    /// @param s 始点
+    /// @param e 終点
+    /// @param r 半径
+    Capsule(const Vector3& s, const Vector3& e, float r) : start(s), end(e), radius(r) {}
+
+    /// @brief 中心座標を取得する
+    /// @return 線分の中点
+    Vector3 Center() const { return (start + end) * 0.5f; }
+
+    /// @brief カプセルの全高（線分長 + 2*半径）を取得する
+    /// @return 全高
+    float Height() const { return start.Distance(end) + 2.0f * radius; }
 };
 
 /// @brief 3D三角形
@@ -365,5 +393,40 @@ namespace Collision3D {
     /// @return 線分上の最近点
     Vector3 ClosestPointOnLine(const Vector3& point, const Vector3& lineA, const Vector3& lineB);
 
+    // --- カプセル判定 ---
+
+    /// @brief カプセル同士の衝突判定
+    bool TestCapsuleVsCapsule(const Capsule& a, const Capsule& b);
+
+    /// @brief カプセルと球の衝突判定
+    bool TestCapsuleVsSphere(const Capsule& capsule, const Sphere& sphere);
+
+    /// @brief カプセルとAABBの衝突判定
+    bool TestCapsuleVsAABB(const Capsule& capsule, const AABB3D& aabb);
+
+    /// @brief レイとカプセルの交差判定
+    bool RaycastCapsule(const Ray& ray, const Capsule& capsule, float& outT);
+
+    /// @brief カプセルと球の交差情報
+    HitResult3D IntersectCapsuleVsSphere(const Capsule& capsule, const Sphere& sphere);
+
+    /// @brief カプセル上で指定した点に最も近い点を返す
+    Vector3 ClosestPointOnCapsule(const Vector3& point, const Capsule& capsule);
+
+    // --- OBB交差情報 ---
+
+    /// @brief OBB同士の交差情報（MTV付き）
+    HitResult3D IntersectOBBVsOBB(const OBB& a, const OBB& b);
+
+    // --- GJK/EPA ---
+
+    /// @brief GJK判定（サポート関数ベース）
+    using SupportFunc = std::function<Vector3(const Vector3&)>;
+    bool TestGJK(const SupportFunc& supportA, const SupportFunc& supportB);
+
+    /// @brief GJK+EPAで交差情報を取得
+    HitResult3D IntersectGJKEPA(const SupportFunc& supportA, const SupportFunc& supportB);
+
 } // namespace Collision3D
+/// @}
 } // namespace gx

@@ -4,6 +4,8 @@
 #include "Math/Vector2.h"
 
 namespace gx {
+/// @addtogroup grp_physics
+/// @{
 
 /// @brief 2Dボディタイプ
 enum class BodyType2D {
@@ -89,4 +91,5 @@ public:
     float m_torqueAccum = 0.0f;     ///< 蓄積されたトルク (Stepで消費される)
 };
 
+/// @}
 } // namespace gx

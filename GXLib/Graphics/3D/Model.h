@@ -11,6 +11,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief CPU側のメッシュデータ（スキニング計算やエクスポート用に保持する）
 struct MeshCPUData
@@ -159,4 +161,5 @@ private:
     bool        m_hasCpuData = false;
 };
 
+/// @}
 } // namespace gx

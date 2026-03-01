@@ -9,6 +9,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief ポイントライト用の全方向シャドウマップ（キューブマップ方式、1024x1024x6面）
 class PointShadowMap
@@ -66,4 +68,5 @@ private:
     D3D12_RESOURCE_STATES        m_currentState = D3D12_RESOURCE_STATE_DEPTH_WRITE;
 };
 
+/// @}
 } // namespace gx

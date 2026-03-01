@@ -16,15 +16,17 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_postfx
+/// @{
 
-/// Motion Blur 定数バッファ
+/// @brief Motion Blur 定数バッファ
 struct MotionBlurConstants
 {
-    XMFLOAT4X4 invViewProjection;       // 現フレーム逆VP (row-major transposed)
-    XMFLOAT4X4 previousViewProjection;  // 前フレームVP (row-major transposed)
-    float intensity;
-    int   sampleCount;
-    float padding[2];
+    XMFLOAT4X4 invViewProjection;       ///< 現フレーム逆VP行列（転置済み）
+    XMFLOAT4X4 previousViewProjection;  ///< 前フレームVP行列（転置済み）
+    float intensity;                     ///< ブラー強度
+    int   sampleCount;                   ///< サンプリング数
+    float padding[2];                    ///< パディング
 };  // 144B → 256-align
 
 /// @brief カメラ移動による動きぼかしを再現するモーションブラーエフェクト
@@ -75,27 +77,28 @@ public:
 private:
     bool CreatePipelines(ID3D12Device* device);
 
-    bool m_enabled = false;
-    float m_intensity = 1.0f;
-    int m_sampleCount = 16;
+    bool m_enabled = false;               ///< 有効フラグ
+    float m_intensity = 1.0f;             ///< ブラー強度
+    int m_sampleCount = 16;               ///< サンプリング数
 
-    XMFLOAT4X4 m_previousVP;       // 前フレームのViewProjection
-    bool m_hasPreviousVP = false;   // 初回フレームはスキップ
+    XMFLOAT4X4 m_previousVP;             ///< 前フレームのVP行列
+    bool m_hasPreviousVP = false;         ///< 前フレームVP行列が有効か
 
-    uint32_t m_width  = 0;
-    uint32_t m_height = 0;
+    uint32_t m_width  = 0;                ///< 画面幅（ピクセル）
+    uint32_t m_height = 0;                ///< 画面高さ（ピクセル）
 
     // パイプライン
-    Shader m_shader;
-    ComPtr<ID3D12RootSignature> m_rootSignature;
-    ComPtr<ID3D12PipelineState> m_pso;
-    DynamicBuffer m_cb;
+    Shader m_shader;                              ///< モーションブラーシェーダー
+    ComPtr<ID3D12RootSignature> m_rootSignature;  ///< ルートシグネチャ
+    ComPtr<ID3D12PipelineState> m_pso;            ///< パイプラインステート
+    DynamicBuffer m_cb;                           ///< 定数バッファ
 
-    // 2テクスチャ(scene + depth)用専用SRVヒープ (2スロット × 2フレーム = 4)
-    DescriptorHeap m_srvHeap;
-    ID3D12Device* m_device = nullptr;
+    // SRVヒープ（scene + depth, 2スロット×2フレーム=4）
+    DescriptorHeap m_srvHeap;                     ///< SRVデスクリプタヒープ
+    ID3D12Device* m_device = nullptr;             ///< D3D12デバイス
 
     void UpdateSRVHeap(RenderTarget& srcHDR, DepthBuffer& depth, uint32_t frameIndex);
 };
 
+/// @}
 } // namespace gx

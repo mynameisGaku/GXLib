@@ -15,6 +15,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_resource
+/// @{
 
 /// @brief CPUメモリ上の画像ピクセル操作クラス
 ///
@@ -76,4 +78,5 @@ private:
     uint32_t m_height = 0;
 };
 
+/// @}
 } // namespace gx

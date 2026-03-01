@@ -10,6 +10,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_device
+/// @{
 
 /// @brief GPU本体を表すクラス（DxLibでは内部で自動管理される）
 ///
@@ -69,4 +71,5 @@ private:
     bool m_supportsRaytracing = false;  ///< DXR対応フラグ
 };
 
+/// @}
 } // namespace gx

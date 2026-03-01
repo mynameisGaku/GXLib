@@ -18,35 +18,37 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_rt
+/// @{
 
-/// RT反射用定数バッファ (256B align)
+/// @brief RT反射用定数バッファ (256B align)
 struct RTReflectionConstants
 {
-    XMFLOAT4X4 invViewProjection;  // 0
-    XMFLOAT4X4 view;               // 64
-    XMFLOAT4X4 invProjection;      // 128
-    XMFLOAT3   cameraPosition;     // 192
-    float      maxDistance;         // 204
-    float      screenWidth;        // 208
-    float      screenHeight;       // 212
-    float      debugMode;          // 216
-    float      intensity;          // 220
-    XMFLOAT3   skyTopColor;        // 224
-    float      _pad0;              // 236
-    XMFLOAT3   skyBottomColor;     // 240
-    float      _pad1;              // 252
+    XMFLOAT4X4 invViewProjection;  ///< 逆VP行列（ワールド座標復元用）
+    XMFLOAT4X4 view;               ///< ビュー行列
+    XMFLOAT4X4 invProjection;      ///< 逆射影行列
+    XMFLOAT3   cameraPosition;     ///< カメラ位置（ワールド空間）
+    float      maxDistance;         ///< レイの最大飛距離
+    float      screenWidth;        ///< スクリーン幅（ピクセル）
+    float      screenHeight;       ///< スクリーン高さ（ピクセル）
+    float      debugMode;          ///< デバッグ表示モード (0=オフ)
+    float      intensity;          ///< 反射強度
+    XMFLOAT3   skyTopColor;        ///< 空の天頂色（Missシェーダー用）
+    float      _pad0;              ///< パディング
+    XMFLOAT3   skyBottomColor;     ///< 空の地平色（Missシェーダー用）
+    float      _pad1;              ///< パディング
 };  // 256B
 
-/// コンポジットパス定数 (Fresnel計算用)
+/// @brief コンポジットパス定数 (Fresnel計算用)
 struct RTCompositeConstants
 {
-    float      intensity;          // 0
-    float      debugMode;          // 4
-    float      screenWidth;        // 8
-    float      screenHeight;       // 12
-    XMFLOAT3   cameraPosition;     // 16
-    float      _pad0;              // 28
-    XMFLOAT4X4 invViewProjection;  // 32
+    float      intensity;          ///< 反射強度
+    float      debugMode;          ///< デバッグ表示モード
+    float      screenWidth;        ///< スクリーン幅（ピクセル）
+    float      screenHeight;       ///< スクリーン高さ（ピクセル）
+    XMFLOAT3   cameraPosition;     ///< カメラ位置（ワールド空間）
+    float      _pad0;              ///< パディング
+    XMFLOAT4X4 invViewProjection;  ///< 逆VP行列（法線復元用）
 };  // 96B → fits in 256B slot
 
 /// @brief DXR反射エフェクト。ハードウェアレイトレで正確な映り込みを生成する
@@ -135,85 +137,82 @@ public:
 private:
     bool CreateCompositePipeline(ID3D12Device* device);
 
-    bool m_enabled = false;
-    float m_maxDistance = 50.0f;
-    float m_intensity = 0.3f;
-    int   m_debugMode = 0;
+    bool m_enabled = false;            ///< 有効フラグ
+    float m_maxDistance = 50.0f;      ///< レイの最大飛距離
+    float m_intensity = 0.3f;         ///< 反射強度
+    int   m_debugMode = 0;            ///< デバッグ表示モード (0=オフ)
 
-    uint32_t m_width  = 0;
-    uint32_t m_height = 0;
+    uint32_t m_width  = 0;            ///< 画面幅（ピクセル）
+    uint32_t m_height = 0;            ///< 画面高さ（ピクセル）
 
-    ID3D12Device5* m_device5 = nullptr;
+    ID3D12Device5* m_device5 = nullptr; ///< DXR対応デバイス
 
     // DXRコア
-    RTAccelerationStructure m_accelStruct;
-    RTPipeline m_rtPipeline;
+    RTAccelerationStructure m_accelStruct; ///< BLAS/TLAS管理
+    RTPipeline m_rtPipeline;               ///< DXRパイプライン
 
     // フル解像度 UAV テクスチャ (RT出力先)
-    ComPtr<ID3D12Resource> m_reflectionUAV;
-    D3D12_RESOURCE_STATES  m_reflectionState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+    ComPtr<ID3D12Resource> m_reflectionUAV;  ///< 反射結果UAVテクスチャ
+    D3D12_RESOURCE_STATES  m_reflectionState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS; ///< UAVリソース状態
 
     // ディスパッチ用ディスクリプタヒープ
-    // [0..7]=geometry VB/IB, [8..39]=geometry VB/IB, [40..71]=textures, [72..79]=per-frame SRV/UAV
-    DescriptorHeap m_dispatchHeap;
+    DescriptorHeap m_dispatchHeap;   ///< DispatchRays用SRV/UAVヒープ
 
     // 定数バッファ
-    DynamicBuffer m_cb;
+    DynamicBuffer m_cb;              ///< RT反射定数バッファ
 
     // ライト定数バッファ (PBR.hlsl b2と同一)
-    LightConstants m_lightConstants = {};
-    DynamicBuffer m_lightCB;
+    LightConstants m_lightConstants = {};  ///< ライト定数データ
+    DynamicBuffer m_lightCB;               ///< ライト定数バッファ
 
     // コンポジットパス (フルスクリーン三角形)
-    Shader m_compositeShader;
-    ComPtr<ID3D12RootSignature> m_compositeRS;
-    ComPtr<ID3D12PipelineState> m_compositePSO;
-    DynamicBuffer m_compositeCB;
-    // コンポジット用SRVヒープ: [0]=Scene, [1]=Depth, [2]=Reflection, [3]=Normal (×2フレーム = 8)
-    DescriptorHeap m_compositeHeap;
+    Shader m_compositeShader;                        ///< コンポジットシェーダー
+    ComPtr<ID3D12RootSignature> m_compositeRS;       ///< コンポジット用ルートシグネチャ
+    ComPtr<ID3D12PipelineState> m_compositePSO;      ///< コンポジット用PSO
+    DynamicBuffer m_compositeCB;                     ///< コンポジット定数バッファ
+    DescriptorHeap m_compositeHeap;                  ///< コンポジット用SRVヒープ (Scene/Depth/Reflection/Normal ×2フレーム)
 
     // 空情報 (Missシェーダー用)
-    XMFLOAT3 m_skyTopColor  = { 0.5f, 0.7f, 1.0f };
-    XMFLOAT3 m_skyBottomColor = { 0.8f, 0.9f, 1.0f };
+    XMFLOAT3 m_skyTopColor  = { 0.5f, 0.7f, 1.0f };   ///< 空の天頂色
+    XMFLOAT3 m_skyBottomColor = { 0.8f, 0.9f, 1.0f };  ///< 空の地平色
 
-    // GBuffer法線RT (外部所有)
-    RenderTarget* m_normalRT = nullptr;
+    RenderTarget* m_normalRT = nullptr;  ///< GBuffer法線RT (外部所有)
 
     // BLASキャッシュ (VBポインタ → BLASインデックス)
-    std::unordered_map<ID3D12Resource*, int> m_blasLookup;
+    std::unordered_map<ID3D12Resource*, int> m_blasLookup; ///< VBポインタ→BLASインデックス検索用
 
-    // BLAS毎のVB/IBリソース (ClosestHitでByteAddressBufferとしてアクセス)
+    /// @brief BLAS毎のジオメトリ情報 (ClosestHitでByteAddressBufferとしてアクセス)
     struct BLASGeometryInfo {
-        ComPtr<ID3D12Resource> vb;
-        ComPtr<ID3D12Resource> ib;
-        uint32_t vertexStride = 0;
+        ComPtr<ID3D12Resource> vb;     ///< 頂点バッファリソース
+        ComPtr<ID3D12Resource> ib;     ///< インデックスバッファリソース
+        uint32_t vertexStride = 0;     ///< 頂点ストライド（バイト）
     };
-    std::vector<BLASGeometryInfo> m_blasGeometry;
+    std::vector<BLASGeometryInfo> m_blasGeometry; ///< BLAS毎のジオメトリ情報配列
 
     // ディスパッチヒープレイアウト定数
-    // [8..39]=geometry VB/IB, [40..71]=textures, [72..79]=per-frame SRV/UAV
-    static constexpr uint32_t k_GeomSlotsBase    = 8;
-    static constexpr uint32_t k_GeomSlotsCount   = 32;
-    static constexpr uint32_t k_TextureSlotsBase = 40;
-    static constexpr uint32_t k_MaxTextures      = 32;
-    static constexpr uint32_t k_PerFrameBase     = 72;
-    static constexpr uint32_t k_PerFrameCount    = 4;
-    static constexpr uint32_t k_DispatchHeapSize = 80;
-    std::unordered_map<ID3D12Resource*, uint32_t> m_textureLookup;
-    std::vector<ComPtr<ID3D12Resource>> m_textureResources;
-    uint32_t m_nextTextureSlot = 0;
+    static constexpr uint32_t k_GeomSlotsBase    = 8;   ///< ジオメトリSRV開始スロット
+    static constexpr uint32_t k_GeomSlotsCount   = 32;  ///< ジオメトリSRVスロット数
+    static constexpr uint32_t k_TextureSlotsBase = 40;  ///< テクスチャSRV開始スロット
+    static constexpr uint32_t k_MaxTextures      = 32;  ///< テクスチャSRV最大数
+    static constexpr uint32_t k_PerFrameBase     = 72;  ///< フレーム毎SRV/UAV開始スロット
+    static constexpr uint32_t k_PerFrameCount    = 4;   ///< フレーム毎SRV/UAV数
+    static constexpr uint32_t k_DispatchHeapSize = 80;  ///< ディスパッチヒープ総スロット数
+    std::unordered_map<ID3D12Resource*, uint32_t> m_textureLookup; ///< テクスチャ→スロット検索用
+    std::vector<ComPtr<ID3D12Resource>> m_textureResources;        ///< テクスチャリソース配列
+    uint32_t m_nextTextureSlot = 0;  ///< 次に割り当てるテクスチャスロット
 
     // per-instance PBRデータ (ClosestHitシェーダー用)
-    // GPU側: float4 albedoMetallic[512] + float4 roughnessGeom[512] + float4 extraData[512]
-    static constexpr uint32_t k_MaxInstances = 512;
-    DynamicBuffer m_instanceDataCB;
+    static constexpr uint32_t k_MaxInstances = 512; ///< インスタンス最大数
+    DynamicBuffer m_instanceDataCB;                  ///< インスタンスPBRデータ定数バッファ
 
+    /// @brief インスタンス毎のPBRマテリアル情報
     struct InstancePBR {
-        XMFLOAT4 albedoMetallic;  // .rgb=albedo, .a=metallic
-        XMFLOAT4 roughnessGeom;   // .x=roughness, .y=geometryIndex, .z=texIdx, .w=hasTexture
-        XMFLOAT4 extraData;       // .x=vertexStride, .yzw=reserved
+        XMFLOAT4 albedoMetallic;  ///< .rgb=アルベド, .a=メタリック
+        XMFLOAT4 roughnessGeom;   ///< .x=ラフネス, .y=ジオメトリインデックス, .z=テクスチャインデックス, .w=テクスチャ有無
+        XMFLOAT4 extraData;       ///< .x=頂点ストライド, .yzw=予約
     };
-    std::vector<InstancePBR> m_instanceData;
+    std::vector<InstancePBR> m_instanceData; ///< インスタンスPBRデータ配列
 };
 
+/// @}
 } // namespace gx

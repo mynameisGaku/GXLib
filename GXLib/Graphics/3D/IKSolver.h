@@ -10,6 +10,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief IKチェーン定義（ルートジョイント→エフェクタの順）
 struct IKChain
@@ -55,4 +57,5 @@ private:
     static XMVECTOR GetJointPosition(const XMFLOAT4X4* globalTransforms, int jointIndex);
 };
 
+/// @}
 } // namespace gx

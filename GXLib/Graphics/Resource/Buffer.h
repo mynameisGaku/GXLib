@@ -14,6 +14,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_resource
+/// @{
 
 /// @brief GPUバッファリソースを管理するクラス
 ///
@@ -93,4 +95,5 @@ private:
     D3D12_INDEX_BUFFER_VIEW  m_ibv = {};
 };
 
+/// @}
 } // namespace gx

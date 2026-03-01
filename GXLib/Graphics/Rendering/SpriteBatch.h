@@ -19,6 +19,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_2d
+/// @{
 
 /// @brief ブレンドモード
 enum class BlendMode
@@ -229,4 +231,5 @@ private:
     bool     m_useCustomProjection = false;
 };
 
+/// @}
 } // namespace gx

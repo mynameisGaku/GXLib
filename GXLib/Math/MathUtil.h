@@ -3,6 +3,8 @@
 #include <algorithm>
 
 namespace gx {
+/// @addtogroup grp_math
+/// @{
 
 /// @brief 数学ユーティリティ関数群
 namespace MathUtil {
@@ -195,5 +197,91 @@ namespace MathUtil {
         return std::abs(a - b) <= epsilon;
     }
 
+    /// @brief 現在値を目標値に向かって最大maxDelta分だけ移動させる
+    /// @param current 現在値
+    /// @param target 目標値
+    /// @param maxDelta 最大移動量
+    /// @return 移動後の値
+    inline float MoveTowards(float current, float target, float maxDelta)
+    {
+        float diff = target - current;
+        if (std::abs(diff) <= maxDelta) return target;
+        return current + Sign(diff) * maxDelta;
+    }
+
+    /// @brief 2つの角度の最短差分を返す（ラジアン）
+    /// @param current 現在の角度
+    /// @param target 目標の角度
+    /// @return 最短経路の角度差（-PI〜PI）
+    inline float DeltaAngle(float current, float target)
+    {
+        float diff = std::fmod(target - current, TAU);
+        if (diff > PI) diff -= TAU;
+        else if (diff < -PI) diff += TAU;
+        return diff;
+    }
+
+    /// @brief 値を0〜lengthの範囲で繰り返す
+    /// @param t 入力値
+    /// @param length 繰り返し範囲の長さ
+    /// @return 0〜length内の値
+    inline float Repeat(float t, float length)
+    {
+        float r = std::fmod(t, length);
+        if (r < 0.0f) r += length;
+        return r;
+    }
+
+    /// @brief 値を0〜lengthの範囲でピンポン（往復）させる
+    /// @param t 入力値
+    /// @param length 範囲の長さ
+    /// @return 0〜length内でピンポンした値
+    inline float PingPong(float t, float length)
+    {
+        float r = Repeat(t, length * 2.0f);
+        return length - std::abs(r - length);
+    }
+
+    /// @brief 値を滑らかに目標へ近づける（SmoothDamp）
+    /// @param current 現在値
+    /// @param target 目標値
+    /// @param currentVelocity 現在の速度（参照で更新される）
+    /// @param smoothTime 目標に到達するまでのおおよその時間
+    /// @param deltaTime フレーム経過時間
+    /// @return 更新された値
+    inline float SmoothDamp(float current, float target, float& currentVelocity,
+                            float smoothTime, float deltaTime)
+    {
+        float omega = 2.0f / (std::max)(smoothTime, 0.0001f);
+        float x = omega * deltaTime;
+        float exp = 1.0f / (1.0f + x + 0.48f * x * x + 0.235f * x * x * x);
+        float change = current - target;
+        float temp = (currentVelocity + omega * change) * deltaTime;
+        currentVelocity = (currentVelocity - omega * temp) * exp;
+        float result = target + (change + temp) * exp;
+        // prevent overshoot
+        if ((target - current > 0.0f) == (result > target))
+        {
+            result = target;
+            currentVelocity = 0.0f;
+        }
+        return result;
+    }
+
+    /// @brief 角度版SmoothDamp（最短経路）
+    /// @param current 現在の角度（ラジアン）
+    /// @param target 目標の角度（ラジアン）
+    /// @param currentVelocity 現在の角速度（参照で更新される）
+    /// @param smoothTime 目標に到達するまでのおおよその時間
+    /// @param deltaTime フレーム経過時間
+    /// @return 更新された角度
+    inline float SmoothDampAngle(float current, float target, float& currentVelocity,
+                                 float smoothTime, float deltaTime)
+    {
+        float delta = DeltaAngle(current, target);
+        return SmoothDamp(current, current + delta, currentVelocity, smoothTime, deltaTime);
+    }
+
 } // namespace MathUtil
+/// @}
 } // namespace gx

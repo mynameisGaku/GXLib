@@ -13,6 +13,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_2d
+/// @{
 
 /// @brief スプライトシート分割読み込みユーティリティ（DxLibの LoadDivGraph に相当）
 class SpriteSheet
@@ -42,4 +44,5 @@ public:
                               int* handleArray);
 };
 
+/// @}
 } // namespace gx

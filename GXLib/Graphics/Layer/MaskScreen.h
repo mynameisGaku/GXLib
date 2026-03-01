@@ -13,6 +13,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_layer
+/// @{
 
 /// @brief マスク用定数バッファ
 struct MaskConstants
@@ -93,4 +95,5 @@ private:
     ID3D12Device* m_device = nullptr;
 };
 
+/// @}
 } // namespace gx

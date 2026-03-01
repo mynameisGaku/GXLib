@@ -6,6 +6,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_scene
+/// @{
 
 class Entity;
 
@@ -34,6 +36,10 @@ public:
     virtual ~Component() = default;
     virtual ComponentType GetType() const = 0;
 
+    /// @brief コンポーネントの複製を作成する
+    /// @return 複製されたコンポーネント。デフォルトは nullptr
+    virtual std::unique_ptr<Component> Clone() const { return nullptr; }
+
     Entity* GetEntity() const { return m_entity; }
     bool IsEnabled() const { return m_enabled; }
     void SetEnabled(bool e) { m_enabled = e; }
@@ -44,4 +50,5 @@ protected:
     bool m_enabled = true;
 };
 
+/// @}
 } // namespace gx

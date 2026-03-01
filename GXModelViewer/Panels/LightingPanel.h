@@ -35,7 +35,7 @@ public:
 private:
     static constexpr int k_MaxLights = 16;  ///< ライト最大数
 
-    std::vector<gx::LightData> m_lights;
-    float m_ambientColor[3] = { 0.15f, 0.15f, 0.18f };
+    std::vector<gx::LightData> m_lights;              ///< ライトデータ配列
+    float m_ambientColor[3] = { 0.15f, 0.15f, 0.18f }; ///< アンビエントカラー (RGB, 0〜1)
     bool  m_dirty = true;  ///< パラメータ変更時にtrueにし、次のDrawContentでRenderer3Dに反映
 };

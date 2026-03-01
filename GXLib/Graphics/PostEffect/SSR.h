@@ -16,6 +16,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_postfx
+/// @{
 
 /// SSR 定数バッファ (行列3種+レイマーチパラメータ)
 struct SSRConstants
@@ -116,4 +118,5 @@ private:
                        RenderTarget& normalRT, uint32_t frameIndex);
 };
 
+/// @}
 } // namespace gx

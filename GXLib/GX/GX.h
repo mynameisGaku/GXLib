@@ -28,6 +28,8 @@
 /// };
 /// GX_APP(MyGame)
 /// @endcode
+/// @addtogroup grp_gx_facade
+/// @{
 
 #include "GX/Config.h"
 #include "GX/App.h"
@@ -40,3 +42,4 @@
 
 // Engine facade for advanced users
 #include "Core/Engine.h"
+/// @}

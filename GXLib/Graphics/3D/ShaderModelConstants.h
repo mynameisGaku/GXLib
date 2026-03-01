@@ -7,6 +7,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief GPU定数バッファ用のシェーダーモデルパラメータ（b3スロット、256B固定）
 /// HLSL側の ShaderModelCommon.hlsli の cbuffer レイアウトと完全一致が必須。
@@ -158,4 +160,5 @@ inline ShaderModelGPUParams ConvertFromLegacy(const struct MaterialConstants& le
     return dst;
 }
 
+/// @}
 } // namespace gx

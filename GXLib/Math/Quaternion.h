@@ -3,6 +3,8 @@
 #include <cmath>
 
 namespace gx {
+/// @addtogroup grp_math
+/// @{
 
 struct Matrix4x4;
 
@@ -135,6 +137,12 @@ struct Quaternion
         return { n.x * s, n.y * s, n.z * s, c };
     }
 
+    /// @brief オイラー角から回転クォータニオンを作成する (Euler はエイリアス)
+    static Quaternion Euler(float pitch, float yaw, float roll)
+    {
+        return FromEuler(pitch, yaw, roll);
+    }
+
     /// @brief オイラー角から回転クォータニオンを作成する
     static Quaternion FromEuler(float pitch, float yaw, float roll)
     {
@@ -196,6 +204,99 @@ struct Quaternion
         return r;
     }
 
+    /// @brief 前方ベクトルから回転クォータニオンを作成する
+    /// @param forward 前方ベクトル (正規化される)
+    /// @param up 上方向ヒント (デフォルト: Y軸)
+    static Quaternion LookRotation(const Vector3& forward, const Vector3& up = Vector3::Up())
+    {
+        Vector3 f = forward.Normalized();
+        Vector3 r = up.Cross(f).Normalized();
+        Vector3 u = f.Cross(r);
+
+        // 回転行列の3x3部分からクォータニオンを構築
+        float trace = r.x + u.y + f.z;
+        Quaternion q;
+        if (trace > 0.0f)
+        {
+            float s = std::sqrt(trace + 1.0f) * 2.0f;
+            q.w = 0.25f * s;
+            q.x = (u.z - f.y) / s;
+            q.y = (f.x - r.z) / s;
+            q.z = (r.y - u.x) / s;
+        }
+        else if (r.x > u.y && r.x > f.z)
+        {
+            float s = std::sqrt(1.0f + r.x - u.y - f.z) * 2.0f;
+            q.w = (u.z - f.y) / s;
+            q.x = 0.25f * s;
+            q.y = (r.y + u.x) / s;
+            q.z = (r.z + f.x) / s;
+        }
+        else if (u.y > f.z)
+        {
+            float s = std::sqrt(1.0f + u.y - r.x - f.z) * 2.0f;
+            q.w = (f.x - r.z) / s;
+            q.x = (r.y + u.x) / s;
+            q.y = 0.25f * s;
+            q.z = (u.z + f.y) / s;
+        }
+        else
+        {
+            float s = std::sqrt(1.0f + f.z - r.x - u.y) * 2.0f;
+            q.w = (r.y - u.x) / s;
+            q.x = (r.z + f.x) / s;
+            q.y = (u.z + f.y) / s;
+            q.z = 0.25f * s;
+        }
+        return q.Normalized();
+    }
+
+    /// @brief あるベクトルから別のベクトルへの回転クォータニオンを作成する
+    static Quaternion FromToRotation(const Vector3& from, const Vector3& to)
+    {
+        Vector3 f = from.Normalized();
+        Vector3 t = to.Normalized();
+        float dot = f.Dot(t);
+
+        if (dot >= 1.0f - 1e-6f)
+        {
+            return Identity(); // Same direction
+        }
+        else if (dot <= -1.0f + 1e-6f)
+        {
+            // Opposite direction: find an orthogonal axis
+            Vector3 axis = Vector3::Right().Cross(f);
+            if (axis.LengthSquared() < 1e-6f)
+                axis = Vector3::Up().Cross(f);
+            axis.Normalize();
+            return Quaternion(axis.x, axis.y, axis.z, 0.0f).Normalized();
+        }
+
+        Vector3 half = (f + t).Normalized();
+        Vector3 cross = f.Cross(half);
+        return Quaternion(cross.x, cross.y, cross.z, f.Dot(half)).Normalized();
+    }
+
+    /// @brief 2つのクォータニオン間の角度を返す（ラジアン）
+    static float Angle(const Quaternion& a, const Quaternion& b)
+    {
+        float dot = a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
+        // Ensure dot is in [-1, 1] range (absolute value for shortest arc)
+        float absDot = std::abs(dot);
+        if (absDot > 1.0f) absDot = 1.0f;
+        // The angle between two quaternions is 2 * acos(|dot|)
+        return 2.0f * std::acos(absDot);
+    }
+
+    /// @brief 最大回転角度制限付きで目標クォータニオンに向かって回転する
+    static Quaternion RotateTowards(const Quaternion& from, const Quaternion& to, float maxRadiansDelta)
+    {
+        float angle = Angle(from, to);
+        if (angle < 1e-6f) return to;
+        float t = (std::min)(1.0f, maxRadiansDelta / angle);
+        return Slerp(from, to, t);
+    }
+
     /// @brief 2つのクォータニオン間を正規化線形補間(NLerp)する
     static Quaternion Lerp(const Quaternion& a, const Quaternion& b, float t)
     {
@@ -211,4 +312,5 @@ struct Quaternion
 
 static_assert(sizeof(Quaternion) == 16, "Quaternion must be 16 bytes");
 
+/// @}
 } // namespace gx

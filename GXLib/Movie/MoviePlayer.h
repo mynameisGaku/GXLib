@@ -11,6 +11,8 @@
 struct IMFSourceReader;
 
 namespace gx {
+/// @addtogroup grp_io
+/// @{
 
 /// @brief 動画の再生状態
 enum class MovieState {
@@ -87,22 +89,23 @@ public:
     bool IsFinished() const { return m_finished; }
 
 private:
-    IMFSourceReader* m_reader = nullptr;
-    int m_textureHandle = -1;
-    TextureManager* m_texManager = nullptr;
+    IMFSourceReader* m_reader = nullptr;   ///< Media Foundation ソースリーダー
+    int m_textureHandle = -1;              ///< デコード済みフレームのテクスチャハンドル
+    TextureManager* m_texManager = nullptr; ///< テクスチャマネージャーへの参照
 
-    uint32_t m_width = 0;
-    uint32_t m_height = 0;
-    double m_duration = 0.0;
-    double m_position = 0.0;
-    MovieState m_state = MovieState::Stopped;
-    bool m_finished = false;
-    bool m_mfInitialized = false;
+    uint32_t m_width = 0;                  ///< 動画の幅（ピクセル）
+    uint32_t m_height = 0;                 ///< 動画の高さ（ピクセル）
+    double m_duration = 0.0;               ///< 動画の総再生時間（秒）
+    double m_position = 0.0;               ///< 現在の再生位置（秒）
+    MovieState m_state = MovieState::Stopped; ///< 再生状態
+    bool m_finished = false;               ///< 再生完了フラグ
+    bool m_mfInitialized = false;          ///< Media Foundation 初期化済みフラグ
 
-    LARGE_INTEGER m_lastFrameTime{};
-    double m_frameInterval = 0.0;
+    LARGE_INTEGER m_lastFrameTime{};       ///< 前回のフレームデコード時刻（QPCティック）
+    double m_frameInterval = 0.0;          ///< フレーム間隔（秒）
 
     bool DecodeNextFrame(GraphicsDevice& device);
 };
 
+/// @}
 } // namespace gx

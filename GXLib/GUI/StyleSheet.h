@@ -9,6 +9,8 @@
 #include "GUI/Style.h"
 
 namespace gx { namespace GUI {
+/// @addtogroup grp_gui
+/// @{
 
 // 前方宣言
 class Widget;
@@ -18,13 +20,14 @@ enum class WidgetType;
 // 擬似クラス
 // ============================================================================
 
+/// @brief CSS擬似クラス
 enum class PseudoClass
 {
-    None,
-    Hover,
-    Pressed,
-    Disabled,
-    Focused
+    None,      ///< 擬似クラスなし（通常状態）
+    Hover,     ///< マウスホバー時 (:hover)
+    Pressed,   ///< マウス押下時 (:pressed / :active)
+    Disabled,  ///< 無効時 (:disabled)
+    Focused    ///< フォーカス時 (:focus)
 };
 
 // ============================================================================
@@ -37,7 +40,7 @@ struct StyleSelector
     std::string type;       ///< ウィジェットタイプ名 ("Panel", "Button" など)
     std::string className;  ///< クラス名 (先頭の . は含まない)
     std::string id;         ///< ID名 (先頭の # は含まない)
-    PseudoClass pseudo = PseudoClass::None;
+    PseudoClass pseudo = PseudoClass::None; ///< 擬似クラス条件
 
     /// ウィジェットにマッチするか判定
     bool Matches(const Widget* widget) const;
@@ -56,8 +59,8 @@ struct StyleSelector
 /// @brief 名前=値のペア（パース済みテキスト）
 struct StyleProperty
 {
-    std::string name;
-    std::string value;
+    std::string name;   ///< プロパティ名
+    std::string value;  ///< プロパティ値（文字列）
 };
 
 // ============================================================================
@@ -67,10 +70,10 @@ struct StyleProperty
 /// @brief セレクタ + プロパティ群
 struct StyleRule
 {
-    StyleSelector selector;
-    int specificity = 0;
-    int sourceOrder = 0;
-    std::vector<StyleProperty> properties;
+    StyleSelector selector;                ///< マッチ条件のセレクタ
+    int specificity = 0;                   ///< 詳細度（id=100, class=10, type=1）
+    int sourceOrder = 0;                   ///< ソース中の出現順（同一詳細度の優先度判定用）
+    std::vector<StyleProperty> properties; ///< プロパティ配列
 };
 
 // ============================================================================
@@ -135,8 +138,8 @@ private:
 
     struct Token
     {
-        TokenType type = TokenType::Eof;
-        std::string text;
+        TokenType type = TokenType::Eof; ///< トークン種別
+        std::string text;                ///< トークンテキスト
     };
 
     static std::vector<Token> Tokenize(const std::string& source);
@@ -164,7 +167,7 @@ private:
     static PositionType     ParsePosition(const std::string& v);
     static OverflowMode     ParseOverflow(const std::string& v);
 
-    std::vector<StyleRule> m_rules;
+    std::vector<StyleRule> m_rules;  ///< パース済みスタイルルール配列
 };
 
 // ============================================================================
@@ -174,4 +177,5 @@ private:
 /// WidgetType を文字列に変換
 const char* WidgetTypeToString(WidgetType type);
 
+/// @}
 }} // namespace gx::GUI

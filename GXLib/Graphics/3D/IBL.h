@@ -15,6 +15,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 class CommandQueue;
 
@@ -134,4 +136,5 @@ private:
     void FlushGPU();
 };
 
+/// @}
 } // namespace gx

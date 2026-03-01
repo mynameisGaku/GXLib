@@ -18,6 +18,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief メッシュレンダラーコンポーネント
 struct MeshRendererComponent : Component
@@ -80,4 +82,5 @@ struct LODComponent : Component
     LODGroup lodGroup;
 };
 
+/// @}
 } // namespace gx

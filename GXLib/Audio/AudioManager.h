@@ -16,6 +16,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_audio
+/// @{
 
 class AudioListener;
 class AudioEmitter;
@@ -112,6 +114,15 @@ public:
     /// @brief オーディオシステムを終了する。全サウンドを解放してデバイスを破棄する
     void Shutdown();
 
+    /// @brief 効果音を停止する（DxLibのStopSoundMem相当）
+    /// @param handle サウンドハンドル
+    void StopSound(int handle);
+
+    /// @brief 効果音が再生中か確認する（DxLibのCheckSoundMem相当）
+    /// @param handle サウンドハンドル
+    /// @return 1=再生中、0=停止中、-1=エラー（無効なハンドル）
+    int CheckSoundPlaying(int handle) const;
+
     /// @brief サウンドハンドルを解放する（DxLibのDeleteSoundMem相当）
     /// @param handle 解放するサウンドハンドル
     void ReleaseSound(int handle);
@@ -158,4 +169,5 @@ private:
     const AudioListener* m_currentListener = nullptr;
 };
 
+/// @}
 } // namespace gx

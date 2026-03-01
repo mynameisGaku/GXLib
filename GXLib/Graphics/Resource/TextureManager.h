@@ -16,6 +16,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_resource
+/// @{
 
 /// @brief テクスチャのUV矩形情報（スプライトシート用）
 ///
@@ -129,4 +131,5 @@ private:
     int                                        m_nextHandle = 0; ///< 次に割り当てるハンドル番号
 };
 
+/// @}
 } // namespace gx

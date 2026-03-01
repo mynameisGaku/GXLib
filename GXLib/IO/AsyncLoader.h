@@ -8,6 +8,8 @@
 #include "IO/FileSystem.h"
 
 namespace gx {
+/// @addtogroup grp_io
+/// @{
 
 /// @brief 読み込みリクエストの状態
 enum class LoadStatus {
@@ -70,4 +72,5 @@ private:
     void WorkerLoop();
 };
 
+/// @}
 } // namespace gx

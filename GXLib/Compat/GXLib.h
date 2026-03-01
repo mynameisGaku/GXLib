@@ -8,6 +8,8 @@
 ///
 /// DXLibからの移行時は、#include <DxLib.h> を
 /// #include "GXLib.h" に置き換え、関数名を対応するものに変更してください。
+/// @addtogroup grp_compat
+/// @{
 
 #include "Compat/CompatTypes.h"
 #include "Graphics/PostEffect/PostFXMask.h"
@@ -775,3 +777,4 @@ int DrawPixelF(float x, float y, unsigned int color);
 // --- テキスト ---
 int DrawStringF(float x, float y, const char* str, unsigned int color);
 int DrawStringToHandleF(float x, float y, const char* str, unsigned int color, int fontHandle);
+/// @}

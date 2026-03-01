@@ -11,6 +11,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief トレイルの1ポイント
 struct TrailPoint
@@ -106,4 +108,5 @@ private:
     ID3D12Device* m_device = nullptr;
 };
 
+/// @}
 } // namespace gx

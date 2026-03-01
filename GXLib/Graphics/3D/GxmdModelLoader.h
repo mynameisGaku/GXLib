@@ -9,6 +9,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief GXMDバイナリ形式(.gxmd)のモデルローダー
 /// gxconv で変換した .gxmd ファイルを読み込み、gx::Model に変換する。
@@ -28,4 +30,5 @@ public:
                                          MaterialManager& matManager);
 };
 
+/// @}
 } // namespace gx

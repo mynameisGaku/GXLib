@@ -6,6 +6,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief フォグモード（DxLibの SetFogEnable / SetFogMode に相当）
 enum class FogMode : uint32_t
@@ -27,4 +29,5 @@ struct FogConstants
     float     padding    = 0.0f;    ///< 16バイト境界パディング
 };
 
+/// @}
 } // namespace gx

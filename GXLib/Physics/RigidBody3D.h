@@ -6,6 +6,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_physics
+/// @{
 
 /// @brief PhysicsWorld3D用の軽量ボディラッパー
 ///
@@ -121,4 +123,5 @@ private:
     PhysicsBodyID   m_id;               ///< 物理ボディID
 };
 
+/// @}
 } // namespace gx

@@ -9,6 +9,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief 3Dモデルローダー（DxLibの MV1LoadModel 内部処理に相当）
 /// glTF/FBX/OBJ/.gxmd を読み込み、Model を構築する。
@@ -31,4 +33,5 @@ public:
                                         MaterialManager& matManager);
 };
 
+/// @}
 } // namespace gx

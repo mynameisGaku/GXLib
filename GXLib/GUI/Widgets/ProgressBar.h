@@ -6,6 +6,8 @@
 #include "GUI/Widget.h"
 
 namespace gx { namespace GUI {
+/// @addtogroup grp_gui_widgets
+/// @{
 
 /// @brief プログレスバー（表示専用、0.0~1.0の進捗率を棒グラフで表示する）
 /// SetValueで進捗を設定し、SetBarColorでフィルバーの色を変更できる。
@@ -39,8 +41,9 @@ public:
     void RenderSelf(UIRenderer& renderer) override;
 
 private:
-    float m_value = 0.0f;
-    StyleColor m_barColor = { 0.3f, 0.6f, 1.0f, 1.0f };
+    float m_value = 0.0f;                                      ///< 進捗値（0.0~1.0）
+    StyleColor m_barColor = { 0.3f, 0.6f, 1.0f, 1.0f };       ///< フィルバーの色
 };
 
+/// @}
 }} // namespace gx::GUI

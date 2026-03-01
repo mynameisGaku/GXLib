@@ -6,6 +6,8 @@
 #include "GUI/Widget.h"
 
 namespace gx { namespace GUI {
+/// @addtogroup grp_gui_widgets
+/// @{
 
 /// @brief 空白スペーサー（描画なし、レイアウト上の余白確保に使う）
 /// SetSizeで指定した幅/高さ分のスペースを確保する。flexGrowと組み合わせると可変スペースにもなる。
@@ -28,8 +30,9 @@ public:
     void RenderSelf(UIRenderer& /*renderer*/) override {}
 
 private:
-    float m_width = 0.0f;
-    float m_height = 0.0f;
+    float m_width = 0.0f;   ///< スペーサー幅（ピクセル）
+    float m_height = 0.0f;  ///< スペーサー高さ（ピクセル）
 };
 
+/// @}
 }} // namespace gx::GUI

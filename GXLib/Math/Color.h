@@ -2,6 +2,8 @@
 #include "MathUtil.h"
 
 namespace gx {
+/// @addtogroup grp_math
+/// @{
 
 /// @brief RGBA色 (float4成分、0.0〜1.0)
 struct Color
@@ -177,4 +179,5 @@ struct Color
     static Color Transparent() { return { 0.0f, 0.0f, 0.0f, 0.0f }; }
 };
 
+/// @}
 } // namespace gx

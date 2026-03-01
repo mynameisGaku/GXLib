@@ -1,6 +1,8 @@
 #pragma once
 /// @file GX/Math.h
 /// @brief 数学型の再エクスポート
+/// @addtogroup grp_gx_facade
+/// @{
 
 #include "Math/Vector2.h"
 #include "Math/Vector3.h"
@@ -13,3 +15,4 @@
 #include "Math/Spline.h"
 
 // GX namespace already contains Vector2, Vector3, etc.
+/// @}

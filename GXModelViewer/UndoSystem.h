@@ -39,7 +39,7 @@ public:
     void Clear();
 
 private:
-    std::vector<std::unique_ptr<ICommand>> m_undoStack;
-    std::vector<std::unique_ptr<ICommand>> m_redoStack;
+    std::vector<std::unique_ptr<ICommand>> m_undoStack; ///< Undoスタック
+    std::vector<std::unique_ptr<ICommand>> m_redoStack; ///< Redoスタック
     static constexpr int k_MaxUndoLevels = 100;
 };

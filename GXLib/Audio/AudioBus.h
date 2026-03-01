@@ -11,6 +11,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_audio
+/// @{
 
 /// @brief オーディオバス（SubmixVoiceラッパー）
 ///
@@ -39,6 +41,18 @@ public:
     /// @return 音量（0.0〜1.0）
     float GetVolume() const { return m_volume; }
 
+    /// @brief ミュート状態を設定する
+    /// @param muted ミュートするかどうか
+    void SetMuted(bool muted) { m_muted = muted; }
+
+    /// @brief ミュート状態を取得する
+    /// @return ミュート中ならtrue
+    bool IsMuted() const { return m_muted; }
+
+    /// @brief 実効ボリューム（ミュート時は0）を取得する
+    /// @return 実効ボリューム
+    float GetEffectiveVolume() const { return m_muted ? 0.0f : m_volume; }
+
     /// @brief このバスの出力先を別のバスに変更する
     /// @param parent 出力先のバス（nullptrでMasteringVoice直結に戻る）
     void SetOutputBus(AudioBus* parent);
@@ -58,6 +72,8 @@ private:
     IXAudio2SubmixVoice* m_submixVoice = nullptr;
     std::string m_name;
     float m_volume = 1.0f;
+    bool m_muted = false;
 };
 
+/// @}
 } // namespace gx

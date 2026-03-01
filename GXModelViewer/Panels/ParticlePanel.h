@@ -12,5 +12,5 @@ public:
     void DrawContent(gx::ParticleSystem3D& system);
 
 private:
-    int m_selectedEmitter = -1;
+    int m_selectedEmitter = -1; ///< 選択中のエミッターインデックス（-1=未選択）
 };

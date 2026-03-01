@@ -9,6 +9,8 @@
 #include "GUI/Style.h"
 
 namespace gx { namespace GUI {
+/// @addtogroup grp_gui
+/// @{
 
 // 前方宣言
 class UIRenderer;
@@ -34,8 +36,8 @@ enum class WidgetType
 /// @brief レイアウト計算済みの矩形
 struct LayoutRect
 {
-    float x = 0.0f, y = 0.0f;
-    float width = 0.0f, height = 0.0f;
+    float x = 0.0f, y = 0.0f;         ///< 左上座標
+    float width = 0.0f, height = 0.0f; ///< サイズ（ピクセル）
 
     /// @brief 指定座標がこの矩形内に含まれるか判定する
     /// @param px X座標
@@ -154,11 +156,11 @@ public:
     // --- レイアウト ---
     LayoutRect layoutRect;     ///< 親からの相対位置
     LayoutRect globalRect;     ///< スクリーン座標
-    bool layoutDirty = true;
+    bool layoutDirty = true;   ///< レイアウト再計算が必要か
 
     // --- スクロール ---
-    float scrollOffsetX = 0.0f;
-    float scrollOffsetY = 0.0f;
+    float scrollOffsetX = 0.0f;  ///< 水平スクロールオフセット（ピクセル）
+    float scrollOffsetY = 0.0f;  ///< 垂直スクロールオフセット（ピクセル）
 
     /// @brief ウィジェット固有の自然な幅を返す（テキスト幅など）
     /// @return 固有幅（ピクセル）。レイアウトエンジンが width=auto の場合にこの値を使う
@@ -174,15 +176,15 @@ public:
     /// @param event 処理するUIイベント
     /// @return イベントを消費した場合 true
     virtual bool OnEvent(const UIEvent& event);
-    std::function<void()> onClick;
-    std::function<void()> onHover;
-    std::function<void()> onLeave;
-    std::function<void()> onPress;
-    std::function<void()> onRelease;
-    std::function<void()> onFocus;
-    std::function<void()> onBlur;
-    std::function<void()> onSubmit;
-    std::function<void(const UIEvent&)> onEvent;
+    std::function<void()> onClick;                        ///< クリック時コールバック
+    std::function<void()> onHover;                        ///< マウスホバー時コールバック
+    std::function<void()> onLeave;                        ///< マウス離脱時コールバック
+    std::function<void()> onPress;                        ///< マウス押下時コールバック
+    std::function<void()> onRelease;                      ///< マウス解放時コールバック
+    std::function<void()> onFocus;                        ///< フォーカス取得時コールバック
+    std::function<void()> onBlur;                         ///< フォーカス喪失時コールバック
+    std::function<void()> onSubmit;                       ///< 送信時コールバック
+    std::function<void(const UIEvent&)> onEvent;          ///< 汎用イベントコールバック
     /// 値変更コールバック。各ウィジェットの値形式:
     /// - CheckBox: "true" / "false"
     /// - Slider: "0.5" (float文字列)
@@ -221,20 +223,21 @@ protected:
     /// @param targetStyle 遷移先のターゲットスタイル
     void UpdateStyleTransition(float deltaTime, const Style& targetStyle);
 
-    Widget* m_parent = nullptr;
-    std::vector<std::unique_ptr<Widget>> m_children;
+    Widget* m_parent = nullptr;                            ///< 親ウィジェット
+    std::vector<std::unique_ptr<Widget>> m_children;       ///< 子ウィジェット配列
 
-    Style m_renderStyle;
-    Style m_targetStyle;
-    Style m_startStyle;
-    float m_transitionTime = 0.0f;
-    float m_transitionDuration = 0.0f;
-    bool m_hasRenderStyle = false;
+    Style m_renderStyle;                                   ///< 描画用スタイル（アニメーション中の補間値）
+    Style m_targetStyle;                                   ///< 遷移先のターゲットスタイル
+    Style m_startStyle;                                    ///< 遷移開始時のスタイル
+    float m_transitionTime = 0.0f;                         ///< 遷移経過時間（秒）
+    float m_transitionDuration = 0.0f;                     ///< 遷移持続時間（秒）
+    bool m_hasRenderStyle = false;                         ///< 描画用スタイルが有効か
 
-    bool m_effectActive = false;
-    float m_effectTime = 0.0f;
-    float m_effectCenterX = 0.5f;
-    float m_effectCenterY = 0.5f;
+    bool m_effectActive = false;                           ///< エフェクトがアクティブか
+    float m_effectTime = 0.0f;                             ///< エフェクト経過時間（秒）
+    float m_effectCenterX = 0.5f;                          ///< エフェクト中心X（0~1）
+    float m_effectCenterY = 0.5f;                          ///< エフェクト中心Y（0~1）
 };
 
+/// @}
 }} // namespace gx::GUI

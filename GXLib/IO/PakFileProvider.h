@@ -9,6 +9,8 @@
 #include <pak_loader.h>
 
 namespace gx {
+/// @addtogroup grp_io
+/// @{
 
 /// @brief GXPAK バンドルファイルプロバイダー (読み取り専用)
 ///
@@ -42,4 +44,5 @@ private:
     gxloader::PakLoader m_loader;
 };
 
+/// @}
 } // namespace gx

@@ -14,6 +14,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_resource
+/// @{
 
 /// @brief オフスクリーンレンダーターゲット
 ///
@@ -89,4 +91,5 @@ private:
     D3D12_RESOURCE_STATES m_currentState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 };
 
+/// @}
 } // namespace gx

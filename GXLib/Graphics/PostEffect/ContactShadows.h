@@ -14,6 +14,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_postfx
+/// @{
 
 /// @brief コンタクトシャドウ定数バッファ（HLSL側と一致させること）
 struct ContactShadowConstants
@@ -113,4 +115,5 @@ private:
     DynamicBuffer m_generateCB;
 };
 
+/// @}
 } // namespace gx

@@ -14,6 +14,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief アニメーション再生の統合管理クラス
 /// Simple/BlendStack/StateMachineの3モードをサポートし、
@@ -264,4 +266,5 @@ private:
     BoneConstants             m_boneConstants;
 };
 
+/// @}
 } // namespace gx

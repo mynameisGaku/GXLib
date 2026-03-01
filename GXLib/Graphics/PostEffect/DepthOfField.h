@@ -19,34 +19,36 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_postfx
+/// @{
 
-/// CoC生成定数バッファ
+/// @brief CoC生成定数バッファ
 struct DoFCoCConstants
 {
-    XMFLOAT4X4 invProjection;  // 64B
-    float focalDistance;        // フォーカス距離 (ビュー空間Z)
-    float focalRange;           // フォーカス鮮明範囲
-    float cocScale;             // CoC最大ピクセル数制御
-    float screenWidth;
-    float screenHeight;
-    float nearZ;
-    float farZ;
-    float padding;
+    XMFLOAT4X4 invProjection;  ///< 逆射影行列
+    float focalDistance;        ///< フォーカス距離（ビュー空間Z）
+    float focalRange;           ///< フォーカス鮮明範囲
+    float cocScale;             ///< CoC最大ピクセル数の制御値
+    float screenWidth;          ///< スクリーン幅
+    float screenHeight;         ///< スクリーン高さ
+    float nearZ;                ///< ニアクリップ距離
+    float farZ;                 ///< ファークリップ距離
+    float padding;              ///< パディング
 };  // 96B → 256-align
 
-/// ブラー定数バッファ
+/// @brief ブラー定数バッファ
 struct DoFBlurConstants
 {
-    float texelSizeX;
-    float texelSizeY;
-    float padding[2];
+    float texelSizeX;           ///< テクセルサイズ（水平方向）
+    float texelSizeY;           ///< テクセルサイズ（垂直方向）
+    float padding[2];           ///< パディング
 };  // 16B → 256-align
 
-/// 合成定数バッファ
+/// @brief 合成定数バッファ
 struct DoFCompositeConstants
 {
-    float dummy;
-    float padding[3];
+    float dummy;                ///< ダミー値
+    float padding[3];           ///< パディング
 };  // 16B → 256-align
 
 /// @brief フォーカス距離に基づくピントぼけを再現する被写界深度エフェクト
@@ -98,42 +100,39 @@ public:
 private:
     bool CreatePipelines(ID3D12Device* device);
 
-    bool m_enabled = false;
-    float m_focalDistance = 10.0f;
-    float m_focalRange   = 5.0f;
-    float m_bokehRadius  = 8.0f;
+    bool m_enabled = false;            ///< 有効フラグ
+    float m_focalDistance = 10.0f;     ///< フォーカス距離（ビュー空間Z）
+    float m_focalRange   = 5.0f;      ///< フォーカス鮮明範囲
+    float m_bokehRadius  = 8.0f;      ///< ぼけの最大半径（ピクセル）
 
-    uint32_t m_width  = 0;
-    uint32_t m_height = 0;
+    uint32_t m_width  = 0;             ///< 画面幅（ピクセル）
+    uint32_t m_height = 0;             ///< 画面高さ（ピクセル）
 
-    // CoC map (R16_FLOAT, full-res)
-    RenderTarget m_cocRT;
-    // ブラー中間 (HDR, half-res)
-    RenderTarget m_blurTempRT;
-    // ブラー結果 (HDR, half-res)
-    RenderTarget m_blurRT;
+    RenderTarget m_cocRT;              ///< CoCマップ（R16_FLOAT, フル解像度）
+    RenderTarget m_blurTempRT;         ///< ブラー中間RT（HDR, 半解像度）
+    RenderTarget m_blurRT;             ///< ブラー結果RT（HDR, 半解像度）
 
     // パイプライン
-    Shader m_shader;
-    ComPtr<ID3D12RootSignature> m_cocRS;        // b0 + t0(depth) + s0
-    ComPtr<ID3D12RootSignature> m_blurRS;       // b0 + t0(scene) + t1(coc) + s0
-    ComPtr<ID3D12RootSignature> m_compositeRS;  // b0 + t0(sharp) + t1(blurred) + t2(coc) + s0
-    ComPtr<ID3D12PipelineState> m_cocPSO;
-    ComPtr<ID3D12PipelineState> m_blurHPSO;
-    ComPtr<ID3D12PipelineState> m_blurVPSO;
-    ComPtr<ID3D12PipelineState> m_compositePSO;
+    Shader m_shader;                              ///< DoFシェーダー
+    ComPtr<ID3D12RootSignature> m_cocRS;          ///< CoC生成用ルートシグネチャ
+    ComPtr<ID3D12RootSignature> m_blurRS;         ///< ブラー用ルートシグネチャ
+    ComPtr<ID3D12RootSignature> m_compositeRS;    ///< 合成用ルートシグネチャ
+    ComPtr<ID3D12PipelineState> m_cocPSO;         ///< CoC生成用PSO
+    ComPtr<ID3D12PipelineState> m_blurHPSO;       ///< 水平ブラー用PSO
+    ComPtr<ID3D12PipelineState> m_blurVPSO;       ///< 垂直ブラー用PSO
+    ComPtr<ID3D12PipelineState> m_compositePSO;   ///< 合成用PSO
 
     // 定数バッファ
-    DynamicBuffer m_cocCB;
-    DynamicBuffer m_blurCB;
-    DynamicBuffer m_compositeCB;
+    DynamicBuffer m_cocCB;                        ///< CoC生成用定数バッファ
+    DynamicBuffer m_blurCB;                       ///< ブラー用定数バッファ
+    DynamicBuffer m_compositeCB;                  ///< 合成用定数バッファ
 
-    // 合成パス用: 3テクスチャを1ヒープにまとめるSRVヒープ
-    // [0]=sharp(srcHDR), [1]=blurred(blurRT), [2]=CoC
-    DescriptorHeap m_compositeSRVHeap;
-    ID3D12Device*  m_device = nullptr;
+    // 合成パス用SRVヒープ（sharp + blurred + CoC）
+    DescriptorHeap m_compositeSRVHeap;            ///< 合成用SRVヒープ
+    ID3D12Device*  m_device = nullptr;            ///< D3D12デバイス
 
     void UpdateCompositeSRVHeap(RenderTarget& srcHDR, uint32_t frameIndex);
 };
 
+/// @}
 } // namespace gx

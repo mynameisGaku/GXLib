@@ -7,6 +7,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief サブメッシュ情報（1つのメッシュ内でマテリアルが異なる範囲を表す）
 struct SubMesh
@@ -114,4 +116,5 @@ private:
 /// @return スムース法線配列
 std::vector<XMFLOAT3> ComputeSmoothNormals(const XMFLOAT3* positions, const XMFLOAT3* normals, uint32_t vertexCount);
 
+/// @}
 } // namespace gx

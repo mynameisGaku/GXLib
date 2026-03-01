@@ -10,6 +10,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_input
+/// @{
 
 /// @brief マウスボタン識別用の定数。IsButtonDown等の引数に使う
 namespace MouseButton
@@ -87,4 +89,5 @@ private:
     std::array<bool, MouseButton::Count> m_rawButtons = {};       ///< メッセージから受信した生のボタン状態
 };
 
+/// @}
 } // namespace gx

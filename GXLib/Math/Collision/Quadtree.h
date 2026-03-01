@@ -2,6 +2,8 @@
 #include "Collision2D.h"
 
 namespace gx {
+/// @addtogroup grp_collision
+/// @{
 
 /// @brief クアッドツリー（2D空間分割）テンプレート
 ///
@@ -225,4 +227,5 @@ private:
     int m_maxObjects;
 };
 
+/// @}
 } // namespace gx

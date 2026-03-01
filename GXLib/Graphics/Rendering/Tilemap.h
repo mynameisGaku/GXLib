@@ -12,6 +12,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_2d
+/// @{
 
 /// @brief タイルセット情報
 struct Tileset
@@ -142,4 +144,5 @@ private:
     std::vector<TilemapLayer> m_layers;
 };
 
+/// @}
 } // namespace gx

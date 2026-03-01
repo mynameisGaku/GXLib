@@ -14,6 +14,8 @@
 
 namespace gx_internal
 {
+/// @addtogroup grp_compat
+/// @{
 
 /// @brief マルチバイト文字列をワイド文字列に変換する
 /// @param str 変換元のchar文字列
@@ -27,4 +29,5 @@ inline std::wstring ToWString(const char* str)
     return result;
 }
 
+/// @}
 } // namespace gx_internal

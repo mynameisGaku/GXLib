@@ -3,6 +3,8 @@
 #include <cmath>
 
 namespace gx {
+/// @addtogroup grp_math
+/// @{
 
 /// @brief 2D浮動小数点ベクトル
 struct Vector2
@@ -103,10 +105,59 @@ struct Vector2
     {
         return { (std::max)(a.x, b.x), (std::max)(a.y, b.y) };
     }
+
+    /// @brief 垂直ベクトルを返す（反時計回り90度回転）
+    Vector2 Perpendicular() const { return { -y, x }; }
+
+    /// @brief 要素ごとの乗算
+    static Vector2 Scale(const Vector2& a, const Vector2& b)
+    {
+        return { a.x * b.x, a.y * b.y };
+    }
+
+    /// @brief 現在位置からターゲットへ最大maxDistanceDelta分だけ移動
+    static Vector2 MoveTowards(const Vector2& current, const Vector2& target, float maxDistanceDelta)
+    {
+        Vector2 diff = target - current;
+        float dist = diff.Length();
+        if (dist <= maxDistanceDelta || dist < 1e-8f) return target;
+        return current + diff * (maxDistanceDelta / dist);
+    }
+
+    /// @brief ベクトルの長さを最大値でクランプ
+    static Vector2 ClampMagnitude(const Vector2& v, float maxLength)
+    {
+        float lenSq = v.LengthSquared();
+        if (lenSq > maxLength * maxLength)
+        {
+            float len = std::sqrtf(lenSq);
+            return v * (maxLength / len);
+        }
+        return v;
+    }
+
+    /// @brief 2ベクトル間の角度（度数法、常に正）
+    static float Angle(const Vector2& from, const Vector2& to)
+    {
+        float d = from.Dot(to);
+        float denom = std::sqrtf(from.LengthSquared() * to.LengthSquared());
+        if (denom < 1e-8f) return 0.0f;
+        float cosAngle = MathUtil::Clamp(d / denom, -1.0f, 1.0f);
+        return std::acosf(cosAngle) * (180.0f / MathUtil::PI);
+    }
+
+    /// @brief 2ベクトル間の符号付き角度（度数法）
+    static float SignedAngle(const Vector2& from, const Vector2& to)
+    {
+        float angle = Angle(from, to);
+        float cross = from.Cross(to);
+        return (cross >= 0.0f) ? angle : -angle;
+    }
 };
 
 static_assert(sizeof(Vector2) == 8, "Vector2 must be 8 bytes");
 
 inline Vector2 operator*(float s, const Vector2& v) { return v * s; }
 
+/// @}
 } // namespace gx

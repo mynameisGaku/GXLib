@@ -6,6 +6,8 @@
 /// 物理ファイル、暗号化アーカイブなど複数のソースを統一的にアクセスできる。
 
 namespace gx {
+/// @addtogroup grp_io
+/// @{
 
 /// @brief ファイルデータコンテナ (プロバイダーから返される)
 struct FileData
@@ -112,4 +114,5 @@ private:
     static std::string NormalizePath(const std::string& path);
 };
 
+/// @}
 } // namespace gx

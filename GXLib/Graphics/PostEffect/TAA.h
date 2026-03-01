@@ -16,17 +16,19 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_postfx
+/// @{
 
-/// TAA 定数バッファ
+/// @brief TAA 定数バッファ
 struct TAAConstants
 {
-    XMFLOAT4X4 invViewProjection;       // 64B: 現フレーム逆VP (非ジッター)
-    XMFLOAT4X4 previousViewProjection;  // 64B: 前フレームVP (非ジッター)
-    XMFLOAT2   jitterOffset;            // 8B: 現フレームジッター (NDC)
-    float      blendFactor;             // 4B: 履歴ウェイト (0.9)
-    float      screenWidth;             // 4B
-    float      screenHeight;            // 4B
-    float      padding[3];             // 12B
+    XMFLOAT4X4 invViewProjection;       ///< 現フレーム逆VP行列（非ジッター）
+    XMFLOAT4X4 previousViewProjection;  ///< 前フレームVP行列（非ジッター）
+    XMFLOAT2   jitterOffset;            ///< 現フレームジッターオフセット（NDC空間）
+    float      blendFactor;             ///< 履歴ブレンド比率（0〜1）
+    float      screenWidth;             ///< スクリーン幅（ピクセル）
+    float      screenHeight;            ///< スクリーン高さ（ピクセル）
+    float      padding[3];              ///< パディング
 };  // 160B → 256-align
 
 /// シャープニング定数バッファ
@@ -100,30 +102,30 @@ public:
 private:
     bool CreatePipelines(ID3D12Device* device);
 
-    bool m_enabled = false;
-    float m_blendFactor = 0.9f;
-    float m_sharpness = 0.0f;         ///< CASシャープニング強度
-    float m_resolutionScale = 1.0f;   ///< 内部解像度スケール
+    bool m_enabled = false;               ///< 有効フラグ
+    float m_blendFactor = 0.9f;           ///< 履歴ブレンド比率
+    float m_sharpness = 0.0f;             ///< CASシャープニング強度
+    float m_resolutionScale = 1.0f;       ///< 内部解像度スケール
 
-    RenderTarget m_historyRT;       // R16G16B16A16_FLOAT (前フレームTAA出力)
-    bool m_hasHistory = false;
+    RenderTarget m_historyRT;             ///< 履歴レンダーターゲット（R16G16B16A16_FLOAT）
+    bool m_hasHistory = false;            ///< 履歴RTに有効なデータがあるか
 
-    XMFLOAT4X4 m_previousVP;
-    bool m_hasPreviousVP = false;
-    uint32_t m_frameCount = 0;
+    XMFLOAT4X4 m_previousVP;             ///< 前フレームのVP行列
+    bool m_hasPreviousVP = false;         ///< 前フレームVP行列が有効か
+    uint32_t m_frameCount = 0;            ///< フレームカウンター（ジッター生成用）
 
-    uint32_t m_width  = 0;
-    uint32_t m_height = 0;
+    uint32_t m_width  = 0;                ///< 画面幅（ピクセル）
+    uint32_t m_height = 0;                ///< 画面高さ（ピクセル）
 
     // パイプライン
-    Shader m_shader;
-    ComPtr<ID3D12RootSignature> m_rootSignature;
-    ComPtr<ID3D12PipelineState> m_pso;
-    DynamicBuffer m_cb;
+    Shader m_shader;                              ///< TAAシェーダー
+    ComPtr<ID3D12RootSignature> m_rootSignature;  ///< ルートシグネチャ
+    ComPtr<ID3D12PipelineState> m_pso;            ///< パイプラインステート
+    DynamicBuffer m_cb;                           ///< 定数バッファ
 
-    // 3テクスチャ(scene + history + depth)用専用SRVヒープ (3スロット × 2フレーム = 6)
-    DescriptorHeap m_srvHeap;
-    ID3D12Device* m_device = nullptr;
+    // SRVヒープ（scene + history + depth, 3スロット×2フレーム=6）
+    DescriptorHeap m_srvHeap;                     ///< SRVデスクリプタヒープ
+    ID3D12Device* m_device = nullptr;             ///< D3D12デバイス
 
     void UpdateSRVHeap(RenderTarget& srcHDR, DepthBuffer& depth, uint32_t frameIndex);
 
@@ -138,4 +140,5 @@ private:
     static float Halton(int index, int base);
 };
 
+/// @}
 } // namespace gx

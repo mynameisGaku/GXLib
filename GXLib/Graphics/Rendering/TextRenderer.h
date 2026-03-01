@@ -12,6 +12,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_2d
+/// @{
 
 class SpriteBatch;
 
@@ -92,4 +94,5 @@ private:
     FontManager* m_fontManager = nullptr;
 };
 
+/// @}
 } // namespace gx

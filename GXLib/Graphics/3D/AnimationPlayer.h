@@ -10,6 +10,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief 単一クリップ再生プレイヤー
 /// ブレンドやクロスフェードが不要な場合に使う軽量な再生器。
@@ -89,4 +91,5 @@ private:
     BoneConstants             m_boneConstants;      ///< GPU転送用ボーン行列定数
 };
 
+/// @}
 } // namespace gx

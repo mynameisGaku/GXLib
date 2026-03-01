@@ -18,6 +18,8 @@
 #include "GX/Config.h"
 
 namespace gx {
+/// @addtogroup grp_gx_facade
+/// @{
 
 class Renderer3D;
 class Camera3D;
@@ -80,3 +82,4 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)              \
     AppClass app;                                                 \
     return gx::Run(app);                                          \
 }
+/// @}

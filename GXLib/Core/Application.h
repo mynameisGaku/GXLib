@@ -12,6 +12,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_core
+/// @{
 
 /// @brief アプリケーション初期化設定
 /// DxLib の SetGraphMode() / SetMainWindowText() に渡す情報をまとめた構造体
@@ -61,4 +63,5 @@ private:
     bool         m_running = false;  ///< Run() ループ中は true
 };
 
+/// @}
 } // namespace gx

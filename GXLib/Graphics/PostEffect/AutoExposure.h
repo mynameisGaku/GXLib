@@ -13,6 +13,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_postfx
+/// @{
 
 /// @brief シーン輝度に基づいて露出を自動調整する明暗順応エフェクト
 ///
@@ -95,4 +97,5 @@ private:
     uint32_t m_readbackFrameCount = 0;
 };
 
+/// @}
 } // namespace gx

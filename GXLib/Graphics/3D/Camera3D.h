@@ -6,6 +6,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief カメラの操作モード
 enum class CameraMode
@@ -213,4 +215,5 @@ private:
     mutable bool m_dirtyVectors = true;
 };
 
+/// @}
 } // namespace gx

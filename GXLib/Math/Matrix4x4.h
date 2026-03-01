@@ -4,6 +4,8 @@
 #include <cstring>
 
 namespace gx {
+/// @addtogroup grp_math
+/// @{
 
 /// @brief 4x4行列 (row-major)
 struct Matrix4x4
@@ -318,6 +320,9 @@ struct Matrix4x4
         return r;
     }
 
+    /// @brief Translation * Rotation * Scale 合成行列を作成する (実装はMathInline.h)
+    static Matrix4x4 TRS(const Vector3& translation, const struct Quaternion& rotation, const Vector3& scale);
+
     static Matrix4x4 OrthographicLH(float width, float height, float nearZ, float farZ)
     {
         float range = 1.0f / (farZ - nearZ);
@@ -349,6 +354,7 @@ inline Vector3 Vector3::TransformNormal(const Vector3& v, const Matrix4x4& m)
     return m.TransformVector(v);
 }
 
+/// @}
 } // namespace gx
 
 // Deferred implementations requiring both Quaternion and Matrix4x4

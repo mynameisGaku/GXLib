@@ -3,6 +3,8 @@
 #include "Math/Vector3.h"
 
 namespace gx {
+/// @addtogroup grp_math
+/// @{
 
 /// Spline interpolation type
 enum class SplineType { Linear, CatmullRom, CubicBezier };
@@ -82,4 +84,5 @@ private:
                               Vector3& p2, Vector3& p3) const;
 };
 
+/// @}
 } // namespace gx

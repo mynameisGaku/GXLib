@@ -13,20 +13,36 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 class Camera3D;
 class TextureManager;
+
+/// @brief デカールブレンドモード
+enum class DecalBlendMode : uint32_t
+{
+    Alpha    = 0,  ///< アルファブレンド（デフォルト）
+    Additive = 1,  ///< 加算ブレンド
+    Multiply = 2,  ///< 乗算ブレンド
+    Replace  = 3,  ///< 完全置換
+};
 
 /// @brief デカールデータ
 struct DecalData
 {
     Transform3D transform;           ///< ワールド位置・向き・サイズ
     int textureHandle = -1;          ///< TextureManagerハンドル
-    Color color = {1.0f, 1.0f, 1.0f, 1.0f};
+    Color color = {1.0f, 1.0f, 1.0f, 1.0f};  ///< デカルカラー
     float fadeDistance = 0.5f;        ///< エッジフェード距離
     float normalThreshold = 0.7f;    ///< 法線方向しきい値（dotでフェード）
     float lifetime = -1.0f;          ///< 負=永続、正=秒後にフェード削除
     float age = 0.0f;                ///< 経過時間
+    DecalBlendMode blendMode = DecalBlendMode::Alpha; ///< ブレンドモード
+    int priority = 0;                ///< 描画優先度（大きいほど後に描画）
+    float metallic = 0.0f;           ///< メタリック値（Deferred用）
+    float roughness = 0.5f;          ///< ラフネス値（Deferred用）
+    int normalTextureHandle = -1;    ///< 法線テクスチャハンドル
 };
 
 /// @brief デカール描画システム
@@ -97,26 +113,27 @@ private:
         float      padding[8];       ///< 256バイトアラインメント用パディング
     };
 
-    std::vector<DecalEntry> m_decals;
-    std::vector<int> m_freeList;
+    std::vector<DecalEntry> m_decals;   ///< デカルエントリ配列
+    std::vector<int> m_freeList;         ///< 空きスロットのインデックス
 
-    // Unit cube mesh for decal volume
-    Buffer m_cubeVB;
-    Buffer m_cubeIB;
+    // ユニットキューブメッシュ（デカルボリューム投影用）
+    Buffer m_cubeVB;                     ///< キューブ頂点バッファ
+    Buffer m_cubeIB;                     ///< キューブインデックスバッファ
 
     // PSO
-    ComPtr<ID3D12PipelineState> m_pso;
-    ComPtr<ID3D12RootSignature> m_rs;
-    DynamicBuffer m_cb;
-    DescriptorHeap m_srvHeap;
+    ComPtr<ID3D12PipelineState> m_pso;   ///< パイプラインステート
+    ComPtr<ID3D12RootSignature> m_rs;    ///< ルートシグネチャ
+    DynamicBuffer m_cb;                  ///< 定数バッファ
+    DescriptorHeap m_srvHeap;            ///< SRVデスクリプタヒープ
 
-    uint32_t m_width = 0;
-    uint32_t m_height = 0;
+    uint32_t m_width = 0;                ///< 画面幅（ピクセル）
+    uint32_t m_height = 0;               ///< 画面高さ（ピクセル）
 
-    bool m_initialized = false;
+    bool m_initialized = false;          ///< 初期化済みフラグ
 
     bool CreateCubeMesh(ID3D12Device* device);
     bool CreatePSO(ID3D12Device* device);
 };
 
+/// @}
 } // namespace gx

@@ -10,6 +10,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief ハイトマップベースの地形メッシュ
 /// グリッド状の頂点を生成し、法線・タンジェント・UVを自動計算する。
@@ -96,4 +98,5 @@ private:
     float    m_originZ   = 0.0f;  ///< グリッド上端のZ座標
 };
 
+/// @}
 } // namespace gx

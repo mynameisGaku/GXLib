@@ -16,6 +16,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_resource
+/// @{
 
 /// @brief GPUテクスチャリソースを管理するクラス
 ///
@@ -112,4 +114,5 @@ private:
     DXGI_FORMAT m_format = DXGI_FORMAT_R8G8B8A8_UNORM;
 };
 
+/// @}
 } // namespace gx

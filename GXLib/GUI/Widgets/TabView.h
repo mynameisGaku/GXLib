@@ -6,6 +6,8 @@
 #include "GUI/Widget.h"
 
 namespace gx { namespace GUI {
+/// @addtogroup grp_gui_widgets
+/// @{
 
 class UIRenderer;
 
@@ -56,12 +58,13 @@ private:
     static constexpr float k_TabHeaderHeight = 32.0f;
     static constexpr float k_TabPadding = 12.0f;
 
-    std::vector<std::string> m_tabNames;
-    std::vector<std::wstring> m_wideTabNames;
-    int m_activeTab = 0;
-    int m_hoveredTab = -1;
-    int m_fontHandle = -1;
-    UIRenderer* m_renderer = nullptr;
+    std::vector<std::string> m_tabNames;      ///< タブ名リスト（UTF-8）
+    std::vector<std::wstring> m_wideTabNames; ///< タブ名リスト（ワイド文字）
+    int m_activeTab = 0;                      ///< アクティブタブインデックス
+    int m_hoveredTab = -1;                    ///< ホバー中タブインデックス
+    int m_fontHandle = -1;                    ///< フォントハンドル
+    UIRenderer* m_renderer = nullptr;         ///< GUI描画レンダラー
 };
 
+/// @}
 }} // namespace gx::GUI

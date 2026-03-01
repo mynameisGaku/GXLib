@@ -6,6 +6,8 @@
 /// 非同期リクエストは Update() をフレームループ内で呼び出してコールバックを発火する。
 
 namespace gx {
+/// @addtogroup grp_network
+/// @{
 
 /// @brief HTTPレスポンス
 struct HTTPResponse {
@@ -81,4 +83,5 @@ private:
                               const std::unordered_map<std::string, std::string>& headers);
 };
 
+/// @}
 } // namespace gx

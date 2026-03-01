@@ -6,6 +6,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief 基本3D頂点（32B: 位置+法線+UV）
 /// DxLibの VERTEX3D 構造体に相当する最小構成
@@ -92,4 +94,5 @@ inline const D3D12_INPUT_ELEMENT_DESC k_Vertex3DSkinnedOutlineLayout[] =
     { "SMOOTHNORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT,    1, 0,  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 };
 
+/// @}
 } // namespace gx

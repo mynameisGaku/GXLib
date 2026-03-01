@@ -15,6 +15,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_resource
+/// @{
 
 /// @brief 深度バッファ管理クラス
 ///
@@ -112,4 +114,5 @@ private:
     bool m_hasOwnSRV = false;
 };
 
+/// @}
 } // namespace gx

@@ -6,6 +6,8 @@
 #include "GUI/Widget.h"
 
 namespace gx { namespace GUI {
+/// @addtogroup grp_gui_widgets
+/// @{
 
 /// @brief スクロール可能なコンテナウィジェット
 /// 子ウィジェットがはみ出す場合にマウスホイールでスクロールできる。
@@ -34,10 +36,11 @@ private:
     void ComputeContentHeight();
     void ClampScroll();
 
-    float m_contentHeight = 0.0f;
-    float m_scrollSpeed = 30.0f;
+    float m_contentHeight = 0.0f;  ///< 子コンテンツの総高さ（ピクセル）
+    float m_scrollSpeed = 30.0f;  ///< ホイール1回転あたりのスクロール量（ピクセル）
 
     static constexpr float k_ScrollbarWidth = 4.0f;
 };
 
+/// @}
 }} // namespace gx::GUI

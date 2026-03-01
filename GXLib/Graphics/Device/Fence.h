@@ -10,6 +10,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_device
+/// @{
 
 /// @brief GPU完了を待つためのフェンス（DxLibでは内部処理）
 ///
@@ -57,4 +59,5 @@ private:
     uint64_t            m_fenceValue = 0;        ///< 単調増加するフェンスカウンタ
 };
 
+/// @}
 } // namespace gx

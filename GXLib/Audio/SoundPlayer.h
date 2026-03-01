@@ -12,6 +12,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_audio
+/// @{
 
 class Sound;
 class AudioDevice;
@@ -68,6 +70,15 @@ public:
     /// @brief 再生が完了したVoiceを検出して解放する。Update等から定期的に呼ぶこと
     void CleanupFinishedVoices();
 
+    /// @brief ハンドルで指定した再生を停止する（DxLib互換用）
+    /// @param handle 再生ハンドル
+    void StopByHandle(int handle);
+
+    /// @brief ハンドルで指定した再生が継続中か確認する（DxLib互換用）
+    /// @param handle 再生ハンドル
+    /// @return 再生中ならtrue
+    bool IsPlayingByHandle(int handle) const;
+
     /// @brief 全Voiceを停止・破棄する（シャットダウン用）
     void StopAll();
 
@@ -117,4 +128,5 @@ private:
     float m_matrixCoefficients[k_MaxOutputChannels] = {};
 };
 
+/// @}
 } // namespace gx

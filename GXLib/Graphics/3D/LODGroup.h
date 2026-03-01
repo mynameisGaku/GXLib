@@ -6,6 +6,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 class Model;
 class Camera3D;
@@ -65,4 +67,5 @@ private:
     mutable int m_lastSelectedLevel = 0;
 };
 
+/// @}
 } // namespace gx

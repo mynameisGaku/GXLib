@@ -10,6 +10,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief ヒューマノイドの標準ボーン定義（Unity互換の主要22部位）
 enum class HumanoidBone : uint32_t
@@ -126,4 +128,5 @@ private:
     std::vector<float>        m_targetBoneLength;  ///< ターゲット側の各ボーン長
 };
 
+/// @}
 } // namespace gx

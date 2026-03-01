@@ -12,6 +12,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_input
+/// @{
 
 /// @brief ゲームパッドボタンの定数。XInputのビットマスク値と一致している
 namespace PadButton
@@ -120,4 +122,5 @@ private:
     std::array<PadState, k_MaxPads> m_pads = {};
 };
 
+/// @}
 } // namespace gx

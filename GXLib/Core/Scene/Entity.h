@@ -9,6 +9,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_scene
+/// @{
 
 /// @brief エンティティのバウンディング情報（フラスタムカリング用）
 struct BoundsInfo
@@ -135,4 +137,5 @@ private:
     BoundsInfo m_bounds;
 };
 
+/// @}
 } // namespace gx

@@ -6,6 +6,8 @@
 #include "GUI/Widget.h"
 
 namespace gx { namespace GUI {
+/// @addtogroup grp_gui_widgets
+/// @{
 
 class UIRenderer;
 
@@ -68,11 +70,12 @@ private:
     static constexpr float k_CircleSize = 18.0f;
     static constexpr float k_Gap = 8.0f;
 
-    bool m_selected = false;
-    std::wstring m_text;
-    std::string m_value;
-    int m_fontHandle = -1;
-    UIRenderer* m_renderer = nullptr;
+    bool m_selected = false;             ///< 選択状態
+    std::wstring m_text;                ///< ラベルテキスト
+    std::string m_value;                ///< onValueChangedに渡される値文字列
+    int m_fontHandle = -1;              ///< フォントハンドル
+    UIRenderer* m_renderer = nullptr;   ///< GUI描画レンダラー（サイズ計算用）
 };
 
+/// @}
 }} // namespace gx::GUI

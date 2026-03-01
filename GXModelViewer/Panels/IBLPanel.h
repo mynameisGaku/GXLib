@@ -12,5 +12,5 @@ public:
     void DrawContent(gx::IBL& ibl, gx::Skybox& skybox, gx::Renderer3D& renderer);
 
 private:
-    float m_intensity = 1.0f;
+    float m_intensity = 1.0f; ///< IBL強度の編集値
 };

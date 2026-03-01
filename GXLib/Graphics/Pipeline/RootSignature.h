@@ -12,6 +12,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_pipeline
+/// @{
 
 /// @brief シェーダーが参照するリソースの配置をビルダーパターンで定義・構築する
 class RootSignatureBuilder
@@ -91,4 +93,5 @@ private:
     D3D12_ROOT_SIGNATURE_FLAGS              m_flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 };
 
+/// @}
 } // namespace gx

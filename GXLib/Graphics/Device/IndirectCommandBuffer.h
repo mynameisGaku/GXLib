@@ -10,6 +10,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_device
+/// @{
 
 /// @brief 間接描画コマンドの種類
 enum class IndirectCommandType
@@ -84,4 +86,5 @@ private:
     uint32_t m_stride = 0;
 };
 
+/// @}
 } // namespace gx

@@ -9,6 +9,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief ブレンドツリーの種類
 enum class BlendTreeType
@@ -101,4 +103,5 @@ private:
     mutable std::vector<TransformTRS> m_tempC;
 };
 
+/// @}
 } // namespace gx

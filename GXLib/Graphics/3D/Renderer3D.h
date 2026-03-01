@@ -30,6 +30,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief GPU上の簡易メッシュ（Renderer3D::CreateGPUMesh で MeshData から変換して使う）
 struct GPUMesh
@@ -401,4 +403,5 @@ private:
     ComPtr<ID3D12PipelineState> m_psoSkinnedInstanced;  ///< インスタンシング用PSO（skinned）
 };
 
+/// @}
 } // namespace gx

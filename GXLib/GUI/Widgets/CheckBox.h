@@ -6,6 +6,8 @@
 #include "GUI/Widget.h"
 
 namespace gx { namespace GUI {
+/// @addtogroup grp_gui_widgets
+/// @{
 
 class UIRenderer;
 
@@ -62,10 +64,11 @@ private:
     static constexpr float k_BoxSize = 18.0f;
     static constexpr float k_Gap = 8.0f;
 
-    bool m_checked = false;
-    std::wstring m_text;
-    int m_fontHandle = -1;
-    UIRenderer* m_renderer = nullptr;
+    bool m_checked = false;              ///< チェック状態
+    std::wstring m_text;                ///< ラベルテキスト
+    int m_fontHandle = -1;              ///< フォントハンドル
+    UIRenderer* m_renderer = nullptr;   ///< GUI描画レンダラー（サイズ計算用）
 };
 
+/// @}
 }} // namespace gx::GUI

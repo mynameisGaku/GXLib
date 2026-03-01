@@ -14,6 +14,8 @@ void StopMusic();
 int CheckMusic();
 
 namespace gx {
+/// @addtogroup grp_gx_facade
+/// @{
 
 inline int LoadSound(const char* path) { return LoadSoundMem(path); }
 inline int PlaySound(int handle, int type, int top = 1) { return PlaySoundMem(handle, type, top); }
@@ -26,4 +28,5 @@ using ::PlayMusic;
 using ::StopMusic;
 using ::CheckMusic;
 
+/// @}
 } // namespace gx

@@ -11,6 +11,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_audio
+/// @{
 
 class Sound;
 class AudioDevice;
@@ -74,4 +76,5 @@ private:
     bool  m_stopAfterFade = false;  ///< フェードアウト完了時に自動停止するか
 };
 
+/// @}
 } // namespace gx

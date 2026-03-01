@@ -12,6 +12,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_layer
+/// @{
 
 /// @brief レイヤー合成時のブレンドモード
 enum class LayerBlendMode { Alpha, Add, Sub, Mul, Screen, None };
@@ -92,4 +94,5 @@ private:
     ID3D12GraphicsCommandList* m_cmdList = nullptr;
 };
 
+/// @}
 } // namespace gx

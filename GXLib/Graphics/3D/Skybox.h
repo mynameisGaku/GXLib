@@ -11,6 +11,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief スカイボックス用定数バッファ構造体
 struct SkyboxConstants
@@ -80,4 +82,5 @@ private:
     float    m_sunIntensity = 5.0f;
 };
 
+/// @}
 } // namespace gx

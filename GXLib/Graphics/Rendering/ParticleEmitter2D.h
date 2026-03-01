@@ -9,6 +9,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_2d
+/// @{
 
 /// @brief 2Dパーティクルの放出形状
 enum class EmitterShape2D
@@ -118,4 +120,5 @@ private:
     std::mt19937 m_rng{ std::random_device{}() };
 };
 
+/// @}
 } // namespace gx

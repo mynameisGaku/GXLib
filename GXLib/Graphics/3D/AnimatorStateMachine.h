@@ -10,6 +10,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief アニメーションステート（「歩き」「走り」等の1動作に対応する）
 /// clipとblendTreeは排他で、どちらか一方だけ使う。
@@ -132,4 +134,5 @@ private:
     mutable std::vector<TransformTRS> m_poseB;  ///< クロスフェード用テンポラリ
 };
 
+/// @}
 } // namespace gx

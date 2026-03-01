@@ -20,6 +20,8 @@ int  GetColor(int r, int g, int b);
 int  GetNowCount();
 
 namespace gx {
+/// @addtogroup grp_gx_facade
+/// @{
 
 /// @brief エンジンを初期化する（デフォルト設定）
 inline int Init() { return GX_Init(); }
@@ -54,4 +56,5 @@ inline int ClearScreen() { return ClearDrawScreen(); }
 /// @brief 画面を更新する（フリップ）
 inline int Present() { return ScreenFlip(); }
 
+/// @}
 } // namespace gx

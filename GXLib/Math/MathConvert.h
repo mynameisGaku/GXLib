@@ -16,6 +16,8 @@
 using namespace DirectX;
 
 namespace gx {
+/// @addtogroup grp_math
+/// @{
 
 // ============================================================================
 // ポインタ変換 (XMLoadFloat3等で使用) — reinterpret_cast ラッパー
@@ -99,4 +101,5 @@ static_assert(sizeof(Vector4) == sizeof(XMFLOAT4), "Vector4/XMFLOAT4 size mismat
 static_assert(sizeof(Quaternion) == sizeof(XMFLOAT4), "Quaternion/XMFLOAT4 size mismatch");
 static_assert(sizeof(Matrix4x4) == sizeof(XMFLOAT4X4), "Matrix4x4/XMFLOAT4X4 size mismatch");
 
+/// @}
 } // namespace gx

@@ -18,6 +18,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_postfx
+/// @{
 
 /// Bloom定数バッファ (閾値・強度・テクセルサイズ)
 struct BloomConstants
@@ -104,4 +106,5 @@ private:
     DynamicBuffer                m_constantBuffer;
 };
 
+/// @}
 } // namespace gx

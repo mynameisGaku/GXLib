@@ -12,6 +12,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_core
+/// @{
 
 /// @brief 固定サイズオブジェクト用プールアロケータ
 /// @tparam T プールで管理するオブジェクト型
@@ -113,4 +115,5 @@ private:
     std::vector<void*> m_blocks;
 };
 
+/// @}
 } // namespace gx

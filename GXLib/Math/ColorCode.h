@@ -3,6 +3,8 @@
 /// @brief Draw系関数で使える 0xFFRRGGBB 形式のカラー定数
 
 namespace gx {
+/// @addtogroup grp_math
+/// @{
 namespace ColorCode {
 
 // --- 基本色 ---
@@ -114,4 +116,5 @@ constexpr unsigned int Wheat       = 0xFFF5DEB3;
 constexpr unsigned int Cornsilk    = 0xFFFFF8DC;
 
 } // namespace ColorCode
+/// @}
 } // namespace gx

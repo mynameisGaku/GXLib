@@ -6,6 +6,8 @@
 #include "GUI/Widget.h"
 
 namespace gx { namespace GUI {
+/// @addtogroup grp_gui_widgets
+/// @{
 
 /// @brief ボタンウィジェット
 /// クリック可能なUI部品。テキストを中央配置で描画し、onClickコールバックに対応する。
@@ -48,9 +50,10 @@ public:
     void SetRenderer(UIRenderer* renderer) { m_renderer = renderer; }
 
 private:
-    std::wstring m_text;
-    int m_fontHandle = -1;
-    UIRenderer* m_renderer = nullptr;
+    std::wstring m_text;                ///< ボタン表示テキスト
+    int m_fontHandle = -1;              ///< フォントハンドル
+    UIRenderer* m_renderer = nullptr;   ///< GUI描画レンダラー（サイズ計算用）
 };
 
+/// @}
 }} // namespace gx::GUI

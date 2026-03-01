@@ -3,6 +3,8 @@
 #include "MathSIMD.h"
 
 namespace gx {
+/// @addtogroup grp_math
+/// @{
 
 struct Matrix4x4;
 
@@ -128,6 +130,79 @@ struct Vector3
         return { (std::max)(a.x, b.x), (std::max)(a.y, b.y), (std::max)(a.z, b.z) };
     }
 
+    /// @brief 要素ごとの乗算
+    static Vector3 Scale(const Vector3& a, const Vector3& b)
+    {
+        return { a.x * b.x, a.y * b.y, a.z * b.z };
+    }
+
+    /// @brief ベクトルを軸方向に射影
+    static Vector3 Project(const Vector3& v, const Vector3& onNormal)
+    {
+        float d = onNormal.Dot(onNormal);
+        if (d < 1e-8f) return Zero();
+        return onNormal * (v.Dot(onNormal) / d);
+    }
+
+    /// @brief ベクトルを平面上に射影
+    static Vector3 ProjectOnPlane(const Vector3& v, const Vector3& planeNormal)
+    {
+        return v - Project(v, planeNormal);
+    }
+
+    /// @brief 現在位置からターゲットへ最大maxDistanceDelta分だけ移動
+    static Vector3 MoveTowards(const Vector3& current, const Vector3& target, float maxDistanceDelta)
+    {
+        Vector3 diff = target - current;
+        float dist = diff.Length();
+        if (dist <= maxDistanceDelta || dist < 1e-8f) return target;
+        return current + diff * (maxDistanceDelta / dist);
+    }
+
+    /// @brief ベクトルの長さを最大値でクランプ
+    static Vector3 ClampMagnitude(const Vector3& v, float maxLength)
+    {
+        float lenSq = v.LengthSquared();
+        if (lenSq > maxLength * maxLength)
+        {
+            float len = std::sqrtf(lenSq);
+            return v * (maxLength / len);
+        }
+        return v;
+    }
+
+    /// @brief 2ベクトル間の球面線形補間
+    static Vector3 Slerp(const Vector3& a, const Vector3& b, float t)
+    {
+        float dot = a.Dot(b);
+        dot = (std::max)(-1.0f, (std::min)(1.0f, dot));
+        float theta = std::acosf(dot);
+        if (theta < 1e-6f) return Lerp(a, b, t);
+        float sinTheta = std::sinf(theta);
+        float wa = std::sinf((1.0f - t) * theta) / sinTheta;
+        float wb = std::sinf(t * theta) / sinTheta;
+        return a * wa + b * wb;
+    }
+
+    /// @brief 2ベクトル間の角度（度数法、常に正）
+    static float Angle(const Vector3& from, const Vector3& to)
+    {
+        float d = from.Dot(to);
+        float denom = std::sqrtf(from.LengthSquared() * to.LengthSquared());
+        if (denom < 1e-8f) return 0.0f;
+        float cosAngle = (std::max)(-1.0f, (std::min)(1.0f, d / denom));
+        return std::acosf(cosAngle) * (180.0f / 3.14159265358979323846f);
+    }
+
+    /// @brief 2ベクトル間の符号付き角度（度数法、axis周りで正負判定）
+    static float SignedAngle(const Vector3& from, const Vector3& to, const Vector3& axis)
+    {
+        float angle = Angle(from, to);
+        Vector3 cross = from.Cross(to);
+        float sign = cross.Dot(axis);
+        return (sign >= 0.0f) ? angle : -angle;
+    }
+
     static Vector3 Reflect(const Vector3& direction, const Vector3& normal)
     {
         float d = direction.Dot(normal);
@@ -145,4 +220,5 @@ static_assert(sizeof(Vector3) == 12, "Vector3 must be 12 bytes");
 
 inline Vector3 operator*(float s, const Vector3& v) { return v * s; }
 
+/// @}
 } // namespace gx

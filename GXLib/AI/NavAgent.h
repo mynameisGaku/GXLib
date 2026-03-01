@@ -9,6 +9,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_ai
+/// @{
 
 class NavMesh;
 
@@ -56,20 +58,32 @@ public:
     /// @brief Get the current target waypoint index
     int GetCurrentWaypointIndex() const { return m_currentPathIndex; }
 
+    /// @brief Update with RVO obstacle avoidance using neighbor agents
+    /// @param deltaTime Frame delta time in seconds
+    /// @param neighbors Nearby agents to avoid
+    void UpdateWithNeighbors(float deltaTime, const std::vector<NavAgent*>& neighbors);
+
+    /// @brief Get the last computed velocity (from most recent Update)
+    XMFLOAT3 GetLastVelocity() const { return m_lastVelocity; }
+
     // -- Public parameters --
 
     float speed            = 3.5f;    ///< Movement speed (units/sec)
     float angularSpeed     = 360.0f;  ///< Rotation speed (degrees/sec)
     float stoppingDistance = 0.15f;   ///< Distance to waypoint for advancement
     float height           = 0.0f;    ///< Agent Y offset above navmesh surface
+    bool  enableAvoidance  = false;   ///< Enable RVO obstacle avoidance
+    float radius           = 0.5f;    ///< Agent collision radius for RVO
 
 private:
     NavMesh* m_navMesh = nullptr;
     std::vector<XMFLOAT3> m_path;
     int      m_currentPathIndex = 0;
     XMFLOAT3 m_position = { 0.0f, 0.0f, 0.0f };
+    XMFLOAT3 m_lastVelocity = { 0.0f, 0.0f, 0.0f };
     float    m_yaw      = 0.0f;
     bool     m_reached  = false;
 };
 
+/// @}
 } // namespace gx

@@ -7,6 +7,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief マテリアル定数（後方互換用、ShaderModelGPUParams に変換されてGPUに送られる）
 struct MaterialConstants
@@ -130,4 +132,5 @@ private:
     int                        m_nextHandle = 0;
 };
 
+/// @}
 } // namespace gx

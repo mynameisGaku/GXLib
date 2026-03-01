@@ -13,6 +13,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gui
+/// @{
 class InputManager;
 }
 
@@ -111,19 +113,20 @@ private:
     /// キャプチャパスのパスを収集
     void CollectAncestors(Widget* widget, std::vector<Widget*>& path);
 
-    UIRenderer*              m_renderer = nullptr;
-    StyleSheet*              m_styleSheet = nullptr;
-    std::unique_ptr<Widget>  m_root;
-    Widget*                  m_focusedWidget = nullptr;
-    Widget*                  m_hoveredWidget = nullptr;
-    Widget*                  m_pressedWidget = nullptr;
-    uint32_t                 m_screenWidth  = 1280;
-    uint32_t                 m_screenHeight = 720;
-    uint32_t                 m_designWidth  = 0;   // 0 = スケーリング無効
-    uint32_t                 m_designHeight = 0;
-    float                    m_prevMouseX = 0.0f;
-    float                    m_prevMouseY = 0.0f;
-    bool                     m_prevMouseDown = false;
+    UIRenderer*              m_renderer = nullptr;       ///< GUI描画レンダラー
+    StyleSheet*              m_styleSheet = nullptr;     ///< 適用中のスタイルシート
+    std::unique_ptr<Widget>  m_root;                     ///< ルートウィジェット
+    Widget*                  m_focusedWidget = nullptr;  ///< フォーカス中のウィジェット
+    Widget*                  m_hoveredWidget = nullptr;  ///< ホバー中のウィジェット
+    Widget*                  m_pressedWidget = nullptr;  ///< 押下中のウィジェット
+    uint32_t                 m_screenWidth  = 1280;      ///< スクリーン幅（ピクセル）
+    uint32_t                 m_screenHeight = 720;       ///< スクリーン高さ（ピクセル）
+    uint32_t                 m_designWidth  = 0;         ///< デザイン幅（0=スケーリング無効）
+    uint32_t                 m_designHeight = 0;         ///< デザイン高さ
+    float                    m_prevMouseX = 0.0f;        ///< 前フレームのマウスX座標
+    float                    m_prevMouseY = 0.0f;        ///< 前フレームのマウスY座標
+    bool                     m_prevMouseDown = false;    ///< 前フレームのマウスボタン状態
 };
 
+/// @}
 }} // namespace gx::GUI

@@ -11,6 +11,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief パーティクル発生形状
 enum class ParticleShape
@@ -138,4 +140,5 @@ private:
     std::mt19937 m_rng{ std::random_device{}() };
 };
 
+/// @}
 } // namespace gx

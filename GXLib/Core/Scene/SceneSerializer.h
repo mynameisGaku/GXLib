@@ -7,6 +7,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_scene
+/// @{
 
 class Model; // forward declaration
 
@@ -32,4 +34,5 @@ public:
                                 ModelLoadCallback modelLoader = nullptr);
 };
 
+/// @}
 } // namespace gx

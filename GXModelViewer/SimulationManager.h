@@ -18,10 +18,10 @@ enum class SimulationState
 /// @brief エンティティのスナップショット（シミュレーション開始前の状態）
 struct EntitySnapshot
 {
-    std::string      name;
-    gx::Transform3D  transform;
-    int              parentIndex = -1;
-    bool             visible = true;
+    std::string      name;           ///< エンティティ名
+    gx::Transform3D  transform;      ///< Transform状態
+    int              parentIndex = -1; ///< 親エンティティのインデックス（-1=ルート）
+    bool             visible = true;  ///< 表示フラグ
 };
 
 /// @brief シーンのシミュレーション管理。Play開始時にスナップショットを保存し、Stop時に復元する。
@@ -56,7 +56,7 @@ public:
     bool IsPaused() const { return m_state == SimulationState::Paused; }
 
 private:
-    SimulationState m_state = SimulationState::Editing;
-    std::vector<EntitySnapshot> m_snapshots;
-    float m_simulationTime = 0.0f;
+    SimulationState m_state = SimulationState::Editing; ///< 現在のシミュレーション状態
+    std::vector<EntitySnapshot> m_snapshots;           ///< 開始前のエンティティスナップショット
+    float m_simulationTime = 0.0f;                     ///< シミュレーション経過時間（秒）
 };

@@ -16,6 +16,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_input
+/// @{
 
 class Keyboard;
 class Mouse;
@@ -171,4 +173,5 @@ private:
     static ActionState s_emptyState;
 };
 
+/// @}
 } // namespace gx

@@ -11,6 +11,8 @@
 // Forward declarations — Lua/sol2 は実装ファイルでのみインクルード
 struct lua_State;
 namespace sol { class state; }
+/// @addtogroup grp_script
+/// @{
 
 namespace gx
 {
@@ -102,8 +104,9 @@ public:
 
 private:
     struct Impl;
-    std::unique_ptr<Impl> m_impl;
-    std::string m_lastError;
+    std::unique_ptr<Impl> m_impl; ///< Pimpl（sol::state を隠蔽）
+    std::string m_lastError;      ///< 最後のエラーメッセージ
 };
 
+/// @}
 } // namespace gx

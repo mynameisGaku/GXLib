@@ -9,6 +9,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_postfx
+/// @{
 
 class PostEffectPipeline;
 
@@ -31,4 +33,5 @@ public:
     static bool Save(const std::string& filePath, const PostEffectPipeline& pipeline);
 };
 
+/// @}
 } // namespace gx

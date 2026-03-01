@@ -2,6 +2,8 @@
 #include "Math/Vector2.h"
 
 namespace gx {
+/// @addtogroup grp_collision
+/// @{
 
 // --- 2D形状定義 ---
 
@@ -289,4 +291,5 @@ namespace Collision2D {
                               float& outT);
 
 } // namespace Collision2D
+/// @}
 } // namespace gx

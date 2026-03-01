@@ -11,6 +11,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief 視線IK
 /// 頭と首のボーンをターゲット位置に向けて回転させる。
@@ -81,4 +83,5 @@ private:
     bool  m_enabled = true;
 };
 
+/// @}
 } // namespace gx

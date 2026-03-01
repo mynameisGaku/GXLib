@@ -7,6 +7,8 @@
 /// Update() をフレームループ内で呼び出すこと。
 
 namespace gx {
+/// @addtogroup grp_io
+/// @{
 
 /// @brief ファイル変更監視クラス
 class FileWatcher
@@ -31,23 +33,24 @@ public:
 
 private:
     struct WatchEntry {
-        std::string directory;
-        HANDLE hDir = INVALID_HANDLE_VALUE;
-        OVERLAPPED overlapped = {};
-        std::vector<uint8_t> buffer;
-        std::function<void(const std::string&)> onChange;
-        bool active = false;
+        std::string directory;                              ///< 監視対象ディレクトリパス
+        HANDLE hDir = INVALID_HANDLE_VALUE;                 ///< ディレクトリハンドル
+        OVERLAPPED overlapped = {};                         ///< 非同期I/O用OVERLAPPED構造体
+        std::vector<uint8_t> buffer;                        ///< 変更通知バッファ
+        std::function<void(const std::string&)> onChange;   ///< 変更コールバック
+        bool active = false;                                ///< 監視がアクティブか
     };
 
-    std::vector<std::unique_ptr<WatchEntry>> m_watches;
-    std::thread m_watchThread;
-    std::mutex m_mutex;
-    std::atomic<bool> m_running{ false };
-    HANDLE m_stopEvent = nullptr;
-    std::vector<std::pair<std::string, std::function<void(const std::string&)>>> m_pendingNotifications;
+    std::vector<std::unique_ptr<WatchEntry>> m_watches;     ///< 監視エントリリスト
+    std::thread m_watchThread;                               ///< 監視スレッド
+    std::mutex m_mutex;                                      ///< 通知キュー用ミューテックス
+    std::atomic<bool> m_running{ false };                     ///< スレッド実行フラグ
+    HANDLE m_stopEvent = nullptr;                            ///< 停止シグナル用イベント
+    std::vector<std::pair<std::string, std::function<void(const std::string&)>>> m_pendingNotifications; ///< メインスレッド配信待ち通知
 
     void WatchLoop();
     static void StartRead(WatchEntry* entry);
 };
 
+/// @}
 } // namespace gx

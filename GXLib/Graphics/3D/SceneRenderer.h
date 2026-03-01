@@ -11,6 +11,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 class Camera3D;
 class Renderer3D;
@@ -18,12 +20,12 @@ class Renderer3D;
 /// @brief 描画統計情報
 struct SceneRenderStats
 {
-    uint32_t totalEntities = 0;
-    uint32_t visibleEntities = 0;
-    uint32_t culledEntities = 0;
-    uint32_t drawCalls = 0;
-    uint32_t instancedBatches = 0;
-    uint32_t instancedEntities = 0;
+    uint32_t totalEntities = 0;       ///< シーン内の全エンティティ数
+    uint32_t visibleEntities = 0;     ///< カリング後の可視エンティティ数
+    uint32_t culledEntities = 0;      ///< カリングで除外されたエンティティ数
+    uint32_t drawCalls = 0;           ///< 発行されたドローコール数
+    uint32_t instancedBatches = 0;    ///< インスタンシングバッチ数
+    uint32_t instancedEntities = 0;   ///< インスタンシングで描画されたエンティティ数
 };
 
 /// @brief シーン描画エンジン
@@ -52,7 +54,8 @@ private:
     void RenderInternal(Scene& scene, Renderer3D& renderer,
                          const Frustum* frustum, const Camera3D* camera);
 
-    SceneRenderStats m_lastRenderStats;
+    SceneRenderStats m_lastRenderStats;  ///< 直近フレームの描画統計
 };
 
+/// @}
 } // namespace gx

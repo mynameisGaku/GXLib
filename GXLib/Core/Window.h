@@ -11,6 +11,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_core
+/// @{
 
 /// @brief ウィンドウ作成時の設定
 /// DxLib の SetGraphMode(width, height, 32) + SetMainWindowText() に対応する
@@ -80,4 +82,5 @@ private:
     std::vector<std::function<bool(HWND, UINT, WPARAM, LPARAM)>> m_messageCallbacks;    ///< メッセージフックリスト
 };
 
+/// @}
 } // namespace gx

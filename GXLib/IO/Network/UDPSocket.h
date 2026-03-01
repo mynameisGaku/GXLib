@@ -4,7 +4,11 @@
 ///
 /// バインド・送受信・ノンブロッキング設定をサポートするUDPソケット。
 
+#include <WinSock2.h>
+
 namespace gx {
+/// @addtogroup grp_network
+/// @{
 
 /// @brief UDPソケット
 class UDPSocket
@@ -47,4 +51,5 @@ private:
     SOCKET m_socket = INVALID_SOCKET;
 };
 
+/// @}
 } // namespace gx

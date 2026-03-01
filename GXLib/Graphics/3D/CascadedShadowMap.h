@@ -11,6 +11,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief シャドウ描画用の定数バッファ構造体
 /// 4カスケード分のライト空間VP行列と分割距離をシェーダーに渡す。
@@ -21,7 +23,9 @@ struct ShadowConstants
     XMFLOAT4X4 lightVP[k_NumCascades];      ///< カスケードごとのライト空間VP行列（転置済み）
     float      cascadeSplits[k_NumCascades]; ///< カスケード分割距離（ビュー空間Z）
     float      shadowMapSize;                ///< シャドウマップの解像度（ピクセル）
-    float      padding[3];
+    float      cascadeBlendWidth;            ///< カスケードブレンドゾーン幅
+    float      shadowLightSize;              ///< PCSSlightSize（面積光源サイズ）
+    float      pcssEnabled;                  ///< PCSS有効フラグ（0.0 or 1.0）
 };
 
 /// @brief カスケードシャドウマップ管理クラス（4カスケード、4096x4096）
@@ -72,6 +76,22 @@ public:
     /// @return GPUディスクリプタハンドル
     D3D12_GPU_DESCRIPTOR_HANDLE GetSRVGPUHandle() const { return m_srvGPUHandleStart; }
 
+    /// @brief カスケードブレンドを有効化する
+    void SetCascadeBlendEnabled(bool enabled) { m_cascadeBlendEnabled = enabled; }
+    bool IsCascadeBlendEnabled() const { return m_cascadeBlendEnabled; }
+
+    /// @brief ブレンドゾーン幅を設定する（カスケード境界のなめらかさ）
+    void SetCascadeBlendWidth(float width) { m_cascadeBlendWidth = width; }
+    float GetCascadeBlendWidth() const { return m_cascadeBlendWidth; }
+
+    /// @brief PCSSを有効化する
+    void SetPCSSEnabled(bool enabled) { m_pcssEnabled = enabled; }
+    bool IsPCSSEnabled() const { return m_pcssEnabled; }
+
+    /// @brief PCSS用の光源サイズを設定する
+    void SetLightSize(float size) { m_lightSize = size; }
+    float GetLightSize() const { return m_lightSize; }
+
 private:
     /// 指定カスケードのライト空間正射影VP行列を計算する
     void ComputeCascadeLightVP(uint32_t cascade, const Camera3D& camera,
@@ -84,6 +104,12 @@ private:
 
     /// カスケード分割比率（nearZ~farZの割合）
     std::array<float, k_NumCascades> m_cascadeRatios = { 0.05f, 0.15f, 0.4f, 1.0f };
+
+    bool  m_cascadeBlendEnabled = false;
+    float m_cascadeBlendWidth   = 0.1f;
+    bool  m_pcssEnabled         = false;
+    float m_lightSize           = 1.0f;
 };
 
+/// @}
 } // namespace gx

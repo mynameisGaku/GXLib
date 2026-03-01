@@ -16,6 +16,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_2d
+/// @{
 
 /// @brief 2Dスプライトアニメーション再生クラス
 class Animation2D
@@ -73,4 +75,5 @@ private:
     float  m_speed        = 1.0f;         ///< 再生速度倍率
 };
 
+/// @}
 } // namespace gx

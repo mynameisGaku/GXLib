@@ -2,6 +2,8 @@
 #include "Vector3.h"
 
 namespace gx {
+/// @addtogroup grp_math
+/// @{
 
 /// @brief 4D浮動小数点ベクトル
 struct Vector4
@@ -115,10 +117,29 @@ struct Vector4
             a.w + (b.w - a.w) * t
         };
     }
+
+    static Vector4 Min(const Vector4& a, const Vector4& b)
+    {
+        __m128 va = simd::Load4(&a.x);
+        __m128 vb = simd::Load4(&b.x);
+        Vector4 result;
+        simd::Store4(&result.x, _mm_min_ps(va, vb));
+        return result;
+    }
+
+    static Vector4 Max(const Vector4& a, const Vector4& b)
+    {
+        __m128 va = simd::Load4(&a.x);
+        __m128 vb = simd::Load4(&b.x);
+        Vector4 result;
+        simd::Store4(&result.x, _mm_max_ps(va, vb));
+        return result;
+    }
 };
 
 static_assert(sizeof(Vector4) == 16, "Vector4 must be 16 bytes");
 
 inline Vector4 operator*(float s, const Vector4& v) { return v * s; }
 
+/// @}
 } // namespace gx

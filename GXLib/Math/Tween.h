@@ -6,6 +6,8 @@
 #include <functional>
 
 namespace gx {
+/// @addtogroup grp_math
+/// @{
 
 // ============================================================================
 // イージング関数 (t: 0.0 〜 1.0 → 0.0 〜 1.0)
@@ -224,4 +226,5 @@ private:
     int                     m_nextId = 0;
 };
 
+/// @}
 } // namespace gx

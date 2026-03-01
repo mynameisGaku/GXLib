@@ -12,6 +12,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_device
+/// @{
 
 /// @brief GPU処理時間を計測するシングルトン
 ///
@@ -161,4 +163,5 @@ private:
 #define GX_GPU_PROFILE_SCOPE(cmdList, name) \
     gx::GPUProfileScope _gpuScope_##__LINE__(cmdList, name)
 
+/// @}
 } // namespace gx

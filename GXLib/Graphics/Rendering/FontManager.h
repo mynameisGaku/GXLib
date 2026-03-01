@@ -21,6 +21,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_2d
+/// @{
 
 /// @brief グリフ（1文字分）の描画情報
 struct GlyphInfo
@@ -140,4 +142,5 @@ private:
     int                    m_nextHandle = 0;
 };
 
+/// @}
 } // namespace gx

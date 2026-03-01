@@ -11,6 +11,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_device
+/// @{
 
 /// @brief GPUに描画コマンドを送信するキュー
 ///
@@ -56,4 +58,5 @@ private:
     Fence m_fence;  ///< GPU-CPU同期用フェンス（キュー作成時に自動初期化）
 };
 
+/// @}
 } // namespace gx

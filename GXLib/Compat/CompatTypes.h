@@ -4,6 +4,8 @@
 ///
 /// GXLibの簡易APIで使用する定数・型を定義します。
 /// DXLibからの移行を容易にするための互換定数も含みます。
+/// @addtogroup grp_compat
+/// @{
 
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -227,3 +229,4 @@ typedef struct GX_MATERIAL_PARAM
     float emissiveG;         ///< 発光色 緑成分
     float emissiveB;         ///< 発光色 青成分
 } GX_MATERIAL_PARAM;
+/// @}

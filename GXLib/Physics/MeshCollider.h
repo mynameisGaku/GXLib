@@ -6,6 +6,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_physics
+/// @{
 
 class Model;
 class Animator;
@@ -98,4 +100,5 @@ private:
     PhysicsShape* m_shape = nullptr; ///< 保持しているコライダーシェイプ
 };
 
+/// @}
 } // namespace gx

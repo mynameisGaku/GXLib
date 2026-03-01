@@ -15,6 +15,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_pipeline
+/// @{
 
 /// @brief 描画パイプライン設定をビルダーパターンで組み立て、PSOを生成する
 class PipelineStateBuilder
@@ -128,4 +130,5 @@ private:
     D3D12_GRAPHICS_PIPELINE_STATE_DESC m_desc;  ///< PSO設定の実体
 };
 
+/// @}
 } // namespace gx

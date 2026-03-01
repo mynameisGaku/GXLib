@@ -11,6 +11,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_ai
+/// @{
 
 class Terrain;
 class PrimitiveBatch3D;
@@ -64,9 +66,10 @@ public:
     /// @param start Start world position
     /// @param end   Goal world position
     /// @param path  Output: waypoints in world coordinates
+    /// @param smooth If true, apply path smoothing (default: false)
     /// @return true if a path was found
     bool FindPath(const XMFLOAT3& start, const XMFLOAT3& end,
-                  std::vector<XMFLOAT3>& path) const;
+                  std::vector<XMFLOAT3>& path, bool smooth = false) const;
 
     /// @brief Find the nearest walkable cell to a world position
     bool FindNearestWalkable(const XMFLOAT3& position, XMFLOAT3& nearest) const;
@@ -81,6 +84,39 @@ public:
     void DebugDrawPath(PrimitiveBatch3D& batch,
                        const std::vector<XMFLOAT3>& path,
                        const XMFLOAT4& color) const;
+
+    // --- Dynamic obstacle API ---
+
+    /// @brief AABBタイプの障害物を追加する
+    /// @param minX 最小X座標
+    /// @param minZ 最小Z座標
+    /// @param maxX 最大X座標
+    /// @param maxZ 最大Z座標
+    /// @return 障害物ハンドル（0以上）。失敗時は0
+    uint32_t AddObstacleAABB(float minX, float minZ, float maxX, float maxZ);
+
+    /// @brief 円柱タイプの障害物を追加する
+    /// @param centerX 中心X座標
+    /// @param centerZ 中心Z座標
+    /// @param radius 半径
+    /// @return 障害物ハンドル
+    uint32_t AddObstacleCylinder(float centerX, float centerZ, float radius);
+
+    /// @brief 障害物を削除する
+    /// @param handle AddObstacleXXXで取得したハンドル
+    void RemoveObstacle(uint32_t handle);
+
+    /// @brief 登録されている障害物の数を取得する
+    uint32_t GetObstacleCount() const { return static_cast<uint32_t>(m_obstacles.size()); }
+
+    /// @brief 全障害物を削除する
+    void ClearObstacles();
+
+    /// @brief 障害物を移動する（AABBの場合オフセットとして適用）
+    /// @param handle 障害物ハンドル
+    /// @param newMinX 新しい最小X座標
+    /// @param newMinZ 新しい最小Z座標
+    void MoveObstacle(uint32_t handle, float newMinX, float newMinZ);
 
     int   GetGridWidth()  const { return m_gridWidth; }
     int   GetGridHeight() const { return m_gridHeight; }
@@ -119,7 +155,28 @@ private:
     /// Mark cells unwalkable based on slope between neighbours
     void ApplySlopeFilter(float maxClimb, float maxSlope);
 
+    /// @brief 障害物種類
+    enum class ObstacleType { AABB, Cylinder };
+
+    /// @brief 動的障害物データ
+    struct Obstacle
+    {
+        ObstacleType type;
+        float minX, minZ, maxX, maxZ; // AABB
+        float centerX, centerZ, radius; // Cylinder
+        uint32_t handle;
+    };
+
+    /// @brief 障害物の影響をセルに反映する
+    void ApplyObstacles();
+
+    /// @brief 障害物の影響を除去して元のwalkable状態に戻す
+    void RemoveObstacleEffects();
+
     std::vector<Cell> m_grid;
+    std::vector<Cell> m_baseGrid;  ///< 障害物適用前の基礎グリッド
+    std::vector<Obstacle> m_obstacles;
+    uint32_t m_nextObstacleHandle = 1;
     int   m_gridWidth  = 0;
     int   m_gridHeight = 0;
     float m_cellSize   = 0.5f;
@@ -128,4 +185,5 @@ private:
     bool  m_built      = false;
 };
 
+/// @}
 } // namespace gx

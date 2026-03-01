@@ -14,6 +14,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_resource
+/// @{
 
 /// @brief 毎フレーム書き換え可能なUPLOADヒープバッファ
 ///
@@ -82,4 +84,5 @@ private:
     uint32_t m_stride  = 0; ///< 1要素のストライド
 };
 
+/// @}
 } // namespace gx

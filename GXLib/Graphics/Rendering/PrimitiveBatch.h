@@ -11,6 +11,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_2d
+/// @{
 
 /// @brief 基本図形描画バッチクラス（DxLibの DrawLine / DrawBox / DrawCircle 等に相当）
 class PrimitiveBatch
@@ -155,4 +157,5 @@ private:
     bool     m_useCustomProjection = false;
 };
 
+/// @}
 } // namespace gx

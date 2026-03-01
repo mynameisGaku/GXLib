@@ -14,6 +14,8 @@
 #include "Core/ServiceLocator.h"
 
 namespace gx {
+/// @addtogroup grp_core
+/// @{
 
 // Forward declarations
 class IAudioDevice;
@@ -62,4 +64,5 @@ private:
     Engine& operator=(const Engine&) = delete;
 };
 
+/// @}
 } // namespace gx

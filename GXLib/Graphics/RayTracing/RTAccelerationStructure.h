@@ -11,6 +11,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_rt
+/// @{
 
 /// @brief BLAS/TLASの構築とキャッシュを管理するアクセラレーション構造クラス
 ///
@@ -63,27 +65,27 @@ public:
     D3D12_GPU_VIRTUAL_ADDRESS GetTLASAddress() const;
 
 private:
-    ID3D12Device5* m_device = nullptr;
+    ID3D12Device5* m_device = nullptr;   ///< DXR対応デバイス
 
     // BLAS キャッシュ
     struct BLASEntry
     {
-        Buffer result;      // BLAS 結果バッファ (DEFAULT heap)
-        Buffer scratch;     // スクラッチバッファ (ビルド後も保持 — update 用)
+        Buffer result;      ///< BLAS 結果バッファ (DEFAULT heap)
+        Buffer scratch;     ///< スクラッチバッファ (ビルド後も保持 — update 用)
     };
-    std::vector<BLASEntry> m_blasCache;
+    std::vector<BLASEntry> m_blasCache;  ///< 構築済みBLASキャッシュ
 
     // TLAS (ダブルバッファ)
     static constexpr uint32_t k_BufferCount = 2;
-    Buffer m_tlasResult[k_BufferCount];
-    Buffer m_tlasScratch[k_BufferCount];
-    Buffer m_instanceDescBuffer[k_BufferCount]; // UPLOAD heap
+    Buffer m_tlasResult[k_BufferCount];           ///< TLAS結果バッファ（ダブルバッファ）
+    Buffer m_tlasScratch[k_BufferCount];          ///< TLASスクラッチバッファ（ダブルバッファ）
+    Buffer m_instanceDescBuffer[k_BufferCount];   ///< インスタンス記述子バッファ (UPLOAD heap)
 
     // フレームごとのインスタンスリスト
-    std::vector<D3D12_RAYTRACING_INSTANCE_DESC> m_instances;
+    std::vector<D3D12_RAYTRACING_INSTANCE_DESC> m_instances; ///< 当フレームのインスタンス記述子
 
-    // 最後にBuildTLASしたバッファインデックス
-    uint32_t m_lastBuiltBufIdx = 0;
+    uint32_t m_lastBuiltBufIdx = 0;  ///< 最後にBuildTLASしたバッファインデックス
 };
 
+/// @}
 } // namespace gx

@@ -34,6 +34,8 @@
 
 namespace gx_internal
 {
+/// @addtogroup grp_compat
+/// @{
 
 /// @brief 簡易APIの内部コンテキスト（シングルトン）
 ///
@@ -178,4 +180,5 @@ private:
     CompatContext& operator=(const CompatContext&) = delete;
 };
 
+/// @}
 } // namespace gx_internal

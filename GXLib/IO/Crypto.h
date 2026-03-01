@@ -6,6 +6,8 @@
 /// Archive の暗号化アーカイブで内部的に使用される。
 
 namespace gx {
+/// @addtogroup grp_io
+/// @{
 
 /// @brief 暗号化ユーティリティクラス (全staticメソッド)
 class Crypto
@@ -41,4 +43,5 @@ public:
     static void GenerateRandomBytes(uint8_t* buffer, size_t size);
 };
 
+/// @}
 } // namespace gx

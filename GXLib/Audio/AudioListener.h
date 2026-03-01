@@ -11,6 +11,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_audio
+/// @{
 
 /// @brief 3Dオーディオのリスナー（聴取者）
 ///
@@ -51,4 +53,5 @@ private:
     XMFLOAT3 m_prevPosition = { 0.0f, 0.0f, 0.0f };
 };
 
+/// @}
 } // namespace gx

@@ -14,6 +14,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_pipeline
+/// @{
 
 /// @brief シェーダーファイル変更の自動検知とPSO再構築を管理するシングルトン
 class ShaderHotReload
@@ -75,4 +77,5 @@ private:
     static constexpr float k_DebounceDelay = 0.3f;
 };
 
+/// @}
 } // namespace gx

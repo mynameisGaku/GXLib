@@ -2,6 +2,8 @@
 #include "Collision3D.h"
 
 namespace gx {
+/// @addtogroup grp_collision
+/// @{
 
 /// @brief オクツリー（3D空間分割）テンプレート
 ///
@@ -238,4 +240,5 @@ private:
     int m_maxObjects;
 };
 
+/// @}
 } // namespace gx

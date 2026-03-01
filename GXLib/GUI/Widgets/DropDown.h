@@ -6,6 +6,8 @@
 #include "GUI/Widget.h"
 
 namespace gx { namespace GUI {
+/// @addtogroup grp_gui_widgets
+/// @{
 
 class UIRenderer;
 
@@ -59,13 +61,14 @@ private:
     static constexpr float k_ArrowWidth = 20.0f;
     static constexpr float k_DropPadding = 4.0f;
 
-    std::vector<std::string> m_items;
-    std::vector<std::wstring> m_wideItems;
-    int m_selectedIndex = 0;
-    int m_hoveredItem = -1;
-    bool m_open = false;
-    int m_fontHandle = -1;
-    UIRenderer* m_renderer = nullptr;
+    std::vector<std::string> m_items;      ///< 選択肢リスト（UTF-8）
+    std::vector<std::wstring> m_wideItems; ///< 選択肢リスト（ワイド文字）
+    int m_selectedIndex = 0;               ///< 選択中インデックス
+    int m_hoveredItem = -1;                ///< ホバー中インデックス
+    bool m_open = false;                   ///< ポップアップ開閉状態
+    int m_fontHandle = -1;                 ///< フォントハンドル
+    UIRenderer* m_renderer = nullptr;      ///< GUI描画レンダラー
 };
 
+/// @}
 }} // namespace gx::GUI

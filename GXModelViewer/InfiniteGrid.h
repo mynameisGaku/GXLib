@@ -46,7 +46,7 @@ private:
         float      _pad1;
     };
 
-    ComPtr<ID3D12RootSignature> m_rootSig;
-    ComPtr<ID3D12PipelineState> m_pso;
-    gx::DynamicBuffer           m_cbuffer;
+    ComPtr<ID3D12RootSignature> m_rootSig; ///< グリッド描画用ルートシグネチャ
+    ComPtr<ID3D12PipelineState> m_pso;    ///< グリッド描画用パイプラインステート
+    gx::DynamicBuffer           m_cbuffer; ///< フレームごとの定数バッファ
 };

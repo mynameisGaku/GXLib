@@ -10,6 +10,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_audio
+/// @{
 
 /// @brief WAVファイルから読み込んだPCMデータを保持するクラス（DxLibのサウンドハンドルの実体）
 class Sound
@@ -44,4 +46,5 @@ private:
     WAVEFORMATEX         m_format = {}; ///< サンプルレート・チャンネル数・ビット深度等
 };
 
+/// @}
 } // namespace gx

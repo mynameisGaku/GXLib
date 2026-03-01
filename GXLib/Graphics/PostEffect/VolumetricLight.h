@@ -16,19 +16,21 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_postfx
+/// @{
 
-/// VolumetricLight 定数バッファ
+/// @brief VolumetricLight 定数バッファ
 struct VolumetricLightConstants
 {
-    XMFLOAT2 sunScreenPos;    // offset 0: UV空間の太陽位置
-    float    density;          // offset 8: 散乱密度
-    float    decay;            // offset 12: 減衰
-    float    weight;           // offset 16: サンプルウェイト
-    float    exposure;         // offset 20: 露出
-    int      numSamples;       // offset 24: サンプル数
-    float    intensity;        // offset 28: 全体強度
-    XMFLOAT3 lightColor;      // offset 32: 光の色
-    float    sunVisible;       // offset 44: 太陽可視性 (0-1)
+    XMFLOAT2 sunScreenPos;    ///< UV空間の太陽位置
+    float    density;          ///< 散乱密度
+    float    decay;            ///< 減衰率
+    float    weight;           ///< サンプルウェイト
+    float    exposure;         ///< 露出
+    int      numSamples;       ///< サンプル数
+    float    intensity;        ///< 全体強度
+    XMFLOAT3 lightColor;      ///< 光の色（リニアRGB）
+    float    sunVisible;       ///< 太陽可視性（0〜1）
 };  // 48B → 256-align
 
 /// @brief 太陽光の放射状散乱を再現するゴッドレイエフェクト
@@ -104,38 +106,39 @@ public:
 private:
     bool CreatePipelines(ID3D12Device* device);
 
-    bool m_enabled = false;
+    bool m_enabled = false;                        ///< 有効フラグ
 
     // ライトパラメータ
-    XMFLOAT3 m_lightDirection = { 0.3f, -1.0f, 0.5f };
-    XMFLOAT3 m_lightColor     = { 1.0f, 0.98f, 0.95f };
+    XMFLOAT3 m_lightDirection = { 0.3f, -1.0f, 0.5f };  ///< ライト方向
+    XMFLOAT3 m_lightColor     = { 1.0f, 0.98f, 0.95f }; ///< ライト色
 
     // エフェクトパラメータ
-    float m_density   = 1.0f;
-    float m_decay     = 0.97f;
-    float m_weight    = 0.04f;
-    float m_exposure  = 0.35f;
-    float m_intensity = 1.0f;
-    int   m_numSamples = 96;
+    float m_density   = 1.0f;      ///< 散乱密度
+    float m_decay     = 0.97f;     ///< 減衰率
+    float m_weight    = 0.04f;     ///< サンプルウェイト
+    float m_exposure  = 0.35f;     ///< 露出
+    float m_intensity = 1.0f;      ///< 全体強度
+    int   m_numSamples = 96;       ///< サンプル数
 
-    uint32_t m_width  = 0;
-    uint32_t m_height = 0;
+    uint32_t m_width  = 0;         ///< 画面幅（ピクセル）
+    uint32_t m_height = 0;         ///< 画面高さ（ピクセル）
 
     // パイプライン
-    Shader m_shader;
-    ComPtr<ID3D12RootSignature> m_rootSignature;
-    ComPtr<ID3D12PipelineState> m_pso;
-    DynamicBuffer m_cb;
+    Shader m_shader;                              ///< ゴッドレイシェーダー
+    ComPtr<ID3D12RootSignature> m_rootSignature;  ///< ルートシグネチャ
+    ComPtr<ID3D12PipelineState> m_pso;            ///< パイプラインステート
+    DynamicBuffer m_cb;                           ///< 定数バッファ
 
-    // 2テクスチャ(scene + depth)用専用SRVヒープ (2スロット × 2フレーム = 4)
-    DescriptorHeap m_srvHeap;
-    ID3D12Device* m_device = nullptr;
+    // SRVヒープ（scene + depth, 2スロット×2フレーム=4）
+    DescriptorHeap m_srvHeap;                     ///< SRVデスクリプタヒープ
+    ID3D12Device* m_device = nullptr;             ///< D3D12デバイス
 
     // デバッグ用: 最後のフレームの計算値
-    float m_lastSunVisible = 0.0f;
-    XMFLOAT2 m_lastSunScreenPos = { 0.0f, 0.0f };
+    float m_lastSunVisible = 0.0f;                ///< 最後に計算した太陽の可視性
+    XMFLOAT2 m_lastSunScreenPos = { 0.0f, 0.0f };///< 最後に計算した太陽のスクリーンUV座標
 
     void UpdateSRVHeap(RenderTarget& srcHDR, DepthBuffer& depth, uint32_t frameIndex);
 };
 
+/// @}
 } // namespace gx

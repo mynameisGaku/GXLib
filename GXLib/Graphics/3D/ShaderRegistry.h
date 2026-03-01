@@ -11,6 +11,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief シェーダーモデル別PSOレジストリ
 /// Renderer3Dが描画時にMaterialのシェーダーモデルとスキニング有無から
@@ -66,4 +68,5 @@ private:
     ShaderModelPSO               m_toonOutline;              ///< Toonアウトライン専用（スムース法線ベース）
 };
 
+/// @}
 } // namespace gx

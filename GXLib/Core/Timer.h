@@ -10,6 +10,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_core
+/// @{
 
 /// @brief QueryPerformanceCounter ベースの高精度タイマー
 /// DxLib の GetNowCount() はミリ秒単位だが、こちらは float 秒で返す。
@@ -52,4 +54,5 @@ private:
     float  m_elapsed    = 0.0f;  ///< FPS 計算用経過秒数
 };
 
+/// @}
 } // namespace gx

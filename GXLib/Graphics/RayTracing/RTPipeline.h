@@ -13,6 +13,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_rt
+/// @{
 
 /// @brief DXR State Object/シェーダーテーブルを管理するレイトレパイプラインクラス
 ///
@@ -90,4 +92,5 @@ private:
     uint32_t m_hitGroupRecordSize = 0;
 };
 
+/// @}
 } // namespace gx

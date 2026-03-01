@@ -10,6 +10,8 @@
 #include "Math/Collision/Collision2D.h"
 
 namespace gx {
+/// @addtogroup grp_physics
+/// @{
 
 /// @brief 2D衝突情報
 struct ContactInfo2D {
@@ -86,4 +88,5 @@ private:
     Circle GetBodyCircle(const RigidBody2D& body) const;
 };
 
+/// @}
 } // namespace gx

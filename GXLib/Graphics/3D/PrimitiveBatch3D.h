@@ -10,6 +10,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief 3Dライン描画用の頂点（位置＋色）
 struct LineVertex3D
@@ -125,4 +127,5 @@ private:
     uint32_t                     m_vertexCount    = 0;
 };
 
+/// @}
 } // namespace gx

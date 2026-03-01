@@ -9,6 +9,8 @@
 #include <cmath>
 
 namespace gx::simd {
+/// @addtogroup grp_math
+/// @{
 
 // ============================================================================
 // Load / Store
@@ -161,4 +163,5 @@ inline __m128 MatMulRow(__m128 row, __m128 m0, __m128 m1, __m128 m2, __m128 m3)
         _mm_add_ps(_mm_mul_ps(z, m2), _mm_mul_ps(w, m3)));
 }
 
+/// @}
 } // namespace gx::simd

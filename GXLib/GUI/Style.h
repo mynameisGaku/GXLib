@@ -8,19 +8,26 @@
 #include "pch_graphics.h"
 
 namespace gx { namespace GUI {
+/// @addtogroup grp_gui
+/// @{
 
 // ============================================================================
 // サイズ単位
 // ============================================================================
 
 /// @brief サイズの単位
-enum class SizeUnit { Px, Percent, Auto };
+enum class SizeUnit
+{
+    Px,      ///< ピクセル（絶対値）
+    Percent, ///< 親要素に対する百分率
+    Auto     ///< 自動計算（内容やレイアウトに応じる）
+};
 
 /// @brief 単位付きの長さ値
 struct StyleLength
 {
-    float value = 0.0f;
-    SizeUnit unit = SizeUnit::Auto;
+    float value = 0.0f;          ///< 数値
+    SizeUnit unit = SizeUnit::Auto; ///< 単位
 
     /// ピクセル値を作成
     static StyleLength Px(float v) { return { v, SizeUnit::Px }; }
@@ -154,75 +161,75 @@ enum class OverflowMode { Visible, Hidden, Scroll };
 struct Style
 {
     // --- サイズ ---
-    StyleLength width  = StyleLength::Auto();
-    StyleLength height = StyleLength::Auto();
-    StyleLength minWidth  = StyleLength::Px(0);
-    StyleLength minHeight = StyleLength::Px(0);
-    StyleLength maxWidth  = StyleLength::Px(100000.0f);
-    StyleLength maxHeight = StyleLength::Px(100000.0f);
+    StyleLength width  = StyleLength::Auto();              ///< 幅
+    StyleLength height = StyleLength::Auto();              ///< 高さ
+    StyleLength minWidth  = StyleLength::Px(0);            ///< 最小幅
+    StyleLength minHeight = StyleLength::Px(0);            ///< 最小高さ
+    StyleLength maxWidth  = StyleLength::Px(100000.0f);    ///< 最大幅
+    StyleLength maxHeight = StyleLength::Px(100000.0f);    ///< 最大高さ
 
     // --- ボックスモデル ---
-    StyleEdges margin;
-    StyleEdges padding;
-    float borderWidth = 0.0f;
-    StyleColor borderColor;
+    StyleEdges margin;                                     ///< 外側余白
+    StyleEdges padding;                                    ///< 内側余白
+    float borderWidth = 0.0f;                              ///< ボーダー幅（ピクセル）
+    StyleColor borderColor;                                ///< ボーダー色
 
     // --- 背景 ---
-    StyleColor backgroundColor;
-    float cornerRadius = 0.0f;
+    StyleColor backgroundColor;                            ///< 背景色
+    float cornerRadius = 0.0f;                             ///< 角丸半径（ピクセル）
 
     // --- テキスト ---
-    StyleColor color = { 1.0f, 1.0f, 1.0f, 1.0f };
-    float fontSize = 16.0f;
-    std::string fontFamily;
-    TextAlign textAlign = TextAlign::Left;
-    VAlign verticalAlign = VAlign::Top;
+    StyleColor color = { 1.0f, 1.0f, 1.0f, 1.0f };       ///< テキスト色
+    float fontSize = 16.0f;                                ///< フォントサイズ（ピクセル）
+    std::string fontFamily;                                ///< フォントファミリー名
+    TextAlign textAlign = TextAlign::Left;                 ///< テキスト水平揃え
+    VAlign verticalAlign = VAlign::Top;                    ///< テキスト垂直揃え
 
     // --- Flexbox レイアウト ---
-    FlexDirection flexDirection = FlexDirection::Column;
-    JustifyContent justifyContent = JustifyContent::Start;
-    AlignItems alignItems = AlignItems::Stretch;
-    float flexGrow = 0.0f;
-    float flexShrink = 1.0f;
-    float gap = 0.0f;
+    FlexDirection flexDirection = FlexDirection::Column;   ///< 子要素の並び方向
+    JustifyContent justifyContent = JustifyContent::Start; ///< 主軸方向の配置
+    AlignItems alignItems = AlignItems::Stretch;           ///< 交差軸方向の揃え
+    float flexGrow = 0.0f;                                 ///< 余白配分比率（0=伸びない）
+    float flexShrink = 1.0f;                               ///< 縮小比率（0=縮まない）
+    float gap = 0.0f;                                      ///< 子要素間の間隔（ピクセル）
 
     // --- 位置 ---
-    PositionType position = PositionType::Relative;
-    StyleLength posLeft   = StyleLength::Auto();
-    StyleLength posTop    = StyleLength::Auto();
+    PositionType position = PositionType::Relative;        ///< 配置方式
+    StyleLength posLeft   = StyleLength::Auto();           ///< 左位置（Absolute時に使用）
+    StyleLength posTop    = StyleLength::Auto();           ///< 上位置（Absolute時に使用）
 
     // --- オーバーフロー ---
-    OverflowMode overflow = OverflowMode::Visible;
+    OverflowMode overflow = OverflowMode::Visible;         ///< はみ出し時の挙動
 
     // --- 影 ---
-    float shadowOffsetX = 0.0f, shadowOffsetY = 0.0f;
-    float shadowBlur = 0.0f;
-    StyleColor shadowColor;
+    float shadowOffsetX = 0.0f, shadowOffsetY = 0.0f;     ///< 影のオフセット（ピクセル）
+    float shadowBlur = 0.0f;                               ///< 影のぼかし半径（ピクセル）
+    StyleColor shadowColor;                                ///< 影の色
 
     // --- Opacity / Transform ---
-    float opacity = 1.0f;
-    float translateX = 0.0f;
-    float translateY = 0.0f;
-    float scaleX = 1.0f;
-    float scaleY = 1.0f;
-    float rotate = 0.0f; // degrees
-    float pivotX = 0.5f;
-    float pivotY = 0.5f;
+    float opacity = 1.0f;                                  ///< 不透明度（0.0~1.0）
+    float translateX = 0.0f;                               ///< X方向移動（ピクセル）
+    float translateY = 0.0f;                               ///< Y方向移動（ピクセル）
+    float scaleX = 1.0f;                                   ///< X方向スケール
+    float scaleY = 1.0f;                                   ///< Y方向スケール
+    float rotate = 0.0f;                                   ///< 回転角度（度）
+    float pivotX = 0.5f;                                   ///< 回転/スケールの基点X（0~1）
+    float pivotY = 0.5f;                                   ///< 回転/スケールの基点Y（0~1）
 
     // --- Effects ---
-    UIEffectType effectType = UIEffectType::None;
-    float effectStrength = 0.0f;
-    float effectWidth = 0.0f;
-    float effectDuration = 0.0f;
+    UIEffectType effectType = UIEffectType::None;          ///< エフェクトの種類
+    float effectStrength = 0.0f;                           ///< エフェクト強度（0~1）
+    float effectWidth = 0.0f;                              ///< エフェクト幅（0~1）
+    float effectDuration = 0.0f;                           ///< エフェクト持続時間（秒）
 
     // --- Image UV ---
-    float imageUVScaleX = 1.0f;
-    float imageUVScaleY = 1.0f;
-    float imageUVSpeedX = 0.0f;
-    float imageUVSpeedY = 0.0f;
+    float imageUVScaleX = 1.0f;                            ///< 画像UVスケールX
+    float imageUVScaleY = 1.0f;                            ///< 画像UVスケールY
+    float imageUVSpeedX = 0.0f;                            ///< 画像UVスクロール速度X
+    float imageUVSpeedY = 0.0f;                            ///< 画像UVスクロール速度Y
 
     // --- アニメーション ---
-    float transitionDuration = 0.0f;
+    float transitionDuration = 0.0f;                       ///< スタイル遷移アニメーション時間（秒）
 };
 
 // ============================================================================
@@ -328,4 +335,5 @@ inline Style LerpVisual(const Style& from, const Style& to, float t)
     return out;
 }
 
+/// @}
 }} // namespace gx::GUI

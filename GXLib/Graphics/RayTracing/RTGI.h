@@ -19,55 +19,57 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_rt
+/// @{
 
-/// GI用定数バッファ (256B align)
+/// @brief GI用定数バッファ (256B align)
 struct RTGIConstants
 {
-    XMFLOAT4X4 invViewProjection;  // 0
-    XMFLOAT4X4 view;               // 64
-    XMFLOAT4X4 invProjection;      // 128
-    XMFLOAT3   cameraPosition;     // 192
-    float      maxDistance;         // 204
-    float      screenWidth;        // 208
-    float      screenHeight;       // 212
-    float      halfWidth;          // 216
-    float      halfHeight;         // 220
-    XMFLOAT3   skyTopColor;        // 224
-    float      frameIndex;         // 236
-    XMFLOAT3   skyBottomColor;     // 240
-    float      _pad1;              // 252
+    XMFLOAT4X4 invViewProjection;  ///< 逆VP行列（ワールド座標復元用）
+    XMFLOAT4X4 view;               ///< ビュー行列
+    XMFLOAT4X4 invProjection;      ///< 逆射影行列
+    XMFLOAT3   cameraPosition;     ///< カメラ位置（ワールド空間）
+    float      maxDistance;         ///< GIレイの最大飛距離
+    float      screenWidth;        ///< スクリーン幅（ピクセル）
+    float      screenHeight;       ///< スクリーン高さ（ピクセル）
+    float      halfWidth;          ///< 半解像度幅（ピクセル）
+    float      halfHeight;         ///< 半解像度高さ（ピクセル）
+    XMFLOAT3   skyTopColor;        ///< 空の天頂色（Missシェーダー用）
+    float      frameIndex;         ///< フレーム番号（ノイズ生成用）
+    XMFLOAT3   skyBottomColor;     ///< 空の地平色（Missシェーダー用）
+    float      _pad1;              ///< パディング
 };  // 256B
 
-/// テンポラル蓄積パス定数
+/// @brief テンポラル蓄積パス定数
 struct RTGITemporalConstants
 {
-    XMFLOAT4X4 prevViewProjection; // 0
-    XMFLOAT4X4 invViewProjection;  // 64
-    float      alpha;              // 128
-    float      frameCount;         // 132
-    float      fullWidth;          // 136
-    float      fullHeight;         // 140
+    XMFLOAT4X4 prevViewProjection; ///< 前フレームVP行列（リプロジェクション用）
+    XMFLOAT4X4 invViewProjection;  ///< 現フレーム逆VP行列
+    float      alpha;              ///< 新フレーム混合比率（小さいほど安定）
+    float      frameCount;         ///< 累積フレーム数
+    float      fullWidth;          ///< フル解像度幅（ピクセル）
+    float      fullHeight;         ///< フル解像度高さ（ピクセル）
 };  // 144B → 256B aligned
 
-/// 空間フィルタパス定数
+/// @brief 空間フィルタパス定数
 struct RTGISpatialConstants
 {
-    float fullWidth;    // 0
-    float fullHeight;   // 4
-    float stepWidth;    // 8
-    float sigmaDepth;   // 12
-    float sigmaNormal;  // 16
-    float sigmaColor;   // 20
-    float _pad[2];      // 24
+    float fullWidth;    ///< フル解像度幅（ピクセル）
+    float fullHeight;   ///< フル解像度高さ（ピクセル）
+    float stepWidth;    ///< A-Trousフィルタのステップ幅
+    float sigmaDepth;   ///< 深度の重み係数
+    float sigmaNormal;  ///< 法線の重み係数
+    float sigmaColor;   ///< 色の重み係数
+    float _pad[2];      ///< パディング
 };  // 32B → 256B aligned
 
-/// コンポジットパス定数
+/// @brief コンポジットパス定数
 struct RTGICompositeConstants
 {
-    float intensity;    // 0
-    float debugMode;    // 4
-    float fullWidth;    // 8
-    float fullHeight;   // 12
+    float intensity;    ///< GI合成強度
+    float debugMode;    ///< デバッグ表示モード (0=オフ)
+    float fullWidth;    ///< フル解像度幅（ピクセル）
+    float fullHeight;   ///< フル解像度高さ（ピクセル）
 };  // 16B → 256B aligned
 
 /// @brief DXRレイトレでグローバルイルミネーション(間接照明)を計算するクラス
@@ -167,111 +169,112 @@ private:
     void CreateTemporalResources();
     void CreateSpatialResources();
 
-    bool m_enabled = false;
-    float m_maxDistance = 30.0f;
-    float m_intensity = 1.0f;
-    float m_temporalAlpha = 0.05f;
-    int   m_spatialIterations = 5;
-    int   m_debugMode = 0;
+    bool m_enabled = false;              ///< 有効フラグ
+    float m_maxDistance = 30.0f;        ///< GIレイの最大飛距離
+    float m_intensity = 1.0f;           ///< GI合成強度
+    float m_temporalAlpha = 0.05f;      ///< テンポラル蓄積の新フレーム比率
+    int   m_spatialIterations = 5;      ///< A-Trous空間フィルタの反復数
+    int   m_debugMode = 0;              ///< デバッグ表示モード (0=オフ)
 
-    uint32_t m_width  = 0;
-    uint32_t m_height = 0;
-    uint32_t m_halfWidth  = 0;
-    uint32_t m_halfHeight = 0;
+    uint32_t m_width  = 0;              ///< 画面幅（ピクセル）
+    uint32_t m_height = 0;              ///< 画面高さ（ピクセル）
+    uint32_t m_halfWidth  = 0;          ///< 半解像度幅（ピクセル）
+    uint32_t m_halfHeight = 0;          ///< 半解像度高さ（ピクセル）
 
-    ID3D12Device5* m_device5 = nullptr;
+    ID3D12Device5* m_device5 = nullptr; ///< DXR対応デバイス
 
     // DXRコア
-    RTAccelerationStructure m_ownAccelStruct;
-    RTAccelerationStructure* m_accelStruct = nullptr;
-    RTPipeline m_giPipeline;
+    RTAccelerationStructure m_ownAccelStruct;          ///< 自前のBLAS/TLAS管理
+    RTAccelerationStructure* m_accelStruct = nullptr;  ///< 使用するBLAS/TLAS（共有 or 自前）
+    RTPipeline m_giPipeline;                           ///< GI用DXRパイプライン
 
     // 半解像度GI UAV出力
-    ComPtr<ID3D12Resource> m_giUAV;
-    D3D12_RESOURCE_STATES  m_giUAVState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+    ComPtr<ID3D12Resource> m_giUAV;                    ///< 半解像度GI結果UAV
+    D3D12_RESOURCE_STATES  m_giUAVState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS; ///< UAVリソース状態
 
     // テンポラル蓄積用 history (フル解像度, ダブルバッファ)
-    RenderTarget m_temporalHistory[2];
-    uint32_t m_temporalWriteIdx = 0;
+    RenderTarget m_temporalHistory[2];                 ///< テンポラル蓄積ヒストリRT（ダブルバッファ）
+    uint32_t m_temporalWriteIdx = 0;                   ///< テンポラル書き込みインデックス
 
     // 空間フィルタ用 ping-pong (フル解像度)
-    RenderTarget m_spatialPingPong[2];
+    RenderTarget m_spatialPingPong[2];                 ///< 空間フィルタ用ピンポンRT
 
-    // ディスパッチ用ヒープ (RTReflections同等レイアウト)
-    DescriptorHeap m_dispatchHeap;
+    // ディスパッチ用ヒープ
+    DescriptorHeap m_dispatchHeap;                     ///< DispatchRays用SRV/UAVヒープ
 
     // 定数バッファ
-    DynamicBuffer m_cb;
-    DynamicBuffer m_lightCB;
-    LightConstants m_lightConstants = {};
+    DynamicBuffer m_cb;                                ///< GI定数バッファ
+    DynamicBuffer m_lightCB;                           ///< ライト定数バッファ
+    LightConstants m_lightConstants = {};               ///< ライト定数データ
 
     // テンポラルパス
-    Shader m_denoiseShader;
-    ComPtr<ID3D12RootSignature> m_temporalRS;
-    ComPtr<ID3D12PipelineState> m_temporalPSO;
-    DynamicBuffer m_temporalCB;
-    DescriptorHeap m_temporalHeap;  // [0..3]×2frames: currentGI, history, depth, prevDepth
+    Shader m_denoiseShader;                            ///< デノイズシェーダー
+    ComPtr<ID3D12RootSignature> m_temporalRS;          ///< テンポラルパス用ルートシグネチャ
+    ComPtr<ID3D12PipelineState> m_temporalPSO;         ///< テンポラルパス用PSO
+    DynamicBuffer m_temporalCB;                        ///< テンポラルパス定数バッファ
+    DescriptorHeap m_temporalHeap;                     ///< テンポラルパス用SRVヒープ
 
     // 空間フィルタパス
-    ComPtr<ID3D12RootSignature> m_spatialRS;
-    ComPtr<ID3D12PipelineState> m_spatialPSO;
-    DynamicBuffer m_spatialCB;
-    static constexpr int k_MaxSpatialIter = 8;  // max spatial iterations supported
-    DescriptorHeap m_spatialHeap;  // [0..2]×k_MaxSpatialIter: input, depth, normal
+    ComPtr<ID3D12RootSignature> m_spatialRS;           ///< 空間フィルタ用ルートシグネチャ
+    ComPtr<ID3D12PipelineState> m_spatialPSO;          ///< 空間フィルタ用PSO
+    DynamicBuffer m_spatialCB;                         ///< 空間フィルタ定数バッファ
+    static constexpr int k_MaxSpatialIter = 8;         ///< サポートする最大反復数
+    DescriptorHeap m_spatialHeap;                      ///< 空間フィルタ用SRVヒープ
 
     // コンポジットパス
-    Shader m_compositeShader;
-    ComPtr<ID3D12RootSignature> m_compositeRS;
-    ComPtr<ID3D12PipelineState> m_compositePSO;
-    DynamicBuffer m_compositeCB;
-    DescriptorHeap m_compositeHeap;  // [0..3]×2frames: scene, gi, depth, albedo
+    Shader m_compositeShader;                          ///< コンポジットシェーダー
+    ComPtr<ID3D12RootSignature> m_compositeRS;         ///< コンポジット用ルートシグネチャ
+    ComPtr<ID3D12PipelineState> m_compositePSO;        ///< コンポジット用PSO
+    DynamicBuffer m_compositeCB;                       ///< コンポジット定数バッファ
+    DescriptorHeap m_compositeHeap;                    ///< コンポジット用SRVヒープ
 
     // 空情報
-    XMFLOAT3 m_skyTopColor  = { 0.5f, 0.7f, 1.0f };
-    XMFLOAT3 m_skyBottomColor = { 0.8f, 0.9f, 1.0f };
+    XMFLOAT3 m_skyTopColor  = { 0.5f, 0.7f, 1.0f };   ///< 空の天頂色
+    XMFLOAT3 m_skyBottomColor = { 0.8f, 0.9f, 1.0f };  ///< 空の地平色
 
-    // GBuffer法線RT (外部所有)
-    RenderTarget* m_normalRT = nullptr;
+    RenderTarget* m_normalRT = nullptr;  ///< GBuffer法線RT (外部所有)
 
     // BLASキャッシュ
-    std::unordered_map<ID3D12Resource*, int> m_blasLookup;
+    std::unordered_map<ID3D12Resource*, int> m_blasLookup; ///< VBポインタ→BLASインデックス検索用
 
+    /// @brief BLAS毎のジオメトリ情報
     struct BLASGeometryInfo {
-        ComPtr<ID3D12Resource> vb;
-        ComPtr<ID3D12Resource> ib;
-        uint32_t vertexStride = 0;
+        ComPtr<ID3D12Resource> vb;     ///< 頂点バッファリソース
+        ComPtr<ID3D12Resource> ib;     ///< インデックスバッファリソース
+        uint32_t vertexStride = 0;     ///< 頂点ストライド（バイト）
     };
-    std::vector<BLASGeometryInfo> m_blasGeometry;
+    std::vector<BLASGeometryInfo> m_blasGeometry; ///< BLAS毎のジオメトリ情報配列
 
     // ディスパッチヒープレイアウト
-    static constexpr uint32_t k_GeomSlotsBase    = 8;
-    static constexpr uint32_t k_GeomSlotsCount   = 32;
-    static constexpr uint32_t k_TextureSlotsBase = 40;
-    static constexpr uint32_t k_MaxTextures      = 32;
-    static constexpr uint32_t k_PerFrameBase     = 72;
-    static constexpr uint32_t k_PerFrameCount    = 4;
-    static constexpr uint32_t k_DispatchHeapSize = 80;
-    std::unordered_map<ID3D12Resource*, uint32_t> m_textureLookup;
-    std::vector<ComPtr<ID3D12Resource>> m_textureResources;
-    uint32_t m_nextTextureSlot = 0;
+    static constexpr uint32_t k_GeomSlotsBase    = 8;   ///< ジオメトリSRV開始スロット
+    static constexpr uint32_t k_GeomSlotsCount   = 32;  ///< ジオメトリSRVスロット数
+    static constexpr uint32_t k_TextureSlotsBase = 40;  ///< テクスチャSRV開始スロット
+    static constexpr uint32_t k_MaxTextures      = 32;  ///< テクスチャSRV最大数
+    static constexpr uint32_t k_PerFrameBase     = 72;  ///< フレーム毎SRV/UAV開始スロット
+    static constexpr uint32_t k_PerFrameCount    = 4;   ///< フレーム毎SRV/UAV数
+    static constexpr uint32_t k_DispatchHeapSize = 80;  ///< ディスパッチヒープ総スロット数
+    std::unordered_map<ID3D12Resource*, uint32_t> m_textureLookup; ///< テクスチャ→スロット検索用
+    std::vector<ComPtr<ID3D12Resource>> m_textureResources;        ///< テクスチャリソース配列
+    uint32_t m_nextTextureSlot = 0;  ///< 次に割り当てるテクスチャスロット
 
     // per-instance PBRデータ
-    static constexpr uint32_t k_MaxInstances = 512;
-    DynamicBuffer m_instanceDataCB;
+    static constexpr uint32_t k_MaxInstances = 512; ///< インスタンス最大数
+    DynamicBuffer m_instanceDataCB;                  ///< インスタンスPBRデータ定数バッファ
 
+    /// @brief インスタンス毎のPBRマテリアル情報
     struct InstancePBR {
-        XMFLOAT4 albedoMetallic;
-        XMFLOAT4 roughnessGeom;
-        XMFLOAT4 extraData;
+        XMFLOAT4 albedoMetallic;  ///< .rgb=アルベド, .a=メタリック
+        XMFLOAT4 roughnessGeom;   ///< .x=ラフネス, .y=ジオメトリインデックス, .z=テクスチャインデックス, .w=テクスチャ有無
+        XMFLOAT4 extraData;       ///< .x=頂点ストライド, .yzw=予約
     };
-    std::vector<InstancePBR> m_instanceData;
+    std::vector<InstancePBR> m_instanceData; ///< インスタンスPBRデータ配列
 
     // テンポラル用
-    XMFLOAT4X4 m_previousVP = {};
-    uint32_t m_frameCount = 0;
+    XMFLOAT4X4 m_previousVP = {};            ///< 前フレームVP行列（リプロジェクション用）
+    uint32_t m_frameCount = 0;               ///< 累積フレーム数
 
-    // 前フレーム深度 (リプロジェクション用)
-    ComPtr<ID3D12Resource> m_prevDepthCopy;
+    ComPtr<ID3D12Resource> m_prevDepthCopy;   ///< 前フレーム深度コピー（リプロジェクション用）
 };
 
+/// @}
 } // namespace gx

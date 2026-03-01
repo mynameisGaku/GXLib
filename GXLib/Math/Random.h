@@ -4,6 +4,8 @@
 #include "Color.h"
 
 namespace gx {
+/// @addtogroup grp_math
+/// @{
 
 /// @brief 擬似乱数生成器 (Mersenne Twister)
 class Random
@@ -89,4 +91,5 @@ private:
     std::mt19937 m_engine;
 };
 
+/// @}
 } // namespace gx

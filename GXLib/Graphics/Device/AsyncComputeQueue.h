@@ -13,6 +13,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_device
+/// @{
 
 /// @brief 非同期コンピュートキュー
 ///
@@ -68,4 +70,5 @@ private:
     Fence    m_syncFence;   ///< Graphics⇔Compute 同期用フェンス
 };
 
+/// @}
 } // namespace gx

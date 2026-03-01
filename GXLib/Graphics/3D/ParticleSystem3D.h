@@ -14,6 +14,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 class TextureManager;
 
@@ -112,4 +114,5 @@ private:
     static constexpr uint32_t k_MaxTotalParticles = 10000;
 };
 
+/// @}
 } // namespace gx

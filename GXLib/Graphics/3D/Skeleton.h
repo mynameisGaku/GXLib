@@ -6,6 +6,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief ジョイント（ボーン）情報
 /// DxLibの MV1GetFrameName / MV1GetFramePosition でアクセスするボーン1本に相当
@@ -66,4 +68,5 @@ private:
     std::vector<Joint> m_joints;
 };
 
+/// @}
 } // namespace gx

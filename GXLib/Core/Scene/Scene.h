@@ -11,6 +11,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_scene
+/// @{
 
 /// @brief シーンのデバッグ描画フラグ
 enum SceneDebugFlags : uint32_t
@@ -66,6 +68,12 @@ public:
     /// @brief エンティティ数を取得する
     uint32_t GetEntityCount() const { return static_cast<uint32_t>(m_entities.size()); }
 
+    /// @brief 別シーンの全エンティティを移動・統合する（アディティブ読み込み用）
+    void MergeFrom(Scene& other);
+
+    /// @brief 全エンティティを即座に破棄する
+    void ClearAllEntities();
+
 private:
     std::string m_name;
     std::vector<std::unique_ptr<Entity>> m_entities;
@@ -75,4 +83,5 @@ private:
     uint32_t m_debugFlags = 0;
 };
 
+/// @}
 } // namespace gx

@@ -9,6 +9,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief 単一シャドウマップ（深度バッファ + SRV）
 /// CascadedShadowMapの各カスケードや単独のシャドウマップとして使用する。
@@ -52,9 +54,10 @@ public:
     void SetCurrentState(D3D12_RESOURCE_STATES state) { m_currentState = state; }
 
 private:
-    DepthBuffer m_depthBuffer;
-    uint32_t    m_size = 0;
-    D3D12_RESOURCE_STATES m_currentState = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+    DepthBuffer m_depthBuffer;       ///< 深度バッファ
+    uint32_t    m_size = 0;          ///< マップ解像度（ピクセル）
+    D3D12_RESOURCE_STATES m_currentState = D3D12_RESOURCE_STATE_DEPTH_WRITE;  ///< 現在のリソース状態
 };
 
+/// @}
 } // namespace gx

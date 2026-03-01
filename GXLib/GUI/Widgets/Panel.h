@@ -9,6 +9,8 @@
 #include "GUI/Widget.h"
 
 namespace gx { namespace GUI {
+/// @addtogroup grp_gui_widgets
+/// @{
 
 /// @brief パネルウィジェット（レイアウトコンテナ）
 class Panel : public Widget
@@ -28,4 +30,5 @@ public:
     void RenderChildren(UIRenderer& renderer) override;
 };
 
+/// @}
 }} // namespace gx::GUI

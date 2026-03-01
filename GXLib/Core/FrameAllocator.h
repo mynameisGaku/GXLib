@@ -17,6 +17,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_core
+/// @{
 
 /// @brief フレーム単位リニアアロケータ
 class FrameAllocator
@@ -89,4 +91,5 @@ private:
     size_t                     m_offset;
 };
 
+/// @}
 } // namespace gx

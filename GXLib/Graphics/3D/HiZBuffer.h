@@ -13,6 +13,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief Hi-Z カリング用のオブジェクトバウンド（GPU構造体）
 struct HiZObjectBounds
@@ -108,4 +110,5 @@ private:
     static constexpr uint32_t k_MaxCullObjects = 4096;
 };
 
+/// @}
 } // namespace gx

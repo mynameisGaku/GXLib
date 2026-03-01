@@ -14,6 +14,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_pipeline
+/// @{
 
 /// @brief シェーダーコンパイル結果を保持する構造体
 struct ShaderBlob
@@ -76,4 +78,5 @@ private:
     ComPtr<IDxcUtils>     m_utils;      ///< ファイル読み込み等のユーティリティ
 };
 
+/// @}
 } // namespace gx

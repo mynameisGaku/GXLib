@@ -15,6 +15,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_input
+/// @{
 
 class Window;
 
@@ -84,4 +86,5 @@ private:
     ActionMapping m_actionMapping;
 };
 
+/// @}
 } // namespace gx

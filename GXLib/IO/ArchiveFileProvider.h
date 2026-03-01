@@ -9,6 +9,8 @@
 #include "IO/Archive.h"
 
 namespace gx {
+/// @addtogroup grp_io
+/// @{
 
 /// @brief アーカイブファイルプロバイダー (読み取り専用)
 ///
@@ -43,4 +45,5 @@ private:
     Archive m_archive;
 };
 
+/// @}
 } // namespace gx

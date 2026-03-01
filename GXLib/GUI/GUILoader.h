@@ -10,6 +10,8 @@
 #include "GUI/Widget.h"
 
 namespace gx { namespace GUI {
+/// @addtogroup grp_gui
+/// @{
 
 // 前方宣言
 class UIRenderer;
@@ -64,12 +66,13 @@ private:
     int ResolveFontHandle(const std::string& fontName) const;
     int ResolveTextureHandle(const std::string& texName) const;
 
-    UIRenderer* m_renderer = nullptr;
-    std::unordered_map<std::string, int> m_fontMap;
-    std::unordered_map<std::string, std::function<void()>> m_eventMap;
-    std::unordered_map<std::string, int> m_textureMap;
-    std::unordered_map<std::string, std::function<void(const std::string&)>> m_valueChangedMap;
-    std::unordered_map<std::string, std::function<void(UIRenderer&, const LayoutRect&)>> m_drawCallbackMap;
+    UIRenderer* m_renderer = nullptr;   ///< GUI描画レンダラー
+    std::unordered_map<std::string, int> m_fontMap;                          ///< フォント名→ハンドルマップ
+    std::unordered_map<std::string, std::function<void()>> m_eventMap;       ///< イベント名→ハンドラマップ
+    std::unordered_map<std::string, int> m_textureMap;                       ///< テクスチャ名→ハンドルマップ
+    std::unordered_map<std::string, std::function<void(const std::string&)>> m_valueChangedMap; ///< 値変更イベントマップ
+    std::unordered_map<std::string, std::function<void(UIRenderer&, const LayoutRect&)>> m_drawCallbackMap; ///< 描画コールバックマップ
 };
 
+/// @}
 }} // namespace gx::GUI

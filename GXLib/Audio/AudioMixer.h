@@ -14,6 +14,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_audio
+/// @{
 
 class AudioDevice;
 
@@ -50,6 +52,11 @@ public:
     /// @return 作成されたバスのポインタ。失敗時nullptr
     AudioBus* CreateBus(const std::string& name);
 
+    /// @brief 名前でバスを検索する
+    /// @param name バス名（"Master","BGM","SE","Voice"または任意のカスタム名）
+    /// @return 見つかったバスのポインタ。なければnullptr
+    AudioBus* GetBusByName(const std::string& name);
+
     /// @brief 全バスを破棄する
     void Shutdown();
 
@@ -61,4 +68,5 @@ private:
     std::vector<std::unique_ptr<AudioBus>> m_customBuses;
 };
 
+/// @}
 } // namespace gx

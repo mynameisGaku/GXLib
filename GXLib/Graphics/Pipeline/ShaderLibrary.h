@@ -13,6 +13,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_pipeline
+/// @{
 
 /// @brief PSO再構築コールバックを識別するID。UnregisterPSORebuilderで解除に使う
 using PSOCallbackID = uint32_t;
@@ -155,4 +157,5 @@ private:
     std::unordered_map<std::wstring, std::vector<std::wstring>> m_includeDeps;
 };
 
+/// @}
 } // namespace gx

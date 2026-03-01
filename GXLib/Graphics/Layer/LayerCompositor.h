@@ -14,6 +14,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_layer
+/// @{
 
 /// @brief レイヤー合成用定数バッファ
 struct CompositeConstants
@@ -88,4 +90,5 @@ private:
     DescriptorHeap m_maskSrvHeap;
 };
 
+/// @}
 } // namespace gx

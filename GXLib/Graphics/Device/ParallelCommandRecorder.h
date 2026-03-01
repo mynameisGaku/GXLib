@@ -16,6 +16,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_device
+/// @{
 
 class CommandQueue;
 
@@ -67,4 +69,5 @@ private:
     std::vector<RecordJob> m_jobs;
 };
 
+/// @}
 } // namespace gx

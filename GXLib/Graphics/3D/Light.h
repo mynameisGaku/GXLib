@@ -6,6 +6,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief ライトの種類（DxLibの SetLightTypeHandle に相当）
 enum class LightType : uint32_t
@@ -28,10 +30,12 @@ struct LightData
     float    padding[3];       ///< 64バイト境界へのパディング
 };
 
-/// @brief ライト定数バッファ（b2スロット、最大16灯＋アンビエント）
+/// @brief ライト定数バッファ（b2スロット）
+/// クラスタードライティング有効時は最大256灯、従来パスでは16灯
 struct LightConstants
 {
-    static constexpr uint32_t k_MaxLights = 16;
+    static constexpr uint32_t k_MaxLights = 256;
+    static constexpr uint32_t k_MaxLightsLegacy = 16;
 
     LightData lights[k_MaxLights];  ///< ライト配列
     XMFLOAT3  ambientColor;         ///< 環境光の色
@@ -70,4 +74,5 @@ public:
                                  const XMFLOAT3& color, float intensity);
 };
 
+/// @}
 } // namespace gx

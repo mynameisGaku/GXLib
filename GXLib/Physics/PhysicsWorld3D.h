@@ -10,8 +10,12 @@
 #include "Math/Quaternion.h"
 #include "Math/Matrix4x4.h"
 #include "PhysicsShape.h"
+#include "PhysicsConstraint.h"
+#include <vector>
 
 namespace gx {
+/// @addtogroup grp_physics
+/// @{
 
 /// @brief 物理ボディの識別ID
 struct PhysicsBodyID {
@@ -215,6 +219,103 @@ public:
     /// @return レイキャスト結果
     RaycastResult Raycast(const Vector3& origin, const Vector3& direction, float maxDistance);
 
+    // ----- スイープ / オーバーラップ -----
+
+    /// @brief スイープ結果
+    struct SweepResult {
+        PhysicsBodyID bodyID;       ///< ヒットしたボディのID
+        Vector3 point;              ///< ヒット点 (ワールド座標)
+        Vector3 normal;             ///< ヒット法線
+        float fraction = 0.0f;      ///< スイープ距離に対するヒット位置の割合 [0,1]
+    };
+
+    /// @brief オーバーラップ結果
+    struct OverlapResult {
+        PhysicsBodyID bodyID;       ///< オーバーラップしたボディのID
+    };
+
+    /// @brief スフィアキャスト（スイープ）を実行する
+    /// @param origin スフィアの開始位置
+    /// @param radius スフィアの半径
+    /// @param direction スイープ方向 (正規化推奨)
+    /// @param maxDistance 最大距離
+    /// @return ヒットしたボディのリスト
+    std::vector<SweepResult> SphereCast(const Vector3& origin, float radius,
+                                         const Vector3& direction, float maxDistance);
+
+    /// @brief ボックスキャスト（スイープ）を実行する
+    /// @param origin ボックスの開始位置
+    /// @param halfExtents ボックスの半サイズ
+    /// @param rotation ボックスの回転
+    /// @param direction スイープ方向 (正規化推奨)
+    /// @param maxDistance 最大距離
+    /// @return ヒットしたボディのリスト
+    std::vector<SweepResult> BoxCast(const Vector3& origin, const Vector3& halfExtents,
+                                      const Quaternion& rotation, const Vector3& direction,
+                                      float maxDistance);
+
+    /// @brief スフィアオーバーラップテストを実行する
+    /// @param center テスト中心位置
+    /// @param radius テスト半径
+    /// @return オーバーラップしたボディのリスト
+    std::vector<OverlapResult> OverlapSphere(const Vector3& center, float radius);
+
+    /// @brief ボックスオーバーラップテストを実行する
+    /// @param center テスト中心位置
+    /// @param halfExtents ボックスの半サイズ
+    /// @param rotation ボックスの回転
+    /// @return オーバーラップしたボディのリスト
+    std::vector<OverlapResult> OverlapBox(const Vector3& center, const Vector3& halfExtents,
+                                           const Quaternion& rotation);
+
+    // ----- コンストレイント -----
+
+    /// @brief 固定コンストレイントを作成する
+    /// @param bodyA ボディA
+    /// @param bodyB ボディB
+    /// @param settings 設定
+    /// @return コンストレイントID
+    PhysicsConstraintID CreateFixedConstraint(PhysicsBodyID bodyA, PhysicsBodyID bodyB,
+                                               const FixedConstraintSettings& settings);
+
+    /// @brief ヒンジコンストレイントを作成する
+    /// @param bodyA ボディA
+    /// @param bodyB ボディB
+    /// @param settings 設定
+    /// @return コンストレイントID
+    PhysicsConstraintID CreateHingeConstraint(PhysicsBodyID bodyA, PhysicsBodyID bodyB,
+                                               const HingeConstraintSettings& settings);
+
+    /// @brief ポイントコンストレイントを作成する
+    /// @param bodyA ボディA
+    /// @param bodyB ボディB
+    /// @param settings 設定
+    /// @return コンストレイントID
+    PhysicsConstraintID CreatePointConstraint(PhysicsBodyID bodyA, PhysicsBodyID bodyB,
+                                               const PointConstraintSettings& settings);
+
+    /// @brief コーンコンストレイントを作成する
+    /// @param bodyA ボディA
+    /// @param bodyB ボディB
+    /// @param settings 設定
+    /// @return コンストレイントID
+    PhysicsConstraintID CreateConeConstraint(PhysicsBodyID bodyA, PhysicsBodyID bodyB,
+                                              const ConeConstraintSettings& settings);
+
+    /// @brief コンストレイントを破棄する
+    /// @param id 破棄するコンストレイントのID
+    void DestroyConstraint(PhysicsConstraintID id);
+
+    // ----- 内部アクセサ (CharacterController等で使用) -----
+
+    /// @brief 内部の PhysicsSystem ポインタを取得する (PIMPL 透過)
+    /// @return PhysicsSystem ポインタ (初期化前はnullptr)
+    void* GetInternalPhysicsSystem() const;
+
+    /// @brief 内部の TempAllocator ポインタを取得する (PIMPL 透過)
+    /// @return TempAllocator ポインタ (初期化前はnullptr)
+    void* GetInternalTempAllocator() const;
+
     // ----- コールバック -----
 
     /// @brief 接触開始時のコールバック
@@ -227,4 +328,5 @@ private:
     std::unique_ptr<Impl> m_impl;
 };
 
+/// @}
 } // namespace gx

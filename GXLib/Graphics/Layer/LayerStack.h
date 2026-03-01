@@ -11,6 +11,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_layer
+/// @{
 
 /// @brief 複数のRenderLayerをZ-order順に管理するスタッククラス
 ///
@@ -59,4 +61,5 @@ private:
     bool m_needsSort = true;
 };
 
+/// @}
 } // namespace gx

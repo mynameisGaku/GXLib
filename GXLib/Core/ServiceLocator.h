@@ -21,6 +21,8 @@
 #include <format>
 
 namespace gx {
+/// @addtogroup grp_core
+/// @{
 
 /// @brief サービスロケーター（シングルトン）
 class ServiceLocator
@@ -81,4 +83,5 @@ private:
     std::unordered_map<std::type_index, std::shared_ptr<void>> m_services;
 };
 
+/// @}
 } // namespace gx

@@ -8,6 +8,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief アニメーションイベント（特定フレームで発火するコールバック情報）
 /// ゲームロジックでは足音タイミングやエフェクト発生タイミングをアニメーションに埋め込める。
@@ -23,9 +25,9 @@ struct AnimationEvent
 /// @brief 関節1つ分のTRS姿勢（移動・回転・拡縮）
 struct TransformTRS
 {
-    XMFLOAT3 translation = { 0.0f, 0.0f, 0.0f };
-    XMFLOAT4 rotation    = { 0.0f, 0.0f, 0.0f, 1.0f }; // クォータニオン（回転）
-    XMFLOAT3 scale       = { 1.0f, 1.0f, 1.0f };
+    XMFLOAT3 translation = { 0.0f, 0.0f, 0.0f };        ///< 移動（位置）
+    XMFLOAT4 rotation    = { 0.0f, 0.0f, 0.0f, 1.0f };  ///< 回転（クォータニオン）
+    XMFLOAT3 scale       = { 1.0f, 1.0f, 1.0f };          ///< 拡縮
 };
 
 /// @brief 単位姿勢（移動なし、回転なし、等倍スケール）を返す
@@ -161,10 +163,11 @@ private:
     /// 回転用のクォータニオン補間（球面線形 slerp）
     static XMFLOAT4 InterpolateQuat(const std::vector<Keyframe<XMFLOAT4>>& keys, float time);
 
-    std::string m_name;
-    float m_duration = 0.0f;
-    std::vector<AnimationChannel> m_channels;
+    std::string m_name;                          ///< クリップ名
+    float m_duration = 0.0f;                     ///< 再生時間（秒）
+    std::vector<AnimationChannel> m_channels;    ///< チャンネル配列（関節ごとのキー列）
     std::vector<AnimationEvent> m_events;   ///< 時刻順のアニメーションイベント
 };
 
+/// @}
 } // namespace gx

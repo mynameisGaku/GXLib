@@ -6,6 +6,8 @@
 #include "GUI/Widget.h"
 
 namespace gx { namespace GUI {
+/// @addtogroup grp_gui_widgets
+/// @{
 
 /// @brief スライダーウィジェット（ドラッグ操作で数値を入力する）
 /// 指定した範囲(min~max)の値をマウスドラッグで調整する。
@@ -55,11 +57,12 @@ private:
     static constexpr float k_TrackHeight = 4.0f;
     static constexpr float k_ThumbSize = 14.0f;
 
-    float m_value = 0.0f;
-    float m_min = 0.0f;
-    float m_max = 1.0f;
-    float m_step = 0.0f;
-    bool m_dragging = false;
+    float m_value = 0.0f;    ///< 現在値
+    float m_min = 0.0f;      ///< 最小値
+    float m_max = 1.0f;      ///< 最大値
+    float m_step = 0.0f;     ///< ステップ値（0=連続）
+    bool m_dragging = false;  ///< ドラッグ操作中か
 };
 
+/// @}
 }} // namespace gx::GUI

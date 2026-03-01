@@ -6,6 +6,8 @@
 #include "GUI/Widget.h"
 
 namespace gx { namespace GUI {
+/// @addtogroup grp_gui_widgets
+/// @{
 
 /// @brief テキスト表示ウィジェット
 /// textAlign/verticalAlignでテキスト位置を制御できる。DxLibのDrawStringに相当する描画を行う。
@@ -42,9 +44,10 @@ public:
     void SetRenderer(UIRenderer* renderer) { m_renderer = renderer; }
 
 private:
-    std::wstring m_text;
-    int m_fontHandle = -1;
-    UIRenderer* m_renderer = nullptr;  ///< intrinsic size 計算用
+    std::wstring m_text;               ///< 表示テキスト（Unicode）
+    int m_fontHandle = -1;             ///< フォントハンドル
+    UIRenderer* m_renderer = nullptr;  ///< GUI描画レンダラー（intrinsic size 計算用）
 };
 
+/// @}
 }} // namespace gx::GUI

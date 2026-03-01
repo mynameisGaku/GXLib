@@ -10,6 +10,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_device
+/// @{
 
 /// @brief ディスクリプタヒープの管理クラス
 ///
@@ -75,4 +77,5 @@ private:
     std::vector<uint32_t> m_freeList;   ///< 解放されたインデックスの再利用リスト
 };
 
+/// @}
 } // namespace gx

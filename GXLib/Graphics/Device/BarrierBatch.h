@@ -10,6 +10,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_device
+/// @{
 
 /// @brief リソースバリアをバッチでまとめて発行するユーティリティ
 /// @tparam N 最大同時バリア数（スタック配列で確保、デフォルト16）
@@ -83,4 +85,5 @@ private:
     uint32_t                   m_count;
 };
 
+/// @}
 } // namespace gx

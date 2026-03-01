@@ -6,6 +6,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_math
+/// @{
 
 /// @brief 3Dオブジェクトの位置・回転・スケールを管理するクラス
 class Transform3D
@@ -75,4 +77,5 @@ private:
     mutable bool m_dirty = true;
 };
 
+/// @}
 } // namespace gx

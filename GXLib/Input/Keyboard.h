@@ -11,6 +11,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_input
+/// @{
 
 /// @brief キーボード入力を管理するクラス（DxLibのCheckHitKey相当）
 class Keyboard
@@ -55,4 +57,5 @@ private:
     std::array<bool, k_KeyCount> m_rawState = {};       ///< メッセージから受信した生の状態（Update時にcurrentへコピー）
 };
 
+/// @}
 } // namespace gx

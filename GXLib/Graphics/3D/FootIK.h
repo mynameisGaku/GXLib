@@ -11,6 +11,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief 足IK（地形追従）
 /// 左右の脚にIKを適用して、getGroundHeightコールバックから取得した
@@ -80,4 +82,5 @@ private:
     int m_rightFootIndex = -1;
 };
 
+/// @}
 } // namespace gx

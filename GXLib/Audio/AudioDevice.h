@@ -13,6 +13,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_audio
+/// @{
 
 /// @brief XAudio2エンジンとMasteringVoice、X3DAudioを管理するクラス
 class AudioDevice : public IAudioDevice
@@ -73,4 +75,5 @@ private:
     uint32_t        m_outputChannels = 2;  ///< MasteringVoiceの出力チャンネル数
 };
 
+/// @}
 } // namespace gx

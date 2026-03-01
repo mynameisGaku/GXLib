@@ -9,6 +9,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief アニメーションブレンドレイヤーのモード
 enum class AnimBlendMode
@@ -80,4 +82,5 @@ private:
     std::vector<TransformTRS> m_tempPose;  ///< レイヤーサンプル用テンポラリ
 };
 
+/// @}
 } // namespace gx

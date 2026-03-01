@@ -12,6 +12,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_audio
+/// @{
 
 /// @brief 3D空間内の音源
 ///
@@ -85,4 +87,5 @@ private:
     X3DAUDIO_DISTANCE_CURVE m_distanceCurve = {};
 };
 
+/// @}
 } // namespace gx

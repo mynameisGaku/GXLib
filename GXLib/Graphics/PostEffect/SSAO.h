@@ -19,6 +19,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_postfx
+/// @{
 
 /// SSAO生成定数バッファ (射影行列+カーネル+パラメータ)
 struct SSAOConstants
@@ -126,4 +128,5 @@ private:
     XMFLOAT4 m_kernel[k_KernelSize];
 };
 
+/// @}
 } // namespace gx

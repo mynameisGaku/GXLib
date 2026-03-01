@@ -6,6 +6,8 @@
 #include "GUI/Widget.h"
 
 namespace gx { namespace GUI {
+/// @addtogroup grp_gui_widgets
+/// @{
 
 /// @brief 画像のフィットモード
 /// Stretch: 引き伸ばし、Contain: アスペクト比維持で内接、Cover: アスペクト比維持で外接（はみ出しはクリップ）
@@ -54,12 +56,13 @@ public:
     void RenderSelf(UIRenderer& renderer) override;
 
 private:
-    int m_textureHandle = -1;
-    ImageFit m_fit = ImageFit::Stretch;
-    float m_naturalWidth = 0.0f;
-    float m_naturalHeight = 0.0f;
-    float m_uvOffsetX = 0.0f;
-    float m_uvOffsetY = 0.0f;
+    int m_textureHandle = -1;              ///< テクスチャハンドル
+    ImageFit m_fit = ImageFit::Stretch;    ///< フィットモード
+    float m_naturalWidth = 0.0f;           ///< 画像の自然な幅（ピクセル）
+    float m_naturalHeight = 0.0f;          ///< 画像の自然な高さ（ピクセル）
+    float m_uvOffsetX = 0.0f;              ///< UVスクロールオフセットX
+    float m_uvOffsetY = 0.0f;              ///< UVスクロールオフセットY
 };
 
+/// @}
 }} // namespace gx::GUI

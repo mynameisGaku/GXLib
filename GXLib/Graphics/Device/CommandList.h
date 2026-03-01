@@ -14,6 +14,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_device
+/// @{
 
 /// @brief GPUへの命令を記録するコマンドリスト
 ///
@@ -63,4 +65,5 @@ private:
     std::array<ComPtr<ID3D12CommandAllocator>, k_AllocatorCount> m_allocators; ///< フレーム交互のメモリ
 };
 
+/// @}
 } // namespace gx

@@ -7,6 +7,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 /// @brief CPU側のメッシュデータ（頂点配列+インデックス配列）
 /// GPUへ送る前の中間データ。MeshGeneratorで生成するか、自前で構築してCreateGPUMeshに渡す
@@ -53,6 +55,33 @@ public:
     /// @return 生成されたメッシュデータ
     static MeshData CreateCylinder(float topRadius, float bottomRadius, float height,
                                     uint32_t sliceCount, uint32_t stackCount);
+
+    /// @brief トーラスを生成する
+    static MeshData CreateTorus(float majorRadius, float minorRadius,
+                                 uint32_t majorSegments, uint32_t minorSegments);
+
+    /// @brief カプセルを生成する
+    static MeshData CreateCapsule(float radius, float height, uint32_t segments);
+
+    /// @brief Icosphereを生成する
+    static MeshData CreateIcosphere(float radius, uint32_t subdivisions);
+
+    /// @brief コーンを生成する
+    static MeshData CreateCone(float radius, float height, uint32_t sliceCount);
+
+    /// @brief 矢印を生成する（シャフト+ヘッド）
+    static MeshData CreateArrow(float shaftRadius, float shaftLength,
+                                 float headRadius, float headLength, uint32_t sliceCount);
+
+    /// @brief 法線を再計算する（面法線の平均）
+    static void ComputeNormals(MeshData& mesh);
+
+    /// @brief タンジェントを計算する（Mikktspace近似）
+    static void ComputeTangents(MeshData& mesh);
+
+    /// @brief 2つのメッシュを結合する
+    static MeshData Combine(const MeshData& a, const MeshData& b);
 };
 
+/// @}
 } // namespace gx

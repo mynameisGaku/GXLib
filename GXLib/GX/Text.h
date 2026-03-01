@@ -11,6 +11,8 @@ int DeleteFontToHandle(int handle);
 int DrawStringToHandle(int x, int y, const char* str, unsigned int color, int fontHandle, unsigned int edgeColor = 0);
 
 namespace gx {
+/// @addtogroup grp_gx_facade
+/// @{
 
 using ::DrawString;
 using ::DrawFormatString;
@@ -19,4 +21,5 @@ using ::CreateFontToHandle;
 using ::DeleteFontToHandle;
 using ::DrawStringToHandle;
 
+/// @}
 } // namespace gx

@@ -22,6 +22,8 @@ int SetDrawBright(int r, int g, int b);
 int GetColor(int r, int g, int b);
 
 namespace gx {
+/// @addtogroup grp_gx_facade
+/// @{
 
 // --- 画像描画 ---
 inline int LoadImage(const char* path) { return LoadGraph(path); }
@@ -44,4 +46,5 @@ using ::SetDrawBlendMode;
 using ::SetDrawBright;
 using ::GetColor;
 
+/// @}
 } // namespace gx

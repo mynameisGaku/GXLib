@@ -6,6 +6,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_core
+/// @{
 
 class SpriteBatch;
 class PrimitiveBatch;
@@ -54,4 +56,5 @@ private:
     int m_historyIndex = 0;
 };
 
+/// @}
 } // namespace gx

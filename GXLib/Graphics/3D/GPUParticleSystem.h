@@ -26,11 +26,57 @@
 #include "Graphics/Resource/DynamicBuffer.h"
 #include "Graphics/Device/DescriptorHeap.h"
 #include "Graphics/Pipeline/Shader.h"
+#include "Math/Vector3.h"
+#include "Math/Color.h"
 
 namespace gx
 {
+/// @addtogroup grp_gfx_3d
+/// @{
 
 class Camera3D;
+
+/// @brief エミッター形状
+enum class EmitterShape
+{
+    Point,      ///< 点
+    Sphere,     ///< 球体
+    Box,        ///< ボックス
+    Cone,       ///< 円錐
+    Ring,       ///< リング
+};
+
+/// @brief パーティクルブレンドモード
+enum class ParticleBlendMode
+{
+    Alpha,      ///< アルファブレンド
+    Additive,   ///< 加算ブレンド
+    Multiply,   ///< 乗算ブレンド
+};
+
+/// @brief GPUパーティクルエミッター構成（VFXGraphからの適用用）
+struct GPUParticleEmitterConfig
+{
+    uint32_t maxParticles = 1000;       ///< 最大パーティクル数
+    float emissionRate = 100.0f;        ///< 毎秒放出数
+    int textureHandle = -1;             ///< テクスチャハンドル
+
+    EmitterShape shape = EmitterShape::Point;                  ///< エミッター形状
+    ParticleBlendMode blendMode = ParticleBlendMode::Additive; ///< ブレンドモード
+
+    Vector3 initialVelocityMin = { -1.0f, 1.0f, -1.0f };   ///< 初期速度最小
+    Vector3 initialVelocityMax = { 1.0f, 3.0f, 1.0f };     ///< 初期速度最大
+    float startSizeMin = 0.1f;          ///< 開始サイズ最小
+    float startSizeMax = 0.3f;          ///< 開始サイズ最大
+    float endSize = 0.0f;               ///< 終了サイズ
+    float lifetimeMin = 1.0f;           ///< 寿命最小（秒）
+    float lifetimeMax = 3.0f;           ///< 寿命最大（秒）
+    float drag = 0.1f;                  ///< 抗力係数
+
+    Color startColor = { 1.0f, 1.0f, 1.0f, 1.0f };  ///< 開始カラー
+    Color endColor = { 1.0f, 1.0f, 1.0f, 0.0f };    ///< 終了カラー
+    Vector3 gravity = { 0.0f, -9.81f, 0.0f };        ///< 重力ベクトル
+};
 
 /// @brief GPU上でパーティクルの発生・更新・描画を行うシステム
 ///
@@ -49,6 +95,40 @@ public:
     /// @return 成功時true
     bool Initialize(ID3D12Device* device, ID3D12CommandQueue* cmdQueue,
                     uint32_t maxParticles = 100000);
+
+    /// @brief 簡易初期化（nullptrデバイス対応、CPUモード用）
+    /// @param device D3D12デバイス（nullptrでCPUモード）
+    /// @param maxTotalParticles 最大パーティクル総数
+    /// @return 成功時true
+    bool Initialize(std::nullptr_t, uint32_t maxTotalParticles);
+
+    /// @brief エミッターを破棄する
+    /// @param emitterId エミッターID
+    void DestroyEmitter(int emitterId);
+
+    /// @brief エミッターの位置を設定する
+    /// @param emitterId エミッターID
+    /// @param position ワールド座標
+    void SetEmitterPosition(int emitterId, const XMFLOAT3& position);
+
+    /// @brief エミッターの有効/無効を設定する
+    /// @param emitterId エミッターID
+    /// @param enabled 有効フラグ
+    void SetEmitterEnabled(int emitterId, bool enabled);
+
+    /// @brief 指定エミッターからバースト放出する
+    /// @param emitterId エミッターID
+    /// @param count 放出数
+    void Burst(int emitterId, uint32_t count);
+
+    /// @brief 最大パーティクル総数を取得する
+    uint32_t GetMaxTotalParticles() const { return m_maxTotalParticles; }
+
+    /// @brief 現在のエミッター数を取得する
+    uint32_t GetEmitterCount() const { return static_cast<uint32_t>(m_emitters.size()); }
+
+    /// @brief アクティブなパーティクル数を取得する（CPUモードでは0）
+    uint32_t GetActiveParticleCount() const { return m_activeParticleCount; }
 
     /// @brief エミッターの位置を設定
     /// @param pos ワールド座標
@@ -119,6 +199,24 @@ public:
     /// @return 最大パーティクル数
     uint32_t GetMaxParticles() const { return m_maxParticles; }
 
+    /// @brief デプスバッファ衝突を有効化する
+    /// @param enabled 衝突有効フラグ
+    void SetCollisionEnabled(bool enabled) { m_collisionEnabled = enabled; }
+    bool IsCollisionEnabled() const { return m_collisionEnabled; }
+
+    /// @brief バウンス係数（反発係数）
+    void SetBounceFactor(float factor) { m_bounceFactor = factor; }
+    float GetBounceFactor() const { return m_bounceFactor; }
+
+    /// @brief 摩擦係数
+    void SetFriction(float friction) { m_friction = friction; }
+    float GetFriction() const { return m_friction; }
+
+    /// @brief エミッター構成からパラメータを一括適用し、エミッターIDを返す
+    /// @param config エミッター構成
+    /// @return エミッターID（1以上）
+    int CreateEmitter(const GPUParticleEmitterConfig& config);
+
     /// @brief リソース解放
     void Shutdown();
 
@@ -142,15 +240,21 @@ private:
         XMFLOAT4 endColor;    ///< 消滅時カラー
     }; // 96 bytes
 
-    /// @brief Update CS用定数バッファ（32バイト）
+    /// @brief Update CS用定数バッファ（96バイト）
     struct alignas(16) UpdateCB
     {
         float    deltaTime;      ///< フレーム経過時間
         XMFLOAT3 gravity;        ///< 重力ベクトル
         float    drag;           ///< 抗力係数
         uint32_t maxParticles;   ///< 最大パーティクル数
-        float    _pad[2];
-    }; // 32 bytes
+        uint32_t collisionEnabled; ///< デプスバッファ衝突有効
+        float    bounceFactor;   ///< 反発係数
+        float    friction;       ///< 摩擦係数
+        XMFLOAT2 screenSize;    ///< 画面サイズ
+        float    _pad;
+        XMFLOAT4X4 viewProj;    ///< ビュー射影行列
+        XMFLOAT4X4 invViewProj; ///< 逆ビュー射影行列
+    }; // 160 bytes
 
     /// @brief Emit CS用定数バッファ（112バイト）
     struct alignas(16) EmitCB
@@ -231,8 +335,25 @@ private:
     uint32_t m_counterUAVSlot = 0;     ///< カウンターバッファUAV
     uint32_t m_particleSRVSlot = 0;    ///< パーティクルバッファSRV（描画用）
 
+    bool m_collisionEnabled = false;
+    float m_bounceFactor = 0.5f;
+    float m_friction = 0.1f;
+
     bool m_initialized = false;
     bool m_poolInitialized = false;     ///< Init CSが実行済みか
+
+    // --- Multi-emitter CPU management ---
+    struct EmitterInstance
+    {
+        GPUParticleEmitterConfig config;
+        XMFLOAT3 position = { 0, 0, 0 };
+        bool enabled = true;
+        int id = 0;
+    };
+    std::vector<EmitterInstance> m_emitters;
+    int m_nextEmitterId = 1;
+    uint32_t m_maxTotalParticles = 0;
+    uint32_t m_activeParticleCount = 0;
 
     Shader m_shader;
 
@@ -249,4 +370,5 @@ private:
     void InitializeParticlePool(ID3D12Device* device, ID3D12CommandQueue* cmdQueue);
 };
 
+/// @}
 } // namespace gx

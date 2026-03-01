@@ -6,6 +6,8 @@
 #include "GUI/Widget.h"
 
 namespace gx { namespace GUI {
+/// @addtogroup grp_gui_widgets
+/// @{
 
 class UIRenderer;
 
@@ -67,10 +69,11 @@ public:
     std::function<void()> onClose;
 
 private:
-    std::wstring m_title;
-    int m_fontHandle = -1;
-    UIRenderer* m_renderer = nullptr;
-    StyleColor m_overlayColor = { 0.0f, 0.0f, 0.0f, 0.5f };
+    std::wstring m_title;               ///< ダイアログタイトル
+    int m_fontHandle = -1;              ///< フォントハンドル
+    UIRenderer* m_renderer = nullptr;   ///< GUI描画レンダラー
+    StyleColor m_overlayColor = { 0.0f, 0.0f, 0.0f, 0.5f }; ///< オーバーレイ色（RGBA）
 };
 
+/// @}
 }} // namespace gx::GUI

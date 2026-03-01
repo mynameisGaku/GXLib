@@ -30,6 +30,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_postfx
+/// @{
 
 // Forward declarations
 class RTReflections;
@@ -294,4 +296,5 @@ private:
     XMFLOAT3 m_mainLightDirection = { 0.3f, -1.0f, 0.5f };
 };
 
+/// @}
 } // namespace gx

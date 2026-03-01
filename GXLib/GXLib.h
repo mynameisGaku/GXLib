@@ -4,6 +4,8 @@
 ///
 /// 手続き型API（DrawGraph, DrawString 等）、クラス型API（gx::App）、
 /// 中級者向けアクセサ（GetRenderer3D, GetPostEffects 等）を全て含む。
+/// @addtogroup grp_graphics
+/// @{
 
 // 手続き型API（DXLib互換）
 #include "Compat/GXLib.h"
@@ -31,3 +33,4 @@
 #include "Physics/PhysicsWorld3D.h"
 #include "Physics/RigidBody3D.h"
 #include "Physics/MeshCollider.h"
+/// @}

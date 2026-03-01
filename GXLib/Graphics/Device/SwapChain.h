@@ -11,6 +11,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_device
+/// @{
 
 class Fence;
 
@@ -98,4 +100,5 @@ private:
     DXGI_FORMAT m_format = DXGI_FORMAT_R8G8B8A8_UNORM; ///< LDR最終出力フォーマット
 };
 
+/// @}
 } // namespace gx

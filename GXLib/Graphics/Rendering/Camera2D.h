@@ -12,6 +12,8 @@
 
 namespace gx
 {
+/// @addtogroup grp_gfx_2d
+/// @{
 
 /// @brief 2Dカメラクラス（位置・ズーム・回転を持つ）
 class Camera2D
@@ -59,4 +61,5 @@ private:
     float m_rotation = 0.0f;   ///< 回転角（ラジアン）
 };
 
+/// @}
 } // namespace gx

@@ -6,6 +6,8 @@
 /// 受信は別スレッドで行い、Update() でメインスレッドにコールバックを発火する。
 
 namespace gx {
+/// @addtogroup grp_network
+/// @{
 
 /// @brief WebSocketクライアント
 class WebSocket
@@ -71,4 +73,5 @@ private:
     void ReceiveLoop();
 };
 
+/// @}
 } // namespace gx

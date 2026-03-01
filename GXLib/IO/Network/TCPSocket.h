@@ -5,6 +5,8 @@
 /// 接続・送受信・ノンブロッキング設定をサポートするTCPクライアントソケット。
 
 namespace gx {
+/// @addtogroup grp_network
+/// @{
 
 /// @brief TCPクライアントソケット
 class TCPSocket
@@ -54,4 +56,5 @@ private:
     static void EnsureWSAInit();
 };
 
+/// @}
 } // namespace gx
