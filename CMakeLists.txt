@@ -13,7 +13,7 @@ project(GXLib VERSION 0.1.0 LANGUAGES CXX)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 # FBX SDK (optional)
-set(FBX_SDK_ROOT "${CMAKE_SOURCE_DIR}/ThirdParty/FBXSDK/2020.3.9" CACHE PATH "FBX SDK root")
+set(FBX_SDK_ROOT "${CMAKE_SOURCE_DIR}/extern/ThirdParty/FBXSDK/2020.3.9" CACHE PATH "FBX SDK root")
 set(FBX_SDK_FOUND FALSE)
 if (EXISTS "${FBX_SDK_ROOT}/include/fbxsdk.h")
     set(FBX_SDK_FOUND TRUE)
@@ -88,15 +88,29 @@ option(GX_SDK_ONLY "Build only SDK libraries (skip tools, tests, samples)" OFF)
 
 # SDK に必要なライブラリ
 add_subdirectory(GXLib)
-add_subdirectory(gxloader)
+add_subdirectory(extern/gxloader)
+
+# =============================================================================
+# Doxygen ドキュメント生成 (optional)
+# =============================================================================
+find_package(Doxygen QUIET)
+if (DOXYGEN_FOUND)
+    add_custom_target(docs
+        COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_SOURCE_DIR}/docs/Doxyfile
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Generating API documentation with Doxygen"
+        VERBATIM
+    )
+    set_target_properties(docs PROPERTIES FOLDER "Tools")
+endif()
 
 if (NOT GX_SDK_ONLY)
     enable_testing()
     add_subdirectory(Game)
     add_subdirectory(Sandbox)
     add_subdirectory(Tests)
-    add_subdirectory(gxconv)
-    add_subdirectory(gxpak)
+    add_subdirectory(tools/gxconv)
+    add_subdirectory(tools/gxpak)
     add_subdirectory(GXModelViewer)
 
     # スタートアッププロジェクト
@@ -135,10 +149,10 @@ endif()
 install(TARGETS gxloader Jolt ARCHIVE DESTINATION lib/$<CONFIG>)
 
 # gxformat ヘッダー
-install(DIRECTORY ${CMAKE_SOURCE_DIR}/gxformat/ DESTINATION include/gxformat FILES_MATCHING PATTERN "*.h")
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/extern/gxformat/ DESTINATION include/gxformat FILES_MATCHING PATTERN "*.h")
 
 # gxloader ヘッダー
-install(DIRECTORY ${CMAKE_SOURCE_DIR}/gxloader/ DESTINATION include/gxloader FILES_MATCHING PATTERN "*.h")
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/extern/gxloader/ DESTINATION include/gxloader FILES_MATCHING PATTERN "*.h")
 
 # シェーダー（実行時必須）
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/Shaders/ DESTINATION Shaders FILES_MATCHING PATTERN "*.hlsl" PATTERN "*.hlsli")

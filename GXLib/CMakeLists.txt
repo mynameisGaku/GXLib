@@ -104,6 +104,7 @@ gxlib_setup_module(GXLib_Physics pch_common.h)
 set_target_properties(GXLib_Physics PROPERTIES FOLDER "Engine")
 target_link_libraries(GXLib_Physics PUBLIC GXLib_Foundation Jolt)
 target_include_directories(GXLib_Physics PUBLIC ${joltphysics_SOURCE_DIR}/..)
+target_include_directories(GXLib_Physics PRIVATE ${CMAKE_SOURCE_DIR}/extern)
 
 # =============================================================================
 # GXLib_AI — NavMesh, NavAgent
@@ -124,6 +125,17 @@ add_library(GXLib_Scene STATIC ${SCENE_SOURCES})
 gxlib_setup_module(GXLib_Scene pch_common.h)
 set_target_properties(GXLib_Scene PROPERTIES FOLDER "Engine")
 target_link_libraries(GXLib_Scene PUBLIC GXLib_Foundation)
+target_include_directories(GXLib_Scene PRIVATE ${CMAKE_SOURCE_DIR}/extern)
+
+# =============================================================================
+# GXLib_ECS — Data-oriented ECS (World, Archetype, ComponentStorage, Query, System)
+# 依存: GXLib_Core, GXLib_Scene
+# =============================================================================
+file(GLOB_RECURSE ECS_SOURCES "ECS/*.cpp" "ECS/*.h")
+add_library(GXLib_ECS STATIC ${ECS_SOURCES})
+gxlib_setup_module(GXLib_ECS pch_common.h)
+set_target_properties(GXLib_ECS PROPERTIES FOLDER "Engine")
+target_link_libraries(GXLib_ECS PUBLIC GXLib_Core GXLib_Scene)
 
 # =============================================================================
 # GXLib_Graphics — Device, Pipeline, Resource, Rendering, 3D, PostEffect,
@@ -162,6 +174,16 @@ add_library(GXLib_GUI STATIC ${GUI_SOURCES})
 gxlib_setup_module(GXLib_GUI pch_graphics.h)
 set_target_properties(GXLib_GUI PROPERTIES FOLDER "Engine")
 target_link_libraries(GXLib_GUI PUBLIC GXLib_Graphics GXLib_Input)
+
+# =============================================================================
+# GXLib_Editor — Gizmo, EntityPicker, ShaderGraph, SceneViewport, TerrainSculptor, etc.
+# 依存: GXLib_Graphics, GXLib_Scene
+# =============================================================================
+file(GLOB_RECURSE EDITOR_SOURCES "Editor/*.cpp" "Editor/*.h")
+add_library(GXLib_Editor STATIC ${EDITOR_SOURCES})
+gxlib_setup_module(GXLib_Editor pch_graphics.h)
+set_target_properties(GXLib_Editor PROPERTIES FOLDER "Engine")
+target_link_libraries(GXLib_Editor PUBLIC GXLib_Graphics GXLib_Scene)
 
 # =============================================================================
 # GXLib_Script — ScriptEngine, ScriptBindings [optional: GX_ENABLE_LUA]
@@ -203,8 +225,10 @@ target_link_libraries(GXLib PUBLIC
     GXLib_Physics
     GXLib_AI
     GXLib_Scene
+    GXLib_ECS
     GXLib_Graphics
     GXLib_GUI
+    GXLib_Editor
 )
 
 if (GX_ENABLE_LUA)
@@ -224,6 +248,8 @@ install(DIRECTORY
     ${CMAKE_CURRENT_SOURCE_DIR}/Audio
     ${CMAKE_CURRENT_SOURCE_DIR}/Compat
     ${CMAKE_CURRENT_SOURCE_DIR}/Core
+    ${CMAKE_CURRENT_SOURCE_DIR}/ECS
+    ${CMAKE_CURRENT_SOURCE_DIR}/Editor
     ${CMAKE_CURRENT_SOURCE_DIR}/Graphics
     ${CMAKE_CURRENT_SOURCE_DIR}/GUI
     ${CMAKE_CURRENT_SOURCE_DIR}/GX
@@ -251,8 +277,8 @@ install(FILES
 # ライブラリインストール（Debug/Release を $<CONFIG> で分岐）
 install(TARGETS
     GXLib GXLib_Foundation GXLib_Core GXLib_Input GXLib_Audio
-    GXLib_IO GXLib_Physics GXLib_AI GXLib_Scene GXLib_Graphics
-    GXLib_GUI
+    GXLib_IO GXLib_Physics GXLib_AI GXLib_Scene GXLib_ECS
+    GXLib_Graphics GXLib_GUI GXLib_Editor
     ARCHIVE DESTINATION lib/$<CONFIG>
 )
 

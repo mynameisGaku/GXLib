@@ -36,8 +36,8 @@ list(FILTER APP_SOURCES EXCLUDE REGEX "ThirdParty/")
 
 # gxconv exporter sources (for integrated GXMD/GXAN export)
 set(GXCONV_EXPORT_SOURCES
-    ${CMAKE_SOURCE_DIR}/gxconv/exporters/gxmd_exporter.cpp
-    ${CMAKE_SOURCE_DIR}/gxconv/exporters/gxan_exporter.cpp
+    ${CMAKE_SOURCE_DIR}/tools/gxconv/exporters/gxmd_exporter.cpp
+    ${CMAKE_SOURCE_DIR}/tools/gxconv/exporters/gxan_exporter.cpp
 )
 set_source_files_properties(${GXCONV_EXPORT_SOURCES}
     PROPERTIES SKIP_PRECOMPILE_HEADERS ON
@@ -53,9 +53,10 @@ add_executable(GXModelViewer WIN32
 target_include_directories(GXModelViewer PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/GXLib
-    ${CMAKE_SOURCE_DIR}/gxconv
-    ${CMAKE_SOURCE_DIR}/gxformat
-    ${CMAKE_SOURCE_DIR}/gxloader
+    ${CMAKE_SOURCE_DIR}/tools/gxconv
+    ${CMAKE_SOURCE_DIR}/extern
+    ${CMAKE_SOURCE_DIR}/extern/gxformat
+    ${CMAKE_SOURCE_DIR}/extern/gxloader
     ${IMGUI_DIR}
     ${IMGUI_DIR}/backends
     ${IMGUIZMO_DIR}

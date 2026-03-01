@@ -2,6 +2,9 @@
 build/
 GXLib-SDK/
 
+# Doxygen generated docs
+docs/api/
+
 # Visual Studio
 .vs/
 *.vcxproj.user
@@ -36,6 +39,9 @@ Desktop.ini
 
 # Null device file (Windows artifact)
 nul
+
+# Codex artifacts
+.codex_*
 
 # Claude Code
 .claude/
