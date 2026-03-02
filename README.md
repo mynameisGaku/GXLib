@@ -8,41 +8,196 @@ https://mynameisgaku.github.io/GXLib/
 
 ## 特徴
 
+### レンダリング
 - **DirectX 12 ネイティブ** — D3D12 によるローレベル GPU 制御
-- **2D 描画** — SpriteBatch / PrimitiveBatch / SpriteSheet / Animation2D / Camera2D
-- **3D レンダリング** — PBR (物理ベースレンダリング) / UTS2 Toon (セルシェーディング, 3ゾーン, スムース法線アウトライン) / Phong / Subsurface / ClearCoat / glTF・FBX・OBJ・GXMD モデル / スケルタルアニメーション / アニメーションブレンド / Terrain (地形)
-- **DXR レイトレーシング** — RTReflections (DXR 反射, SSR 排他) / RTGI (グローバルイルミネーション, 半解像度 + テンポラル蓄積 + A-Trous フィルタ)
-- **シェーダーモデル** — ShaderRegistry (6 ShaderModel x static/skinned = 14 PSO 自動管理) / ShaderModelConstants (256B 共通 cbuffer)
-- **シャドウ** — CSM (Cascaded Shadow Maps, カスケードシャドウマップ, 4分割) / Spot Shadow / Point Shadow (6面キューブ)
-- **ポストエフェクト** — HDR (高ダイナミックレンジ) / Bloom (光のにじみ) / Tonemapping (Reinhard/ACES/Uncharted2) / FXAA (高速アンチエイリアシング) / Vignette (周辺減光) / ChromaticAberration (色収差) / ColorGrading (色調調整) / SSAO (環境遮蔽) / DoF (被写界深度) / MotionBlur (動きボケ) / SSR (スクリーン空間反射) / Outline (輪郭線) / VolumetricLight (光の筋) / TAA (テンポラルAA) / AutoExposure (自動露出)
-- **レイヤーシステム** — RenderLayer / LayerStack / LayerCompositor / MaskScreen
-- **GUI** — Flexbox レイアウト / CSS スタイルシート / XML 宣言的 UI / 17 種ウィジェット
-- **アニメーション** — Animator (クロスフェード + ルートモーション + アニメーションイベント) / BlendStack (8レイヤー Override/Additive) / BlendTree (1D/2D) / AnimatorStateMachine (トリガー + 遷移) / Humanoid リターゲット / IK (FootIK + LookAtIK)
+- **2D 描画** — SpriteBatch / PrimitiveBatch / SpriteSheet / Animation2D / Camera2D / Tilemap (TMX/TMJ)
+- **3D レンダリング** — PBR / UTS2 Toon / Phong / Subsurface / ClearCoat / glTF・FBX・OBJ・GXMD モデル / スケルタルアニメーション / Terrain (LOD + スプラッティング)
+- **DXR レイトレーシング** — RTReflections / RTGI (グローバルイルミネーション) / RTSoftShadows
+- **シェーダーモデル** — ShaderRegistry (6 ShaderModel x static/skinned = 14 PSO 自動管理) / ShaderModelConstants
+- **シャドウ** — CSM (自動カスケード分割, 4分割) / Spot Shadow / Point Shadow (6面キューブ)
+- **GPU-Driven Rendering** — GPU カリング + IndirectDraw / HiZ オクルージョンカリング
+- **FrameGraph** — レンダーパス依存解決 + リソースライフタイム管理
+- **Mesh Shaders** — MeshPipeline (メッシュシェーダー + メッシュレット)
+- **Variable Rate Shading** — VRSManager (SRI 自動生成)
+- **Dynamic Resolution** — DynamicResolution (GPU 負荷ベースの動的解像度)
+
+### ライティング・環境
 - **IBL** — Image-Based Lighting (拡散照射 + プリフィルタ環境マップ + BRDF LUT)
-- **テキスト** — DirectWrite ラスタライズ / Unicode フルサポート (日本語対応) / DrawStringLayout / DrawStringInRect
-- **入力** — Keyboard / Mouse / Gamepad (XInput) / ActionMapping (入力バインディング)
-- **オーディオ** — XAudio2 (SE + BGM / フェード / ループ) / 3D サウンド (AudioEmitter + AudioListener) / AudioBus ミキサー
-- **ファイル I/O** — VFS (仮想ファイルシステム) / 暗号化アーカイブ (AES-256 + LZ4) / GXPAK バンドル (PakFileProvider) / 非同期ロード / ファイル監視
-- **ネットワーク** — TCP / UDP / HTTP (sync + async) / WebSocket
-- **動画** — Media Foundation による動画デコード / テクスチャ描画
-- **数学** — Vector2/3/4 / Matrix4x4 / Quaternion (四元数) / Color / Spline (CatmullRom/CubicBezier/Linear, 弧長パラメータ化) (DirectXMath ラッパー)
-- **衝突判定** — 2D (AABB / Circle / Polygon / SAT) / 3D (Sphere / AABB / OBB / Ray / Frustum)
-- **空間分割** — Quadtree (四分木) / Octree (八分木) / BVH (境界ボリューム階層)
-- **物理** — 2D カスタム物理エンジン / 3D Jolt Physics ラッパー / MeshCollider (Static・Convex・Skinned)
-- **アセットパイプライン** — gxformat (GXMD/GXAN/GXPAK バイナリ形式) / gxconv (OBJ/FBX/glTF → .gxmd/.gxan コンバーター) / gxloader (ランタイムローダー, ボーンマッチング) / gxpak (LZ4 圧縮バンドルツール)
-- **マテリアル/シェーダー** — ランタイム差し替え (材質パラメータ・テクスチャ・シェーダー) / マテリアルオーバーライド
-- **GPU パーティクル** — Compute Shader (Init/Emit/Update) + Billboard Draw / リングバッファ / Wang hash RNG
-- **2D パーティクル** — ParticleSystem2D / ParticleEmitter2D / SpriteBatch 統合
+- **ClusteredLighting** — タイルベースクラスタードライティング
+- **SkyAtmosphere** — 大気散乱シミュレーション
+- **VolumetricFog** — ボリュメトリックフォグ
+- **VolumetricClouds** — ボリュメトリッククラウド
+- **WaterRenderer** — 水面レンダリング (FFT 波形 + 反射/屈折)
+- **LightProbeSystem** — ライトプローブ / 間接照明キャプチャ
+- **LightmapBaker** — ライトマップベイク
+
+### ポストエフェクト
+HDR / Bloom / Tonemapping (Reinhard/ACES/Uncharted2) / FXAA / Vignette / TAA / AutoExposure / SSAO / SSR / DoF / MotionBlur / Outline / VolumetricLight / ChromaticAberration / ColorGrading / FilmGrain / SSGI / ContactShadows / LensFlare / DynamicResolution
+
+### アニメーション
+- **Animator** — クロスフェード + ルートモーション + アニメーションイベント
+- **BlendStack** — 8レイヤー Override/Additive
+- **BlendTree** — 1D/2D ブレンド
+- **AnimatorStateMachine** — トリガー + 遷移
+- **AnimationLayer** — レイヤードアニメーション合成
+- **Humanoid リターゲット** — ボーンマッピング
+- **MotionMatching** — モーションマッチングシステム
+- **ProceduralAnimation** — プロシージャルアニメーション
+- **IK** — FootIK / LookAtIK / CCD IK / FABRIK IK / FullBody IK
+- **SpringBone** — 揺れ骨シミュレーション
+- **ClothSimulation** — 布シミュレーション
+
+### 物理
+- **2D カスタム物理エンジン** — RigidBody2D
+- **3D Jolt Physics ラッパー** — RigidBody3D / MeshCollider (Static・Convex・Skinned)
+- **VehiclePhysics** — 車両物理
+- **BuoyancySystem** — 浮力シミュレーション
+- **RagdollBuilder** — ラグドール自動構築
+- **CharacterController** — キャラクターコントローラー (スロープ, ステップ, クラウチ)
+- **PhysicsMaterial** — 物理マテリアル (摩擦・反発)
+- **ClothSimulator** — 物理ベース布
+
+### AI
+- **NavMesh** — Grid A* + Octile 距離
+- **NavMesh3D** — 3D ナビゲーションメッシュ
+- **PolyNavMesh** — ポリゴンベースナビメッシュ
+- **NavAgent** — 経路追従 + スムース回転
+- **RVO** — Reciprocal Velocity Obstacles (群衆回避)
+- **BehaviorTree** — ビヘイビアツリー
+- **GOAP** — Goal-Oriented Action Planning
+
+### ネットワーク
+- **TCP / UDP / HTTP / WebSocket** — 基本ネットワーク
+- **ReliableChannel** — 信頼性のある UDP 通信
+- **NetworkReplicator / ReplicatedProperty** — 状態レプリケーション
+- **RollbackNetcode** — ロールバックネットコード
+- **NATTraversal** — NAT 穴あけ
+- **MatchmakingLobby** — マッチメイキング + ロビー
+- **InterestManagement** — 関心領域管理
+- **CloudSave** — クラウドセーブ
+- **NetworkPrediction** — ラグ補償 + 予測
+
+### オーディオ
+- **XAudio2** — SE + BGM / フェード / ループ
+- **3D サウンド** — AudioEmitter + AudioListener
+- **AudioBus** — バスチェーンミキサー
+- **AudioMixer** — ミキシング
+- **AudioDSP** — DSP エフェクトチェーン
+- **AudioOcclusion** — 遮蔽減衰
+- **ReverbZone** — リバーブゾーン
+- **AudioSnapshot** — スナップショット切り替え
+- **SoundBank** — キューベースサウンド管理
+- **OggStream** — OGG ストリーミング再生
+
+### GUI
+- **Flexbox レイアウト** / CSS スタイルシート / XML 宣言的 UI
+- **17 種ウィジェット** — Panel, TextWidget, Button, Spacer, ProgressBar, Image, CheckBox, Slider, ScrollView, RadioButton, DropDown, ListView, TabView, Dialog, Canvas, TextInput
+- **UITween** — UI アニメーション
+- **DataBinding** — データバインディング
+- **DragDropManager** — ドラッグ&ドロップ
+- **Accessibility** — アクセシビリティ対応
+
+### ECS (Entity Component System)
+- **Data-Oriented** — World / Archetype / ComponentStorage / Query / System
+- **EntityBridge** — 既存 Entity/Scene との橋渡し
+
+### Editor
+- **Gizmo** — 移動/回転/スケールギズモ
+- **EntityPicker** — エンティティピッキング
+- **MaterialEditor** — マテリアルエディタ
+- **ParticleEditor** — パーティクルエディタ
+- **TimelineEditor** — タイムラインエディタ
+- **ShaderGraph** — シェーダーグラフ
+- **TerrainSculptor** — 地形スカルプト
+- **AudioMixerUI** — オーディオミキサー UI
+- **AssetBrowser** — アセットブラウザ
+- **PropertyInspector** — プロパティインスペクタ
+- **SceneHierarchyPanel** — シーン階層パネル
+- **SceneViewport** — シーンビューポート
+- **ConsoleWindow** — コンソールウィンドウ
+- **PlayInEditor** — Play-in-Editor
+
+### シーン・ゲームプレイ
+- **Entity / Scene / Component** — シーングラフ
+- **Prefab / PrefabVariant** — プレハブシステム
+- **SceneManager** — シーン管理 + トランジション
+- **ScenePersistence** — Text/Binary シリアライズ
+- **CheckpointSystem** — チェックポイント
+- **CutsceneSystem** — カットシーン
+- **DialogueSystem / DialogueGraph** — ダイアログ
+- **QuestSystem** — クエスト管理
+- **InventorySystem** — インベントリ
+- **GameState** — ステートマシン
+- **SaveSystem** — セーブ/ロード
+- **ReplaySystem** — リプレイ録画/再生
+
+### Reflection
+- **TypeInfo / TypeRegistry** — ランタイム型情報
+- **ReflectMacros** — リフレクションマクロ
+- **JsonSerializer** — 自動 JSON 直列化
+
+### システム・インフラ
+- **Coroutine** — コルーチン (co_yield)
+- **JobSystem** — マルチスレッドジョブ
+- **HotReloadManager** — ホットリロード
+- **EventBus** — イベント配信
+- **ObjectPool** — オブジェクトプール
+- **ActionScheduler** — 遅延・繰り返しアクション
+- **Profiler / ProfilerOverlay / ProfilerGUI** — CPU/GPU プロファイリング
+- **MemoryProfiler** — メモリプロファイリング
+- **GPUDebugLayer** — GPU デバッグレイヤー
+- **GPUMemoryAllocator / TLSFAllocator / BuddyAllocator** — メモリアロケーター
+- **CrashReporter** — クラッシュレポート
+- **BenchmarkRunner** — ベンチマーク
+- **Localization** — ローカライゼーション
+- **Noise** — Perlin ノイズ (ヘッダーオンリー)
+- **StringUtils** — 文字列ユーティリティ
+- **UndoSystem** — Undo/Redo
+
+### その他
+- **GPU パーティクル** — Compute Shader (Init/Emit/Update) + Billboard Draw / リングバッファ
+- **2D パーティクル** — ParticleSystem2D / ParticleEmitter2D
 - **LOD** — LODGroup (スクリーン占有率ベース + ヒステリシスバンド)
 - **デカール** — Deferred Decal (ボックス投影 + 深度再構築)
-- **AI** — NavMesh (Grid A* + Octile距離) / NavAgent (経路追従 + スムース回転)
-- **トレイル** — TrailRenderer (リングバッファ + TRIANGLESTRIP)
-- **シーン** — Entity / Scene / Component / SceneSerializer (JSON 直列化)
-- **Lua スクリプティング** — Lua 5.4 + sol2 / Vector2/3/Color/Input/Drawing バインディング
-- **タイルマップ** — TMX パース / SpriteBatch 描画 / カメラカリング
-- **マルチスレッド描画** — ParallelCommandRecorder / IndirectCommandBuffer / AsyncComputeQueue
+- **トレイル** — TrailRenderer (リングバッファ)
+- **VFXGraph** — VFX グラフ
+- **Compute Skinning** — GPU スキニング
+- **TextureStreaming** — テクスチャストリーミング
+- **VirtualTexture** — 仮想テクスチャ
+- **SamplerFeedback** — サンプラーフィードバック
+- **DirectStorage** — DirectStorage 非同期ロード
+- **HDRDisplayManager** — HDR ディスプレイ出力
+- **ScreenCapture / VideoRecorder** — スクリーンキャプチャ / 動画録画
+- **AsyncComputeScheduler** — 非同期コンピュートスケジューリング
+- **レイヤーシステム** — RenderLayer / LayerStack / LayerCompositor / MaskScreen
+- **Lua スクリプティング** — Lua 5.4 + sol2 / ScriptBindings / VisualScript
 - **DXLib 互換** — GXLib.h ヘッダー 1 つで DXLib 風の簡易 API を提供
-- **開発ツール** — シェーダーホットリロード / GPU タイムスタンププロファイラー (階層スコープ) / JSON 設定保存 / ProfilerOverlay (FPS/GPU/Graph) / GXModelViewer (ImGui Docking ベース 3D モデルビューア, 19パネル)
+- **GXModelViewer** — ImGui Docking ベース 3D モデルビューア (19パネル)
+- **テキスト** — DirectWrite ラスタライズ / Unicode フルサポート / BitmapFont / SDFFont
+- **動画** — Media Foundation による動画デコード
+- **IME** — IME 入力対応
+- **マルチスレッド描画** — ParallelCommandRecorder / IndirectCommandBuffer / AsyncComputeQueue
+
+## サブライブラリ構成
+
+13 サブライブラリ + umbrella の CMake モジュール構成:
+
+| ライブラリ | 依存先 | PCH | 概要 |
+|-----------|--------|-----|------|
+| GXLib_Foundation | なし | pch_common.h | Math, Collision, Spatial, Transform3D |
+| GXLib_Core | Foundation | pch_common.h | Application, Window, Timer, Logger, Scene, Reflect, EventBus, JobSystem 等 |
+| GXLib_Input | Core | pch_common.h | Keyboard, Mouse, Gamepad, InputManager, ActionMapping, IME |
+| GXLib_Audio | Core | pch_audio.h | AudioDevice, Sound, AudioManager, AudioMixer, AudioDSP, SoundBank 等 |
+| GXLib_IO | Core | pch_common.h | FileSystem, Archive, Network, MoviePlayer, DirectStorage |
+| GXLib_Physics | Foundation + Jolt | pch_common.h | PhysicsWorld2D/3D, Vehicle, Buoyancy, Ragdoll, CharacterController |
+| GXLib_AI | Foundation | pch_common.h | NavMesh, NavMesh3D, PolyNavMesh, NavAgent, RVO, BehaviorTree, GOAP |
+| GXLib_Scene | Foundation | pch_common.h | Entity, Component, Scene (データのみ) |
+| GXLib_ECS | Core + Scene | pch_common.h | World, Archetype, ComponentStorage, Query, System |
+| GXLib_Graphics | Core | pch_graphics.h | Device, Pipeline, Resource, Rendering, 3D, PostEffect, Layer, RayTracing, FrameGraph, Editor 等 |
+| GXLib_GUI | Graphics + Input | pch_graphics.h | Widget, UIContext, UIRenderer, StyleSheet, 17 Widgets |
+| GXLib_Editor | Graphics + Scene | pch_graphics.h | Gizmo, EntityPicker, MaterialEditor, ParticleEditor, TimelineEditor 等 14パネル |
+| GXLib_Script | Core+多数 (optional) | pch_common.h | ScriptEngine, ScriptBindings, VisualScript (Lua 5.4 + sol2) |
+| **GXLib** (umbrella) | 全サブライブラリ | pch.h | Compat/ + GX/ — DXLib 互換 API |
 
 ## 必要環境
 
@@ -59,7 +214,6 @@ https://mynameisgaku.github.io/GXLib/
 
 ```bash
 # 1. CMake プロジェクト生成
-#    -B build: build フォルダに出力, -S .: 現在のフォルダがソース
 cmake -B build -S .
 
 # 2. Debug ビルド
@@ -68,11 +222,25 @@ cmake --build build --config Debug
 # 3. Release ビルド（最適化あり）
 cmake --build build --config Release
 
-# 4. テスト実行
+# 4. テスト実行 (1952 テスト)
 ctest --test-dir build --build-config Debug
 ```
 
 Visual Studio で開く場合は `build/GXLib.sln` を使用してください。
+
+### SDK インストール
+
+```bash
+# SDK パッケージを指定ディレクトリにインストール
+cmake --install build --config Release --prefix <install-dir>
+```
+
+インストール後、利用側の CMakeLists.txt で:
+
+```cmake
+find_package(GXLib REQUIRED)
+target_link_libraries(MyApp PRIVATE GXLib::GXLib)
+```
 
 ### FBX SDK（オプション）
 
@@ -80,96 +248,69 @@ FBX/OBJ ローダーは FBX SDK が検出できた場合のみ有効になりま
 `ThirdParty/FBXSDK/2020.3.9` を参照します。別の場所を使う場合は CMake 変数
 `FBX_SDK_ROOT` を指定してください。
 
-Sandbox と Samples はビルド後に `libfbxsdk.dll` を自動コピーします。独自アプリで使う場合は、
-Debug/Release に対応する DLL を出力先に配置してください。
-
 ## プロジェクト構成
 
 ```
 GXLib/
-├── GXLib/                  # エンジン本体 (静的ライブラリ)
-│   ├── Core/               # Application, Window, Timer, Logger
+├── GXLib/                      # エンジン本体 (静的ライブラリ)
+│   ├── Core/                   # Application, Window, Timer, Logger, EventBus, JobSystem, ...
+│   │   ├── Scene/             # Entity, Component, Scene, Prefab, SceneManager, ScenePersistence
+│   │   └── Reflect/           # TypeInfo, TypeRegistry, ReflectMacros, JsonSerializer
 │   ├── Graphics/
-│   │   ├── Device/         # GraphicsDevice, CommandQueue, SwapChain, GPUProfiler
-│   │   ├── Pipeline/       # RootSignature, PipelineState, Shader, ShaderLibrary
-│   │   ├── Resource/       # Texture, TextureManager, Buffer, RenderTarget, DepthBuffer
-│   │   ├── Rendering/      # SpriteBatch, PrimitiveBatch, FontManager, TextRenderer
-│   │   ├── 3D/             # Renderer3D, Camera3D, Model, Animator, ShaderRegistry, Skybox, Terrain
-│   │   ├── Layer/          # RenderLayer, LayerStack, LayerCompositor, MaskScreen
-│   │   ├── PostEffect/     # PostEffectPipeline, Bloom, SSAO, SSR, DoF, TAA, ...
-│   │   └── RayTracing/     # RTAccelerationStructure, RTPipeline, RTReflections, RTGI
-│   ├── Input/              # Keyboard, Mouse, Gamepad, InputManager
-│   ├── Audio/              # AudioDevice, Sound, SoundPlayer, MusicPlayer
-│   ├── GUI/                # Widget, UIContext, UIRenderer, StyleSheet, GUILoader
-│   │   └── Widgets/        # Panel, Button, TextInput, Slider, DropDown, ...
-│   ├── IO/                 # FileSystem, Archive, PakFileProvider, AsyncLoader, FileWatcher
-│   │   └── Network/        # TCPSocket, UDPSocket, HTTPClient, WebSocket
-│   ├── Movie/              # MoviePlayer
-│   ├── Math/               # Vector2/3/4, Matrix4x4, Quaternion, Color, Random
-│   │   └── Collision/      # Collision2D/3D, Quadtree, Octree, BVH
-│   ├── Physics/            # PhysicsWorld2D, PhysicsWorld3D (Jolt), RigidBody2D/3D, MeshCollider
-│   ├── Compat/             # DXLib 互換レイヤー (GXLib.h)
-│   ├── Script/             # Lua スクリプティング (ScriptEngine, ScriptBindings)
-│   └── ThirdParty/         # stb_image, cgltf, nlohmann/json, LZ4, ufbx
-├── gxformat/               # バイナリ形式定義 (GXMD/GXAN/GXPAK, ヘッダーオンリー)
-├── gxconv/                 # CLI モデルコンバーター (OBJ/FBX/glTF → .gxmd/.gxan)
-├── gxloader/               # ランタイムローダー (静的ライブラリ, ボーンマッチング)
-├── gxpak/                  # CLI バンドルツール (pack/unpack/list .gxpak)
-├── GXModelViewer/          # ImGui Docking ベース 3D モデルビューア
-│   ├── Panels/             # SceneHierarchy, Property, Lighting, PostEffect, Skybox, ...
-│   ├── Scene/              # SceneGraph, SceneSerializer
-│   └── ThirdParty/         # imgui, imguizmo, imnodes, implot, ImGuiFileDialog
-├── Sandbox/                # テストアプリケーション
-├── Samples/                # サンプルプロジェクト
-│   ├── Shooting2D/         # 2D シューティングゲーム
-│   ├── Platformer2D/       # 2D プラットフォーマー
-│   ├── Walkthrough3D/      # 3D ウォークスルー
-│   ├── GUIMenuDemo/        # GUI メニューデモ
-│   └── PostEffectShowcase/ # ポストエフェクト一覧
-├── Shaders/                # HLSL シェーダーファイル (PBR, Toon, UTS2, Phong, ...)
-├── Assets/                 # ランタイムアセット (CSS, XML, ...)
-├── Tests/                  # Google Test ユニットテスト
-├── docs/                   # ドキュメント
-│   ├── tutorials/          # チュートリアル
-│   ├── migration/          # DXLib 移行ガイド
-│   └── index.html          # API リファレンス
-└── Doxyfile                # Doxygen 設定ファイル
+│   │   ├── Device/            # GraphicsDevice, CommandQueue, SwapChain, GPUProfiler, VRSManager, HDRDisplay
+│   │   ├── Pipeline/          # RootSignature, PipelineState, Shader, MeshPipeline
+│   │   ├── Resource/          # Texture, TextureManager, Buffer, GPUMemoryAllocator, VirtualTexture, TextureStreaming
+│   │   ├── Rendering/         # SpriteBatch, PrimitiveBatch, FontManager, TextRenderer, Tilemap, Camera2D
+│   │   ├── 3D/                # Renderer3D, Camera3D, Model, Animator, ShaderRegistry, Terrain, ...
+│   │   │                       # SceneRenderer, GPUDrivenRenderer, GPUParticleSystem, ClothSimulation
+│   │   │                       # SkyAtmosphere, WaterRenderer, VolumetricFog/Clouds, ClusteredLighting
+│   │   │                       # IKSolver (CCD/FABRIK), FullBodyIK, FootIK, LookAtIK, SpringBone
+│   │   │                       # MotionMatching, ProceduralAnimation, AnimationLayer, BlendStack/BlendTree
+│   │   │                       # ComputeSkinning, DebugDraw3D, Decal, LODGroup, TrailRenderer, VFXGraph
+│   │   ├── FrameGraph/        # FrameGraph, RenderPass, ResourceNode
+│   │   ├── Layer/             # RenderLayer, LayerStack, LayerCompositor, MaskScreen
+│   │   ├── PostEffect/        # PostEffectPipeline, Bloom, SSAO, SSR, DoF, TAA, SSGI, ContactShadows, ...
+│   │   ├── RayTracing/        # RTAccelerationStructure, RTPipeline, RTReflections, RTGI, RTSoftShadows
+│   │   └── Text/              # BitmapFont, SDFFont
+│   ├── Input/                  # Keyboard, Mouse, Gamepad, InputManager, ActionMapping, IMEHandler
+│   ├── Audio/                  # AudioDevice, Sound, AudioManager, AudioMixer, AudioBus, AudioDSP
+│   │                           # AudioOcclusion, ReverbZone, SoundBank, AudioSnapshot, OggStream
+│   ├── GUI/                    # Widget, UIContext, UIRenderer, StyleSheet, UITween, DataBinding
+│   │   └── Widgets/           # Panel, Button, TextInput, Slider, DropDown, ... (17種)
+│   ├── IO/                     # FileSystem, Archive, AsyncLoader, FileWatcher, DirectStorage
+│   │   └── Network/           # TCP, UDP, HTTP, WebSocket, ReliableChannel, RollbackNetcode
+│   │                           # NetworkReplicator, NATTraversal, MatchmakingLobby, CloudSave
+│   ├── Movie/                  # MoviePlayer
+│   ├── Math/                   # Vector2/3/4, Matrix4x4, Quaternion, Color, Random, Noise, Spline, Tween
+│   │   └── Collision/         # Collision2D/3D, Quadtree, Octree, BVH
+│   ├── Physics/                # PhysicsWorld2D/3D (Jolt), VehiclePhysics, BuoyancySystem
+│   │                           # RagdollBuilder, CharacterController, ClothSimulator, PhysicsMaterial
+│   ├── AI/                     # NavMesh, NavMesh3D, PolyNavMesh, NavAgent, RVO, BehaviorTree, GOAP
+│   ├── ECS/                    # World, Archetype, ComponentStorage, Query, System, EntityBridge
+│   ├── Editor/                 # Gizmo, EntityPicker, MaterialEditor, ParticleEditor, TimelineEditor
+│   │                           # ShaderGraph, TerrainSculptor, AudioMixerUI, AssetBrowser, ...
+│   ├── Script/                 # ScriptEngine, ScriptBindings, VisualScript (Lua 5.4 + sol2)
+│   ├── Compat/                 # DXLib 互換レイヤー (GXLib.h)
+│   ├── GX/                     # GXLib ネイティブ簡易 API (App, Draw2D, Audio, Input, ...)
+│   └── ThirdParty/             # stb_image, cgltf, nlohmann/json, LZ4, ufbx
+├── extern/
+│   ├── gxformat/              # バイナリ形式定義 (GXMD/GXAN/GXPAK, ヘッダーオンリー)
+│   ├── gxloader/              # ランタイムローダー (静的ライブラリ, ボーンマッチング)
+│   └── ThirdParty/            # 外部依存 (Jolt Physics 等)
+├── tools/
+│   ├── gxconv/                # CLI モデルコンバーター (OBJ/FBX/glTF → .gxmd/.gxan)
+│   └── gxpak/                 # CLI バンドルツール (pack/unpack/list .gxpak)
+├── GXModelViewer/              # ImGui Docking ベース 3D モデルビューア
+├── Sandbox/                    # テストアプリケーション
+├── Game/                       # ゲームテンプレート
+├── Shaders/                    # HLSL シェーダーファイル
+├── Assets/                     # ランタイムアセット (CSS, XML, ...)
+├── Tests/                      # Google Test ユニットテスト (1952 テスト)
+├── docs/                       # API リファレンスサイト + Doxygen
+├── cmake/                      # CMake モジュール (GXLibConfig.cmake)
+├── template/                   # プロジェクトテンプレート
+└── GXLib-SDK/                  # SDK パッケージ出力
 ```
-
-## Samples (25個)
-
-各サンプルの概要・操作・ビルド/実行は各 README を参照してください。
-
-### 2D
-- [EasyHello](Samples/EasyHello/) — 最小構成の 2D 入門
-- [Shooting2D](Samples/Shooting2D/) — 2D シューティング
-- [Platformer2D](Samples/Platformer2D/) — 2D プラットフォーマー
-- [Particle2DShowcase](Samples/Particle2DShowcase/) — 2D パーティクルシステム
-- [TextLayoutShowcase](Samples/TextLayoutShowcase/) — テキストレイアウト
-- [TilemapShowcase](Samples/TilemapShowcase/) — 2D タイルマップ
-
-### 3D
-- [Walkthrough3D](Samples/Walkthrough3D/) — 3D ウォークスルー
-- [PostEffectShowcase](Samples/PostEffectShowcase/) — ポストエフェクト一覧
-- [DXRShowcase](Samples/DXRShowcase/) — DXR レイトレーシング
-- [InstanceShowcase](Samples/InstanceShowcase/) — GPU インスタンシング
-- [IBLShowcase](Samples/IBLShowcase/) — Image-Based Lighting
-- [IKShowcase](Samples/IKShowcase/) — 逆運動学 (FootIK/LookAtIK)
-- [ParticleShowcase](Samples/ParticleShowcase/) — 3D パーティクル
-- [GPUParticleShowcase](Samples/GPUParticleShowcase/) — GPU パーティクル (Compute Shader)
-- [TrailShowcase](Samples/TrailShowcase/) — トレイルレンダラー
-- [SplineShowcase](Samples/SplineShowcase/) — スプライン評価
-- [WireframeShowcase](Samples/WireframeShowcase/) — デバッグワイヤフレーム
-- [MultiThreadShowcase](Samples/MultiThreadShowcase/) — マルチスレッド描画
-
-### システム
-- [GUIMenuDemo](Samples/GUIMenuDemo/) — XML/CSS GUI デモ
-- [Audio3DShowcase](Samples/Audio3DShowcase/) — 3D サウンド
-- [ActionMappingShowcase](Samples/ActionMappingShowcase/) — 入力アクションバインド
-- [SceneShowcase](Samples/SceneShowcase/) — Entity/Scene シリアライズ
-- [NavmeshShowcase](Samples/NavmeshShowcase/) — AI パスファインディング
-- [ProfilerShowcase](Samples/ProfilerShowcase/) — GPU/CPU プロファイリング
-- [LuaShowcase](Samples/LuaShowcase/) — Lua スクリプティング
 
 ## クイックスタート
 
@@ -233,8 +374,10 @@ spriteBatch.End();
 ```
 Scene → HDR RT (高ダイナミックレンジ レンダーターゲット)
      → [RTGI (DXR グローバルイルミネーション)]
+     → [SSGI (スクリーン空間 GI)]
      → [SSAO (環境遮蔽)]
-     → [RT/SSR (DXR レイトレーシング反射 / スクリーン空間反射, 排他)]
+     → [ContactShadows (コンタクトシャドウ)]
+     → [RT/SSR (DXR 反射 / スクリーン空間反射, 排他)]
      → [VolumetricLight (光の筋)]
      → [Bloom (光のにじみ)]
      → [DoF (被写界深度)]
@@ -244,8 +387,12 @@ Scene → HDR RT (高ダイナミックレンジ レンダーターゲット)
      → [ColorGrading (色調調整)]
      → [AutoExposure (自動露出)]
      → [Tonemap (HDR→LDR変換)]
+     → [LensFlare (レンズフレア)]
+     → [ChromaticAberration (色収差)]
+     → [FilmGrain (フィルムグレイン)]
      → [FXAA (高速AA)]
      → [Vignette (周辺減光)]
+     → [DynamicResolution (動的解像度)]
      → Backbuffer (画面表示)
 ```
 
@@ -289,10 +436,13 @@ CSS + XML による宣言的 UI を提供します。
 | ライブラリ | 用途 | ライセンス |
 |-----------|------|-----------|
 | [stb_image](https://github.com/nothings/stb) | 画像読み込み | Public Domain |
+| [stb_vorbis](https://github.com/nothings/stb) | OGG デコード | Public Domain |
 | [cgltf](https://github.com/jkuhlmann/cgltf) | glTF パーサー | MIT |
 | [nlohmann/json](https://github.com/nlohmann/json) | JSON パーサー | MIT |
 | [LZ4](https://github.com/lz4/lz4) | 高速圧縮 | BSD-2 |
 | [Jolt Physics](https://github.com/jrouwe/JoltPhysics) | 3D 物理エンジン | MIT |
+| [Lua 5.4](https://www.lua.org/) | スクリプト言語 | MIT |
+| [sol2](https://github.com/ThePhD/sol2) | Lua C++ バインディング | MIT |
 | [Google Test](https://github.com/google/googletest) | ユニットテスト | BSD-3 |
 | [ufbx](https://github.com/bqqbarbhg/ufbx) | FBX パーサー (gxconv) | MIT |
 | [tinyobjloader](https://github.com/tinyobjloader/tinyobjloader) | OBJ パーサー (gxconv) | MIT |
@@ -302,28 +452,18 @@ CSS + XML による宣言的 UI を提供します。
 | [ImNodes](https://github.com/Nelarius/imnodes) | ノードエディタ | MIT |
 | [FBX SDK](https://www.autodesk.com/developer-network/platform-technologies/fbx-sdk) | FBX/OBJ 読み込み (オプション) | Autodesk FBX SDK License |
 
+Lua 5.4 と sol2 は CMake FetchContent により自動ダウンロードされます。
+
 ## ドキュメント
 
-- [API リファレンス](docs/index.html) — 全公開 API の一覧
-- [用語集 (Glossary)](docs/Glossary.md) — 専門用語の解説
-- [チュートリアル](docs/tutorials/) — ステップバイステップガイド
-  - [00: 前提知識](docs/tutorials/00_Prerequisites.md)
-  - [01: はじめに](docs/tutorials/01_GettingStarted.md)
-  - [02: 2D 描画](docs/tutorials/02_Drawing2D.md)
-  - [03: 2D ゲーム](docs/tutorials/03_Game2D.md)
-  - [04: 3D レンダリング](docs/tutorials/04_Rendering3D.md)
-  - [05: GUI](docs/tutorials/05_GUI.md)
-  - [06: GXEasy 2Dゲーム](docs/tutorials/06_GXEasy2DGame.md)
-  - [07: 3Dシーン](docs/tutorials/07_3DScene.md)
-  - [08: アセットパイプライン](docs/tutorials/08_AssetPipeline.md)
-- [API リファレンス](docs/api/) — 主要サブシステム別リファレンス
-- [DXLib 移行ガイド](docs/migration/DxLibMigrationGuide.md)
+- [API リファレンスサイト](https://mynameisgaku.github.io/GXLib/) — GitHub Pages で公開
+- [用語集 (Glossary)](docs/GXLib_ProjectDoc.md) — プロジェクトドキュメント
 
 ### Doxygen による API ドキュメント生成
 
 ```bash
-doxygen Doxyfile
-# docs/api/html/index.html にHTMLが生成されます
+cmake --build build --target docs
+# docs/ 配下に HTML が生成されます
 ```
 
 ## トラブルシューティング
@@ -338,7 +478,8 @@ doxygen Doxyfile
 | テクスチャが表示されない | テクスチャファイルのパスが間違っている、またはアセットがコピーされていない | `Shaders/` と `Assets/` がビルド出力先にコピーされているか確認してください |
 | FBX モデルが読み込めない | FBX SDK がインストールされていない | `ThirdParty/FBXSDK/2020.3.9` に SDK を配置するか、glTF 形式を使用してください |
 | フォントが表示されない | FontManager の初期化前にテキスト描画を呼んでいる | `FontManager::FlushAtlasUpdates()` をフレーム開始時に呼んでください |
-| ビルドが遅い | プリコンパイルドヘッダーが無効になっている | `target_precompile_headers(GXLib PRIVATE pch.h)` が CMakeLists.txt にあることを確認してください |
+| ビルドが遅い | プリコンパイルドヘッダーが無効になっている | モジュール別 PCH (pch_common.h / pch_graphics.h / pch_audio.h) が有効か確認してください |
+| 新しいファイルがビルドに含まれない | GLOB_RECURSE による自動収集 | `cmake -B build -S .` で CMake を再生成してください |
 
 ### テスト実行
 
