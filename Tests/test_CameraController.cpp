@@ -85,7 +85,7 @@ TEST(CameraController_Shake, ShakeOffset_NonZeroDuringShake)
     ctrl.StartShake(params);
     ctrl.Update(0.05f);
 
-    XMFLOAT3 offset = ctrl.GetShakeOffset();
+    Vector3 offset = ctrl.GetShakeOffset();
     // シェイク中は少なくとも1つの成分がゼロでないはず
     bool anyNonZero = (offset.x != 0.0f) || (offset.y != 0.0f) || (offset.z != 0.0f);
     EXPECT_TRUE(anyNonZero);
@@ -101,7 +101,7 @@ TEST(CameraController_Shake, ShakeOffset_ZeroAfterDuration)
 
     // 継続時間を大きく超えて更新
     ctrl.Update(0.5f);
-    XMFLOAT3 offset = ctrl.GetShakeOffset();
+    Vector3 offset = ctrl.GetShakeOffset();
     EXPECT_FLOAT_EQ(offset.x, 0.0f);
     EXPECT_FLOAT_EQ(offset.y, 0.0f);
     EXPECT_FLOAT_EQ(offset.z, 0.0f);
@@ -110,7 +110,7 @@ TEST(CameraController_Shake, ShakeOffset_ZeroAfterDuration)
 TEST(CameraController_Shake, ShakeOffset_ZeroWhenNotShaking)
 {
     CameraController ctrl;
-    XMFLOAT3 offset = ctrl.GetShakeOffset();
+    Vector3 offset = ctrl.GetShakeOffset();
     EXPECT_FLOAT_EQ(offset.x, 0.0f);
     EXPECT_FLOAT_EQ(offset.y, 0.0f);
     EXPECT_FLOAT_EQ(offset.z, 0.0f);
@@ -216,17 +216,17 @@ TEST(CameraController_Rail, GetRailPosition_Interpolates)
 
     // 進行度0では、位置は最初のポイントにあるはず
     ctrl.SetRailProgress(0.0f);
-    XMFLOAT3 pos0 = ctrl.GetRailPosition();
+    Vector3 pos0 = ctrl.GetRailPosition();
     EXPECT_NEAR(pos0.x, 0.0f, 0.5f);
 
     // 進行度1では、位置は最後のポイントにあるはず
     ctrl.SetRailProgress(1.0f);
-    XMFLOAT3 pos1 = ctrl.GetRailPosition();
+    Vector3 pos1 = ctrl.GetRailPosition();
     EXPECT_NEAR(pos1.x, 10.0f, 0.5f);
 
     // 進行度0.5では、位置はおおよそ中間にあるはず
     ctrl.SetRailProgress(0.5f);
-    XMFLOAT3 posHalf = ctrl.GetRailPosition();
+    Vector3 posHalf = ctrl.GetRailPosition();
     EXPECT_NEAR(posHalf.x, 5.0f, 2.0f);
 }
 
@@ -343,9 +343,9 @@ TEST(CameraController_Orbit, DistanceClamping)
 TEST(CameraController_Orbit, SetOrbitTarget)
 {
     CameraController ctrl;
-    XMFLOAT3 target = { 5.0f, 3.0f, -2.0f };
+    Vector3 target = { 5.0f, 3.0f, -2.0f };
     ctrl.SetOrbitTarget(target);
-    XMFLOAT3 retrieved = ctrl.GetOrbitTarget();
+    Vector3 retrieved = ctrl.GetOrbitTarget();
     EXPECT_FLOAT_EQ(retrieved.x, 5.0f);
     EXPECT_FLOAT_EQ(retrieved.y, 3.0f);
     EXPECT_FLOAT_EQ(retrieved.z, -2.0f);

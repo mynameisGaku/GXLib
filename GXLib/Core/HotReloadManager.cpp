@@ -46,7 +46,7 @@ void HotReloadManager::Shutdown()
     m_initialized = false;
 }
 
-void HotReloadManager::WatchAssetDirectory(const std::wstring& dir, HotReloadAssetType type)
+void HotReloadManager::WatchAssetDirectory(const gx::WString& dir, HotReloadAssetType type)
 {
     if (!m_initialized || !m_watcher)
     {
@@ -54,15 +54,17 @@ void HotReloadManager::WatchAssetDirectory(const std::wstring& dir, HotReloadAss
         return;
     }
 
-    // wstring → string 変換（FileWatcher は std::string ベース）
-    std::string dirNarrow(dir.begin(), dir.end());
+    // wstring → string 変換（FileWatcher は gx::String ベース）
+    std::wstring wdir(dir.c_str());
+    gx::String dirNarrow(std::string(wdir.begin(), wdir.end()));
 
     // FileWatcher にコールバックを登録
     m_watcher->Watch(dirNarrow,
-        [this](const std::string& path)
+        [this](const gx::String& path)
         {
-            // std::string → std::wstring 変換
-            std::wstring wpath(path.begin(), path.end());
+            // gx::String → gx::WString 変換
+            std::string spath(path.c_str());
+            gx::WString wpath(std::wstring(spath.begin(), spath.end()));
 
             // ファイル拡張子から実際のアセットタイプを判定
             HotReloadAssetType actualType = ClassifyFile(wpath);
@@ -130,12 +132,12 @@ uint32_t HotReloadManager::GetWatchedDirectoryCount() const
     return m_watchedDirCount;
 }
 
-HotReloadAssetType HotReloadManager::ClassifyFile(const std::wstring& path) const
+HotReloadAssetType HotReloadManager::ClassifyFile(const gx::WString& path) const
 {
     // 拡張子を抽出（小文字に変換して比較）
-    std::wstring ext;
+    gx::WString ext;
     auto dotPos = path.rfind(L'.');
-    if (dotPos != std::wstring::npos)
+    if (dotPos != gx::WString::npos)
     {
         ext = path.substr(dotPos);
         // 小文字に変換

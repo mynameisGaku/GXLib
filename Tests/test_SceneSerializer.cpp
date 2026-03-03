@@ -13,7 +13,7 @@ using namespace gx;
 TEST(SceneSerializerTest, ToJsonString_EmptyScene)
 {
     Scene scene("Empty");
-    std::string json = SceneSerializer::ToJsonString(scene);
+    gx::String json = SceneSerializer::ToJsonString(scene);
     EXPECT_FALSE(json.empty());
     EXPECT_EQ(json[0], '{');
 }
@@ -21,7 +21,7 @@ TEST(SceneSerializerTest, ToJsonString_EmptyScene)
 TEST(SceneSerializerTest, RoundTrip_EmptyScene)
 {
     Scene scene("TestScene");
-    std::string json = SceneSerializer::ToJsonString(scene);
+    gx::String json = SceneSerializer::ToJsonString(scene);
 
     Scene loaded;
     bool ok = SceneSerializer::FromJsonString(loaded, json);
@@ -33,7 +33,7 @@ TEST(SceneSerializerTest, RoundTrip_SingleEntity)
 {
     Scene scene;
     scene.CreateEntity("Box");
-    std::string json = SceneSerializer::ToJsonString(scene);
+    gx::String json = SceneSerializer::ToJsonString(scene);
 
     Scene loaded;
     bool ok = SceneSerializer::FromJsonString(loaded, json);
@@ -48,7 +48,7 @@ TEST(SceneSerializerTest, RoundTrip_EntityTransform)
     Scene scene;
     Entity* e = scene.CreateEntity("Moved");
     e->GetTransform().SetPosition(1.0f, 2.0f, 3.0f);
-    std::string json = SceneSerializer::ToJsonString(scene);
+    gx::String json = SceneSerializer::ToJsonString(scene);
 
     Scene loaded;
     SceneSerializer::FromJsonString(loaded, json);
@@ -66,7 +66,7 @@ TEST(SceneSerializerTest, RoundTrip_Hierarchy)
     Entity* parent = scene.CreateEntity("Parent");
     Entity* child = scene.CreateEntity("Child");
     child->SetParent(parent);
-    std::string json = SceneSerializer::ToJsonString(scene);
+    gx::String json = SceneSerializer::ToJsonString(scene);
 
     Scene loaded;
     SceneSerializer::FromJsonString(loaded, json);
@@ -81,7 +81,7 @@ TEST(SceneSerializerTest, RoundTrip_CameraComponent)
     Scene scene;
     Entity* e = scene.CreateEntity("CamEntity");
     e->AddComponent<CameraComponent>();
-    std::string json = SceneSerializer::ToJsonString(scene);
+    gx::String json = SceneSerializer::ToJsonString(scene);
 
     Scene loaded;
     SceneSerializer::FromJsonString(loaded, json);
@@ -95,7 +95,7 @@ TEST(SceneSerializerTest, RoundTrip_LightComponent)
     Scene scene;
     Entity* e = scene.CreateEntity("LightEntity");
     e->AddComponent<LightComponent>();
-    std::string json = SceneSerializer::ToJsonString(scene);
+    gx::String json = SceneSerializer::ToJsonString(scene);
 
     Scene loaded;
     SceneSerializer::FromJsonString(loaded, json);

@@ -9,6 +9,15 @@
 namespace gx
 {
 
+IBL::~IBL()
+{
+    if (m_fenceEvent)
+    {
+        CloseHandle(m_fenceEvent);
+        m_fenceEvent = nullptr;
+    }
+}
+
 bool IBL::Initialize(ID3D12Device* device, ID3D12CommandQueue* cmdQueue,
                      DescriptorHeap& srvHeap)
 {
@@ -57,8 +66,8 @@ bool IBL::Initialize(ID3D12Device* device, ID3D12CommandQueue* cmdQueue,
     return true;
 }
 
-void IBL::UpdateFromSkybox(const XMFLOAT3& topColor, const XMFLOAT3& bottomColor,
-                           const XMFLOAT3& sunDirection, float sunIntensity)
+void IBL::UpdateFromSkybox(const Vector3& topColor, const Vector3& bottomColor,
+                           const Vector3& sunDirection, float sunIntensity)
 {
     m_topColor = topColor;
     m_bottomColor = bottomColor;
@@ -323,11 +332,11 @@ bool IBL::GenerateEnvironmentCubemap(ID3D12Device* device, ID3D12CommandQueue* c
         uint32_t faceIndex;
         float sunIntensity;
         float _pad[2];
-        XMFLOAT3 topColor;
+        Vector3 topColor;
         float _pad2;
-        XMFLOAT3 bottomColor;
+        Vector3 bottomColor;
         float _pad3;
-        XMFLOAT3 sunDirection;
+        Vector3 sunDirection;
         float _pad4;
     };
     static_assert(sizeof(EnvConstants) == 64, "EnvConstants size mismatch");

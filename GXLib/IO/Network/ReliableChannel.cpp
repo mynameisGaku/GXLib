@@ -61,7 +61,7 @@ bool ReliableChannel::IsSequenceNewer(uint16_t s1, uint16_t s2) const
 // 生パケット送信
 // ---------------------------------------------------------------------------
 
-void ReliableChannel::SendRaw(const std::string& host, uint16_t port,
+void ReliableChannel::SendRaw(const gx::String& host, uint16_t port,
                                const ReliablePacketHeader& header,
                                const void* data, uint32_t size)
 {
@@ -69,7 +69,7 @@ void ReliableChannel::SendRaw(const std::string& host, uint16_t port,
 
     // ヘッダ + ペイロードをバッファに組み立て
     const uint32_t totalSize = static_cast<uint32_t>(sizeof(ReliablePacketHeader)) + size;
-    std::vector<uint8_t> buffer(totalSize);
+    gx::Vector<uint8_t> buffer(totalSize);
     std::memcpy(buffer.data(), &header, sizeof(ReliablePacketHeader));
     if (data && size > 0)
     {
@@ -83,7 +83,7 @@ void ReliableChannel::SendRaw(const std::string& host, uint16_t port,
 // 信頼性のある送信
 // ---------------------------------------------------------------------------
 
-void ReliableChannel::SendReliable(const std::string& host, uint16_t port,
+void ReliableChannel::SendReliable(const gx::String& host, uint16_t port,
                                     uint16_t type, const void* data, uint32_t size)
 {
     if (!m_socket) return;
@@ -126,7 +126,7 @@ void ReliableChannel::SendReliable(const std::string& host, uint16_t port,
 // 信頼性のない送信（ACK情報は付与）
 // ---------------------------------------------------------------------------
 
-void ReliableChannel::SendUnreliable(const std::string& host, uint16_t port,
+void ReliableChannel::SendUnreliable(const gx::String& host, uint16_t port,
                                       uint16_t type, const void* data, uint32_t size)
 {
     if (!m_socket) return;
@@ -149,11 +149,11 @@ void ReliableChannel::SendUnreliable(const std::string& host, uint16_t port,
 // 受信処理
 // ---------------------------------------------------------------------------
 
-std::vector<ReceivedPacket> ReliableChannel::ProcessIncoming(
+gx::Vector<ReceivedPacket> ReliableChannel::ProcessIncoming(
     const uint8_t* rawData, uint32_t size,
-    const std::string& host, uint16_t port)
+    const gx::String& host, uint16_t port)
 {
-    std::vector<ReceivedPacket> result;
+    gx::Vector<ReceivedPacket> result;
 
     if (!rawData || size < sizeof(ReliablePacketHeader))
     {

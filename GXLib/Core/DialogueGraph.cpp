@@ -14,7 +14,7 @@ namespace gx
 // ノード管理
 // =============================================================================
 
-uint32_t DialogueGraph::AddNode(DialogueNodeType type, const std::string& speaker, const std::string& text)
+uint32_t DialogueGraph::AddNode(DialogueNodeType type, const gx::String& speaker, const gx::String& text)
 {
     DialogueGraphNode node;
     node.id = m_nextNodeId++;
@@ -59,7 +59,7 @@ const DialogueGraphNode* DialogueGraph::GetNode(uint32_t nodeId) const
 // =============================================================================
 
 void DialogueGraph::AddLink(uint32_t fromNodeId, uint32_t toNodeId,
-                             const std::string& label, const std::string& condition)
+                             const gx::String& label, const gx::String& condition)
 {
     DialogueGraphNode* from = GetNode(fromNodeId);
     if (!from) return;
@@ -88,12 +88,12 @@ void DialogueGraph::RemoveLink(uint32_t fromNodeId, uint32_t toNodeId)
 // 変数システム
 // =============================================================================
 
-void DialogueGraph::SetVariable(const std::string& name, const DialogueValue& value)
+void DialogueGraph::SetVariable(const gx::String& name, const DialogueValue& value)
 {
     m_variables[name] = value;
 }
 
-DialogueValue DialogueGraph::GetVariable(const std::string& name) const
+DialogueValue DialogueGraph::GetVariable(const gx::String& name) const
 {
     auto it = m_variables.find(name);
     if (it != m_variables.end())
@@ -101,7 +101,7 @@ DialogueValue DialogueGraph::GetVariable(const std::string& name) const
     return DialogueValue{ false };
 }
 
-bool DialogueGraph::HasVariable(const std::string& name) const
+bool DialogueGraph::HasVariable(const gx::String& name) const
 {
     return m_variables.find(name) != m_variables.end();
 }
@@ -227,54 +227,59 @@ void DialogueGraph::ClearHistory()
 // シリアライズ
 // =============================================================================
 
-std::string DialogueGraph::Save() const
+gx::String DialogueGraph::Save() const
 {
     // Simple text format: "nodeCount\n" followed by node data
-    std::string result;
-    result += std::to_string(m_nodes.size()) + "\n";
+    gx::String result;
+    result += std::to_string(m_nodes.size()).c_str();
+    result += "\n";
     for (const auto& node : m_nodes)
     {
-        result += std::to_string(node.id) + "|";
-        result += std::to_string(static_cast<int>(node.type)) + "|";
+        result += std::to_string(node.id).c_str();
+        result += "|";
+        result += std::to_string(static_cast<int>(node.type)).c_str();
+        result += "|";
         result += node.speaker + "|";
         result += node.text + "|";
         result += node.emotion + "|";
-        result += std::to_string(node.links.size());
+        result += std::to_string(node.links.size()).c_str();
         for (const auto& link : node.links)
         {
-            result += "|" + std::to_string(link.targetNodeId);
+            result += "|";
+            result += std::to_string(link.targetNodeId).c_str();
             result += "|" + link.label;
             result += "|" + link.condition;
         }
         result += "\n";
     }
     // Save variables
-    result += std::to_string(m_variables.size()) + "\n";
+    result += std::to_string(m_variables.size()).c_str();
+    result += "\n";
     for (const auto& [key, val] : m_variables)
     {
         result += key + "|";
         if (std::holds_alternative<bool>(val))
-            result += "b|" + std::string(std::get<bool>(val) ? "1" : "0");
+            result += "b|" + gx::String(std::get<bool>(val) ? "1" : "0");
         else if (std::holds_alternative<int>(val))
-            result += "i|" + std::to_string(std::get<int>(val));
+            { result += "i|"; result += std::to_string(std::get<int>(val)).c_str(); }
         else if (std::holds_alternative<float>(val))
-            result += "f|" + std::to_string(std::get<float>(val));
-        else if (std::holds_alternative<std::string>(val))
-            result += "s|" + std::get<std::string>(val);
+            { result += "f|"; result += std::to_string(std::get<float>(val)).c_str(); }
+        else if (std::holds_alternative<gx::String>(val))
+            result += "s|" + std::get<gx::String>(val);
         result += "\n";
     }
     return result;
 }
 
-bool DialogueGraph::Load(const std::string& data)
+bool DialogueGraph::Load(const gx::String& data)
 {
     if (data.empty()) return false;
 
     std::istringstream iss(data);
-    std::string line;
+    gx::String line;
 
     // Read node count
-    if (!std::getline(iss, line)) return false;
+    if (!gx::container::getline(iss, line)) return false;
     size_t nodeCount = 0;
     try { nodeCount = std::stoull(line); }
     catch (...) { return false; }
@@ -284,15 +289,15 @@ bool DialogueGraph::Load(const std::string& data)
 
     for (size_t i = 0; i < nodeCount; ++i)
     {
-        if (!std::getline(iss, line)) return false;
+        if (!gx::container::getline(iss, line)) return false;
 
         // Parse pipe-delimited fields
-        std::vector<std::string> fields;
+        gx::Vector<gx::String> fields;
         size_t pos = 0;
         while (pos <= line.size())
         {
             size_t next = line.find('|', pos);
-            if (next == std::string::npos)
+            if (next == gx::String::npos)
             {
                 fields.push_back(line.substr(pos));
                 break;
@@ -334,7 +339,7 @@ bool DialogueGraph::Load(const std::string& data)
     }
 
     // Read variables
-    if (std::getline(iss, line))
+    if (gx::container::getline(iss, line))
     {
         size_t varCount = 0;
         try { varCount = std::stoull(line); }
@@ -343,17 +348,17 @@ bool DialogueGraph::Load(const std::string& data)
         m_variables.clear();
         for (size_t i = 0; i < varCount; ++i)
         {
-            if (!std::getline(iss, line)) break;
+            if (!gx::container::getline(iss, line)) break;
 
             // Parse: key|type|value
             size_t first = line.find('|');
-            if (first == std::string::npos) continue;
+            if (first == gx::String::npos) continue;
             size_t second = line.find('|', first + 1);
-            if (second == std::string::npos) continue;
+            if (second == gx::String::npos) continue;
 
-            std::string key = line.substr(0, first);
-            std::string typeStr = line.substr(first + 1, second - first - 1);
-            std::string valStr = line.substr(second + 1);
+            gx::String key = line.substr(0, first);
+            gx::String typeStr = line.substr(first + 1, second - first - 1);
+            gx::String valStr = line.substr(second + 1);
 
             try
             {
@@ -377,24 +382,24 @@ bool DialogueGraph::Load(const std::string& data)
 // 内部
 // =============================================================================
 
-bool DialogueGraph::EvaluateCondition(const std::string& condition) const
+bool DialogueGraph::EvaluateCondition(const gx::String& condition) const
 {
     if (condition.empty()) return true;
 
     // Simple condition format: "varName == value" or "varName != value"
     // Parse operator
-    std::string op;
-    size_t opPos = std::string::npos;
+    gx::String op;
+    size_t opPos = gx::String::npos;
 
     size_t neqPos = condition.find("!=");
     size_t eqPos = condition.find("==");
 
-    if (neqPos != std::string::npos)
+    if (neqPos != gx::String::npos)
     {
         op = "!=";
         opPos = neqPos;
     }
-    else if (eqPos != std::string::npos)
+    else if (eqPos != gx::String::npos)
     {
         op = "==";
         opPos = eqPos;
@@ -412,12 +417,12 @@ bool DialogueGraph::EvaluateCondition(const std::string& condition) const
     }
 
     // Extract variable name and value
-    std::string varName = condition.substr(0, opPos);
-    std::string valStr = condition.substr(opPos + op.size());
+    gx::String varName = condition.substr(0, opPos);
+    gx::String valStr = condition.substr(opPos + op.size());
 
     // Trim whitespace
-    auto trim = [](std::string& s) {
-        while (!s.empty() && s.front() == ' ') s.erase(s.begin());
+    auto trim = [](gx::String& s) {
+        while (!s.empty() && s.front() == ' ') s.erase(0, 1);
         while (!s.empty() && s.back() == ' ') s.pop_back();
     };
     trim(varName);
@@ -445,9 +450,9 @@ bool DialogueGraph::EvaluateCondition(const std::string& condition) const
         try { equals = (std::get<float>(var) == std::stof(valStr)); }
         catch (...) { equals = false; }
     }
-    else if (std::holds_alternative<std::string>(var))
+    else if (std::holds_alternative<gx::String>(var))
     {
-        equals = (std::get<std::string>(var) == valStr);
+        equals = (std::get<gx::String>(var) == valStr);
     }
 
     return op == "==" ? equals : !equals;

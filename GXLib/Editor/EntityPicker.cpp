@@ -2,6 +2,7 @@
 /// @brief 対応する.hの実装
 #include "pch_graphics.h"
 #include "Editor/EntityPicker.h"
+#include "Math/MathConvert.h"
 #include "Core/Scene/Scene.h"
 #include "Core/Scene/Entity.h"
 #include "Graphics/3D/Camera3D.h"
@@ -18,8 +19,8 @@ namespace gx
 void EntityPicker::ScreenToRay(float screenX, float screenY,
                                  float screenWidth, float screenHeight,
                                  const XMMATRIX& viewProj,
-                                 XMFLOAT3& outOrigin,
-                                 XMFLOAT3& outDirection)
+                                 Vector3& outOrigin,
+                                 Vector3& outDirection)
 {
     // スクリーン座標をNDC [-1, +1]に変換
     float ndcX =  (2.0f * screenX / screenWidth)  - 1.0f;
@@ -35,8 +36,8 @@ void EntityPicker::ScreenToRay(float screenX, float screenY,
     // 方向 = normalize(far - near)
     XMVECTOR dir = XMVector3Normalize(XMVectorSubtract(farPt, nearPt));
 
-    XMStoreFloat3(&outOrigin, nearPt);
-    XMStoreFloat3(&outDirection, dir);
+    XMStoreFloat3(XM(&outOrigin), nearPt);
+    XMStoreFloat3(XM(&outDirection), dir);
 }
 
 // ============================================================================
@@ -47,10 +48,10 @@ Entity* EntityPicker::PickEntity(Scene& scene,
                                    float screenWidth, float screenHeight,
                                    const Camera3D& camera)
 {
-    XMFLOAT3 rayOrigin{};
-    XMFLOAT3 rayDir{};
+    Vector3 rayOrigin{};
+    Vector3 rayDir{};
 
-    XMMATRIX viewProj = camera.GetViewProjectionMatrix();
+    XMMATRIX viewProj = ToXMMATRIX(camera.GetViewProjectionMatrix());
     ScreenToRay(screenX, screenY, screenWidth, screenHeight, viewProj, rayOrigin, rayDir);
 
     Entity* bestEntity = nullptr;
@@ -67,19 +68,19 @@ Entity* EntityPicker::PickEntity(Scene& scene,
 
         // エンティティのローカルAABBとトランスフォームからワールド空間AABBを計算
         const Transform3D& transform = entity->GetTransform();
-        const XMFLOAT3& pos   = transform.GetPosition();
-        const XMFLOAT3& scale = transform.GetScale();
+        const Vector3& pos   = transform.GetPosition();
+        const Vector3& scale = transform.GetScale();
 
         // 簡略化のため、ローカルAABBをスケーリング・平行移動して使用（回転は無視
         // ブロードフェーズテスト用 — エディタピッキングの一般的なアプローチ）
         const AABB3D& localAABB = bounds.localAABB;
 
-        XMFLOAT3 aabbMin = {
+        Vector3 aabbMin = {
             pos.x + localAABB.min.x * scale.x,
             pos.y + localAABB.min.y * scale.y,
             pos.z + localAABB.min.z * scale.z
         };
-        XMFLOAT3 aabbMax = {
+        Vector3 aabbMax = {
             pos.x + localAABB.max.x * scale.x,
             pos.y + localAABB.max.y * scale.y,
             pos.z + localAABB.max.z * scale.z
@@ -104,10 +105,10 @@ Entity* EntityPicker::PickEntity(Scene& scene,
 // ============================================================================
 // RayAABBIntersect（スラブ法）
 // ============================================================================
-float EntityPicker::RayAABBIntersect(const XMFLOAT3& rayOrigin,
-                                       const XMFLOAT3& rayDir,
-                                       const XMFLOAT3& aabbMin,
-                                       const XMFLOAT3& aabbMax)
+float EntityPicker::RayAABBIntersect(const Vector3& rayOrigin,
+                                       const Vector3& rayDir,
+                                       const Vector3& aabbMin,
+                                       const Vector3& aabbMax)
 {
     // 各軸について侵入・退出のt値を計算する
     // スラブ交差アルゴリズムを使用

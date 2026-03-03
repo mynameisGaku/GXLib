@@ -26,6 +26,15 @@ bool Keyboard::ProcessMessage(UINT msg, WPARAM wParam, LPARAM lParam)
     int key = static_cast<int>(wParam);
     if (key < 0 || key >= k_KeyCount) return false;
 
+    // Shift/Ctrl/Alt は wParam が左右を区別しないので、
+    // lParam のスキャンコードから MapVirtualKey で左右を判別する
+    if (key == VK_SHIFT || key == VK_CONTROL || key == VK_MENU)
+    {
+        UINT scancode = (lParam >> 16) & 0xFF;
+        int lr = static_cast<int>(MapVirtualKey(scancode, MAPVK_VSC_TO_VK_EX));
+        if (lr != 0) key = lr;
+    }
+
     // WM_SYSKEYDOWNはAltキー同時押し時に発生するので、通常のKEYDOWNと合わせて処理する
     switch (msg)
     {

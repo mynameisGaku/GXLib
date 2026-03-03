@@ -32,7 +32,7 @@ int ActionScheduler::RunEvery(float interval, std::function<void()> action, int 
     return id;
 }
 
-int ActionScheduler::RunSequence(std::vector<SequenceStep> steps)
+int ActionScheduler::RunSequence(gx::Vector<SequenceStep> steps)
 {
     if (steps.empty()) return 0;
     int id = m_nextId++;

@@ -26,7 +26,7 @@ TEST(Transform2DTest, Identity_Values)
 TEST(Transform2DTest, Identity_TransformPoint)
 {
     Transform2D t = Transform2D::Identity();
-    XMFLOAT2 p = TransformPoint(t, 5.0f, 3.0f);
+    Vector2 p = TransformPoint(t, 5.0f, 3.0f);
     EXPECT_NEAR(p.x, 5.0f, kEps);
     EXPECT_NEAR(p.y, 3.0f, kEps);
 }
@@ -45,7 +45,7 @@ TEST(Transform2DTest, Translation_Values)
 TEST(Transform2DTest, Translation_TransformPoint)
 {
     Transform2D t = Transform2D::Translation(3.0f, 7.0f);
-    XMFLOAT2 p = TransformPoint(t, 1.0f, 2.0f);
+    Vector2 p = TransformPoint(t, 1.0f, 2.0f);
     EXPECT_NEAR(p.x, 4.0f, kEps);
     EXPECT_NEAR(p.y, 9.0f, kEps);
 }
@@ -53,7 +53,7 @@ TEST(Transform2DTest, Translation_TransformPoint)
 TEST(Transform2DTest, Translation_Zero)
 {
     Transform2D t = Transform2D::Translation(0.0f, 0.0f);
-    XMFLOAT2 p = TransformPoint(t, 5.0f, 3.0f);
+    Vector2 p = TransformPoint(t, 5.0f, 3.0f);
     EXPECT_NEAR(p.x, 5.0f, kEps);
     EXPECT_NEAR(p.y, 3.0f, kEps);
 }
@@ -72,7 +72,7 @@ TEST(Transform2DTest, Scale_Values)
 TEST(Transform2DTest, Scale_TransformPoint)
 {
     Transform2D t = Transform2D::Scale(2.0f, 0.5f);
-    XMFLOAT2 p = TransformPoint(t, 3.0f, 4.0f);
+    Vector2 p = TransformPoint(t, 3.0f, 4.0f);
     EXPECT_NEAR(p.x, 6.0f, kEps);
     EXPECT_NEAR(p.y, 2.0f, kEps);
 }
@@ -80,7 +80,7 @@ TEST(Transform2DTest, Scale_TransformPoint)
 TEST(Transform2DTest, Scale_Uniform)
 {
     Transform2D t = Transform2D::Scale(5.0f, 5.0f);
-    XMFLOAT2 p = TransformPoint(t, 1.0f, 1.0f);
+    Vector2 p = TransformPoint(t, 1.0f, 1.0f);
     EXPECT_NEAR(p.x, 5.0f, kEps);
     EXPECT_NEAR(p.y, 5.0f, kEps);
 }
@@ -88,7 +88,7 @@ TEST(Transform2DTest, Scale_Uniform)
 TEST(Transform2DTest, Scale_Negative)
 {
     Transform2D t = Transform2D::Scale(-1.0f, -1.0f);
-    XMFLOAT2 p = TransformPoint(t, 3.0f, 4.0f);
+    Vector2 p = TransformPoint(t, 3.0f, 4.0f);
     EXPECT_NEAR(p.x, -3.0f, kEps);
     EXPECT_NEAR(p.y, -4.0f, kEps);
 }
@@ -107,7 +107,7 @@ TEST(Transform2DTest, Rotation_Zero)
 TEST(Transform2DTest, Rotation_90Degrees)
 {
     Transform2D t = Transform2D::Rotation(kPi / 2.0f);
-    XMFLOAT2 p = TransformPoint(t, 1.0f, 0.0f);
+    Vector2 p = TransformPoint(t, 1.0f, 0.0f);
     EXPECT_NEAR(p.x, 0.0f, 1e-4f);
     EXPECT_NEAR(p.y, 1.0f, 1e-4f);
 }
@@ -115,7 +115,7 @@ TEST(Transform2DTest, Rotation_90Degrees)
 TEST(Transform2DTest, Rotation_180Degrees)
 {
     Transform2D t = Transform2D::Rotation(kPi);
-    XMFLOAT2 p = TransformPoint(t, 1.0f, 0.0f);
+    Vector2 p = TransformPoint(t, 1.0f, 0.0f);
     EXPECT_NEAR(p.x, -1.0f, 1e-4f);
     EXPECT_NEAR(p.y, 0.0f, 1e-4f);
 }
@@ -123,7 +123,7 @@ TEST(Transform2DTest, Rotation_180Degrees)
 TEST(Transform2DTest, Rotation_360Degrees)
 {
     Transform2D t = Transform2D::Rotation(2.0f * kPi);
-    XMFLOAT2 p = TransformPoint(t, 3.0f, 4.0f);
+    Vector2 p = TransformPoint(t, 3.0f, 4.0f);
     EXPECT_NEAR(p.x, 3.0f, 1e-4f);
     EXPECT_NEAR(p.y, 4.0f, 1e-4f);
 }
@@ -131,7 +131,7 @@ TEST(Transform2DTest, Rotation_360Degrees)
 TEST(Transform2DTest, Rotation_Negative)
 {
     Transform2D t = Transform2D::Rotation(-kPi / 2.0f);
-    XMFLOAT2 p = TransformPoint(t, 0.0f, 1.0f);
+    Vector2 p = TransformPoint(t, 0.0f, 1.0f);
     EXPECT_NEAR(p.x, 1.0f, 1e-4f);
     EXPECT_NEAR(p.y, 0.0f, 1e-4f);
 }
@@ -162,7 +162,7 @@ TEST(Transform2DTest, Multiply_ScaleThenTranslate)
     Transform2D t = Transform2D::Translation(3.0f, 4.0f);
     // スケールが先に適用（右辺）、その後平行移動（左辺）
     Transform2D result = Multiply(t, s);
-    XMFLOAT2 p = TransformPoint(result, 1.0f, 1.0f);
+    Vector2 p = TransformPoint(result, 1.0f, 1.0f);
     EXPECT_NEAR(p.x, 5.0f, kEps);  // 1*2 + 3
     EXPECT_NEAR(p.y, 6.0f, kEps);  // 1*2 + 4
 }
@@ -173,7 +173,7 @@ TEST(Transform2DTest, Multiply_TranslateThenScale)
     Transform2D s = Transform2D::Scale(2.0f, 2.0f);
     // 平行移動が先に適用（右辺）、その後スケール（左辺）
     Transform2D result = Multiply(s, t);
-    XMFLOAT2 p = TransformPoint(result, 1.0f, 1.0f);
+    Vector2 p = TransformPoint(result, 1.0f, 1.0f);
     EXPECT_NEAR(p.x, 8.0f, kEps);  // (1+3)*2
     EXPECT_NEAR(p.y, 10.0f, kEps); // (1+4)*2
 }
@@ -183,7 +183,7 @@ TEST(Transform2DTest, Multiply_RotateThenTranslate)
     Transform2D r = Transform2D::Rotation(kPi / 2.0f);
     Transform2D t = Transform2D::Translation(5.0f, 0.0f);
     Transform2D result = Multiply(t, r);
-    XMFLOAT2 p = TransformPoint(result, 1.0f, 0.0f);
+    Vector2 p = TransformPoint(result, 1.0f, 0.0f);
     EXPECT_NEAR(p.x, 5.0f, 1e-4f);  // 回転後(0,1) + 平行移動(5,0)
     EXPECT_NEAR(p.y, 1.0f, 1e-4f);
 }
@@ -248,9 +248,9 @@ TEST(Transform2DTest, Inverse_TransformPointRoundTrip)
 {
     Transform2D t = Multiply(Transform2D::Rotation(0.7f), Transform2D::Scale(3.0f, 2.0f));
     Transform2D inv = Inverse(t);
-    XMFLOAT2 original = {7.0f, -4.0f};
-    XMFLOAT2 transformed = TransformPoint(t, original.x, original.y);
-    XMFLOAT2 restored = TransformPoint(inv, transformed.x, transformed.y);
+    Vector2 original = {7.0f, -4.0f};
+    Vector2 transformed = TransformPoint(t, original.x, original.y);
+    Vector2 restored = TransformPoint(inv, transformed.x, transformed.y);
     EXPECT_NEAR(restored.x, original.x, 1e-3f);
     EXPECT_NEAR(restored.y, original.y, 1e-3f);
 }

@@ -75,7 +75,7 @@ bool PrefabVariantSystem::HasPrefab(uint64_t prefabId) const
 // Variant management
 // ============================================================================
 
-uint64_t PrefabVariantSystem::CreateVariant(uint64_t basePrefabId, const std::string& name)
+uint64_t PrefabVariantSystem::CreateVariant(uint64_t basePrefabId, const gx::String& name)
 {
     // Base can be either a prefab or another variant
     if (!HasPrefab(basePrefabId) && !HasVariant(basePrefabId))
@@ -119,9 +119,9 @@ bool PrefabVariantSystem::HasVariant(uint64_t variantId) const
     return m_variants.find(variantId) != m_variants.end();
 }
 
-std::vector<uint64_t> PrefabVariantSystem::GetVariantsOf(uint64_t basePrefabId) const
+gx::Vector<uint64_t> PrefabVariantSystem::GetVariantsOf(uint64_t basePrefabId) const
 {
-    std::vector<uint64_t> result;
+    gx::Vector<uint64_t> result;
     for (const auto& [id, variant] : m_variants)
     {
         if (variant.basePrefabId == basePrefabId)
@@ -135,7 +135,7 @@ std::vector<uint64_t> PrefabVariantSystem::GetVariantsOf(uint64_t basePrefabId) 
 // ============================================================================
 
 ComponentOverride* PrefabVariantSystem::FindOrCreateComponentOverride(
-    PrefabVariantData& variant, const std::string& componentName)
+    PrefabVariantData& variant, const gx::String& componentName)
 {
     for (auto& co : variant.overrides)
     {
@@ -151,7 +151,7 @@ ComponentOverride* PrefabVariantSystem::FindOrCreateComponentOverride(
 }
 
 const ComponentOverride* PrefabVariantSystem::FindComponentOverride(
-    const PrefabVariantData& variant, const std::string& componentName) const
+    const PrefabVariantData& variant, const gx::String& componentName) const
 {
     for (const auto& co : variant.overrides)
     {
@@ -161,8 +161,8 @@ const ComponentOverride* PrefabVariantSystem::FindComponentOverride(
     return nullptr;
 }
 
-bool PrefabVariantSystem::AddPropertyOverride(uint64_t variantId, const std::string& componentName,
-                                               const std::string& propertyName, const std::string& value)
+bool PrefabVariantSystem::AddPropertyOverride(uint64_t variantId, const gx::String& componentName,
+                                               const gx::String& propertyName, const gx::String& value)
 {
     auto it = m_variants.find(variantId);
     if (it == m_variants.end())
@@ -190,8 +190,8 @@ bool PrefabVariantSystem::AddPropertyOverride(uint64_t variantId, const std::str
     return true;
 }
 
-bool PrefabVariantSystem::RemovePropertyOverride(uint64_t variantId, const std::string& componentName,
-                                                  const std::string& propertyName)
+bool PrefabVariantSystem::RemovePropertyOverride(uint64_t variantId, const gx::String& componentName,
+                                                  const gx::String& propertyName)
 {
     auto it = m_variants.find(variantId);
     if (it == m_variants.end())
@@ -229,7 +229,7 @@ bool PrefabVariantSystem::RemovePropertyOverride(uint64_t variantId, const std::
     return false;
 }
 
-bool PrefabVariantSystem::AddComponentOverride(uint64_t variantId, const std::string& componentName, bool isAdded)
+bool PrefabVariantSystem::AddComponentOverride(uint64_t variantId, const gx::String& componentName, bool isAdded)
 {
     auto it = m_variants.find(variantId);
     if (it == m_variants.end())
@@ -241,7 +241,7 @@ bool PrefabVariantSystem::AddComponentOverride(uint64_t variantId, const std::st
     return true;
 }
 
-bool PrefabVariantSystem::RemoveComponentOverride(uint64_t variantId, const std::string& componentName)
+bool PrefabVariantSystem::RemoveComponentOverride(uint64_t variantId, const gx::String& componentName)
 {
     auto it = m_variants.find(variantId);
     if (it == m_variants.end())
@@ -258,7 +258,7 @@ bool PrefabVariantSystem::RemoveComponentOverride(uint64_t variantId, const std:
     return false;
 }
 
-std::vector<ComponentOverride> PrefabVariantSystem::GetOverrides(uint64_t variantId) const
+gx::Vector<ComponentOverride> PrefabVariantSystem::GetOverrides(uint64_t variantId) const
 {
     auto it = m_variants.find(variantId);
     if (it == m_variants.end())
@@ -283,8 +283,8 @@ size_t PrefabVariantSystem::GetOverrideCount(uint64_t variantId) const
     return count;
 }
 
-bool PrefabVariantSystem::IsOverridden(uint64_t variantId, const std::string& componentName,
-                                        const std::string& propertyName) const
+bool PrefabVariantSystem::IsOverridden(uint64_t variantId, const gx::String& componentName,
+                                        const gx::String& propertyName) const
 {
     auto it = m_variants.find(variantId);
     if (it == m_variants.end())
@@ -302,8 +302,8 @@ bool PrefabVariantSystem::IsOverridden(uint64_t variantId, const std::string& co
     return false;
 }
 
-bool PrefabVariantSystem::RevertOverride(uint64_t variantId, const std::string& componentName,
-                                          const std::string& propertyName)
+bool PrefabVariantSystem::RevertOverride(uint64_t variantId, const gx::String& componentName,
+                                          const gx::String& propertyName)
 {
     return RemovePropertyOverride(variantId, componentName, propertyName);
 }
@@ -317,18 +317,18 @@ void PrefabVariantSystem::RevertAllOverrides(uint64_t variantId)
     it->second.childOverrides.clear();
 }
 
-std::vector<uint8_t> PrefabVariantSystem::ApplyOverrides(uint64_t variantId,
-                                                          const std::vector<uint8_t>& targetData) const
+gx::Vector<uint8_t> PrefabVariantSystem::ApplyOverrides(uint64_t variantId,
+                                                          const gx::Vector<uint8_t>& targetData) const
 {
     auto it = m_variants.find(variantId);
     if (it == m_variants.end())
         return targetData;
 
     // Build the full inheritance chain of overrides
-    std::vector<uint64_t> chain = GetInheritanceChain(variantId);
+    gx::Vector<uint64_t> chain = GetInheritanceChain(variantId);
 
     // Start with the base data
-    std::vector<uint8_t> result = targetData;
+    gx::Vector<uint8_t> result = targetData;
 
     // Apply overrides from each level in the chain (skip the root prefab which is first)
     for (size_t i = 1; i < chain.size(); ++i)
@@ -395,7 +395,7 @@ std::vector<uint8_t> PrefabVariantSystem::ApplyOverrides(uint64_t variantId,
 // Nested variants
 // ============================================================================
 
-uint64_t PrefabVariantSystem::CreateNestedVariant(uint64_t parentVariantId, const std::string& name)
+uint64_t PrefabVariantSystem::CreateNestedVariant(uint64_t parentVariantId, const gx::String& name)
 {
     if (!HasVariant(parentVariantId))
         return 0;
@@ -410,10 +410,10 @@ uint64_t PrefabVariantSystem::CreateNestedVariant(uint64_t parentVariantId, cons
     return id;
 }
 
-std::vector<uint64_t> PrefabVariantSystem::GetInheritanceChain(uint64_t variantId) const
+gx::Vector<uint64_t> PrefabVariantSystem::GetInheritanceChain(uint64_t variantId) const
 {
-    std::vector<uint64_t> chain;
-    std::unordered_set<uint64_t> visited;
+    gx::Vector<uint64_t> chain;
+    gx::HashSet<uint64_t> visited;
 
     // Walk up the inheritance chain
     uint64_t currentId = variantId;
@@ -451,9 +451,9 @@ std::vector<uint64_t> PrefabVariantSystem::GetInheritanceChain(uint64_t variantI
 // Serialization
 // ============================================================================
 
-bool PrefabVariantSystem::Save(const std::string& filePath) const
+bool PrefabVariantSystem::Save(const gx::String& filePath) const
 {
-    std::ofstream file(filePath, std::ios::binary);
+    std::ofstream file(filePath.c_str(), std::ios::binary);
     if (!file.is_open())
         return false;
 
@@ -542,9 +542,9 @@ bool PrefabVariantSystem::Save(const std::string& filePath) const
     return file.good();
 }
 
-bool PrefabVariantSystem::Load(const std::string& filePath)
+bool PrefabVariantSystem::Load(const gx::String& filePath)
 {
-    std::ifstream file(filePath, std::ios::binary);
+    std::ifstream file(filePath.c_str(), std::ios::binary);
     if (!file.is_open())
         return false;
 
@@ -574,7 +574,7 @@ bool PrefabVariantSystem::Load(const std::string& filePath)
         file.read(reinterpret_cast<char*>(&nameLen), sizeof(nameLen));
         prefab.name.resize(nameLen);
         if (nameLen > 0)
-            file.read(prefab.name.data(), nameLen);
+            file.read(prefab.name.DataMut(), nameLen);
 
         uint32_t dataLen = 0;
         file.read(reinterpret_cast<char*>(&dataLen), sizeof(dataLen));
@@ -608,7 +608,7 @@ bool PrefabVariantSystem::Load(const std::string& filePath)
         file.read(reinterpret_cast<char*>(&nameLen), sizeof(nameLen));
         variant.name.resize(nameLen);
         if (nameLen > 0)
-            file.read(variant.name.data(), nameLen);
+            file.read(variant.name.DataMut(), nameLen);
 
         uint32_t overrideCount = 0;
         file.read(reinterpret_cast<char*>(&overrideCount), sizeof(overrideCount));
@@ -621,7 +621,7 @@ bool PrefabVariantSystem::Load(const std::string& filePath)
             file.read(reinterpret_cast<char*>(&compNameLen), sizeof(compNameLen));
             co.componentName.resize(compNameLen);
             if (compNameLen > 0)
-                file.read(co.componentName.data(), compNameLen);
+                file.read(co.componentName.DataMut(), compNameLen);
 
             uint8_t flags = 0;
             file.read(reinterpret_cast<char*>(&flags), sizeof(flags));
@@ -639,19 +639,19 @@ bool PrefabVariantSystem::Load(const std::string& filePath)
                 file.read(reinterpret_cast<char*>(&pCompLen), sizeof(pCompLen));
                 prop.componentName.resize(pCompLen);
                 if (pCompLen > 0)
-                    file.read(prop.componentName.data(), pCompLen);
+                    file.read(prop.componentName.DataMut(), pCompLen);
 
                 uint32_t pPropLen = 0;
                 file.read(reinterpret_cast<char*>(&pPropLen), sizeof(pPropLen));
                 prop.propertyName.resize(pPropLen);
                 if (pPropLen > 0)
-                    file.read(prop.propertyName.data(), pPropLen);
+                    file.read(prop.propertyName.DataMut(), pPropLen);
 
                 uint32_t pValLen = 0;
                 file.read(reinterpret_cast<char*>(&pValLen), sizeof(pValLen));
                 prop.value.resize(pValLen);
                 if (pValLen > 0)
-                    file.read(prop.value.data(), pValLen);
+                    file.read(prop.value.DataMut(), pValLen);
 
                 uint8_t removed = 0;
                 file.read(reinterpret_cast<char*>(&removed), sizeof(removed));

@@ -18,7 +18,7 @@ void InventorySystem::RegisterItemDef(const ItemDef& def)
     m_itemDefs[def.itemId] = def;
 }
 
-const ItemDef* InventorySystem::GetItemDef(const std::string& itemId) const
+const ItemDef* InventorySystem::GetItemDef(const gx::String& itemId) const
 {
     auto it = m_itemDefs.find(itemId);
     if (it == m_itemDefs.end()) return nullptr;
@@ -34,7 +34,7 @@ size_t InventorySystem::GetItemDefCount() const
 // アイテム追加・削除
 // ============================================================================
 
-bool InventorySystem::AddItem(const std::string& itemId, int quantity)
+bool InventorySystem::AddItem(const gx::String& itemId, int quantity)
 {
     if (quantity <= 0) return false;
 
@@ -81,7 +81,7 @@ bool InventorySystem::AddItem(const std::string& itemId, int quantity)
     return true;
 }
 
-bool InventorySystem::RemoveItem(const std::string& itemId, int quantity)
+bool InventorySystem::RemoveItem(const gx::String& itemId, int quantity)
 {
     if (quantity <= 0) return false;
 
@@ -117,21 +117,21 @@ bool InventorySystem::RemoveItem(const std::string& itemId, int quantity)
 // クエリ
 // ============================================================================
 
-bool InventorySystem::HasItem(const std::string& itemId, int minQuantity) const
+bool InventorySystem::HasItem(const gx::String& itemId, int minQuantity) const
 {
     const InventorySlot* slot = FindSlot(itemId);
     if (!slot) return false;
     return slot->quantity >= minQuantity;
 }
 
-int InventorySystem::GetItemCount(const std::string& itemId) const
+int InventorySystem::GetItemCount(const gx::String& itemId) const
 {
     const InventorySlot* slot = FindSlot(itemId);
     if (!slot) return 0;
     return slot->quantity;
 }
 
-const InventorySlot* InventorySystem::GetSlot(const std::string& itemId) const
+const InventorySlot* InventorySystem::GetSlot(const gx::String& itemId) const
 {
     return FindSlot(itemId);
 }
@@ -140,9 +140,9 @@ const InventorySlot* InventorySystem::GetSlot(const std::string& itemId) const
 // メタデータ
 // ============================================================================
 
-void InventorySystem::SetItemMetadata(const std::string& itemId,
-                                       const std::string& key,
-                                       const std::string& value)
+void InventorySystem::SetItemMetadata(const gx::String& itemId,
+                                       const gx::String& key,
+                                       const gx::String& value)
 {
     InventorySlot* slot = FindSlot(itemId);
     if (!slot) return;
@@ -150,8 +150,8 @@ void InventorySystem::SetItemMetadata(const std::string& itemId,
     slot->metadata[key] = value;
 }
 
-std::string InventorySystem::GetItemMetadata(const std::string& itemId,
-                                              const std::string& key) const
+gx::String InventorySystem::GetItemMetadata(const gx::String& itemId,
+                                              const gx::String& key) const
 {
     const InventorySlot* slot = FindSlot(itemId);
     if (!slot) return {};
@@ -165,14 +165,14 @@ std::string InventorySystem::GetItemMetadata(const std::string& itemId,
 // コレクション操作
 // ============================================================================
 
-std::vector<InventorySlot> InventorySystem::GetAllItems() const
+gx::Vector<InventorySlot> InventorySystem::GetAllItems() const
 {
     return m_slots;
 }
 
-std::vector<InventorySlot> InventorySystem::GetItemsByCategory(const std::string& category) const
+gx::Vector<InventorySlot> InventorySystem::GetItemsByCategory(const gx::String& category) const
 {
-    std::vector<InventorySlot> result;
+    gx::Vector<InventorySlot> result;
     for (const auto& slot : m_slots)
     {
         const ItemDef* def = GetItemDef(slot.itemId);
@@ -222,7 +222,7 @@ void InventorySystem::Clear()
 // 内部ヘルパー
 // ============================================================================
 
-InventorySlot* InventorySystem::FindSlot(const std::string& itemId)
+InventorySlot* InventorySystem::FindSlot(const gx::String& itemId)
 {
     auto it = std::find_if(m_slots.begin(), m_slots.end(),
         [&](const InventorySlot& s) { return s.itemId == itemId; });
@@ -230,7 +230,7 @@ InventorySlot* InventorySystem::FindSlot(const std::string& itemId)
     return &(*it);
 }
 
-const InventorySlot* InventorySystem::FindSlot(const std::string& itemId) const
+const InventorySlot* InventorySystem::FindSlot(const gx::String& itemId) const
 {
     auto it = std::find_if(m_slots.begin(), m_slots.end(),
         [&](const InventorySlot& s) { return s.itemId == itemId; });
@@ -238,7 +238,7 @@ const InventorySlot* InventorySystem::FindSlot(const std::string& itemId) const
     return &(*it);
 }
 
-void InventorySystem::NotifyChanged(const std::string& itemId, int oldQty, int newQty,
+void InventorySystem::NotifyChanged(const gx::String& itemId, int oldQty, int newQty,
                                      InventoryChangedEvent::Action action)
 {
     if (OnChanged)

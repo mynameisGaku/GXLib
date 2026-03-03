@@ -17,7 +17,7 @@ namespace gx
 // ============================================================================
 struct DecalVertex
 {
-    XMFLOAT3 position;
+    Vector3 position;
 };
 
 // ユニットキューブ: -0.5 〜 +0.5 の範囲
@@ -276,13 +276,13 @@ void DecalSystem::Render(ID3D12GraphicsCommandList* cmdList,
     cmdList->RSSetScissorRects(1, &sc);
 
     // ビュープロジェクション行列と逆行列を計算
-    XMMATRIX viewMat = camera.GetViewMatrix();
-    XMMATRIX projMat = camera.GetProjectionMatrix();
+    XMMATRIX viewMat = ToXMMATRIX(camera.GetViewMatrix());
+    XMMATRIX projMat = ToXMMATRIX(camera.GetProjectionMatrix());
     XMMATRIX viewProj = XMMatrixMultiply(viewMat, projMat);
     XMMATRIX invViewProj = XMMatrixInverse(nullptr, viewProj);
 
-    XMFLOAT4X4 invViewProjF;
-    XMStoreFloat4x4(&invViewProjF, XMMatrixTranspose(invViewProj));
+    Matrix4x4 invViewProjF;
+    XMStoreFloat4x4(XM(&invViewProjF), XMMatrixTranspose(invViewProj));
 
     // PSO設定
     cmdList->SetPipelineState(m_pso.Get());
@@ -346,15 +346,15 @@ void DecalSystem::Render(ID3D12GraphicsCommandList* cmdList,
             continue;
 
         // デカールのワールド行列と逆ワールド行列を計算
-        XMMATRIX decalWorldMat = decal.transform.GetWorldMatrix();
+        XMMATRIX decalWorldMat = ToXMMATRIX(decal.transform.GetWorldMatrix());
         XMMATRIX decalInvWorldMat = XMMatrixInverse(nullptr, decalWorldMat);
 
         // 定数バッファを構築
         DecalCB cb = {};
         cb.invViewProj = invViewProjF;
-        XMStoreFloat4x4(&cb.decalWorld, XMMatrixTranspose(XMMatrixMultiply(decalWorldMat, viewProj)));
-        XMStoreFloat4x4(&cb.decalInvWorld, XMMatrixTranspose(decalInvWorldMat));
-        cb.decalColor = ToXMFLOAT4(decal.color);
+        XMStoreFloat4x4(XM(&cb.decalWorld), XMMatrixTranspose(XMMatrixMultiply(decalWorldMat, viewProj)));
+        XMStoreFloat4x4(XM(&cb.decalInvWorld), XMMatrixTranspose(decalInvWorldMat));
+        cb.decalColor = Vector4(decal.color.r, decal.color.g, decal.color.b, decal.color.a);
 
         // 寿命によるフェードアウト
         if (decal.lifetime > 0.0f)

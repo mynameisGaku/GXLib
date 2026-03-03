@@ -9,7 +9,7 @@
 namespace gx
 {
 
-XMMATRIX Camera2D::GetViewProjectionMatrix(uint32_t screenWidth, uint32_t screenHeight) const
+Matrix4x4 Camera2D::GetViewProjectionMatrix(uint32_t screenWidth, uint32_t screenHeight) const
 {
     float sw = static_cast<float>(screenWidth);
     float sh = static_cast<float>(screenHeight);
@@ -41,7 +41,7 @@ XMMATRIX Camera2D::GetViewProjectionMatrix(uint32_t screenWidth, uint32_t screen
 
     XMMATRIX view = toCenter * scale * rotation * fromCenter;
 
-    return view * projection;
+    return FromXMMATRIX(view * projection);
 }
 
 } // namespace gx

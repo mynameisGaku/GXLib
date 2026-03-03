@@ -7,20 +7,21 @@
 #include <gtest/gtest.h>
 #include "Graphics/3D/Skeleton.h"
 #include "Graphics/3D/AnimationClip.h"
+#include "Math/MathConvert.h"
 
 namespace gx::TestHelpers
 {
 
-/// @brief Compare two XMFLOAT3 values within epsilon
-inline void ExpectFloat3Near(const XMFLOAT3& actual, const XMFLOAT3& expected, float eps = 1e-3f)
+/// @brief Compare two Vector3 values within epsilon
+inline void ExpectFloat3Near(const Vector3& actual, const Vector3& expected, float eps = 1e-3f)
 {
     EXPECT_NEAR(actual.x, expected.x, eps);
     EXPECT_NEAR(actual.y, expected.y, eps);
     EXPECT_NEAR(actual.z, expected.z, eps);
 }
 
-/// @brief Compare two XMFLOAT4 values within epsilon
-inline void ExpectFloat4Near(const XMFLOAT4& actual, const XMFLOAT4& expected, float eps = 1e-3f)
+/// @brief Compare two Quaternion values within epsilon
+inline void ExpectFloat4Near(const Quaternion& actual, const Quaternion& expected, float eps = 1e-3f)
 {
     EXPECT_NEAR(actual.x, expected.x, eps);
     EXPECT_NEAR(actual.y, expected.y, eps);
@@ -36,22 +37,22 @@ inline Skeleton CreateChainSkeleton3()
     Joint root;
     root.name = "Root";
     root.parentIndex = -1;
-    XMStoreFloat4x4(&root.inverseBindMatrix, XMMatrixIdentity());
-    XMStoreFloat4x4(&root.localTransform, XMMatrixIdentity());
+    XMStoreFloat4x4(XM(&root.inverseBindMatrix), XMMatrixIdentity());
+    XMStoreFloat4x4(XM(&root.localTransform), XMMatrixIdentity());
     skel.AddJoint(root);
 
     Joint spine;
     spine.name = "Spine";
     spine.parentIndex = 0;
-    XMStoreFloat4x4(&spine.inverseBindMatrix, XMMatrixInverse(nullptr, XMMatrixTranslation(0, 1, 0)));
-    XMStoreFloat4x4(&spine.localTransform, XMMatrixTranslation(0, 1, 0));
+    XMStoreFloat4x4(XM(&spine.inverseBindMatrix), XMMatrixInverse(nullptr, XMMatrixTranslation(0, 1, 0)));
+    XMStoreFloat4x4(XM(&spine.localTransform), XMMatrixTranslation(0, 1, 0));
     skel.AddJoint(spine);
 
     Joint head;
     head.name = "Head";
     head.parentIndex = 1;
-    XMStoreFloat4x4(&head.inverseBindMatrix, XMMatrixInverse(nullptr, XMMatrixTranslation(0, 2, 0)));
-    XMStoreFloat4x4(&head.localTransform, XMMatrixTranslation(0, 1, 0));
+    XMStoreFloat4x4(XM(&head.inverseBindMatrix), XMMatrixInverse(nullptr, XMMatrixTranslation(0, 2, 0)));
+    XMStoreFloat4x4(XM(&head.localTransform), XMMatrixTranslation(0, 1, 0));
     skel.AddJoint(head);
 
     return skel;
@@ -65,36 +66,36 @@ inline Skeleton CreateLegSkeleton()
     Joint root;
     root.name = "Root";
     root.parentIndex = -1;
-    XMStoreFloat4x4(&root.inverseBindMatrix, XMMatrixIdentity());
-    XMStoreFloat4x4(&root.localTransform, XMMatrixTranslation(0, 3, 0));
+    XMStoreFloat4x4(XM(&root.inverseBindMatrix), XMMatrixIdentity());
+    XMStoreFloat4x4(XM(&root.localTransform), XMMatrixTranslation(0, 3, 0));
     skel.AddJoint(root);
 
     Joint hip;
     hip.name = "Hip";
     hip.parentIndex = 0;
-    XMStoreFloat4x4(&hip.inverseBindMatrix, XMMatrixInverse(nullptr, XMMatrixTranslation(0, 3, 0)));
-    XMStoreFloat4x4(&hip.localTransform, XMMatrixIdentity());
+    XMStoreFloat4x4(XM(&hip.inverseBindMatrix), XMMatrixInverse(nullptr, XMMatrixTranslation(0, 3, 0)));
+    XMStoreFloat4x4(XM(&hip.localTransform), XMMatrixIdentity());
     skel.AddJoint(hip);
 
     Joint knee;
     knee.name = "Knee";
     knee.parentIndex = 1;
-    XMStoreFloat4x4(&knee.inverseBindMatrix, XMMatrixInverse(nullptr, XMMatrixTranslation(0, 2, 0)));
-    XMStoreFloat4x4(&knee.localTransform, XMMatrixTranslation(0, -1, 0));
+    XMStoreFloat4x4(XM(&knee.inverseBindMatrix), XMMatrixInverse(nullptr, XMMatrixTranslation(0, 2, 0)));
+    XMStoreFloat4x4(XM(&knee.localTransform), XMMatrixTranslation(0, -1, 0));
     skel.AddJoint(knee);
 
     Joint foot;
     foot.name = "Foot";
     foot.parentIndex = 2;
-    XMStoreFloat4x4(&foot.inverseBindMatrix, XMMatrixInverse(nullptr, XMMatrixTranslation(0, 1, 0)));
-    XMStoreFloat4x4(&foot.localTransform, XMMatrixTranslation(0, -1, 0));
+    XMStoreFloat4x4(XM(&foot.inverseBindMatrix), XMMatrixInverse(nullptr, XMMatrixTranslation(0, 1, 0)));
+    XMStoreFloat4x4(XM(&foot.localTransform), XMMatrixTranslation(0, -1, 0));
     skel.AddJoint(foot);
 
     Joint toe;
     toe.name = "Toe";
     toe.parentIndex = 3;
-    XMStoreFloat4x4(&toe.inverseBindMatrix, XMMatrixInverse(nullptr, XMMatrixTranslation(0.5f, 1, 0)));
-    XMStoreFloat4x4(&toe.localTransform, XMMatrixTranslation(0.5f, 0, 0));
+    XMStoreFloat4x4(XM(&toe.inverseBindMatrix), XMMatrixInverse(nullptr, XMMatrixTranslation(0.5f, 1, 0)));
+    XMStoreFloat4x4(XM(&toe.localTransform), XMMatrixTranslation(0.5f, 0, 0));
     skel.AddJoint(toe);
 
     return skel;
@@ -102,7 +103,7 @@ inline Skeleton CreateLegSkeleton()
 
 /// @brief Create a simple AnimationClip with translation keyframes
 /// Joint 0 moves from (0,0,0) to (tx,ty,tz) over 'duration' seconds
-inline AnimationClip CreateSimpleClip(const std::string& name, float duration,
+inline AnimationClip CreateSimpleClip(const gx::String& name, float duration,
                                        float tx = 1.0f, float ty = 0.0f, float tz = 0.0f)
 {
     AnimationClip clip;
@@ -124,7 +125,7 @@ inline AnimationClip CreateSimpleClip(const std::string& name, float duration,
 
 /// @brief Create a multi-joint AnimationClip for skeleton with jointCount joints
 /// Each joint translates from origin to (1*jointIdx, 0, 0) over duration
-inline AnimationClip CreateMultiJointClip(const std::string& name, float duration, uint32_t jointCount)
+inline AnimationClip CreateMultiJointClip(const gx::String& name, float duration, uint32_t jointCount)
 {
     AnimationClip clip;
     clip.SetName(name);

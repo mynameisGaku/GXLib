@@ -55,7 +55,7 @@ TEST(ReplayRecorderTest, RecordFrame)
     recorder.SetRecordInterval(0.0f); // No interval restriction
     recorder.StartRecording();
 
-    std::vector<ReplayEntityState> entities = { MakeEntity(1, 0, 0, 0) };
+    gx::Vector<ReplayEntityState> entities = { MakeEntity(1, 0, 0, 0) };
     recorder.RecordFrame(0.0f, entities);
     recorder.RecordFrame(0.1f, entities);
     recorder.RecordFrame(0.2f, entities);
@@ -75,7 +75,7 @@ TEST(ReplayRecorderTest, RecorderFrameCount)
     recorder.SetRecordInterval(0.0f);
     recorder.StartRecording();
 
-    std::vector<ReplayEntityState> entities = { MakeEntity(1, 0, 0, 0) };
+    gx::Vector<ReplayEntityState> entities = { MakeEntity(1, 0, 0, 0) };
     for (int i = 0; i < 10; ++i)
     {
         recorder.RecordFrame(static_cast<float>(i) * 0.1f, entities);
@@ -92,7 +92,7 @@ TEST(ReplayRecorderTest, RecorderDuration)
     recorder.SetRecordInterval(0.0f);
     recorder.StartRecording();
 
-    std::vector<ReplayEntityState> entities = { MakeEntity(1, 0, 0, 0) };
+    gx::Vector<ReplayEntityState> entities = { MakeEntity(1, 0, 0, 0) };
     recorder.RecordFrame(1.0f, entities);
     recorder.RecordFrame(3.5f, entities);
 
@@ -107,7 +107,7 @@ TEST(ReplayRecorderTest, RecorderMaxFrames)
     recorder.SetMaxFrames(5);
     recorder.StartRecording();
 
-    std::vector<ReplayEntityState> entities = { MakeEntity(1, 0, 0, 0) };
+    gx::Vector<ReplayEntityState> entities = { MakeEntity(1, 0, 0, 0) };
     for (int i = 0; i < 20; ++i)
     {
         recorder.RecordFrame(static_cast<float>(i), entities);
@@ -123,7 +123,7 @@ TEST(ReplayRecorderTest, RecorderInterval)
     recorder.SetRecordInterval(0.5f); // 0.5 second interval
     recorder.StartRecording();
 
-    std::vector<ReplayEntityState> entities = { MakeEntity(1, 0, 0, 0) };
+    gx::Vector<ReplayEntityState> entities = { MakeEntity(1, 0, 0, 0) };
     // Record every 0.1s — only some should be accepted
     for (int i = 0; i < 20; ++i)
     {
@@ -143,7 +143,7 @@ TEST(ReplayRecorderTest, RecorderClear)
     recorder.SetRecordInterval(0.0f);
     recorder.StartRecording();
 
-    std::vector<ReplayEntityState> entities = { MakeEntity(1, 0, 0, 0) };
+    gx::Vector<ReplayEntityState> entities = { MakeEntity(1, 0, 0, 0) };
     recorder.RecordFrame(0.0f, entities);
 
     recorder.Clear();
@@ -161,7 +161,7 @@ TEST(ReplayRecorderTest, RecorderVariables)
     recorder.SetVariable("health", 100.0f);
     recorder.SetVariable("score", 42.0f);
 
-    std::vector<ReplayEntityState> entities = { MakeEntity(1, 0, 0, 0) };
+    gx::Vector<ReplayEntityState> entities = { MakeEntity(1, 0, 0, 0) };
     recorder.RecordFrame(0.0f, entities);
 
     const auto& frames = recorder.GetFrames();
@@ -190,7 +190,7 @@ TEST(ReplayPlayerTest, PlayerSetReplay)
     recorder.SetRecordInterval(0.0f);
     recorder.StartRecording("Test");
 
-    std::vector<ReplayEntityState> entities = { MakeEntity(1, 1, 2, 3) };
+    gx::Vector<ReplayEntityState> entities = { MakeEntity(1, 1, 2, 3) };
     recorder.RecordFrame(0.0f, entities);
     recorder.RecordFrame(1.0f, entities);
     recorder.StopRecording();
@@ -207,7 +207,7 @@ TEST(ReplayPlayerTest, PlayerPlayPauseStop)
     recorder.SetRecordInterval(0.0f);
     recorder.StartRecording();
 
-    std::vector<ReplayEntityState> entities = { MakeEntity(1, 0, 0, 0) };
+    gx::Vector<ReplayEntityState> entities = { MakeEntity(1, 0, 0, 0) };
     recorder.RecordFrame(0.0f, entities);
     recorder.RecordFrame(1.0f, entities);
     recorder.StopRecording();
@@ -242,7 +242,7 @@ TEST(ReplayPlayerTest, PlayerSeek)
     recorder.SetRecordInterval(0.0f);
     recorder.StartRecording();
 
-    std::vector<ReplayEntityState> entities = { MakeEntity(1, 0, 0, 0) };
+    gx::Vector<ReplayEntityState> entities = { MakeEntity(1, 0, 0, 0) };
     recorder.RecordFrame(0.0f, entities);
     recorder.RecordFrame(0.5f, entities);
     recorder.RecordFrame(1.0f, entities);
@@ -266,7 +266,7 @@ TEST(ReplayPlayerTest, PlayerUpdate)
     recorder.SetRecordInterval(0.0f);
     recorder.StartRecording();
 
-    std::vector<ReplayEntityState> entities = { MakeEntity(1, 0, 0, 0) };
+    gx::Vector<ReplayEntityState> entities = { MakeEntity(1, 0, 0, 0) };
     recorder.RecordFrame(0.0f, entities);
     recorder.RecordFrame(1.0f, entities);
     recorder.RecordFrame(2.0f, entities);
@@ -293,7 +293,7 @@ TEST(ReplayPlayerTest, PlayerLooping)
     recorder.SetRecordInterval(0.0f);
     recorder.StartRecording();
 
-    std::vector<ReplayEntityState> entities = { MakeEntity(1, 0, 0, 0) };
+    gx::Vector<ReplayEntityState> entities = { MakeEntity(1, 0, 0, 0) };
     recorder.RecordFrame(0.0f, entities);
     recorder.RecordFrame(1.0f, entities);
     recorder.StopRecording();
@@ -317,7 +317,7 @@ TEST(ReplayPlayerTest, PlayerPlaybackSpeed)
     recorder.SetRecordInterval(0.0f);
     recorder.StartRecording();
 
-    std::vector<ReplayEntityState> entities = { MakeEntity(1, 0, 0, 0) };
+    gx::Vector<ReplayEntityState> entities = { MakeEntity(1, 0, 0, 0) };
     recorder.RecordFrame(0.0f, entities);
     recorder.RecordFrame(2.0f, entities);
     recorder.StopRecording();

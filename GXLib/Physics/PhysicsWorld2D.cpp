@@ -25,7 +25,7 @@ void PhysicsWorld2D::Step(float deltaTime, int velocityIterations, int /*positio
     IntegrateBodies(deltaTime);
 
     // ブロードフェーズ
-    std::vector<std::pair<RigidBody2D*, RigidBody2D*>> pairs;
+    gx::Vector<std::pair<RigidBody2D*, RigidBody2D*>> pairs;
     BroadPhase(pairs);
 
     // ナローフェーズ + 衝突解決
@@ -116,7 +116,7 @@ Circle PhysicsWorld2D::GetBodyCircle(const RigidBody2D& body) const
     return { body.position, body.shape.radius };
 }
 
-void PhysicsWorld2D::BroadPhase(std::vector<std::pair<RigidBody2D*, RigidBody2D*>>& pairs)
+void PhysicsWorld2D::BroadPhase(gx::Vector<std::pair<RigidBody2D*, RigidBody2D*>>& pairs)
 {
     // 単純なO(n^2)ブロードフェーズ（小〜中規模向け）
     for (size_t i = 0; i < m_bodies.size(); ++i)
@@ -294,7 +294,7 @@ bool PhysicsWorld2D::Raycast(const Vector2& origin, const Vector2& direction, fl
     return false;
 }
 
-void PhysicsWorld2D::QueryAABB(const AABB2D& area, std::vector<RigidBody2D*>& results)
+void PhysicsWorld2D::QueryAABB(const AABB2D& area, gx::Vector<RigidBody2D*>& results)
 {
     for (auto& body : m_bodies)
     {

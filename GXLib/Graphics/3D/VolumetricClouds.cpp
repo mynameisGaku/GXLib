@@ -7,6 +7,7 @@
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
+#include "Math/MathConvert.h"
 #include "Core/Logger.h"
 
 namespace gx
@@ -137,16 +138,16 @@ void VolumetricClouds::Execute(ID3D12GraphicsCommandList* cmdList, uint32_t fram
     cmdList->SetDescriptorHeaps(1, heaps);
 
     // Build constant buffer
-    XMMATRIX vp_mat = camera.GetViewProjectionMatrix();
+    XMMATRIX vp_mat = ToXMMATRIX(camera.GetViewProjectionMatrix());
     XMMATRIX invVP  = XMMatrixInverse(nullptr, vp_mat);
 
     // Normalise sun direction (towards sun, so negate light direction)
-    XMVECTOR sunDir = XMVector3Normalize(XMVectorNegate(XMLoadFloat3(&m_sunDirection)));
-    XMFLOAT3 sunDirF;
-    XMStoreFloat3(&sunDirF, sunDir);
+    XMVECTOR sunDir = XMVector3Normalize(XMVectorNegate(XMLoadFloat3(XM(&m_sunDirection))));
+    Vector3 sunDirF;
+    XMStoreFloat3(XM(&sunDirF), sunDir);
 
     CloudConstants cb = {};
-    XMStoreFloat4x4(&cb.invViewProjection, XMMatrixTranspose(invVP));
+    XMStoreFloat4x4(XM(&cb.invViewProjection), XMMatrixTranspose(invVP));
     cb.cameraPosition = camera.GetPosition();
     cb.time           = elapsedTime;
     cb.sunDirection   = sunDirF;

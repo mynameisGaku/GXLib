@@ -2,6 +2,7 @@
 /// @brief プリミティブメッシュ生成の実装
 #include "pch_graphics.h"
 #include "Graphics/3D/MeshData.h"
+#include "Math/MathConvert.h"
 #include <cmath>
 
 namespace gx
@@ -89,8 +90,8 @@ MeshData MeshGenerator::CreateSphere(float radius, uint32_t sliceCount, uint32_t
             v.position.y = radius * cosf(phi);
             v.position.z = radius * sinf(phi) * sinf(theta);
 
-            XMVECTOR n = XMVector3Normalize(XMLoadFloat3(&v.position));
-            XMStoreFloat3(&v.normal, n);
+            XMVECTOR n = XMVector3Normalize(XMLoadFloat3(XM(&v.position)));
+            XMStoreFloat3(XM(&v.normal), n);
 
             v.texcoord.x = theta / (2.0f * XM_PI);
             v.texcoord.y = phi / XM_PI;
@@ -216,16 +217,16 @@ MeshData MeshGenerator::CreateCylinder(float topRadius, float bottomRadius, floa
 
             // 法線（テーパー考慮）
             float dr = bottomRadius - topRadius;
-            XMFLOAT3 tangent = { -s, 0, c };
-            XMFLOAT3 bitangent = { dr * c, height, dr * s };
-            XMVECTOR T = XMLoadFloat3(&tangent);
-            XMVECTOR B = XMLoadFloat3(&bitangent);
+            Vector3 tangentVec = { -s, 0, c };
+            Vector3 bitangent = { dr * c, height, dr * s };
+            XMVECTOR T = XMLoadFloat3(XM(&tangentVec));
+            XMVECTOR B = XMLoadFloat3(XM(&bitangent));
             XMVECTOR N = XMVector3Normalize(XMVector3Cross(B, T));
-            XMStoreFloat3(&v.normal, N);
+            XMStoreFloat3(XM(&v.normal), N);
 
             v.texcoord = { static_cast<float>(j) / sliceCount,
                            1.0f - static_cast<float>(i) / stackCount };
-            v.tangent = { tangent.x, tangent.y, tangent.z, 1.0f };
+            v.tangent = { tangentVec.x, tangentVec.y, tangentVec.z, 1.0f };
 
             mesh.vertices.push_back(v);
         }

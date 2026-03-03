@@ -2,6 +2,7 @@
 /// @brief カスケードシャドウマップの実装
 #include "pch_graphics.h"
 #include "Graphics/3D/CascadedShadowMap.h"
+#include "Math/MathConvert.h"
 #include "Core/Logger.h"
 
 namespace gx
@@ -35,7 +36,7 @@ void CascadedShadowMap::SetCascadeSplits(float s0, float s1, float s2, float s3)
     m_cascadeRatios = { s0, s1, s2, s3 };
 }
 
-void CascadedShadowMap::Update(const Camera3D& camera, const XMFLOAT3& lightDirection)
+void CascadedShadowMap::Update(const Camera3D& camera, const Vector3& lightDirection)
 {
     float nearZ = camera.GetNearZ();
     float farZ  = camera.GetFarZ();
@@ -59,11 +60,11 @@ void CascadedShadowMap::Update(const Camera3D& camera, const XMFLOAT3& lightDire
 }
 
 void CascadedShadowMap::ComputeCascadeLightVP(uint32_t cascade, const Camera3D& camera,
-                                                const XMFLOAT3& lightDirection,
+                                                const Vector3& lightDirection,
                                                 float nearZ, float farZ)
 {
     // ビュー空間で直接フラスタムコーナーを構築（NDC非線形深度の問題を回避）
-    XMMATRIX invView = XMMatrixInverse(nullptr, camera.GetViewMatrix());
+    XMMATRIX invView = XMMatrixInverse(nullptr, ToXMMATRIX(camera.GetViewMatrix()));
 
     float tanHalfFovY = tanf(camera.GetFovY() * 0.5f);
     float tanHalfFovX = tanHalfFovY * camera.GetAspect();
@@ -97,7 +98,7 @@ void CascadedShadowMap::ComputeCascadeLightVP(uint32_t cascade, const Camera3D& 
     center = XMVectorScale(center, 1.0f / 8.0f);
 
     // ライトのビュー行列（ライト方向を見下ろす正射影）
-    XMVECTOR lightDir = XMVector3Normalize(XMLoadFloat3(&lightDirection));
+    XMVECTOR lightDir = XMVector3Normalize(XMLoadFloat3(XM(&lightDirection)));
     XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
     // ライトが真上/真下を向いている場合の対策
     if (XMVectorGetX(XMVector3LengthSq(XMVector3Cross(lightDir, up))) < 0.001f)
@@ -132,7 +133,7 @@ void CascadedShadowMap::ComputeCascadeLightVP(uint32_t cascade, const Camera3D& 
     XMMATRIX lightProj = XMMatrixOrthographicOffCenterLH(minX, maxX, minY, maxY, minZ, maxZ);
     XMMATRIX lightVP = lightView * lightProj;
 
-    XMStoreFloat4x4(&m_constants.lightVP[cascade], XMMatrixTranspose(lightVP));
+    XMStoreFloat4x4(XM(&m_constants.lightVP[cascade]), XMMatrixTranspose(lightVP));
 }
 
 } // namespace gx

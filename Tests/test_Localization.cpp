@@ -27,9 +27,9 @@ protected:
             std::remove(path.c_str());
     }
 
-    std::string CreateTempFile(const std::string& content)
+    gx::String CreateTempFile(const gx::String& content)
     {
-        std::string path = std::tmpnam(nullptr);
+        gx::String path = std::tmpnam(nullptr);
         std::ofstream ofs(path);
         ofs << content;
         ofs.close();
@@ -37,7 +37,7 @@ protected:
         return path;
     }
 
-    std::vector<std::string> m_tempFiles;
+    gx::Vector<gx::String> m_tempFiles;
 };
 
 TEST_F(LocalizationFullTest, DefaultLanguageIsEn)
@@ -65,14 +65,14 @@ TEST_F(LocalizationFullTest, GetStringReturnsKeyWhenNotLoaded)
 
 TEST_F(LocalizationFullTest, LoadLanguageFromFile)
 {
-    std::string path = CreateTempFile("greeting=Hello\nfarewell=Goodbye\n");
+    gx::String path = CreateTempFile("greeting=Hello\nfarewell=Goodbye\n");
     bool ok = Localization::Instance().LoadLanguage("en", path);
     EXPECT_TRUE(ok);
 }
 
 TEST_F(LocalizationFullTest, GetStringReturnsCorrectValue)
 {
-    std::string path = CreateTempFile("greeting=Hello\nfarewell=Goodbye\n");
+    gx::String path = CreateTempFile("greeting=Hello\nfarewell=Goodbye\n");
     Localization::Instance().LoadLanguage("en", path);
 
     EXPECT_EQ(Localization::Instance().GetString("greeting"), "Hello");
@@ -81,8 +81,8 @@ TEST_F(LocalizationFullTest, GetStringReturnsCorrectValue)
 
 TEST_F(LocalizationFullTest, FallbackLanguageUsedWhenKeyMissing)
 {
-    std::string enPath = CreateTempFile("title=My Game\nsubtitle=Adventure\n");
-    std::string jaPath = CreateTempFile("title=My Game JP\n");
+    gx::String enPath = CreateTempFile("title=My Game\nsubtitle=Adventure\n");
+    gx::String jaPath = CreateTempFile("title=My Game JP\n");
 
     Localization::Instance().LoadLanguage("en", enPath);
     Localization::Instance().LoadLanguage("ja", jaPath);
@@ -97,8 +97,8 @@ TEST_F(LocalizationFullTest, FallbackLanguageUsedWhenKeyMissing)
 
 TEST_F(LocalizationFullTest, GetAvailableLanguages)
 {
-    std::string enPath = CreateTempFile("a=b\n");
-    std::string jaPath = CreateTempFile("c=d\n");
+    gx::String enPath = CreateTempFile("a=b\n");
+    gx::String jaPath = CreateTempFile("c=d\n");
 
     Localization::Instance().LoadLanguage("en", enPath);
     Localization::Instance().LoadLanguage("ja", jaPath);
@@ -118,7 +118,7 @@ TEST_F(LocalizationFullTest, GetAvailableLanguages)
 
 TEST_F(LocalizationFullTest, ClearRemovesAllData)
 {
-    std::string path = CreateTempFile("key=value\n");
+    gx::String path = CreateTempFile("key=value\n");
     Localization::Instance().LoadLanguage("en", path);
     EXPECT_EQ(Localization::Instance().GetString("key"), "value");
 
@@ -130,9 +130,9 @@ TEST_F(LocalizationFullTest, ClearRemovesAllData)
 
 TEST_F(LocalizationFullTest, MultipleLanguagesSimultaneously)
 {
-    std::string enPath = CreateTempFile("hello=Hello\n");
-    std::string frPath = CreateTempFile("hello=Bonjour\n");
-    std::string dePath = CreateTempFile("hello=Hallo\n");
+    gx::String enPath = CreateTempFile("hello=Hello\n");
+    gx::String frPath = CreateTempFile("hello=Bonjour\n");
+    gx::String dePath = CreateTempFile("hello=Hallo\n");
 
     Localization::Instance().LoadLanguage("en", enPath);
     Localization::Instance().LoadLanguage("fr", frPath);
@@ -150,7 +150,7 @@ TEST_F(LocalizationFullTest, MultipleLanguagesSimultaneously)
 
 TEST_F(LocalizationFullTest, CommentLinesAndEmptyLinesSkipped)
 {
-    std::string path = CreateTempFile(
+    gx::String path = CreateTempFile(
         "# This is a comment\n"
         "\n"
         "; Another comment\n"
@@ -166,7 +166,7 @@ TEST_F(LocalizationFullTest, CommentLinesAndEmptyLinesSkipped)
 
 TEST_F(LocalizationFullTest, NewlineEscapeUnescaped)
 {
-    std::string path = CreateTempFile("msg=Line1\\nLine2\n");
+    gx::String path = CreateTempFile("msg=Line1\\nLine2\n");
     Localization::Instance().LoadLanguage("en", path);
 
     EXPECT_EQ(Localization::Instance().GetString("msg"), "Line1\nLine2");

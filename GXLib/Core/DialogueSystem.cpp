@@ -6,14 +6,14 @@
 namespace gx
 {
 
-const std::vector<DialogueChoice> DialogueSystem::s_emptyChoices;
+const gx::Vector<DialogueChoice> DialogueSystem::s_emptyChoices;
 
 void DialogueSystem::RegisterSequence(const DialogueSequence& sequence)
 {
     m_sequences[sequence.id] = sequence;
 }
 
-bool DialogueSystem::StartSequence(const std::string& sequenceId)
+bool DialogueSystem::StartSequence(const gx::String& sequenceId)
 {
     auto it = m_sequences.find(sequenceId);
     if (it == m_sequences.end())
@@ -70,7 +70,7 @@ void DialogueSystem::AdvanceLine()
         else if (!m_currentSequence->nextSequenceId.empty())
         {
             // 次のシーケンスにチェーン
-            std::string nextId = m_currentSequence->nextSequenceId;
+            gx::String nextId = m_currentSequence->nextSequenceId;
             StartSequence(nextId);
         }
         else
@@ -103,7 +103,7 @@ void DialogueSystem::SelectChoice(int index)
     // 次のシーケンスに遷移するか終了
     if (!choice.nextSequenceId.empty())
     {
-        std::string nextId = choice.nextSequenceId;
+        gx::String nextId = choice.nextSequenceId;
         StartSequence(nextId);
     }
     else
@@ -147,7 +147,7 @@ const DialogueLine* DialogueSystem::GetCurrentLine() const
     return &m_currentSequence->lines[m_currentLineIndex];
 }
 
-const std::vector<DialogueChoice>& DialogueSystem::GetCurrentChoices() const
+const gx::Vector<DialogueChoice>& DialogueSystem::GetCurrentChoices() const
 {
     if (m_state == DialogueState::ShowingChoices && m_currentSequence)
         return m_currentSequence->choices;

@@ -258,7 +258,7 @@ TEST(ZOrder, NegativeZIndex_SortsBelow)
 
 TEST(WidgetTypeEnum, AllDistinct)
 {
-    std::set<int> values;
+    gx::Set<int> values;
     values.insert(static_cast<int>(WidgetType::Panel));
     values.insert(static_cast<int>(WidgetType::Text));
     values.insert(static_cast<int>(WidgetType::Button));
@@ -285,7 +285,7 @@ TEST(WidgetTypeEnum, AllDistinct)
 
 TEST(EventTypeEnum, AllDistinct)
 {
-    std::set<int> values;
+    gx::Set<int> values;
     values.insert(static_cast<int>(UIEventType::MouseDown));
     values.insert(static_cast<int>(UIEventType::MouseUp));
     values.insert(static_cast<int>(UIEventType::MouseMove));

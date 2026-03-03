@@ -41,8 +41,29 @@ function update_depth(line) {
 # Doc comments
 /^[ \t]*\/\/\/ @brief / { sub(/^[ \t]*\/\/\/ @brief /, ""); doc = trim($0); next }
 /^[ \t]*\/\/\/ / && !/^[ \t]*\/\/\/ @/ {
-    if (doc != "") { sub(/^[ \t]*\/\/\/ ?/, ""); doc = doc " " trim($0) }; next
+    sub(/^[ \t]*\/\/\/ ?/, "")
+    if (doc != "") doc = doc " " trim($0); else doc = trim($0)
+    next
 }
+# @param name description
+/^[ \t]*\/\/\/ @param / {
+    sub(/^[ \t]*\/\/\/ /, "")
+    if (doc != "") doc = doc "\\n" trim($0); else doc = trim($0)
+    next
+}
+# @return/@returns description
+/^[ \t]*\/\/\/ @returns? / {
+    sub(/^[ \t]*\/\/\/ /, "")
+    if (doc != "") doc = doc "\\n" trim($0); else doc = trim($0)
+    next
+}
+# @note description
+/^[ \t]*\/\/\/ @note / {
+    sub(/^[ \t]*\/\/\/ /, "")
+    if (doc != "") doc = doc "\\n" trim($0); else doc = trim($0)
+    next
+}
+# Skip other @ tags
 /^[ \t]*\/\/\/ @/ { next }
 /^[ \t]*#/ { next }
 /^[ \t]*\/\// && !/^[ \t]*\/\/\// { doc = ""; next }

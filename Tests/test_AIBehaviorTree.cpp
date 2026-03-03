@@ -16,12 +16,12 @@ TEST(BlackboardTest, SetAndGet)
     Blackboard bb;
     bb.Set("health", 100);
     bb.Set("speed", 5.5f);
-    bb.Set("name", std::string("NPC"));
+    bb.Set("name", gx::String("NPC"));
     bb.Set("alive", true);
 
     EXPECT_EQ(bb.Get<int>("health"), 100);
     EXPECT_FLOAT_EQ(bb.Get<float>("speed"), 5.5f);
-    EXPECT_EQ(bb.Get<std::string>("name"), "NPC");
+    EXPECT_EQ(bb.Get<gx::String>("name"), "NPC");
     EXPECT_TRUE(bb.Get<bool>("alive"));
 }
 
@@ -41,11 +41,11 @@ TEST(BlackboardTest, DefaultValue)
     EXPECT_FLOAT_EQ(bb.Get<float>("missing", 1.0f), 1.0f);
 }
 
-TEST(BlackboardTest, XMFLOAT3)
+TEST(BlackboardTest, Vector3)
 {
     Blackboard bb;
-    bb.Set("pos", XMFLOAT3{ 1.0f, 2.0f, 3.0f });
-    auto pos = bb.Get<XMFLOAT3>("pos");
+    bb.Set("pos", Vector3{ 1.0f, 2.0f, 3.0f });
+    auto pos = bb.Get<Vector3>("pos");
     EXPECT_FLOAT_EQ(pos.x, 1.0f);
     EXPECT_FLOAT_EQ(pos.y, 2.0f);
     EXPECT_FLOAT_EQ(pos.z, 3.0f);
@@ -202,11 +202,11 @@ TEST(BehaviorTreeTest, SimpleTree)
     attackSeq->AddChild(std::make_shared<BTCondition>(
         [](const Blackboard& b) { return b.Get<int>("hp") > 30; }));
     attackSeq->AddChild(std::make_shared<BTAction>(
-        [](float, Blackboard& b) { b.Set("action", std::string("attack")); return BTStatus::Success; }));
+        [](float, Blackboard& b) { b.Set("action", gx::String("attack")); return BTStatus::Success; }));
 
     // それ以外は逃走
     auto fleeAction = std::make_shared<BTAction>(
-        [](float, Blackboard& b) { b.Set("action", std::string("flee")); return BTStatus::Success; });
+        [](float, Blackboard& b) { b.Set("action", gx::String("flee")); return BTStatus::Success; });
 
     root->AddChild(attackSeq);
     root->AddChild(fleeAction);
@@ -214,14 +214,14 @@ TEST(BehaviorTreeTest, SimpleTree)
 
     BTStatus status = tree.Tick(0.016f);
     EXPECT_EQ(status, BTStatus::Success);
-    EXPECT_EQ(bb.Get<std::string>("action"), "attack");
+    EXPECT_EQ(bb.Get<gx::String>("action"), "attack");
 
     // HPを低くする
     bb.Set("hp", 10);
     tree.Reset();
     status = tree.Tick(0.016f);
     EXPECT_EQ(status, BTStatus::Success);
-    EXPECT_EQ(bb.Get<std::string>("action"), "flee");
+    EXPECT_EQ(bb.Get<gx::String>("action"), "flee");
 }
 
 // ============================================================================
@@ -282,7 +282,7 @@ TEST(NavMeshObstacleTest, PathAroundObstacle)
     // 直接パスをブロック
     nav.AddObstacleAABB(4, 0, 6, 10);
 
-    std::vector<XMFLOAT3> path;
+    gx::Vector<Vector3> path;
     // 障害物がz=0からz=10の全幅をブロックしているのでパスは失敗するはず
     bool found = nav.FindPath({ 2, 0, 5 }, { 8, 0, 5 }, path);
     EXPECT_FALSE(found);  // 障害物がZ全範囲にまたがるのでパス不可

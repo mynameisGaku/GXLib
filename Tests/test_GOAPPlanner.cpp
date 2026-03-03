@@ -372,7 +372,7 @@ TEST(GOAPPlannerTest, BestGoalSelection)
 
     WorldState current;
 
-    std::vector<GOAPGoal> goals;
+    gx::Vector<GOAPGoal> goals;
     GOAPGoal goalHealth;
     goalHealth.name = "StayHealthy";
     goalHealth.targetState.Set("healthy", true);

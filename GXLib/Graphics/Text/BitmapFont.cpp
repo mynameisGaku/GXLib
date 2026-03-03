@@ -9,11 +9,11 @@ namespace gx
 {
 
 /// @brief BMFont形式テキスト行からトークンを分割するヘルパー
-static std::vector<std::string> Tokenize(const std::string& line)
+static gx::Vector<gx::String> Tokenize(const gx::String& line)
 {
-    std::vector<std::string> tokens;
+    gx::Vector<gx::String> tokens;
     std::istringstream iss(line);
-    std::string token;
+    gx::String token;
     while (iss >> token)
     {
         tokens.push_back(token);
@@ -22,7 +22,7 @@ static std::vector<std::string> Tokenize(const std::string& line)
 }
 
 /// @brief トークン列から指定キーの値を取得する
-static int FindTokenInt(const std::vector<std::string>& tokens, const std::string& key)
+static int FindTokenInt(const gx::Vector<gx::String>& tokens, const gx::String& key)
 {
     for (const auto& t : tokens)
     {
@@ -80,7 +80,7 @@ void BitmapFont::BuildFromGrid(int textureHandle, int texWidth, int texHeight,
     }
 }
 
-bool BitmapFont::LoadFromFnt(const std::string& fntPath, int textureHandle, int texWidth, int texHeight)
+bool BitmapFont::LoadFromFnt(const gx::String& fntPath, int textureHandle, int texWidth, int texHeight)
 {
     std::ifstream file(fntPath);
     if (!file.is_open())
@@ -97,8 +97,8 @@ bool BitmapFont::LoadFromFnt(const std::string& fntPath, int textureHandle, int 
     float invW = 1.0f / static_cast<float>(m_texWidth);
     float invH = 1.0f / static_cast<float>(m_texHeight);
 
-    std::string line;
-    while (std::getline(file, line))
+    gx::String line;
+    while (gx::container::getline(file, line))
     {
         if (line.empty())
             continue;
@@ -107,7 +107,7 @@ bool BitmapFont::LoadFromFnt(const std::string& fntPath, int textureHandle, int 
         if (tokens.empty())
             continue;
 
-        const std::string& tag = tokens[0];
+        const gx::String& tag = tokens[0];
 
         if (tag == "common")
         {
@@ -143,7 +143,7 @@ bool BitmapFont::LoadFromFnt(const std::string& fntPath, int textureHandle, int 
     return !m_glyphs.empty();
 }
 
-float BitmapFont::MeasureWidth(const std::wstring& text) const
+float BitmapFont::MeasureWidth(const gx::WString& text) const
 {
     if (text.empty())
         return 0.0f;

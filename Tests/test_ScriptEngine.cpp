@@ -112,7 +112,7 @@ TEST(ScriptEngine, SetAndGetGlobalString)
     ScriptEngine engine;
     ASSERT_TRUE(engine.Initialize());
 
-    engine.SetGlobal("myString", std::string("hello"));
+    engine.SetGlobal("myString", gx::String("hello"));
     // Luaから読み取ることで設定されたことを検証
     EXPECT_TRUE(engine.ExecuteString("strLen = #myString"));
     int len = engine.GetGlobalInt("strLen");

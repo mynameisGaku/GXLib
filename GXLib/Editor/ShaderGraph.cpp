@@ -30,7 +30,7 @@ ShaderGraph::ShaderGraph()
 // ノード操作
 // ============================================================================
 
-uint32_t ShaderGraph::AddNode(ShaderNodeType type, const std::string& name,
+uint32_t ShaderGraph::AddNode(ShaderNodeType type, const gx::String& name,
                                float posX, float posY)
 {
     // Output ノードは 1 つしか存在できない
@@ -40,7 +40,7 @@ uint32_t ShaderGraph::AddNode(ShaderNodeType type, const std::string& name,
     ShaderNode node;
     node.id   = m_nextNodeId++;
     node.type = type;
-    node.name = name.empty() ? ("Node_" + std::to_string(node.id)) : name;
+    node.name = name.empty() ? gx::String(("Node_" + std::to_string(node.id)).c_str()) : name;
     node.posX = posX;
     node.posY = posY;
     CreateDefaultPins(node);
@@ -200,7 +200,7 @@ bool ShaderGraph::AreTypesCompatible(ShaderPinType from, ShaderPinType to)
 bool ShaderGraph::HasCycle() const
 {
     // 隣接リストを構築
-    std::unordered_map<uint32_t, std::vector<uint32_t>> adj;
+    gx::HashMap<uint32_t, gx::Vector<uint32_t>> adj;
     for (const auto& n : m_nodes)
         adj[n.id]; // 空リストを保証
 
@@ -208,7 +208,7 @@ bool ShaderGraph::HasCycle() const
         adj[c.fromNode].push_back(c.toNode);
 
     enum class Color { White, Gray, Black };
-    std::unordered_map<uint32_t, Color> color;
+    gx::HashMap<uint32_t, Color> color;
     for (const auto& n : m_nodes)
         color[n.id] = Color::White;
 
@@ -239,10 +239,10 @@ bool ShaderGraph::HasCycle() const
 // トポロジカルソート (Kahn's algorithm)
 // ============================================================================
 
-std::vector<uint32_t> ShaderGraph::TopologicalSort() const
+gx::Vector<uint32_t> ShaderGraph::TopologicalSort() const
 {
-    std::unordered_map<uint32_t, uint32_t> inDegree;
-    std::unordered_map<uint32_t, std::vector<uint32_t>> adj;
+    gx::HashMap<uint32_t, uint32_t> inDegree;
+    gx::HashMap<uint32_t, gx::Vector<uint32_t>> adj;
     for (const auto& n : m_nodes)
     {
         inDegree[n.id] = 0;
@@ -255,13 +255,13 @@ std::vector<uint32_t> ShaderGraph::TopologicalSort() const
         inDegree[c.toNode]++;
     }
 
-    std::vector<uint32_t> queue;
+    gx::Vector<uint32_t> queue;
     for (const auto& [id, deg] : inDegree)
     {
         if (deg == 0) queue.push_back(id);
     }
 
-    std::vector<uint32_t> sorted;
+    gx::Vector<uint32_t> sorted;
     while (!queue.empty())
     {
         uint32_t u = queue.back();
@@ -314,7 +314,7 @@ CompileResult ShaderGraph::Compile() const
     {
         const ShaderNode* node = FindNodeConst(nodeId);
         if (!node) continue;
-        std::string code = GenerateHLSLForNode(*node, index);
+        gx::String code = GenerateHLSLForNode(*node, index);
         if (!code.empty())
             hlsl << code << "\n";
         index++;
@@ -325,9 +325,9 @@ CompileResult ShaderGraph::Compile() const
     return result;
 }
 
-std::string ShaderGraph::GenerateHLSLForNode(const ShaderNode& node, uint32_t index) const
+gx::String ShaderGraph::GenerateHLSLForNode(const ShaderNode& node, uint32_t index) const
 {
-    std::string varName = "node_" + std::to_string(node.id);
+    gx::String varName = "node_" + std::to_string(node.id);
 
     switch (node.type)
     {
@@ -449,7 +449,7 @@ std::string ShaderGraph::GenerateHLSLForNode(const ShaderNode& node, uint32_t in
     }
 }
 
-std::string ShaderGraph::PinTypeToHLSL(ShaderPinType type)
+gx::String ShaderGraph::PinTypeToHLSL(ShaderPinType type)
 {
     switch (type)
     {
@@ -467,9 +467,9 @@ std::string ShaderGraph::PinTypeToHLSL(ShaderPinType type)
 // 検証
 // ============================================================================
 
-std::vector<std::string> ShaderGraph::Validate() const
+gx::Vector<gx::String> ShaderGraph::Validate() const
 {
-    std::vector<std::string> errors;
+    gx::Vector<gx::String> errors;
 
     // Output ノードが存在するか
     const ShaderNode* output = GetOutputNode();
@@ -513,7 +513,7 @@ std::vector<std::string> ShaderGraph::Validate() const
 // シリアライズ
 // ============================================================================
 
-bool ShaderGraph::Save(const std::string& filePath) const
+bool ShaderGraph::Save(const gx::String& filePath) const
 {
     std::ofstream file(filePath);
     if (!file.is_open())
@@ -546,15 +546,15 @@ bool ShaderGraph::Save(const std::string& filePath) const
     return true;
 }
 
-bool ShaderGraph::Load(const std::string& filePath)
+bool ShaderGraph::Load(const gx::String& filePath)
 {
     std::ifstream file(filePath);
     if (!file.is_open())
         return false;
 
-    std::string line;
+    gx::String line;
     // Header
-    if (!std::getline(file, line) || line != "SHADERGRAPH")
+    if (!gx::container::getline(file, line) || line != "SHADERGRAPH")
         return false;
 
     // Clear current state (keep generating new IDs)
@@ -563,7 +563,7 @@ bool ShaderGraph::Load(const std::string& filePath)
     m_nextNodeId = 0;
 
     // Target
-    if (std::getline(file, line))
+    if (gx::container::getline(file, line))
     {
         if (line.substr(0, 7) == "target ")
             m_targetModel = line.substr(7);
@@ -571,7 +571,7 @@ bool ShaderGraph::Load(const std::string& filePath)
 
     // Nodes
     uint32_t nodeCount = 0;
-    if (std::getline(file, line))
+    if (gx::container::getline(file, line))
     {
         if (line.substr(0, 6) == "nodes ")
             nodeCount = static_cast<uint32_t>(std::stoul(line.substr(6)));
@@ -579,18 +579,18 @@ bool ShaderGraph::Load(const std::string& filePath)
 
     for (uint32_t i = 0; i < nodeCount; ++i)
     {
-        if (!std::getline(file, line)) break;
+        if (!gx::container::getline(file, line)) break;
 
         ShaderNode node;
         std::istringstream iss(line);
-        std::string token;
+        gx::String token;
         iss >> token; // "node"
         uint32_t typeVal = 0;
         iss >> node.id >> typeVal >> node.posX >> node.posY;
         node.type = static_cast<ShaderNodeType>(typeVal);
 
         // 残りの文字列が名前
-        std::getline(iss, node.name);
+        gx::container::getline(iss, node.name);
         if (!node.name.empty() && node.name[0] == ' ')
             node.name = node.name.substr(1);
 
@@ -601,19 +601,19 @@ bool ShaderGraph::Load(const std::string& filePath)
 
         // プロパティ
         uint32_t propCount = 0;
-        if (std::getline(file, line))
+        if (gx::container::getline(file, line))
         {
             if (line.substr(0, 6) == "props ")
                 propCount = static_cast<uint32_t>(std::stoul(line.substr(6)));
         }
         for (uint32_t p = 0; p < propCount; ++p)
         {
-            if (!std::getline(file, line)) break;
+            if (!gx::container::getline(file, line)) break;
             // "prop key value"
             std::istringstream pss(line);
-            std::string propToken, key, value;
+            gx::String propToken, key, value;
             pss >> propToken >> key;
-            std::getline(pss, value);
+            gx::container::getline(pss, value);
             if (!value.empty() && value[0] == ' ')
                 value = value.substr(1);
             node.properties[key] = value;
@@ -624,7 +624,7 @@ bool ShaderGraph::Load(const std::string& filePath)
 
     // Connections
     uint32_t connCount = 0;
-    if (std::getline(file, line))
+    if (gx::container::getline(file, line))
     {
         if (line.substr(0, 12) == "connections ")
             connCount = static_cast<uint32_t>(std::stoul(line.substr(12)));
@@ -632,9 +632,9 @@ bool ShaderGraph::Load(const std::string& filePath)
 
     for (uint32_t i = 0; i < connCount; ++i)
     {
-        if (!std::getline(file, line)) break;
+        if (!gx::container::getline(file, line)) break;
         std::istringstream css(line);
-        std::string token;
+        gx::String token;
         ShaderConnection c;
         css >> token >> c.fromNode >> c.fromPin >> c.toNode >> c.toPin;
         m_connections.push_back(c);
@@ -672,20 +672,20 @@ const ShaderNode* ShaderGraph::GetOutputNode() const
     return nullptr;
 }
 
-std::vector<ShaderPin> ShaderGraph::GetNodePins(uint32_t nodeId) const
+gx::Vector<ShaderPin> ShaderGraph::GetNodePins(uint32_t nodeId) const
 {
     const ShaderNode* node = FindNodeConst(nodeId);
     if (!node) return {};
     return node->pins;
 }
 
-void ShaderGraph::SetNodeProperty(uint32_t nodeId, const std::string& key, const std::string& value)
+void ShaderGraph::SetNodeProperty(uint32_t nodeId, const gx::String& key, const gx::String& value)
 {
     ShaderNode* node = FindNode(nodeId);
     if (node) node->properties[key] = value;
 }
 
-std::string ShaderGraph::GetNodeProperty(uint32_t nodeId, const std::string& key) const
+gx::String ShaderGraph::GetNodeProperty(uint32_t nodeId, const gx::String& key) const
 {
     const ShaderNode* node = FindNodeConst(nodeId);
     if (!node) return "";
@@ -704,7 +704,7 @@ void ShaderGraph::CreateDefaultPins(ShaderNode& node) const
     uint32_t inIdx  = 0;
     uint32_t outIdx = 0;
 
-    auto addInput  = [&](const std::string& name, ShaderPinType type) {
+    auto addInput  = [&](const gx::String& name, ShaderPinType type) {
         ShaderPin pin;
         pin.name     = name;
         pin.type     = type;
@@ -714,7 +714,7 @@ void ShaderGraph::CreateDefaultPins(ShaderNode& node) const
         node.pins.push_back(pin);
     };
 
-    auto addOutput = [&](const std::string& name, ShaderPinType type) {
+    auto addOutput = [&](const gx::String& name, ShaderPinType type) {
         ShaderPin pin;
         pin.name     = name;
         pin.type     = type;

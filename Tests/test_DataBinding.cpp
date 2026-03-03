@@ -22,8 +22,8 @@ TEST(DataBindingTest, DataPropertySetGet)
 TEST(DataBindingTest, DataPropertyCallback)
 {
     DataProperty prop("val");
-    std::string oldVal, newVal;
-    prop.OnChanged = [&](const std::string& o, const std::string& n) {
+    gx::String oldVal, newVal;
+    prop.OnChanged = [&](const gx::String& o, const gx::String& n) {
         oldVal = o;
         newVal = n;
     };
@@ -41,7 +41,7 @@ TEST(DataBindingTest, DataPropertySilent)
 {
     DataProperty prop("val");
     bool called = false;
-    prop.OnChanged = [&](const std::string&, const std::string&) { called = true; };
+    prop.OnChanged = [&](const gx::String&, const gx::String&) { called = true; };
 
     prop.SetSilent("silent");
     EXPECT_FALSE(called);
@@ -135,8 +135,8 @@ TEST(DataBindingTest, DataContextPropertyNames)
 TEST(DataBindingTest, DataContextOnChanged)
 {
     DataContext ctx;
-    std::string lastPropName, lastPropValue;
-    ctx.OnPropertyChanged = [&](const std::string& n, const std::string& v) {
+    gx::String lastPropName, lastPropValue;
+    ctx.OnPropertyChanged = [&](const gx::String& n, const gx::String& v) {
         lastPropName = n;
         lastPropValue = v;
     };
@@ -234,8 +234,8 @@ TEST(DataBindingTest, BindWithConverter)
 {
     DataBindingManager mgr;
     BindingConverter converter;
-    converter.toUI = [](const std::string& v) { return "Converted: " + v; };
-    converter.fromUI = [](const std::string& v) { return v.substr(11); };
+    converter.toUI = [](const gx::String& v) { return "Converted: " + v; };
+    converter.fromUI = [](const gx::String& v) { return v.substr(11); };
 
     uint32_t id = mgr.BindWithConverter("raw", "display", "text", converter);
     const Binding* b = mgr.GetBinding(id);

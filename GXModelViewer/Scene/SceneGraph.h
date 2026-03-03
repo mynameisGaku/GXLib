@@ -5,9 +5,8 @@
 /// エンティティをフラットなvectorで管理する。削除はGPUリソース解放待ちのため
 /// 遅延実行（_pendingRemoval→ProcessPendingRemovals）方式を採用。
 
-#include <string>
-#include <vector>
 #include <memory>
+#include "Container/ContainerFwd.h"
 
 #include "Graphics/3D/Transform3D.h"
 #include "Graphics/3D/Model.h"
@@ -17,7 +16,7 @@
 /// @brief シーン内の1エンティティ。モデル・トランスフォーム・アニメーション・表示設定を保持。
 struct SceneEntity
 {
-    std::string      name;                              ///< エンティティ名（ファイル名から自動設定）
+    gx::String       name;                              ///< エンティティ名（ファイル名から自動設定）
     gx::Transform3D  transform;                         ///< ワールドトランスフォーム
     gx::Model*       model = nullptr;                   ///< モデルへの非所有参照
     std::unique_ptr<gx::Model> ownedModel;              ///< インポートしたモデルの所有権
@@ -25,14 +24,14 @@ struct SceneEntity
     bool             useMaterialOverride = false;       ///< マテリアルオーバーライドを有効にするか
     int              parentIndex = -1;                  ///< 親エンティティのインデックス（-1=ルート）
     bool             visible = true;                    ///< 表示ON/OFF
-    std::string      sourcePath;                        ///< インポート元ファイルパス（シーン保存用）
+    gx::String       sourcePath;                        ///< インポート元ファイルパス（シーン保存用）
 
     // --- アニメーション ---
     std::unique_ptr<gx::Animator> animator;             ///< スキンドモデル用Animator
     int  selectedClipIndex = -1;                        ///< タイムラインで選択中のクリップインデックス
 
     // --- 表示制御 ---
-    std::vector<bool> submeshVisibility;                ///< サブメッシュごとの表示ON/OFF
+    gx::Vector<bool> submeshVisibility;                 ///< サブメッシュごとの表示ON/OFF
     bool showBones = false;                             ///< ボーン可視化ON/OFF
     bool showWireframe = false;                         ///< ワイヤフレーム表示ON/OFF
     bool _pendingRemoval = false;                       ///< 内部用：遅延削除フラグ

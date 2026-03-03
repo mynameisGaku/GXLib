@@ -10,9 +10,9 @@ using namespace gx;
 // テスト用の単純なリソース型
 struct TestResource {
     int value = 0;
-    std::string name;
+    gx::String name;
     TestResource() = default;
-    TestResource(int v, const std::string& n) : value(v), name(n) {}
+    TestResource(int v, const gx::String& n) : value(v), name(n) {}
 };
 
 // ============================================================================

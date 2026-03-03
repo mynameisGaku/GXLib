@@ -3,6 +3,7 @@
 #include "pch_common.h"
 
 #include "AI/NavMesh3D.h"
+#include "Math/MathConvert.h"
 #include "Graphics/3D/PrimitiveBatch3D.h"
 #include "Core/Logger.h"
 #include <queue>
@@ -13,7 +14,7 @@ namespace gx
 // ============================================================================
 // Build
 // ============================================================================
-bool NavMesh3D::Build(const XMFLOAT3& minBounds, const XMFLOAT3& maxBounds, float voxelSize)
+bool NavMesh3D::Build(const Vector3& minBounds, const Vector3& maxBounds, float voxelSize)
 {
     if (voxelSize <= 0.0f)
     {
@@ -82,8 +83,8 @@ bool NavMesh3D::BuildFromGeometry(const float* vertices, int vertexCount,
 
     // パディングを追加
     float pad = voxelSize * 0.5f;
-    XMFLOAT3 bMin = { minX - pad, minY - pad, minZ - pad };
-    XMFLOAT3 bMax = { maxX + pad, maxY + pad, maxZ + pad };
+    Vector3 bMin = { minX - pad, minY - pad, minZ - pad };
+    Vector3 bMax = { maxX + pad, maxY + pad, maxZ + pad };
 
     if (!Build(bMin, bMax, voxelSize))
         return false;
@@ -100,9 +101,9 @@ bool NavMesh3D::BuildFromGeometry(const float* vertices, int vertexCount,
         if (i0 < 0 || i0 >= vertexCount || i1 < 0 || i1 >= vertexCount || i2 < 0 || i2 >= vertexCount)
             continue;
 
-        XMFLOAT3 v0 = { vertices[i0 * 3 + 0], vertices[i0 * 3 + 1], vertices[i0 * 3 + 2] };
-        XMFLOAT3 v1 = { vertices[i1 * 3 + 0], vertices[i1 * 3 + 1], vertices[i1 * 3 + 2] };
-        XMFLOAT3 v2 = { vertices[i2 * 3 + 0], vertices[i2 * 3 + 1], vertices[i2 * 3 + 2] };
+        Vector3 v0 = { vertices[i0 * 3 + 0], vertices[i0 * 3 + 1], vertices[i0 * 3 + 2] };
+        Vector3 v1 = { vertices[i1 * 3 + 0], vertices[i1 * 3 + 1], vertices[i1 * 3 + 2] };
+        Vector3 v2 = { vertices[i2 * 3 + 0], vertices[i2 * 3 + 1], vertices[i2 * 3 + 2] };
 
         // 三角形の3D AABB
         float triMinX = (std::min)({ v0.x, v1.x, v2.x });
@@ -116,8 +117,8 @@ bool NavMesh3D::BuildFromGeometry(const float* vertices, int vertexCount,
         int vxMin, vyMin, vzMin, vxMax, vyMax, vzMax;
         {
             int dummy;
-            XMFLOAT3 pMin = { triMinX, triMinY, triMinZ };
-            XMFLOAT3 pMax = { triMaxX, triMaxY, triMaxZ };
+            Vector3 pMin = { triMinX, triMinY, triMinZ };
+            Vector3 pMax = { triMaxX, triMaxY, triMaxZ };
             WorldToVoxel(pMin, vxMin, vyMin, vzMin);
             WorldToVoxel(pMax, vxMax, vyMax, vzMax);
         }
@@ -130,9 +131,9 @@ bool NavMesh3D::BuildFromGeometry(const float* vertices, int vertexCount,
         vzMax = (std::min)(m_sizeZ - 1, vzMax);
 
         // AABB-三角形オーバーラップテスト用の三角形エッジ（簡易版）
-        XMVECTOR tv0 = XMLoadFloat3(&v0);
-        XMVECTOR tv1 = XMLoadFloat3(&v1);
-        XMVECTOR tv2 = XMLoadFloat3(&v2);
+        XMVECTOR tv0 = XMLoadFloat3(XM(&v0));
+        XMVECTOR tv1 = XMLoadFloat3(XM(&v1));
+        XMVECTOR tv2 = XMLoadFloat3(XM(&v2));
         XMVECTOR e0 = XMVectorSubtract(tv1, tv0);
         XMVECTOR e1 = XMVectorSubtract(tv2, tv0);
         XMVECTOR triNormal = XMVector3Normalize(XMVector3Cross(e0, e1));
@@ -144,8 +145,8 @@ bool NavMesh3D::BuildFromGeometry(const float* vertices, int vertexCount,
                 for (int vx = vxMin; vx <= vxMax; ++vx)
                 {
                     // ボクセル中心が三角形平面に近いか確認
-                    XMFLOAT3 center = VoxelToWorld(vx, vy, vz);
-                    XMVECTOR c = XMLoadFloat3(&center);
+                    Vector3 center = VoxelToWorld(vx, vy, vz);
+                    XMVECTOR c = XMLoadFloat3(XM(&center));
                     XMVECTOR toCenter = XMVectorSubtract(c, tv0);
                     float dist;
                     XMStoreFloat(&dist, XMVector3Dot(toCenter, triNormal));
@@ -217,7 +218,7 @@ VoxelState NavMesh3D::GetVoxel(int x, int y, int z) const
 // ============================================================================
 // WorldToVoxel / VoxelToWorld
 // ============================================================================
-bool NavMesh3D::WorldToVoxel(const XMFLOAT3& worldPos, int& outX, int& outY, int& outZ) const
+bool NavMesh3D::WorldToVoxel(const Vector3& worldPos, int& outX, int& outY, int& outZ) const
 {
     outX = static_cast<int>(std::floor((worldPos.x - m_minBounds.x) / m_voxelSize));
     outY = static_cast<int>(std::floor((worldPos.y - m_minBounds.y) / m_voxelSize));
@@ -225,7 +226,7 @@ bool NavMesh3D::WorldToVoxel(const XMFLOAT3& worldPos, int& outX, int& outY, int
     return IsInBounds(outX, outY, outZ);
 }
 
-XMFLOAT3 NavMesh3D::VoxelToWorld(int x, int y, int z) const
+Vector3 NavMesh3D::VoxelToWorld(int x, int y, int z) const
 {
     return {
         m_minBounds.x + (x + 0.5f) * m_voxelSize,
@@ -247,8 +248,8 @@ void NavMesh3D::SetVoxelCost(int x, int y, int z, float cost)
 // ============================================================================
 // FindPath（26接続の3D A*）
 // ============================================================================
-bool NavMesh3D::FindPath(const XMFLOAT3& start, const XMFLOAT3& end,
-                          std::vector<XMFLOAT3>& path,
+bool NavMesh3D::FindPath(const Vector3& start, const Vector3& end,
+                          gx::Vector<Vector3>& path,
                           uint8_t allowedStates) const
 {
     path.clear();
@@ -289,9 +290,9 @@ bool NavMesh3D::FindPath(const XMFLOAT3& start, const XMFLOAT3& end,
     size_t totalSize = static_cast<size_t>(m_sizeX) * m_sizeY * m_sizeZ;
 
     // A*データ構造
-    std::vector<bool> closed(totalSize, false);
-    std::vector<float> gScore(totalSize, FLT_MAX);
-    std::vector<int> parentIndex(totalSize, -1);
+    gx::Vector<bool> closed(totalSize, false);
+    gx::Vector<float> gScore(totalSize, FLT_MAX);
+    gx::Vector<int> parentIndex(totalSize, -1);
 
     struct AStarNode
     {
@@ -306,7 +307,7 @@ bool NavMesh3D::FindPath(const XMFLOAT3& start, const XMFLOAT3& end,
         return (std::abs(x - ex) + std::abs(y - ey) + std::abs(z - ez)) * m_voxelSize;
     };
 
-    std::priority_queue<AStarNode, std::vector<AStarNode>, std::greater<AStarNode>> openList;
+    gx::PriorityQueue<AStarNode, gx::Deque<AStarNode>, std::greater<AStarNode>> openList;
 
     gScore[startIdx] = 0.0f;
     float startH = heuristic(sx, sy, sz);
@@ -388,7 +389,7 @@ bool NavMesh3D::FindPath(const XMFLOAT3& start, const XMFLOAT3& end,
         }
 
         // 現在のボクセルからのOff-meshリンクも確認
-        XMFLOAT3 curWorld = VoxelToWorld(current.x, current.y, current.z);
+        Vector3 curWorld = VoxelToWorld(current.x, current.y, current.z);
         float linkSnapDist = m_voxelSize * 0.75f;
         float linkSnapDist2 = linkSnapDist * linkSnapDist;
 
@@ -405,7 +406,7 @@ bool NavMesh3D::FindPath(const XMFLOAT3& start, const XMFLOAT3& end,
             float dez = curWorld.z - link.end.z;
             bool nearEnd = link.bidirectional && (dex * dex + dey * dey + dez * dez) <= linkSnapDist2;
 
-            XMFLOAT3 targetWorld;
+            Vector3 targetWorld;
             if (nearStart)
                 targetWorld = link.end;
             else if (nearEnd)
@@ -435,7 +436,7 @@ bool NavMesh3D::FindPath(const XMFLOAT3& start, const XMFLOAT3& end,
     if (!found) return false;
 
     // パスを再構築
-    std::vector<XMFLOAT3> reversePath;
+    gx::Vector<Vector3> reversePath;
     int ci = endIdx;
     while (ci >= 0)
     {
@@ -482,7 +483,7 @@ void NavMesh3D::RemoveOffMeshLink(uint32_t index)
 // ============================================================================
 // FindNearestOpen（外向きBFS）
 // ============================================================================
-XMFLOAT3 NavMesh3D::FindNearestOpen(const XMFLOAT3& pos) const
+Vector3 NavMesh3D::FindNearestOpen(const Vector3& pos) const
 {
     if (m_voxels.empty()) return pos;
 
@@ -503,9 +504,9 @@ XMFLOAT3 NavMesh3D::FindNearestOpen(const XMFLOAT3& pos) const
 
     // 開始ボクセルから外向きにBFS
     struct BFSNode { int x, y, z; };
-    std::queue<BFSNode> frontier;
+    gx::Queue<BFSNode> frontier;
     size_t totalSize = static_cast<size_t>(m_sizeX) * m_sizeY * m_sizeZ;
-    std::vector<bool> visited(totalSize, false);
+    gx::Vector<bool> visited(totalSize, false);
 
     frontier.push({ cx, cy, cz });
     if (idx >= 0) visited[idx] = true;
@@ -548,8 +549,8 @@ XMFLOAT3 NavMesh3D::FindNearestOpen(const XMFLOAT3& pos) const
 // ============================================================================
 // Raycast (3D DDA)
 // ============================================================================
-bool NavMesh3D::Raycast(const XMFLOAT3& origin, const XMFLOAT3& direction, float maxDist,
-                         XMFLOAT3& hitPos) const
+bool NavMesh3D::Raycast(const Vector3& origin, const Vector3& direction, float maxDist,
+                         Vector3& hitPos) const
 {
     if (m_voxels.empty()) return false;
 
@@ -679,10 +680,10 @@ void NavMesh3D::DebugDraw(PrimitiveBatch3D& batch, bool showBlocked) const
 {
     if (m_voxels.empty()) return;
 
-    const XMFLOAT4 openColor    = { 0.1f, 0.8f, 0.2f, 0.3f };
-    const XMFLOAT4 blockedColor = { 0.9f, 0.15f, 0.1f, 0.3f };
-    const XMFLOAT4 waterColor   = { 0.1f, 0.3f, 0.9f, 0.3f };
-    const XMFLOAT4 airColor     = { 0.7f, 0.7f, 0.9f, 0.2f };
+    const Vector4 openColor    = { 0.1f, 0.8f, 0.2f, 0.3f };
+    const Vector4 blockedColor = { 0.9f, 0.15f, 0.1f, 0.3f };
+    const Vector4 waterColor   = { 0.1f, 0.3f, 0.9f, 0.3f };
+    const Vector4 airColor     = { 0.7f, 0.7f, 0.9f, 0.2f };
 
     float half = m_voxelSize * 0.45f;
 
@@ -718,14 +719,14 @@ void NavMesh3D::DebugDraw(PrimitiveBatch3D& batch, bool showBlocked) const
 
                 if (!isSurface) continue;
 
-                XMFLOAT3 center = VoxelToWorld(x, y, z);
-                const XMFLOAT4* color = &openColor;
+                Vector3 center = VoxelToWorld(x, y, z);
+                const Vector4* color = &openColor;
                 if (state == VoxelState::Blocked) color = &blockedColor;
                 else if (state == VoxelState::Water) color = &waterColor;
                 else if (state == VoxelState::Air) color = &airColor;
 
                 // ワイヤーフレームボックスを描画（12辺）
-                XMFLOAT3 corners[8] = {
+                Vector3 corners[8] = {
                     { center.x - half, center.y - half, center.z - half },
                     { center.x + half, center.y - half, center.z - half },
                     { center.x + half, center.y - half, center.z + half },

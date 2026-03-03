@@ -77,7 +77,7 @@ void ParallelCommandRecorder::RecordAndExecute(CommandQueue& queue, uint32_t fra
     const uint32_t usedWorkers = (std::min)(jobCount, m_workerCount);
 
     // ワーカーごとにジョブを割り当てて並列記録
-    std::vector<std::thread> threads;
+    gx::Vector<std::thread> threads;
     threads.reserve(usedWorkers);
 
     for (uint32_t w = 0; w < usedWorkers; ++w)
@@ -106,7 +106,7 @@ void ParallelCommandRecorder::RecordAndExecute(CommandQueue& queue, uint32_t fra
         t.join();
 
     // コマンドリストをまとめてキューに送信
-    std::vector<ID3D12CommandList*> cmdLists;
+    gx::Vector<ID3D12CommandList*> cmdLists;
     cmdLists.reserve(usedWorkers);
     for (uint32_t w = 0; w < usedWorkers; ++w)
         cmdLists.push_back(m_workerCmdLists[w].commandList.Get());

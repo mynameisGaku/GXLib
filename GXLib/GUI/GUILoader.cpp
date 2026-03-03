@@ -26,7 +26,7 @@ namespace gx { namespace GUI {
 // UTF-8 → wstring 変換
 // ============================================================================
 
-static std::wstring Utf8ToWstring(const std::string& utf8)
+static gx::WString Utf8ToWstring(const gx::String& utf8)
 {
     if (utf8.empty()) return L"";
 
@@ -34,21 +34,21 @@ static std::wstring Utf8ToWstring(const std::string& utf8)
                                     static_cast<int>(utf8.size()), nullptr, 0);
     if (wlen <= 0) return L"";
 
-    std::wstring result(wlen, L'\0');
+    gx::WString result(wlen, L'\0');
     MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(),
                          static_cast<int>(utf8.size()), &result[0], wlen);
     return result;
 }
 
 // カンマ区切り文字列をパース
-static std::vector<std::string> SplitComma(const std::string& str)
+static gx::Vector<gx::String> SplitComma(const gx::String& str)
 {
-    std::vector<std::string> result;
+    gx::Vector<gx::String> result;
     size_t start = 0;
     while (start < str.size())
     {
         size_t end = str.find(',', start);
-        if (end == std::string::npos) end = str.size();
+        if (end == gx::String::npos) end = str.size();
         // トリム
         size_t s = start, e = end;
         while (s < e && str[s] == ' ') ++s;
@@ -68,34 +68,34 @@ void GUILoader::SetRenderer(UIRenderer* renderer)
     m_renderer = renderer;
 }
 
-void GUILoader::RegisterFont(const std::string& name, int fontHandle)
+void GUILoader::RegisterFont(const gx::String& name, int fontHandle)
 {
     m_fontMap[name] = fontHandle;
 }
 
-void GUILoader::RegisterEvent(const std::string& name, std::function<void()> handler)
+void GUILoader::RegisterEvent(const gx::String& name, std::function<void()> handler)
 {
     m_eventMap[name] = std::move(handler);
 }
 
-void GUILoader::RegisterTexture(const std::string& name, int textureHandle)
+void GUILoader::RegisterTexture(const gx::String& name, int textureHandle)
 {
     m_textureMap[name] = textureHandle;
 }
 
-void GUILoader::RegisterValueChangedEvent(const std::string& name,
-                                           std::function<void(const std::string&)> handler)
+void GUILoader::RegisterValueChangedEvent(const gx::String& name,
+                                           std::function<void(const gx::String&)> handler)
 {
     m_valueChangedMap[name] = std::move(handler);
 }
 
-void GUILoader::RegisterDrawCallback(const std::string& name,
+void GUILoader::RegisterDrawCallback(const gx::String& name,
                                       std::function<void(UIRenderer&, const LayoutRect&)> handler)
 {
     m_drawCallbackMap[name] = std::move(handler);
 }
 
-std::unique_ptr<Widget> GUILoader::BuildFromFile(const std::string& xmlPath)
+std::unique_ptr<Widget> GUILoader::BuildFromFile(const gx::String& xmlPath)
 {
     XMLDocument doc;
     if (!doc.LoadFromFile(xmlPath))
@@ -127,7 +127,7 @@ std::unique_ptr<Widget> GUILoader::BuildWidget(const XMLNode* node)
 
     // タグ名 → ウィジェット生成
     std::unique_ptr<Widget> widget;
-    const std::string& tag = node->tag;
+    const gx::String& tag = node->tag;
 
     if (tag == "Panel")
     {
@@ -212,14 +212,14 @@ std::unique_ptr<Widget> GUILoader::BuildWidget(const XMLNode* node)
     // enabled（操作可否）
     if (node->HasAttribute("enabled"))
     {
-        const std::string& val = node->GetAttribute("enabled");
+        const gx::String& val = node->GetAttribute("enabled");
         widget->enabled = !(val == "false" || val == "0");
     }
 
     // visible（表示/非表示）
     if (node->HasAttribute("visible"))
     {
-        const std::string& val = node->GetAttribute("visible");
+        const gx::String& val = node->GetAttribute("visible");
         widget->visible = !(val == "false" || val == "0");
     }
 
@@ -227,7 +227,7 @@ std::unique_ptr<Widget> GUILoader::BuildWidget(const XMLNode* node)
     auto bindEvent = [&](const char* attrName, std::function<void()>& target)
     {
         if (!node->HasAttribute(attrName)) return;
-        const std::string& eventName = node->GetAttribute(attrName);
+        const gx::String& eventName = node->GetAttribute(attrName);
         auto it = m_eventMap.find(eventName);
         if (it != m_eventMap.end())
             target = it->second;
@@ -250,14 +250,14 @@ std::unique_ptr<Widget> GUILoader::BuildWidget(const XMLNode* node)
     if (isText || isButton)
     {
         // font 属性
-        std::string fontName = "default";
+        gx::String fontName = "default";
         if (node->HasAttribute("font"))
             fontName = node->GetAttribute("font");
 
         int fontHandle = ResolveFontHandle(fontName);
 
         // テキスト内容: text 属性 > テキストコンテント
-        std::wstring textContent;
+        gx::WString textContent;
         if (node->HasAttribute("text"))
             textContent = Utf8ToWstring(node->GetAttribute("text"));
         else if (!node->text.empty())
@@ -282,7 +282,7 @@ std::unique_ptr<Widget> GUILoader::BuildWidget(const XMLNode* node)
             // onClick イベント
             if (node->HasAttribute("onClick"))
             {
-                const std::string& eventName = node->GetAttribute("onClick");
+                const gx::String& eventName = node->GetAttribute("onClick");
                 auto it = m_eventMap.find(eventName);
                 if (it != m_eventMap.end())
                     btn->onClick = it->second;
@@ -305,7 +305,7 @@ std::unique_ptr<Widget> GUILoader::BuildWidget(const XMLNode* node)
 
         if (node->HasAttribute("fit"))
         {
-            const std::string& fitStr = node->GetAttribute("fit");
+            const gx::String& fitStr = node->GetAttribute("fit");
             if (fitStr == "contain") img->SetFit(ImageFit::Contain);
             else if (fitStr == "cover") img->SetFit(ImageFit::Cover);
             else img->SetFit(ImageFit::Stretch);
@@ -339,7 +339,7 @@ std::unique_ptr<Widget> GUILoader::BuildWidget(const XMLNode* node)
 
         if (node->HasAttribute("onValueChanged"))
         {
-            const std::string& evtName = node->GetAttribute("onValueChanged");
+            const gx::String& evtName = node->GetAttribute("onValueChanged");
             auto it = m_valueChangedMap.find(evtName);
             if (it != m_valueChangedMap.end())
                 slider->onValueChanged = it->second;
@@ -355,13 +355,13 @@ std::unique_ptr<Widget> GUILoader::BuildWidget(const XMLNode* node)
         cb->SetRenderer(m_renderer);
 
         // font 属性
-        std::string fontName = "default";
+        gx::String fontName = "default";
         if (node->HasAttribute("font"))
             fontName = node->GetAttribute("font");
         cb->SetFontHandle(ResolveFontHandle(fontName));
 
         // テキスト内容
-        std::wstring textContent;
+        gx::WString textContent;
         if (node->HasAttribute("text"))
             textContent = Utf8ToWstring(node->GetAttribute("text"));
         else if (!node->text.empty())
@@ -372,13 +372,13 @@ std::unique_ptr<Widget> GUILoader::BuildWidget(const XMLNode* node)
         // checked
         if (node->HasAttribute("checked"))
         {
-            const std::string& val = node->GetAttribute("checked");
+            const gx::String& val = node->GetAttribute("checked");
             cb->SetChecked(val == "true" || val == "1");
         }
 
         if (node->HasAttribute("onValueChanged"))
         {
-            const std::string& evtName = node->GetAttribute("onValueChanged");
+            const gx::String& evtName = node->GetAttribute("onValueChanged");
             auto it = m_valueChangedMap.find(evtName);
             if (it != m_valueChangedMap.end())
                 cb->onValueChanged = it->second;
@@ -417,13 +417,13 @@ std::unique_ptr<Widget> GUILoader::BuildWidget(const XMLNode* node)
         auto* rb = static_cast<RadioButton*>(widget.get());
         rb->SetRenderer(m_renderer);
 
-        std::string fontName = "default";
+        gx::String fontName = "default";
         if (node->HasAttribute("font"))
             fontName = node->GetAttribute("font");
         rb->SetFontHandle(ResolveFontHandle(fontName));
 
         // テキスト内容
-        std::wstring textContent;
+        gx::WString textContent;
         if (node->HasAttribute("text"))
             textContent = Utf8ToWstring(node->GetAttribute("text"));
         else if (!node->text.empty())
@@ -436,7 +436,7 @@ std::unique_ptr<Widget> GUILoader::BuildWidget(const XMLNode* node)
 
         if (node->HasAttribute("selected"))
         {
-            const std::string& val = node->GetAttribute("selected");
+            const gx::String& val = node->GetAttribute("selected");
             if (val == "true" || val == "1")
                 rb->SetSelected(true);
         }
@@ -448,7 +448,7 @@ std::unique_ptr<Widget> GUILoader::BuildWidget(const XMLNode* node)
         auto* dd = static_cast<DropDown*>(widget.get());
         dd->SetRenderer(m_renderer);
 
-        std::string fontName = "default";
+        gx::String fontName = "default";
         if (node->HasAttribute("font"))
             fontName = node->GetAttribute("font");
         dd->SetFontHandle(ResolveFontHandle(fontName));
@@ -461,7 +461,7 @@ std::unique_ptr<Widget> GUILoader::BuildWidget(const XMLNode* node)
 
         if (node->HasAttribute("onValueChanged"))
         {
-            const std::string& evtName = node->GetAttribute("onValueChanged");
+            const gx::String& evtName = node->GetAttribute("onValueChanged");
             auto it = m_valueChangedMap.find(evtName);
             if (it != m_valueChangedMap.end())
                 dd->onValueChanged = it->second;
@@ -476,7 +476,7 @@ std::unique_ptr<Widget> GUILoader::BuildWidget(const XMLNode* node)
         auto* lv = static_cast<ListView*>(widget.get());
         lv->SetRenderer(m_renderer);
 
-        std::string fontName = "default";
+        gx::String fontName = "default";
         if (node->HasAttribute("font"))
             fontName = node->GetAttribute("font");
         lv->SetFontHandle(ResolveFontHandle(fontName));
@@ -489,7 +489,7 @@ std::unique_ptr<Widget> GUILoader::BuildWidget(const XMLNode* node)
 
         if (node->HasAttribute("onValueChanged"))
         {
-            const std::string& evtName = node->GetAttribute("onValueChanged");
+            const gx::String& evtName = node->GetAttribute("onValueChanged");
             auto it = m_valueChangedMap.find(evtName);
             if (it != m_valueChangedMap.end())
                 lv->onValueChanged = it->second;
@@ -504,7 +504,7 @@ std::unique_ptr<Widget> GUILoader::BuildWidget(const XMLNode* node)
         auto* tv = static_cast<TabView*>(widget.get());
         tv->SetRenderer(m_renderer);
 
-        std::string fontName = "default";
+        gx::String fontName = "default";
         if (node->HasAttribute("font"))
             fontName = node->GetAttribute("font");
         tv->SetFontHandle(ResolveFontHandle(fontName));
@@ -522,7 +522,7 @@ std::unique_ptr<Widget> GUILoader::BuildWidget(const XMLNode* node)
         auto* dlg = static_cast<Dialog*>(widget.get());
         dlg->SetRenderer(m_renderer);
 
-        std::string fontName = "default";
+        gx::String fontName = "default";
         if (node->HasAttribute("font"))
             fontName = node->GetAttribute("font");
         dlg->SetFontHandle(ResolveFontHandle(fontName));
@@ -536,7 +536,7 @@ std::unique_ptr<Widget> GUILoader::BuildWidget(const XMLNode* node)
 
         if (node->HasAttribute("onClose"))
         {
-            const std::string& eventName = node->GetAttribute("onClose");
+            const gx::String& eventName = node->GetAttribute("onClose");
             auto it = m_eventMap.find(eventName);
             if (it != m_eventMap.end())
                 dlg->onClose = it->second;
@@ -550,7 +550,7 @@ std::unique_ptr<Widget> GUILoader::BuildWidget(const XMLNode* node)
 
         if (node->HasAttribute("onDraw"))
         {
-            const std::string& cbName = node->GetAttribute("onDraw");
+            const gx::String& cbName = node->GetAttribute("onDraw");
             auto it = m_drawCallbackMap.find(cbName);
             if (it != m_drawCallbackMap.end())
                 canvas->onDraw = it->second;
@@ -565,7 +565,7 @@ std::unique_ptr<Widget> GUILoader::BuildWidget(const XMLNode* node)
         auto* ti = static_cast<TextInput*>(widget.get());
         ti->SetRenderer(m_renderer);
 
-        std::string fontName = "default";
+        gx::String fontName = "default";
         if (node->HasAttribute("font"))
             fontName = node->GetAttribute("font");
         ti->SetFontHandle(ResolveFontHandle(fontName));
@@ -581,13 +581,13 @@ std::unique_ptr<Widget> GUILoader::BuildWidget(const XMLNode* node)
 
         if (node->HasAttribute("password"))
         {
-            const std::string& val = node->GetAttribute("password");
+            const gx::String& val = node->GetAttribute("password");
             ti->SetPasswordMode(val == "true" || val == "1");
         }
 
         if (node->HasAttribute("onValueChanged"))
         {
-            const std::string& evtName = node->GetAttribute("onValueChanged");
+            const gx::String& evtName = node->GetAttribute("onValueChanged");
             auto it = m_valueChangedMap.find(evtName);
             if (it != m_valueChangedMap.end())
                 ti->onValueChanged = it->second;
@@ -597,7 +597,7 @@ std::unique_ptr<Widget> GUILoader::BuildWidget(const XMLNode* node)
 
         if (node->HasAttribute("onSubmit"))
         {
-            const std::string& eventName = node->GetAttribute("onSubmit");
+            const gx::String& eventName = node->GetAttribute("onSubmit");
             auto it = m_eventMap.find(eventName);
             if (it != m_eventMap.end())
                 ti->onSubmit = it->second;
@@ -645,7 +645,7 @@ std::unique_ptr<Widget> GUILoader::BuildWidget(const XMLNode* node)
     // 親パネル自体の onValueChanged は XML の onValueChanged 属性で設定
     if (tag == "Panel" && node->HasAttribute("onValueChanged"))
     {
-        const std::string& evtName = node->GetAttribute("onValueChanged");
+        const gx::String& evtName = node->GetAttribute("onValueChanged");
         auto it = m_valueChangedMap.find(evtName);
         if (it != m_valueChangedMap.end())
             widget->onValueChanged = it->second;
@@ -658,7 +658,7 @@ std::unique_ptr<Widget> GUILoader::BuildWidget(const XMLNode* node)
 // ResolveFontHandle / ResolveTextureHandle
 // ============================================================================
 
-int GUILoader::ResolveFontHandle(const std::string& fontName) const
+int GUILoader::ResolveFontHandle(const gx::String& fontName) const
 {
     auto it = m_fontMap.find(fontName);
     if (it != m_fontMap.end())
@@ -668,7 +668,7 @@ int GUILoader::ResolveFontHandle(const std::string& fontName) const
     return -1;
 }
 
-int GUILoader::ResolveTextureHandle(const std::string& texName) const
+int GUILoader::ResolveTextureHandle(const gx::String& texName) const
 {
     auto it = m_textureMap.find(texName);
     if (it != m_textureMap.end())

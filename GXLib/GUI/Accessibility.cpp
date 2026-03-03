@@ -224,7 +224,7 @@ bool AccessibilityManager::ActivateFocused()
 // Screen reader
 // ============================================================================
 
-void AccessibilityManager::Announce(const std::string& text, AnnouncementPriority priority)
+void AccessibilityManager::Announce(const gx::String& text, AnnouncementPriority priority)
 {
     ScreenReaderEvent event;
     event.elementId = 0;
@@ -233,7 +233,7 @@ void AccessibilityManager::Announce(const std::string& text, AnnouncementPriorit
     m_pendingAnnouncements.push_back(std::move(event));
 }
 
-std::vector<ScreenReaderEvent> AccessibilityManager::GetPendingAnnouncements() const
+gx::Vector<ScreenReaderEvent> AccessibilityManager::GetPendingAnnouncements() const
 {
     return m_pendingAnnouncements;
 }
@@ -247,9 +247,9 @@ void AccessibilityManager::ClearAnnouncements()
 // Tab order
 // ============================================================================
 
-std::vector<uint32_t> AccessibilityManager::GetTabOrder() const
+gx::Vector<uint32_t> AccessibilityManager::GetTabOrder() const
 {
-    std::vector<std::pair<int, uint32_t>> sortable;
+    gx::Vector<std::pair<int, uint32_t>> sortable;
     for (const auto& [id, elem] : m_elements)
     {
         if (elem.state.isEnabled)
@@ -262,7 +262,7 @@ std::vector<uint32_t> AccessibilityManager::GetTabOrder() const
         return a.second < b.second;  // Stable sort by ID for same tab order
     });
 
-    std::vector<uint32_t> result;
+    gx::Vector<uint32_t> result;
     result.reserve(sortable.size());
     for (const auto& [order, id] : sortable)
         result.push_back(id);
@@ -282,18 +282,18 @@ bool AccessibilityManager::SetTabOrder(uint32_t elementId, int order)
 // Tree
 // ============================================================================
 
-std::vector<AccessibleElement> AccessibilityManager::GetAccessibleTree() const
+gx::Vector<AccessibleElement> AccessibilityManager::GetAccessibleTree() const
 {
-    std::vector<AccessibleElement> result;
+    gx::Vector<AccessibleElement> result;
     result.reserve(m_elements.size());
     for (const auto& [id, elem] : m_elements)
         result.push_back(elem);
     return result;
 }
 
-std::vector<uint32_t> AccessibilityManager::FindByLabel(const std::string& label) const
+gx::Vector<uint32_t> AccessibilityManager::FindByLabel(const gx::String& label) const
 {
-    std::vector<uint32_t> result;
+    gx::Vector<uint32_t> result;
     for (const auto& [id, elem] : m_elements)
     {
         if (elem.label == label)

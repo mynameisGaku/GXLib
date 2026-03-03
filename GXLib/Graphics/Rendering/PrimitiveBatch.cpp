@@ -18,7 +18,7 @@
 namespace gx
 {
 
-XMFLOAT4 PrimitiveBatch::ColorToFloat4(uint32_t color)
+Color PrimitiveBatch::ColorToFloat4(uint32_t color)
 {
     // DxLib互換の 0xAARRGGBB 形式を float4 に変換
     float a = ((color >> 24) & 0xFF) / 255.0f;
@@ -149,7 +149,7 @@ void PrimitiveBatch::Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameInd
     void* cbData = m_constantBuffer.Map(frameIndex);
     if (cbData)
     {
-        XMMATRIX proj = m_useCustomProjection ? m_projectionMatrix
+        XMMATRIX proj = m_useCustomProjection ? ToXMMATRIX(m_projectionMatrix)
                                                : XMMatrixOrthographicOffCenterLH(
                                                      0.0f, static_cast<float>(m_screenWidth),
                                                      static_cast<float>(m_screenHeight), 0.0f,
@@ -200,14 +200,14 @@ void PrimitiveBatch::DrawLine(float x1, float y1, float x2, float y2, uint32_t c
     if (m_lineVertexCount + 2 > k_MaxLineVertices)
         FlushLines();
 
-    XMFLOAT4 col = ColorToFloat4(color);
+    Color col = ColorToFloat4(color);
     m_mappedLineVertices[m_lineVertexCount++] = { { x1, y1 }, col };
     m_mappedLineVertices[m_lineVertexCount++] = { { x2, y2 }, col };
 }
 
 void PrimitiveBatch::DrawBox(float x1, float y1, float x2, float y2, uint32_t color, bool fillFlag)
 {
-    XMFLOAT4 col = ColorToFloat4(color);
+    Color col = ColorToFloat4(color);
 
     if (fillFlag)
     {
@@ -240,7 +240,7 @@ void PrimitiveBatch::DrawCircle(float cx, float cy, float r, uint32_t color, boo
 void PrimitiveBatch::DrawTriangle(float x1, float y1, float x2, float y2, float x3, float y3,
                                    uint32_t color, bool fillFlag)
 {
-    XMFLOAT4 col = ColorToFloat4(color);
+    Color col = ColorToFloat4(color);
 
     if (fillFlag)
     {
@@ -262,7 +262,7 @@ void PrimitiveBatch::DrawTriangle(float x1, float y1, float x2, float y2, float 
 void PrimitiveBatch::DrawOval(float cx, float cy, float rx, float ry, uint32_t color,
                                bool fillFlag, int segments)
 {
-    XMFLOAT4 col = ColorToFloat4(color);
+    Color col = ColorToFloat4(color);
     // 円周を segments 分割して多角形近似する
     float angleStep = 2.0f * static_cast<float>(M_PI) / segments;
 
@@ -328,7 +328,7 @@ void PrimitiveBatch::SetScreenSize(uint32_t width, uint32_t height)
     m_screenHeight = height;
 }
 
-void PrimitiveBatch::SetProjectionMatrix(const XMMATRIX& matrix)
+void PrimitiveBatch::SetProjectionMatrix(const Matrix4x4& matrix)
 {
     m_projectionMatrix = matrix;
     m_useCustomProjection = true;

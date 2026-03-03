@@ -39,14 +39,14 @@ void HTTPClient::SetTimeout(int timeoutMs)
 }
 
 // URLをホスト/パス/ポート/HTTPS判定に分解する（WinHTTP用）
-static bool ParseURL(const std::string& url,
-                      std::wstring& host, std::wstring& path,
+static bool ParseURL(const gx::String& url,
+                      gx::WString& host, gx::WString& path,
                       uint16_t& port, bool& isHttps)
 {
     // wstringに変換する (WinHTTPはワイド文字列を要求)
     int wLen = MultiByteToWideChar(CP_UTF8, 0, url.c_str(), -1, nullptr, 0);
-    std::wstring wUrl(wLen - 1, L'\0');
-    MultiByteToWideChar(CP_UTF8, 0, url.c_str(), -1, wUrl.data(), wLen);
+    gx::WString wUrl(wLen - 1, L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, url.c_str(), -1, wUrl.DataMut(), wLen);
 
     URL_COMPONENTS urlComp = {};
     urlComp.dwStructSize = sizeof(urlComp);
@@ -68,9 +68,9 @@ static bool ParseURL(const std::string& url,
     return true;
 }
 
-HTTPResponse HTTPClient::SendRequest(const std::string& method, const std::string& url,
-                                      const std::string& body,
-                                      const std::unordered_map<std::string, std::string>& headers)
+HTTPResponse HTTPClient::SendRequest(const gx::String& method, const gx::String& url,
+                                      const gx::String& body,
+                                      const gx::HashMap<gx::String, gx::String>& headers)
 {
     HTTPResponse response;
 
@@ -80,7 +80,7 @@ HTTPResponse HTTPClient::SendRequest(const std::string& method, const std::strin
         return response;
     }
 
-    std::wstring host, path;
+    gx::WString host, path;
     uint16_t port;
     bool isHttps;
 
@@ -103,8 +103,8 @@ HTTPResponse HTTPClient::SendRequest(const std::string& method, const std::strin
 
     // メソッド文字列をwstringに変換する
     int mLen = MultiByteToWideChar(CP_UTF8, 0, method.c_str(), -1, nullptr, 0);
-    std::wstring wMethod(mLen - 1, L'\0');
-    MultiByteToWideChar(CP_UTF8, 0, method.c_str(), -1, wMethod.data(), mLen);
+    gx::WString wMethod(mLen - 1, L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, method.c_str(), -1, wMethod.DataMut(), mLen);
 
     DWORD flags = isHttps ? WINHTTP_FLAG_SECURE : 0;
     HINTERNET hRequest = WinHttpOpenRequest(
@@ -125,10 +125,10 @@ HTTPResponse HTTPClient::SendRequest(const std::string& method, const std::strin
     // 追加ヘッダーを付与する
     for (const auto& [key, value] : headers)
     {
-        std::string headerLine = key + ": " + value;
+        gx::String headerLine = key + ": " + value;
         int hLen = MultiByteToWideChar(CP_UTF8, 0, headerLine.c_str(), -1, nullptr, 0);
-        std::wstring wHeader(hLen - 1, L'\0');
-        MultiByteToWideChar(CP_UTF8, 0, headerLine.c_str(), -1, wHeader.data(), hLen);
+        gx::WString wHeader(hLen - 1, L'\0');
+        MultiByteToWideChar(CP_UTF8, 0, headerLine.c_str(), -1, wHeader.DataMut(), hLen);
         WinHttpAddRequestHeaders(hRequest, wHeader.c_str(), (ULONG)-1, WINHTTP_ADDREQ_FLAG_ADD);
     }
 
@@ -166,11 +166,11 @@ HTTPResponse HTTPClient::SendRequest(const std::string& method, const std::strin
     response.statusCode = static_cast<int>(statusCode);
 
     // レスポンス本文を読み取る
-    std::string responseBody;
+    gx::String responseBody;
     DWORD bytesAvailable = 0;
     while (WinHttpQueryDataAvailable(hRequest, &bytesAvailable) && bytesAvailable > 0)
     {
-        std::vector<char> buffer(bytesAvailable);
+        gx::Vector<char> buffer(bytesAvailable);
         DWORD bytesRead = 0;
         if (WinHttpReadData(hRequest, buffer.data(), bytesAvailable, &bytesRead))
         {
@@ -185,22 +185,22 @@ HTTPResponse HTTPClient::SendRequest(const std::string& method, const std::strin
     return response;
 }
 
-HTTPResponse HTTPClient::Get(const std::string& url,
-                              const std::unordered_map<std::string, std::string>& headers)
+HTTPResponse HTTPClient::Get(const gx::String& url,
+                              const gx::HashMap<gx::String, gx::String>& headers)
 {
     return SendRequest("GET", url, "", headers);
 }
 
-HTTPResponse HTTPClient::Post(const std::string& url, const std::string& body,
-                               const std::string& contentType,
-                               const std::unordered_map<std::string, std::string>& headers)
+HTTPResponse HTTPClient::Post(const gx::String& url, const gx::String& body,
+                               const gx::String& contentType,
+                               const gx::HashMap<gx::String, gx::String>& headers)
 {
     auto allHeaders = headers;
     allHeaders["Content-Type"] = contentType;
     return SendRequest("POST", url, body, allHeaders);
 }
 
-void HTTPClient::GetAsync(const std::string& url,
+void HTTPClient::GetAsync(const gx::String& url,
                             std::function<void(HTTPResponse)> callback)
 {
     // 完了済みスレッドを除去してからワーカースレッドを追加する
@@ -222,8 +222,8 @@ void HTTPClient::GetAsync(const std::string& url,
     m_threads.push_back(std::move(t));
 }
 
-void HTTPClient::PostAsync(const std::string& url, const std::string& body,
-                             const std::string& contentType,
+void HTTPClient::PostAsync(const gx::String& url, const gx::String& body,
+                             const gx::String& contentType,
                              std::function<void(HTTPResponse)> callback)
 {
     // 完了済みスレッドを除去してからワーカースレッドを追加する
@@ -247,7 +247,7 @@ void HTTPClient::PostAsync(const std::string& url, const std::string& body,
 
 void HTTPClient::Update()
 {
-    std::vector<std::pair<HTTPResponse, std::function<void(HTTPResponse)>>> completed;
+    gx::Vector<std::pair<HTTPResponse, std::function<void(HTTPResponse)>>> completed;
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         completed.swap(m_completedQueue);

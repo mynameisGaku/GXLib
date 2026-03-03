@@ -8,6 +8,30 @@
 namespace gx
 {
 
+GraphicsDevice::~GraphicsDevice()
+{
+#ifdef _DEBUG
+    // static 破棄中にデバッグレイヤーが ERROR を出すとブレーク例外が飛ぶため、
+    // デストラクタでは break-on-error を無効化してからレポートする
+    if (m_device)
+    {
+        ComPtr<ID3D12InfoQueue> infoQueue;
+        if (SUCCEEDED(m_device.As(&infoQueue)))
+        {
+            infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, FALSE);
+            infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, FALSE);
+        }
+    }
+    // 自身の ComPtr を先に解放してからレポートすることで
+    // GraphicsDevice 自体のオブジェクトがリーク誤検出されるのを防ぐ
+    m_device5.Reset();
+    m_device.Reset();
+    m_adapter.Reset();
+    m_factory.Reset();
+    ReportLiveObjects();
+#endif
+}
+
 bool GraphicsDevice::Initialize(bool enableDebugLayer, bool enableGPUValidation)
 {
     GX_LOG_INFO("Initializing Graphics Device...");
@@ -167,6 +191,7 @@ bool GraphicsDevice::SelectAdapter()
             __uuidof(ID3D12Device), nullptr)))
         {
             m_adapter = adapter;
+            m_dedicatedVRAM = desc.DedicatedVideoMemory;
             GX_LOG_INFO("Selected GPU: %ls", desc.Description);
             GX_LOG_INFO("  Video Memory: %llu MB", desc.DedicatedVideoMemory / (1024 * 1024));
             return true;

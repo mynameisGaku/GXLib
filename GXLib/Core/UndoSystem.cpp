@@ -47,13 +47,13 @@ void UndoSystem::Clear()
     m_redoStack.clear();
 }
 
-std::string UndoSystem::GetUndoDescription() const
+gx::String UndoSystem::GetUndoDescription() const
 {
     if (m_undoStack.empty()) return {};
     return m_undoStack.back()->GetDescription();
 }
 
-std::string UndoSystem::GetRedoDescription() const
+gx::String UndoSystem::GetRedoDescription() const
 {
     if (m_redoStack.empty()) return {};
     return m_redoStack.back()->GetDescription();

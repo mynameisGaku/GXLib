@@ -104,18 +104,18 @@ void VFXEffect::AddModule(uint32_t emitterIndex, const VFXModule& module)
 namespace
 {
 
-void SkipWS(const std::string& s, size_t& p)
+void SkipWS(const gx::String& s, size_t& p)
 {
     while (p < s.size() && (s[p] == ' ' || s[p] == '\t' || s[p] == '\n' || s[p] == '\r'))
         ++p;
 }
 
-std::string ParseStr(const std::string& s, size_t& p)
+gx::String ParseStr(const gx::String& s, size_t& p)
 {
     SkipWS(s, p);
     if (p >= s.size() || s[p] != '"') return "";
     ++p;
-    std::string r;
+    gx::String r;
     while (p < s.size() && s[p] != '"')
     {
         if (s[p] == '\\' && p + 1 < s.size())
@@ -141,7 +141,7 @@ std::string ParseStr(const std::string& s, size_t& p)
     return r;
 }
 
-double ParseNum(const std::string& s, size_t& p)
+double ParseNum(const gx::String& s, size_t& p)
 {
     SkipWS(s, p);
     size_t start = p;
@@ -154,12 +154,12 @@ double ParseNum(const std::string& s, size_t& p)
             break;
         ++p;
     }
-    std::string ns = s.substr(start, p - start);
+    gx::String ns = s.substr(start, p - start);
     if (ns.empty()) return 0.0;
     return std::stod(ns);
 }
 
-bool ParseBool(const std::string& s, size_t& p)
+bool ParseBool(const gx::String& s, size_t& p)
 {
     SkipWS(s, p);
     if (p + 4 <= s.size() && s.substr(p, 4) == "true")  { p += 4; return true; }
@@ -167,7 +167,7 @@ bool ParseBool(const std::string& s, size_t& p)
     return false;
 }
 
-void SkipVal(const std::string& s, size_t& p)
+void SkipVal(const gx::String& s, size_t& p)
 {
     SkipWS(s, p);
     if (p >= s.size()) return;
@@ -199,7 +199,7 @@ void SkipVal(const std::string& s, size_t& p)
     else { ParseNum(s, p); }
 }
 
-size_t FindBracket(const std::string& s, size_t p)
+size_t FindBracket(const gx::String& s, size_t p)
 {
     char open = s[p];
     char close = (open == '[') ? ']' : '}';
@@ -222,7 +222,7 @@ size_t FindBracket(const std::string& s, size_t p)
     return p;
 }
 
-VFXModuleType ParseModuleType(const std::string& typeStr)
+VFXModuleType ParseModuleType(const gx::String& typeStr)
 {
     if (typeStr == "InitialVelocity")   return VFXModuleType::InitialVelocity;
     if (typeStr == "InitialSize")       return VFXModuleType::InitialSize;
@@ -282,7 +282,7 @@ const char* EmitterShapeToString(VFXEmitterShape shape)
     return "Point";
 }
 
-VFXEmitterShape ParseEmitterShape(const std::string& str)
+VFXEmitterShape ParseEmitterShape(const gx::String& str)
 {
     if (str == "Point")      return VFXEmitterShape::Point;
     if (str == "Sphere")     return VFXEmitterShape::Sphere;
@@ -294,7 +294,7 @@ VFXEmitterShape ParseEmitterShape(const std::string& str)
     return VFXEmitterShape::Point;
 }
 
-VFXRange ParseRange(const std::string& s, size_t& p)
+VFXRange ParseRange(const gx::String& s, size_t& p)
 {
     VFXRange r;
     SkipWS(s, p);
@@ -305,7 +305,7 @@ VFXRange ParseRange(const std::string& s, size_t& p)
         SkipWS(s, p);
         if (p >= s.size() || s[p] == '}') { ++p; break; }
         if (s[p] == ',') { ++p; continue; }
-        std::string k = ParseStr(s, p);
+        gx::String k = ParseStr(s, p);
         SkipWS(s, p);
         if (p < s.size() && s[p] == ':') ++p;
         if (k == "min")      r.min = static_cast<float>(ParseNum(s, p));
@@ -315,7 +315,7 @@ VFXRange ParseRange(const std::string& s, size_t& p)
     return r;
 }
 
-VFXColorRange ParseColorRange(const std::string& s, size_t& p)
+VFXColorRange ParseColorRange(const gx::String& s, size_t& p)
 {
     VFXColorRange cr;
     SkipWS(s, p);
@@ -326,7 +326,7 @@ VFXColorRange ParseColorRange(const std::string& s, size_t& p)
         SkipWS(s, p);
         if (p >= s.size() || s[p] == '}') { ++p; break; }
         if (s[p] == ',') { ++p; continue; }
-        std::string k = ParseStr(s, p);
+        gx::String k = ParseStr(s, p);
         SkipWS(s, p);
         if (p < s.size() && s[p] == ':') ++p;
         if (k == "r0")      cr.r0 = static_cast<float>(ParseNum(s, p));
@@ -342,7 +342,7 @@ VFXColorRange ParseColorRange(const std::string& s, size_t& p)
     return cr;
 }
 
-VFXCurve ParseCurve(const std::string& s, size_t& p)
+VFXCurve ParseCurve(const gx::String& s, size_t& p)
 {
     VFXCurve curve;
     SkipWS(s, p);
@@ -362,7 +362,7 @@ VFXCurve ParseCurve(const std::string& s, size_t& p)
                 SkipWS(s, p);
                 if (p >= s.size() || s[p] == '}') { ++p; break; }
                 if (s[p] == ',') { ++p; continue; }
-                std::string k = ParseStr(s, p);
+                gx::String k = ParseStr(s, p);
                 SkipWS(s, p);
                 if (p < s.size() && s[p] == ':') ++p;
                 if (k == "time")       key.time = static_cast<float>(ParseNum(s, p));
@@ -379,7 +379,7 @@ VFXCurve ParseCurve(const std::string& s, size_t& p)
     return curve;
 }
 
-VFXModule ParseModule(const std::string& s, size_t& p)
+VFXModule ParseModule(const gx::String& s, size_t& p)
 {
     VFXModule mod;
     mod.type = VFXModuleType::InitialVelocity;
@@ -391,7 +391,7 @@ VFXModule ParseModule(const std::string& s, size_t& p)
         SkipWS(s, p);
         if (p >= s.size() || s[p] == '}') { ++p; break; }
         if (s[p] == ',') { ++p; continue; }
-        std::string k = ParseStr(s, p);
+        gx::String k = ParseStr(s, p);
         SkipWS(s, p);
         if (p < s.size() && s[p] == ':') ++p;
         SkipWS(s, p);
@@ -437,7 +437,7 @@ VFXModule ParseModule(const std::string& s, size_t& p)
                     SkipWS(s, p);
                     if (p >= s.size() || s[p] == '}') { ++p; break; }
                     if (s[p] == ',') { ++p; continue; }
-                    std::string ak = ParseStr(s, p);
+                    gx::String ak = ParseStr(s, p);
                     SkipWS(s, p);
                     if (p < s.size() && s[p] == ':') ++p;
                     if (ak == "x")      mod.attractPoint.x = static_cast<float>(ParseNum(s, p));
@@ -459,7 +459,7 @@ VFXModule ParseModule(const std::string& s, size_t& p)
     return mod;
 }
 
-VFXEmitter ParseEmitter(const std::string& s, size_t& p)
+VFXEmitter ParseEmitter(const gx::String& s, size_t& p)
 {
     VFXEmitter em;
     SkipWS(s, p);
@@ -470,7 +470,7 @@ VFXEmitter ParseEmitter(const std::string& s, size_t& p)
         SkipWS(s, p);
         if (p >= s.size() || s[p] == '}') { ++p; break; }
         if (s[p] == ',') { ++p; continue; }
-        std::string k = ParseStr(s, p);
+        gx::String k = ParseStr(s, p);
         SkipWS(s, p);
         if (p < s.size() && s[p] == ':') ++p;
         SkipWS(s, p);
@@ -499,7 +499,7 @@ VFXEmitter ParseEmitter(const std::string& s, size_t& p)
                     SkipWS(s, p);
                     if (p >= s.size() || s[p] == '}') { ++p; break; }
                     if (s[p] == ',') { ++p; continue; }
-                    std::string sk = ParseStr(s, p);
+                    gx::String sk = ParseStr(s, p);
                     SkipWS(s, p);
                     if (p < s.size() && s[p] == ':') ++p;
                     if (sk == "x")      em.shapeSize.x = static_cast<float>(ParseNum(s, p));
@@ -548,12 +548,12 @@ VFXEmitter ParseEmitter(const std::string& s, size_t& p)
 }
 
 /// @brief JSON形式のレンジをストリームに書き出す
-void WriteRange(std::ostream& os, const VFXRange& r, const std::string& indent)
+void WriteRange(std::ostream& os, const VFXRange& r, const gx::String& indent)
 {
     os << indent << "{ \"min\": " << r.min << ", \"max\": " << r.max << " }";
 }
 
-void WriteColorRange(std::ostream& os, const VFXColorRange& cr, const std::string& indent)
+void WriteColorRange(std::ostream& os, const VFXColorRange& cr, const gx::String& indent)
 {
     os << indent << "{\n";
     os << indent << "  \"r0\": " << cr.r0 << ", \"g0\": " << cr.g0
@@ -563,7 +563,7 @@ void WriteColorRange(std::ostream& os, const VFXColorRange& cr, const std::strin
     os << indent << "}";
 }
 
-void WriteCurve(std::ostream& os, const VFXCurve& c, const std::string& indent)
+void WriteCurve(std::ostream& os, const VFXCurve& c, const gx::String& indent)
 {
     os << "[";
     for (size_t i = 0; i < c.keys.size(); ++i)
@@ -574,7 +574,7 @@ void WriteCurve(std::ostream& os, const VFXCurve& c, const std::string& indent)
     os << "]";
 }
 
-void WriteFloat3(std::ostream& os, const XMFLOAT3& v)
+void WriteFloat3(std::ostream& os, const Vector3& v)
 {
     os << "{ \"x\": " << v.x << ", \"y\": " << v.y << ", \"z\": " << v.z << " }";
 }
@@ -585,7 +585,7 @@ void WriteFloat3(std::ostream& os, const XMFLOAT3& v)
 // VFXEffect — JSON入出力
 // ============================================================================
 
-bool VFXEffect::LoadFromJSON(const std::string& jsonPath)
+bool VFXEffect::LoadFromJSON(const gx::String& jsonPath)
 {
     std::ifstream file(jsonPath);
     if (!file.is_open())
@@ -596,7 +596,7 @@ bool VFXEffect::LoadFromJSON(const std::string& jsonPath)
 
     std::ostringstream ss;
     ss << file.rdbuf();
-    std::string json = ss.str();
+    gx::String json = ss.str();
 
     if (json.empty())
     {
@@ -622,7 +622,7 @@ bool VFXEffect::LoadFromJSON(const std::string& jsonPath)
         if (p >= json.size() || json[p] == '}') break;
         if (json[p] == ',') { ++p; continue; }
 
-        std::string key = ParseStr(json, p);
+        gx::String key = ParseStr(json, p);
         SkipWS(json, p);
         if (p < json.size() && json[p] == ':') ++p;
         SkipWS(json, p);
@@ -665,7 +665,7 @@ bool VFXEffect::LoadFromJSON(const std::string& jsonPath)
     return true;
 }
 
-bool VFXEffect::SaveToJSON(const std::string& jsonPath) const
+bool VFXEffect::SaveToJSON(const gx::String& jsonPath) const
 {
     std::ofstream ofs(jsonPath);
     if (!ofs.is_open())
@@ -777,14 +777,14 @@ bool ReadPOD(std::ifstream& is, T& val)
     return is.good();
 }
 
-void WriteString(std::ofstream& os, const std::string& str)
+void WriteString(std::ofstream& os, const gx::String& str)
 {
     uint32_t len = static_cast<uint32_t>(str.size());
     WritePOD(os, len);
     if (len > 0) os.write(str.data(), len);
 }
 
-bool ReadString(std::ifstream& is, std::string& str)
+bool ReadString(std::ifstream& is, gx::String& str)
 {
     uint32_t len = 0;
     if (!ReadPOD(is, len)) return false;
@@ -953,7 +953,7 @@ bool ReadEmitterBin(std::ifstream& is, VFXEmitter& em)
 
 } // anonymous namespace
 
-bool VFXEffect::SaveToBinary(const std::string& path) const
+bool VFXEffect::SaveToBinary(const gx::String& path) const
 {
     std::ofstream ofs(path, std::ios::binary);
     if (!ofs.is_open())
@@ -976,7 +976,7 @@ bool VFXEffect::SaveToBinary(const std::string& path) const
     return ofs.good();
 }
 
-bool VFXEffect::LoadFromBinary(const std::string& path)
+bool VFXEffect::LoadFromBinary(const gx::String& path)
 {
     std::ifstream ifs(path, std::ios::binary);
     if (!ifs.is_open())

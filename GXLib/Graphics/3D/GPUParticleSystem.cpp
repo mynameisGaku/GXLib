@@ -18,6 +18,7 @@
 ///   - Update: ceil(maxParticles/256) — 全スロットを走査、life>0のみ物理更新
 ///   - Draw: maxParticles*6頂点 — 全スロット走査、life<=0は退化三角形
 #include "pch_graphics.h"
+#include "Math/MathConvert.h"
 #include "Graphics/3D/GPUParticleSystem.h"
 #include "Graphics/3D/Camera3D.h"
 #include "Graphics/Pipeline/RootSignature.h"
@@ -609,8 +610,8 @@ void GPUParticleSystem::Draw(ID3D12GraphicsCommandList* cmdList,
 
     // 定数バッファ更新
     DrawCB drawCB = {};
-    XMMATRIX vp = camera.GetViewProjectionMatrix();
-    XMStoreFloat4x4(&drawCB.viewProj, XMMatrixTranspose(vp));
+    XMMATRIX vp = ToXMMATRIX(camera.GetViewProjectionMatrix());
+    XMStoreFloat4x4(XM(&drawCB.viewProj), XMMatrixTranspose(vp));
     drawCB.cameraRight = camera.GetRight();
     drawCB.cameraUp = camera.GetUp();
 
@@ -710,7 +711,7 @@ void GPUParticleSystem::DestroyEmitter(int emitterId)
 // SetEmitterPosition
 // ============================================================================
 
-void GPUParticleSystem::SetEmitterPosition(int emitterId, const XMFLOAT3& position)
+void GPUParticleSystem::SetEmitterPosition(int emitterId, const Vector3& position)
 {
     for (auto& e : m_emitters)
     {

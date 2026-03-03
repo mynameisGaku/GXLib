@@ -128,7 +128,7 @@ void PolyNavMesh::ComputeAdjacency()
 // FindPath
 // ============================================================================
 
-std::vector<NavPoint> PolyNavMesh::FindPath(const NavPoint& start, const NavPoint& end) const
+gx::Vector<NavPoint> PolyNavMesh::FindPath(const NavPoint& start, const NavPoint& end) const
 {
     if (m_triangles.empty()) return {};
 
@@ -144,7 +144,7 @@ std::vector<NavPoint> PolyNavMesh::FindPath(const NavPoint& start, const NavPoin
     }
 
     // A*でポリゴン列を取得
-    std::vector<int> triPath = AStarOnGraph(startTri, endTri);
+    gx::Vector<int> triPath = AStarOnGraph(startTri, endTri);
     if (triPath.empty()) return {};
 
     // ファンネルアルゴリズムでパスを平滑化
@@ -155,7 +155,7 @@ std::vector<NavPoint> PolyNavMesh::FindPath(const NavPoint& start, const NavPoin
 // AStarOnGraph
 // ============================================================================
 
-std::vector<int> PolyNavMesh::AStarOnGraph(int startTri, int endTri) const
+gx::Vector<int> PolyNavMesh::AStarOnGraph(int startTri, int endTri) const
 {
     struct ANode
     {
@@ -167,11 +167,11 @@ std::vector<int> PolyNavMesh::AStarOnGraph(int startTri, int endTri) const
     uint32_t triCount = static_cast<uint32_t>(m_triangles.size());
     NavPoint goalCenter = TriangleCenter(m_triangles[endTri]);
 
-    std::vector<float> gScore(triCount, std::numeric_limits<float>::max());
-    std::vector<int> cameFrom(triCount, -1);
-    std::vector<bool> closed(triCount, false);
+    gx::Vector<float> gScore(triCount, std::numeric_limits<float>::max());
+    gx::Vector<int> cameFrom(triCount, -1);
+    gx::Vector<bool> closed(triCount, false);
 
-    std::priority_queue<ANode, std::vector<ANode>, std::greater<ANode>> openSet;
+    gx::PriorityQueue<ANode, gx::Deque<ANode>, std::greater<ANode>> openSet;
 
     gScore[startTri] = 0.0f;
     NavPoint startCenter = TriangleCenter(m_triangles[startTri]);
@@ -186,7 +186,7 @@ std::vector<int> PolyNavMesh::AStarOnGraph(int startTri, int endTri) const
         if (current.triIndex == endTri)
         {
             // パスを再構築
-            std::vector<int> path;
+            gx::Vector<int> path;
             int idx = endTri;
             while (idx != -1)
             {
@@ -229,7 +229,7 @@ std::vector<int> PolyNavMesh::AStarOnGraph(int startTri, int endTri) const
 // FunnelSmooth (Simple Stupid Funnel Algorithm)
 // ============================================================================
 
-std::vector<NavPoint> PolyNavMesh::FunnelSmooth(const std::vector<int>& triPath,
+gx::Vector<NavPoint> PolyNavMesh::FunnelSmooth(const gx::Vector<int>& triPath,
                                                  const NavPoint& start,
                                                  const NavPoint& end) const
 {
@@ -239,7 +239,7 @@ std::vector<NavPoint> PolyNavMesh::FunnelSmooth(const std::vector<int>& triPath,
     }
 
     // ポータル列を構築
-    std::vector<NavPortal> portals;
+    gx::Vector<NavPortal> portals;
 
     // 開始ポータル（開始点自身）
     portals.push_back({ start, start });
@@ -254,7 +254,7 @@ std::vector<NavPoint> PolyNavMesh::FunnelSmooth(const std::vector<int>& triPath,
     portals.push_back({ end, end });
 
     // ファンネル走査
-    std::vector<NavPoint> path;
+    gx::Vector<NavPoint> path;
     path.push_back(start);
 
     NavPoint apex = start;
@@ -449,7 +449,7 @@ NavPortal PolyNavMesh::SharedEdge(const NavTriangle& triA, const NavTriangle& tr
     const NavPoint* vertsA[] = { &triA.v0, &triA.v1, &triA.v2 };
     const NavPoint* vertsB[] = { &triB.v0, &triB.v1, &triB.v2 };
 
-    std::vector<NavPoint> shared;
+    gx::Vector<NavPoint> shared;
     float eps = 1e-4f;
 
     for (int i = 0; i < 3; ++i)

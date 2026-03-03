@@ -3,6 +3,7 @@
 
 #include "pch_graphics.h"
 #include "Graphics/PostEffect/ContactShadows.h"
+#include "Math/MathConvert.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
@@ -117,7 +118,7 @@ bool ContactShadows::CreatePipelines(ID3D12Device* device)
 
 void ContactShadows::Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
                               RenderTarget& hdrRT, DepthBuffer& depthBuffer,
-                              const Camera3D& camera, const XMFLOAT3& lightDirWorld)
+                              const Camera3D& camera, const Vector3& lightDirWorld)
 {
     // ビューポートとシザー
     D3D12_VIEWPORT vp = {};
@@ -130,21 +131,21 @@ void ContactShadows::Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameI
     sc.bottom = static_cast<LONG>(m_height);
 
     // 行列
-    XMMATRIX view = camera.GetViewMatrix();
-    XMMATRIX proj = camera.GetProjectionMatrix();
+    XMMATRIX view = ToXMMATRIX(camera.GetViewMatrix());
+    XMMATRIX proj = ToXMMATRIX(camera.GetProjectionMatrix());
     XMMATRIX invProj = XMMatrixInverse(nullptr, proj);
 
     // ライト方向をビュー空間に変換
-    XMVECTOR lightDir = XMVector3Normalize(XMLoadFloat3(&lightDirWorld));
+    XMVECTOR lightDir = XMVector3Normalize(XMLoadFloat3(XM(&lightDirWorld)));
     XMVECTOR lightDirView = XMVector3TransformNormal(lightDir, view);
     lightDirView = XMVector3Normalize(lightDirView);
 
     // 定数バッファ構築
     ContactShadowConstants consts = {};
-    XMStoreFloat4x4(&consts.view, XMMatrixTranspose(view));
-    XMStoreFloat4x4(&consts.projection, XMMatrixTranspose(proj));
-    XMStoreFloat4x4(&consts.invProjection, XMMatrixTranspose(invProj));
-    XMStoreFloat3(&consts.lightDirView, lightDirView);
+    XMStoreFloat4x4(XM(&consts.view), XMMatrixTranspose(view));
+    XMStoreFloat4x4(XM(&consts.projection), XMMatrixTranspose(proj));
+    XMStoreFloat4x4(XM(&consts.invProjection), XMMatrixTranspose(invProj));
+    XMStoreFloat3(XM(&consts.lightDirView), lightDirView);
     consts.maxDistance  = m_maxDistance;
     consts.screenWidth  = static_cast<float>(m_width);
     consts.screenHeight = static_cast<float>(m_height);

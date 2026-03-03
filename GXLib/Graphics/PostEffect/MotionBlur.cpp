@@ -7,6 +7,7 @@
 /// 2テクスチャ(scene + depth)を使うため、DoFと同様に専用SRVヒープを使用
 #include "pch_graphics.h"
 #include "Graphics/PostEffect/MotionBlur.h"
+#include "Math/MathConvert.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Graphics/Pipeline/PipelineState.h"
@@ -22,7 +23,7 @@ bool MotionBlur::Initialize(ID3D12Device* device, uint32_t width, uint32_t heigh
     m_height = height;
 
     // 前フレームVP行列を単位行列で初期化
-    XMStoreFloat4x4(&m_previousVP, XMMatrixIdentity());
+    XMStoreFloat4x4(XM(&m_previousVP), XMMatrixIdentity());
 
     // 専用SRVヒープ (2テクスチャ × 2フレーム = 4スロット)
     if (!m_srvHeap.Initialize(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4, true))
@@ -156,12 +157,12 @@ void MotionBlur::Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex
     cmdList->SetDescriptorHeaps(1, heaps);
 
     // 定数バッファ更新
-    XMMATRIX viewProj = camera.GetViewProjectionMatrix();
+    XMMATRIX viewProj = ToXMMATRIX(camera.GetViewProjectionMatrix());
     XMMATRIX invVP = XMMatrixInverse(nullptr, viewProj);
 
     MotionBlurConstants constants = {};
-    XMStoreFloat4x4(&constants.invViewProjection, XMMatrixTranspose(invVP));
-    XMStoreFloat4x4(&constants.previousViewProjection, XMMatrixTranspose(XMLoadFloat4x4(&m_previousVP)));
+    XMStoreFloat4x4(XM(&constants.invViewProjection), XMMatrixTranspose(invVP));
+    XMStoreFloat4x4(XM(&constants.previousViewProjection), XMMatrixTranspose(XMLoadFloat4x4(XM(&m_previousVP))));
     constants.intensity   = m_intensity;
     constants.sampleCount = m_sampleCount;
 
@@ -185,7 +186,7 @@ void MotionBlur::Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex
 
 void MotionBlur::UpdatePreviousVP(const Camera3D& camera)
 {
-    XMStoreFloat4x4(&m_previousVP, camera.GetViewProjectionMatrix());
+    XMStoreFloat4x4(XM(&m_previousVP), ToXMMATRIX(camera.GetViewProjectionMatrix()));
     m_hasPreviousVP = true;
 }
 

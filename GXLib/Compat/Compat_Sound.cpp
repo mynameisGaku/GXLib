@@ -9,6 +9,8 @@
 
 using Ctx = gx_internal::CompatContext;
 
+namespace gx {
+
 // ============================================================================
 // SE (効果音)
 // ============================================================================
@@ -90,7 +92,7 @@ int CheckMusic()
 int Set3DPositionSoundMem(VECTOR pos, int handle)
 {
     auto& ctx = Ctx::Instance();
-    ctx.audioEmitter3D.SetPosition({ pos.x, pos.y, pos.z });
+    ctx.audioEmitter3D.SetPosition(pos);
     return 0;
 }
 
@@ -104,9 +106,10 @@ int Set3DRadiusSoundMem(float radius, int handle)
 int SetListenerPosition(VECTOR pos, VECTOR front, VECTOR up)
 {
     auto& ctx = Ctx::Instance();
-    ctx.audioListener3D.SetPosition({ pos.x, pos.y, pos.z });
-    ctx.audioListener3D.SetOrientation({ front.x, front.y, front.z },
-                                        { up.x, up.y, up.z });
+    ctx.audioListener3D.SetPosition(pos);
+    ctx.audioListener3D.SetOrientation(front, up);
     ctx.audioManager.SetListener(ctx.audioListener3D);
     return 0;
 }
+
+} // namespace gx

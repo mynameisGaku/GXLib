@@ -4,7 +4,7 @@
 using namespace gx;
 
 // ヘルパー: シンプルなノード型を作成
-static VSNodeDef MakeSimpleNode(const std::string& name, VSNodeCategory cat = VSNodeCategory::Flow,
+static VSNodeDef MakeSimpleNode(const gx::String& name, VSNodeCategory cat = VSNodeCategory::Flow,
                                  bool isEvent = false, bool isPure = false) {
     VSNodeDef def;
     def.typeName = name;

@@ -15,15 +15,15 @@ using namespace gx::TestHelpers;
 
 /// @brief テスト用のローカルTRS姿勢とグローバル変換を準備する
 static void PrepareTransforms(const Skeleton& skel,
-                               std::vector<TransformTRS>& localTRS,
-                               std::vector<DirectX::XMFLOAT4X4>& globalMats)
+                               gx::Vector<TransformTRS>& localTRS,
+                               gx::Vector<Matrix4x4>& globalMats)
 {
     uint32_t n = skel.GetJointCount();
     localTRS.resize(n);
     globalMats.resize(n);
 
     const auto& joints = skel.GetJoints();
-    std::vector<XMFLOAT4X4> localMats(n);
+    gx::Vector<Matrix4x4> localMats(n);
     for (uint32_t i = 0; i < n; ++i)
     {
         localTRS[i] = DecomposeTRS(joints[i].localTransform);
@@ -137,8 +137,8 @@ TEST(SpringBoneTest, EnableDisable)
 TEST(SpringBoneTest, UpdateBasic)
 {
     Skeleton skel = CreateChainSkeleton3();
-    std::vector<TransformTRS> localTRS;
-    std::vector<XMFLOAT4X4> globalMats;
+    gx::Vector<TransformTRS> localTRS;
+    gx::Vector<Matrix4x4> globalMats;
     PrepareTransforms(skel, localTRS, globalMats);
 
     SpringBone sb;
@@ -161,8 +161,8 @@ TEST(SpringBoneTest, UpdateBasic)
 TEST(SpringBoneTest, UpdateWithGravity)
 {
     Skeleton skel = CreateChainSkeleton3();
-    std::vector<TransformTRS> localTRS;
-    std::vector<XMFLOAT4X4> globalMats;
+    gx::Vector<TransformTRS> localTRS;
+    gx::Vector<Matrix4x4> globalMats;
     PrepareTransforms(skel, localTRS, globalMats);
 
     SpringBone sb;
@@ -186,8 +186,8 @@ TEST(SpringBoneTest, UpdateWithGravity)
 TEST(SpringBoneTest, ColliderSphereBasic)
 {
     Skeleton skel = CreateChainSkeleton3();
-    std::vector<TransformTRS> localTRS;
-    std::vector<XMFLOAT4X4> globalMats;
+    gx::Vector<TransformTRS> localTRS;
+    gx::Vector<Matrix4x4> globalMats;
     PrepareTransforms(skel, localTRS, globalMats);
 
     SpringBone sb;
@@ -214,8 +214,8 @@ TEST(SpringBoneTest, ColliderSphereBasic)
 TEST(SpringBoneTest, ColliderCapsuleBasic)
 {
     Skeleton skel = CreateChainSkeleton3();
-    std::vector<TransformTRS> localTRS;
-    std::vector<XMFLOAT4X4> globalMats;
+    gx::Vector<TransformTRS> localTRS;
+    gx::Vector<Matrix4x4> globalMats;
     PrepareTransforms(skel, localTRS, globalMats);
 
     SpringBone sb;
@@ -254,8 +254,8 @@ TEST(SpringBoneTest, ResetToInitial)
 TEST(SpringBoneTest, ChainPropagation)
 {
     Skeleton skel = CreateChainSkeleton3();
-    std::vector<TransformTRS> localTRS;
-    std::vector<XMFLOAT4X4> globalMats;
+    gx::Vector<TransformTRS> localTRS;
+    gx::Vector<Matrix4x4> globalMats;
     PrepareTransforms(skel, localTRS, globalMats);
 
     SpringBone sb;
@@ -281,8 +281,8 @@ TEST(SpringBoneTest, ChainPropagation)
 TEST(SpringBoneTest, MaxAngleClamp)
 {
     Skeleton skel = CreateChainSkeleton3();
-    std::vector<TransformTRS> localTRS;
-    std::vector<XMFLOAT4X4> globalMats;
+    gx::Vector<TransformTRS> localTRS;
+    gx::Vector<Matrix4x4> globalMats;
     PrepareTransforms(skel, localTRS, globalMats);
 
     SpringBone sb;

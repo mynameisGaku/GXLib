@@ -5,20 +5,21 @@
 
 namespace gx {
 
-bool PakFileProvider::Open(const std::string& pakPath)
+bool PakFileProvider::Open(const gx::String& pakPath)
 {
-    return m_loader.Open(pakPath);
+    return m_loader.Open(pakPath.ToStdString());
 }
 
-bool PakFileProvider::Exists(const std::string& path) const
+bool PakFileProvider::Exists(const gx::String& path) const
 {
-    return m_loader.Contains(path);
+    return m_loader.Contains(path.ToStdString());
 }
 
-FileData PakFileProvider::Read(const std::string& path) const
+FileData PakFileProvider::Read(const gx::String& path) const
 {
     FileData result;
-    result.data = m_loader.Read(path);
+    auto stdvec = m_loader.Read(path.ToStdString());
+    result.data = gx::Vector<uint8_t>(stdvec.data(), stdvec.data() + stdvec.size());
     return result;
 }
 

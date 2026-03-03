@@ -2,6 +2,7 @@
 /// @brief DXLib互換マスクスクリーンの実装
 #include "pch_graphics.h"
 #include "Graphics/Layer/MaskScreen.h"
+#include "Math/MathConvert.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
@@ -114,7 +115,7 @@ void MaskScreen::SetupPipeline(ID3D12GraphicsCommandList* cmdList, uint32_t fram
         0.0f, static_cast<float>(m_width),
         static_cast<float>(m_height), 0.0f,
         0.0f, 1.0f);
-    XMStoreFloat4x4(&mc.projection, XMMatrixTranspose(ortho));
+    XMStoreFloat4x4(XM(&mc.projection), XMMatrixTranspose(ortho));
     mc.maskValue = maskValue;
 
     void* p = m_constantBuffer.Map(frameIndex);

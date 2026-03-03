@@ -13,7 +13,7 @@ namespace gx
 // AddNode
 // ============================================================================
 
-int MaterialGraph::AddNode(MaterialNodeType type, const std::string& name)
+int MaterialGraph::AddNode(MaterialNodeType type, const gx::String& name)
 {
     int id = m_nextId++;
     auto node = std::make_unique<MaterialNode>(id, type, name);
@@ -31,7 +31,7 @@ void MaterialGraph::InitializePins(MaterialNode& node) const
     node.inputs.clear();
     node.outputs.clear();
 
-    auto makePin = [](const std::string& pinName, PinType pinType) -> MaterialNodePin
+    auto makePin = [](const gx::String& pinName, PinType pinType) -> MaterialNodePin
     {
         MaterialNodePin pin;
         pin.name = pinName;
@@ -199,7 +199,7 @@ MaterialNode* MaterialGraph::GetNode(int id)
 bool MaterialGraph::HasCycle() const
 {
     // 0=white(未訪問), 1=gray(処理中), 2=black(完了)
-    std::unordered_map<int, int> colorMap;
+    gx::HashMap<int, int> colorMap;
     for (const auto& [id, node] : m_nodes)
     {
         colorMap[id] = 0;
@@ -216,7 +216,7 @@ bool MaterialGraph::HasCycle() const
 }
 
 bool MaterialGraph::DFSHasCycle(int nodeId,
-                                 std::unordered_map<int, int>& colorMap) const
+                                 gx::HashMap<int, int>& colorMap) const
 {
     colorMap[nodeId] = 1; // gray
 
@@ -252,17 +252,17 @@ bool MaterialGraph::DFSHasCycle(int nodeId,
 // TopologicalSort
 // ============================================================================
 
-std::vector<int> MaterialGraph::TopologicalSort() const
+gx::Vector<int> MaterialGraph::TopologicalSort() const
 {
     if (HasCycle()) return {};
 
-    std::unordered_map<int, int> colorMap;
+    gx::HashMap<int, int> colorMap;
     for (const auto& [id, node] : m_nodes)
     {
         colorMap[id] = 0;
     }
 
-    std::vector<int> result;
+    gx::Vector<int> result;
     for (const auto& [id, node] : m_nodes)
     {
         if (colorMap[id] == 0)
@@ -276,8 +276,8 @@ std::vector<int> MaterialGraph::TopologicalSort() const
 }
 
 void MaterialGraph::DFSTopSort(int nodeId,
-                                std::unordered_map<int, int>& colorMap,
-                                std::vector<int>& result) const
+                                gx::HashMap<int, int>& colorMap,
+                                gx::Vector<int>& result) const
 {
     colorMap[nodeId] = 1;
 
@@ -321,7 +321,7 @@ MaterialGraphResult MaterialGraph::Compile() const
         return result;
     }
 
-    std::vector<int> sorted = TopologicalSort();
+    gx::Vector<int> sorted = TopologicalSort();
     if (sorted.empty() && !m_nodes.empty())
     {
         result.success = false;
@@ -330,7 +330,7 @@ MaterialGraphResult MaterialGraph::Compile() const
     }
 
     // 各ノードの出力値を評価
-    std::unordered_map<int, std::array<float, 4>> nodeValues;
+    gx::HashMap<int, gx::Array<float, 4>> nodeValues;
 
     for (int nodeId : sorted)
     {
@@ -338,7 +338,7 @@ MaterialGraphResult MaterialGraph::Compile() const
         if (it == m_nodes.end()) continue;
 
         const MaterialNode& node = *it->second;
-        std::array<float, 4> value = { 0, 0, 0, 0 };
+        gx::Array<float, 4> value = { 0, 0, 0, 0 };
 
         switch (node.type)
         {
@@ -383,7 +383,7 @@ MaterialGraphResult MaterialGraph::Compile() const
 
         case MaterialNodeType::Add:
         {
-            std::array<float, 4> a = { 0, 0, 0, 0 }, b = { 0, 0, 0, 0 };
+            gx::Array<float, 4> a = { 0, 0, 0, 0 }, b = { 0, 0, 0, 0 };
             if (node.inputs.size() >= 2)
             {
                 if (node.inputs[0].connected) a = nodeValues[node.inputs[0].connectedNodeId];
@@ -399,7 +399,7 @@ MaterialGraphResult MaterialGraph::Compile() const
 
         case MaterialNodeType::Subtract:
         {
-            std::array<float, 4> a = { 0, 0, 0, 0 }, b = { 0, 0, 0, 0 };
+            gx::Array<float, 4> a = { 0, 0, 0, 0 }, b = { 0, 0, 0, 0 };
             if (node.inputs.size() >= 2)
             {
                 if (node.inputs[0].connected) a = nodeValues[node.inputs[0].connectedNodeId];
@@ -411,7 +411,7 @@ MaterialGraphResult MaterialGraph::Compile() const
 
         case MaterialNodeType::Multiply:
         {
-            std::array<float, 4> a = { 0, 0, 0, 0 }, b = { 0, 0, 0, 0 };
+            gx::Array<float, 4> a = { 0, 0, 0, 0 }, b = { 0, 0, 0, 0 };
             if (node.inputs.size() >= 2)
             {
                 if (node.inputs[0].connected) a = nodeValues[node.inputs[0].connectedNodeId];
@@ -423,7 +423,7 @@ MaterialGraphResult MaterialGraph::Compile() const
 
         case MaterialNodeType::Divide:
         {
-            std::array<float, 4> a = { 0, 0, 0, 0 }, b = { 1, 1, 1, 1 };
+            gx::Array<float, 4> a = { 0, 0, 0, 0 }, b = { 1, 1, 1, 1 };
             if (node.inputs.size() >= 2)
             {
                 if (node.inputs[0].connected) a = nodeValues[node.inputs[0].connectedNodeId];
@@ -436,7 +436,7 @@ MaterialGraphResult MaterialGraph::Compile() const
 
         case MaterialNodeType::Lerp:
         {
-            std::array<float, 4> a = { 0, 0, 0, 0 }, b = { 0, 0, 0, 0 };
+            gx::Array<float, 4> a = { 0, 0, 0, 0 }, b = { 0, 0, 0, 0 };
             float t = 0.0f;
             if (node.inputs.size() >= 3)
             {
@@ -451,7 +451,7 @@ MaterialGraphResult MaterialGraph::Compile() const
 
         case MaterialNodeType::Clamp:
         {
-            std::array<float, 4> v = { 0, 0, 0, 0 };
+            gx::Array<float, 4> v = { 0, 0, 0, 0 };
             float minVal = 0.0f, maxVal = 1.0f;
             if (node.inputs.size() >= 3)
             {
@@ -466,7 +466,7 @@ MaterialGraphResult MaterialGraph::Compile() const
 
         case MaterialNodeType::Dot:
         {
-            std::array<float, 4> a = { 0, 0, 0, 0 }, b = { 0, 0, 0, 0 };
+            gx::Array<float, 4> a = { 0, 0, 0, 0 }, b = { 0, 0, 0, 0 };
             if (node.inputs.size() >= 2)
             {
                 if (node.inputs[0].connected) a = nodeValues[node.inputs[0].connectedNodeId];
@@ -479,7 +479,7 @@ MaterialGraphResult MaterialGraph::Compile() const
 
         case MaterialNodeType::Normalize:
         {
-            std::array<float, 4> v = { 0, 0, 0, 0 };
+            gx::Array<float, 4> v = { 0, 0, 0, 0 };
             if (!node.inputs.empty() && node.inputs[0].connected)
                 v = nodeValues[node.inputs[0].connectedNodeId];
             float len = std::sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
@@ -492,7 +492,7 @@ MaterialGraphResult MaterialGraph::Compile() const
             // 出力ノードは入力値を定数として収集
             for (size_t p = 0; p < node.inputs.size(); ++p)
             {
-                std::array<float, 4> pinValue = { 0, 0, 0, 0 };
+                gx::Array<float, 4> pinValue = { 0, 0, 0, 0 };
                 if (node.inputs[p].connected)
                 {
                     pinValue = nodeValues[node.inputs[p].connectedNodeId];
@@ -531,7 +531,7 @@ void MaterialGraph::Clear()
 // SerializeToJSON
 // ============================================================================
 
-std::string MaterialGraph::SerializeToJSON() const
+gx::String MaterialGraph::SerializeToJSON() const
 {
     std::ostringstream ss;
     ss << "{";
@@ -602,7 +602,7 @@ std::string MaterialGraph::SerializeToJSON() const
 // DeserializeFromJSON (simple parser)
 // ============================================================================
 
-bool MaterialGraph::DeserializeFromJSON(const std::string& json)
+bool MaterialGraph::DeserializeFromJSON(const gx::String& json)
 {
     Clear();
 
@@ -610,11 +610,11 @@ bool MaterialGraph::DeserializeFromJSON(const std::string& json)
 
     // 簡易パーサー: outputNodeId, nextId, nodes配列を抽出
     // "outputNodeId":N を検索
-    auto findInt = [&](const std::string& key) -> int
+    auto findInt = [&](const gx::String& key) -> int
     {
-        std::string search = "\"" + key + "\":";
+        gx::String search = "\"" + key + "\":";
         size_t pos = json.find(search);
-        if (pos == std::string::npos) return -1;
+        if (pos == gx::String::npos) return -1;
         pos += search.size();
         return std::atoi(json.c_str() + pos);
     };
@@ -624,13 +624,13 @@ bool MaterialGraph::DeserializeFromJSON(const std::string& json)
 
     // ノード配列を解析
     size_t nodesPos = json.find("\"nodes\":[");
-    if (nodesPos == std::string::npos) return true; // ノードなし
+    if (nodesPos == gx::String::npos) return true; // ノードなし
 
     nodesPos += 9; // "nodes":[ の後
 
     // 各ノードオブジェクトを解析
     int braceDepth = 0;
-    size_t nodeStart = std::string::npos;
+    size_t nodeStart = gx::String::npos;
 
     for (size_t i = nodesPos; i < json.size(); ++i)
     {
@@ -642,47 +642,47 @@ bool MaterialGraph::DeserializeFromJSON(const std::string& json)
         else if (json[i] == '}')
         {
             braceDepth--;
-            if (braceDepth == 0 && nodeStart != std::string::npos)
+            if (braceDepth == 0 && nodeStart != gx::String::npos)
             {
-                std::string nodeJson = json.substr(nodeStart, i - nodeStart + 1);
+                gx::String nodeJson = json.substr(nodeStart, i - nodeStart + 1);
 
                 // ノードの基本情報を抽出
-                auto findIntIn = [&](const std::string& src, const std::string& key) -> int
+                auto findIntIn = [&](const gx::String& src, const gx::String& key) -> int
                 {
-                    std::string search = "\"" + key + "\":";
+                    gx::String search = "\"" + key + "\":";
                     size_t pos = src.find(search);
-                    if (pos == std::string::npos) return 0;
+                    if (pos == gx::String::npos) return 0;
                     pos += search.size();
                     return std::atoi(src.c_str() + pos);
                 };
 
-                auto findStringIn = [&](const std::string& src, const std::string& key) -> std::string
+                auto findStringIn = [&](const gx::String& src, const gx::String& key) -> gx::String
                 {
-                    std::string search = "\"" + key + "\":\"";
+                    gx::String search = "\"" + key + "\":\"";
                     size_t pos = src.find(search);
-                    if (pos == std::string::npos) return "";
+                    if (pos == gx::String::npos) return "";
                     pos += search.size();
                     size_t endPos = src.find('"', pos);
-                    if (endPos == std::string::npos) return "";
+                    if (endPos == gx::String::npos) return "";
                     return src.substr(pos, endPos - pos);
                 };
 
                 int nodeId = findIntIn(nodeJson, "id");
                 int nodeType = findIntIn(nodeJson, "type");
-                std::string nodeName = findStringIn(nodeJson, "name");
+                gx::String nodeName = findStringIn(nodeJson, "name");
 
                 auto node = std::make_unique<MaterialNode>(nodeId, static_cast<MaterialNodeType>(nodeType), nodeName);
                 InitializePins(*node);
 
                 // 接続情報を復元: inputs配列内のconnected/connectedNodeId/connectedPinIndex
                 size_t inputsPos = nodeJson.find("\"inputs\":[");
-                if (inputsPos != std::string::npos)
+                if (inputsPos != gx::String::npos)
                 {
                     inputsPos += 10;
                     int pinIdx = 0;
                     int pinBrace = 0;
                     int bracketDepth = 0;
-                    size_t pinStart = std::string::npos;
+                    size_t pinStart = gx::String::npos;
 
                     for (size_t j = inputsPos; j < nodeJson.size(); ++j)
                     {
@@ -701,13 +701,13 @@ bool MaterialGraph::DeserializeFromJSON(const std::string& json)
                         else if (ch == '}')
                         {
                             pinBrace--;
-                            if (pinBrace == 0 && pinStart != std::string::npos)
+                            if (pinBrace == 0 && pinStart != gx::String::npos)
                             {
-                                std::string pinJson = nodeJson.substr(pinStart, j - pinStart + 1);
+                                gx::String pinJson = nodeJson.substr(pinStart, j - pinStart + 1);
 
                                 if (pinIdx < static_cast<int>(node->inputs.size()))
                                 {
-                                    bool isConnected = pinJson.find("\"connected\":true") != std::string::npos;
+                                    bool isConnected = pinJson.find("\"connected\":true") != gx::String::npos;
                                     if (isConnected)
                                     {
                                         node->inputs[pinIdx].connected = true;
@@ -716,14 +716,14 @@ bool MaterialGraph::DeserializeFromJSON(const std::string& json)
                                     }
                                 }
                                 pinIdx++;
-                                pinStart = std::string::npos;
+                                pinStart = gx::String::npos;
                             }
                         }
                     }
                 }
 
                 m_nodes[nodeId] = std::move(node);
-                nodeStart = std::string::npos;
+                nodeStart = gx::String::npos;
             }
         }
         else if (json[i] == ']' && braceDepth == 0)

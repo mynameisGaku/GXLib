@@ -118,7 +118,7 @@ void SceneSnapshot::Restore(Scene& scene) const
     // DestroyEntityはpendingなので、直接クリアするためにUpdateを使わない
     // 代わりに、各エンティティを破棄予約してからUpdateで処理する
     {
-        std::vector<Entity*> toDestroy;
+        gx::Vector<Entity*> toDestroy;
         for (const auto& entity : scene.GetEntities())
         {
             toDestroy.push_back(entity.get());

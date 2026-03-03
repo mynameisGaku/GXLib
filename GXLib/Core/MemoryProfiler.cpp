@@ -32,7 +32,7 @@ void MemoryProfiler::Shutdown()
 // 記録
 // =============================================================================
 
-void MemoryProfiler::RecordAllocation(void* ptr, size_t size, const std::string& category)
+void MemoryProfiler::RecordAllocation(void* ptr, size_t size, const gx::String& category)
 {
     if (!m_enabled || ptr == nullptr)
     {
@@ -144,7 +144,7 @@ MemorySnapshot MemoryProfiler::GetPeakSnapshot() const
 // カテゴリ別情報
 // =============================================================================
 
-uint64_t MemoryProfiler::GetCategoryUsage(const std::string& category) const
+uint64_t MemoryProfiler::GetCategoryUsage(const gx::String& category) const
 {
     auto it = m_current.categoryUsage.find(category);
     if (it != m_current.categoryUsage.end())
@@ -154,9 +154,9 @@ uint64_t MemoryProfiler::GetCategoryUsage(const std::string& category) const
     return 0;
 }
 
-std::vector<std::string> MemoryProfiler::GetCategories() const
+gx::Vector<gx::String> MemoryProfiler::GetCategories() const
 {
-    std::vector<std::string> categories;
+    gx::Vector<gx::String> categories;
     categories.reserve(m_current.categoryUsage.size());
     for (const auto& [cat, usage] : m_current.categoryUsage)
     {
@@ -170,9 +170,9 @@ std::vector<std::string> MemoryProfiler::GetCategories() const
 // リーク検出
 // =============================================================================
 
-std::vector<AllocationRecord> MemoryProfiler::GetLeakedAllocations() const
+gx::Vector<AllocationRecord> MemoryProfiler::GetLeakedAllocations() const
 {
-    std::vector<AllocationRecord> leaks;
+    gx::Vector<AllocationRecord> leaks;
     leaks.reserve(m_activeAllocations.size());
     for (const auto& [ptr, record] : m_activeAllocations)
     {

@@ -14,10 +14,11 @@ static constexpr float kEps = 1e-5f;
 TEST(MaterialTest, Constants_DefaultAlbedo)
 {
     MaterialConstants mc{};
-    EXPECT_NEAR(mc.albedoFactor.x, 0.0f, kEps);
-    EXPECT_NEAR(mc.albedoFactor.y, 0.0f, kEps);
-    EXPECT_NEAR(mc.albedoFactor.z, 0.0f, kEps);
-    EXPECT_NEAR(mc.albedoFactor.w, 0.0f, kEps);
+    // Color defaults to white (1, 1, 1, 1)
+    EXPECT_NEAR(mc.albedoFactor.r, 1.0f, kEps);
+    EXPECT_NEAR(mc.albedoFactor.g, 1.0f, kEps);
+    EXPECT_NEAR(mc.albedoFactor.b, 1.0f, kEps);
+    EXPECT_NEAR(mc.albedoFactor.a, 1.0f, kEps);
 }
 
 TEST(MaterialTest, Constants_SetValues)
@@ -112,7 +113,7 @@ TEST(MaterialManagerTest, CreateMaterial_ReturnsHandle)
 {
     MaterialManager mgr;
     Material mat{};
-    mat.constants.albedoFactor = {1, 1, 1, 1};
+    mat.constants.albedoFactor = Color{1.0f, 1.0f, 1.0f, 1.0f};
     int h = mgr.CreateMaterial(mat);
     EXPECT_GE(h, 0);
 }

@@ -30,7 +30,7 @@ static constexpr uint32_t MakeTag(char a, char b, char c, char d)
            (static_cast<uint32_t>(c) << 16) | (static_cast<uint32_t>(d) << 24);
 }
 
-bool Sound::LoadFromFile(const std::wstring& filePath)
+bool Sound::LoadFromFile(const gx::WString& filePath)
 {
     std::ifstream file(filePath, std::ios::binary);
     if (!file.is_open())

@@ -20,7 +20,7 @@ AsyncLoader::~AsyncLoader()
         m_workerThread.join();
 }
 
-uint32_t AsyncLoader::Load(const std::string& path,
+uint32_t AsyncLoader::Load(const gx::String& path,
                             std::function<void(FileData&)> onComplete)
 {
     auto req = std::make_shared<LoadRequest>();
@@ -42,7 +42,7 @@ uint32_t AsyncLoader::Load(const std::string& path,
 // これによりコールバック内からLoad()を呼んでもデッドロックしない。
 void AsyncLoader::Update()
 {
-    std::vector<std::shared_ptr<LoadRequest>> completed;
+    gx::Vector<std::shared_ptr<LoadRequest>> completed;
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         completed.swap(m_completedQueue);

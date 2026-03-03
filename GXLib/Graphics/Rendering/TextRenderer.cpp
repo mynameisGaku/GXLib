@@ -17,7 +17,7 @@ void TextRenderer::Initialize(SpriteBatch* spriteBatch, FontManager* fontManager
     m_fontManager = fontManager;
 }
 
-void TextRenderer::DrawString(int fontHandle, float x, float y, const std::wstring& text, uint32_t color)
+void TextRenderer::DrawString(int fontHandle, float x, float y, const gx::WString& text, uint32_t color)
 {
     if (!m_spriteBatch || !m_fontManager)
         return;
@@ -83,7 +83,7 @@ void TextRenderer::DrawString(int fontHandle, float x, float y, const std::wstri
 }
 
 void TextRenderer::DrawStringTransformed(int fontHandle, float x, float y,
-                                         const std::wstring& text, uint32_t color,
+                                         const gx::WString& text, uint32_t color,
                                          const Transform2D& transform)
 {
     // 各グリフの4隅を Transform2D で変換してから DrawRectModiGraph で描画する。
@@ -135,10 +135,10 @@ void TextRenderer::DrawStringTransformed(int fontHandle, float x, float y,
         float x4 = drawX;
         float y4 = drawY + glyph->height;
 
-        XMFLOAT2 p1 = TransformPoint(transform, x1, y1);
-        XMFLOAT2 p2 = TransformPoint(transform, x2, y2);
-        XMFLOAT2 p3 = TransformPoint(transform, x3, y3);
-        XMFLOAT2 p4 = TransformPoint(transform, x4, y4);
+        Vector2 p1 = TransformPoint(transform, x1, y1);
+        Vector2 p2 = TransformPoint(transform, x2, y2);
+        Vector2 p3 = TransformPoint(transform, x3, y3);
+        Vector2 p4 = TransformPoint(transform, x4, y4);
 
         float srcX = glyph->u0 * FontManager::k_AtlasSize;
         float srcY = glyph->v0 * FontManager::k_AtlasSize;
@@ -169,7 +169,7 @@ void TextRenderer::DrawFormatString(int fontHandle, float x, float y, uint32_t c
     DrawString(fontHandle, x, y, buffer, color);
 }
 
-int TextRenderer::GetStringWidth(int fontHandle, const std::wstring& text)
+int TextRenderer::GetStringWidth(int fontHandle, const gx::WString& text)
 {
     if (!m_fontManager)
         return 0;
@@ -193,7 +193,7 @@ int TextRenderer::GetStringWidth(int fontHandle, const std::wstring& text)
     return static_cast<int>(ceilf(width));
 }
 
-float TextRenderer::MeasureLineWidth(int fontHandle, const std::wstring& line)
+float TextRenderer::MeasureLineWidth(int fontHandle, const gx::WString& line)
 {
     float width = 0.0f;
     for (wchar_t ch : line)
@@ -205,18 +205,18 @@ float TextRenderer::MeasureLineWidth(int fontHandle, const std::wstring& line)
     return width;
 }
 
-std::vector<std::wstring> TextRenderer::BreakLines(int fontHandle, const std::wstring& text,
+gx::Vector<gx::WString> TextRenderer::BreakLines(int fontHandle, const gx::WString& text,
                                                     const TextLayoutOptions& options)
 {
-    std::vector<std::wstring> result;
+    gx::Vector<gx::WString> result;
 
     // Split by \n first
-    std::vector<std::wstring> paragraphs;
+    gx::Vector<gx::WString> paragraphs;
     size_t start = 0;
     while (start <= text.size())
     {
         size_t pos = text.find(L'\n', start);
-        if (pos == std::wstring::npos)
+        if (pos == gx::WString::npos)
         {
             paragraphs.push_back(text.substr(start));
             break;
@@ -238,7 +238,7 @@ std::vector<std::wstring> TextRenderer::BreakLines(int fontHandle, const std::ws
         // Word-wrap this paragraph
         float lineWidth = 0.0f;
         size_t lineStart = 0;
-        size_t lastSpace = std::wstring::npos; // index of last space in current line segment
+        size_t lastSpace = gx::WString::npos; // index of last space in current line segment
 
         for (size_t i = 0; i < para.size(); ++i)
         {
@@ -255,7 +255,7 @@ std::vector<std::wstring> TextRenderer::BreakLines(int fontHandle, const std::ws
             if (lineWidth + charAdvance > options.maxWidth && i > lineStart)
             {
                 // Need to break
-                if (lastSpace != std::wstring::npos && lastSpace > lineStart)
+                if (lastSpace != gx::WString::npos && lastSpace > lineStart)
                 {
                     // Break at last space
                     result.push_back(para.substr(lineStart, lastSpace - lineStart));
@@ -269,7 +269,7 @@ std::vector<std::wstring> TextRenderer::BreakLines(int fontHandle, const std::ws
                         if (g)
                             lineWidth += g->advance;
                     }
-                    lastSpace = std::wstring::npos;
+                    lastSpace = gx::WString::npos;
                 }
                 else
                 {
@@ -277,7 +277,7 @@ std::vector<std::wstring> TextRenderer::BreakLines(int fontHandle, const std::ws
                     result.push_back(para.substr(lineStart, i - lineStart));
                     lineStart = i;
                     lineWidth = charAdvance;
-                    lastSpace = std::wstring::npos;
+                    lastSpace = gx::WString::npos;
                 }
             }
             else
@@ -294,13 +294,13 @@ std::vector<std::wstring> TextRenderer::BreakLines(int fontHandle, const std::ws
 }
 
 void TextRenderer::DrawStringLayout(int fontHandle, float x, float y,
-                                     const std::wstring& text, uint32_t color,
+                                     const gx::WString& text, uint32_t color,
                                      const TextLayoutOptions& options)
 {
     if (!m_spriteBatch || !m_fontManager)
         return;
 
-    std::vector<std::wstring> lines = BreakLines(fontHandle, text, options);
+    gx::Vector<gx::WString> lines = BreakLines(fontHandle, text, options);
     float lineHeight = static_cast<float>(m_fontManager->GetLineHeight(fontHandle)) * options.lineSpacing;
     float cursorY = y;
 
@@ -322,13 +322,13 @@ void TextRenderer::DrawStringLayout(int fontHandle, float x, float y,
     }
 }
 
-int TextRenderer::GetStringHeight(int fontHandle, const std::wstring& text,
+int TextRenderer::GetStringHeight(int fontHandle, const gx::WString& text,
                                    const TextLayoutOptions& options)
 {
     if (!m_fontManager)
         return 0;
 
-    std::vector<std::wstring> lines = BreakLines(fontHandle, text, options);
+    gx::Vector<gx::WString> lines = BreakLines(fontHandle, text, options);
     float lineHeight = static_cast<float>(m_fontManager->GetLineHeight(fontHandle)) * options.lineSpacing;
 
     if (lines.empty())
@@ -338,7 +338,7 @@ int TextRenderer::GetStringHeight(int fontHandle, const std::wstring& text,
 }
 
 void TextRenderer::DrawStringInRect(int fontHandle, float x, float y, float width, float height,
-                                     const std::wstring& text, uint32_t color,
+                                     const gx::WString& text, uint32_t color,
                                      const TextLayoutOptions& options)
 {
     if (!m_spriteBatch || !m_fontManager)
@@ -348,7 +348,7 @@ void TextRenderer::DrawStringInRect(int fontHandle, float x, float y, float widt
     TextLayoutOptions rectOptions = options;
     rectOptions.maxWidth = width;
 
-    std::vector<std::wstring> lines = BreakLines(fontHandle, text, rectOptions);
+    gx::Vector<gx::WString> lines = BreakLines(fontHandle, text, rectOptions);
     float lineHeight = static_cast<float>(m_fontManager->GetLineHeight(fontHandle)) * rectOptions.lineSpacing;
     float cursorY = y;
 

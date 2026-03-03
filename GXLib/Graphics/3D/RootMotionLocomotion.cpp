@@ -39,8 +39,8 @@ void RootMotionLocomotion::Update(float deltaTime)
     }
 
     // Animatorからルートモーション差分を取得
-    XMFLOAT3 rawDelta = m_animator->GetRootMotionDelta();
-    XMFLOAT4 rawRotDelta = m_animator->GetRootMotionRotationDelta();
+    Vector3 rawDelta = m_animator->GetRootMotionDelta();
+    Quaternion rawRotDelta = m_animator->GetRootMotionRotationDelta();
 
     // 位置差分の加工
     if (m_config.applyPosition)

@@ -12,7 +12,7 @@ AudioBus::~AudioBus()
     Shutdown();
 }
 
-bool AudioBus::Initialize(IXAudio2* xaudio2, const std::string& name,
+bool AudioBus::Initialize(IXAudio2* xaudio2, const gx::String& name,
                            uint32_t channels, uint32_t sampleRate)
 {
     if (!xaudio2) return false;

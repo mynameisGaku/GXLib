@@ -33,10 +33,10 @@ void LightmapBaker::SetConfig(const LightmapConfig& config)
 // ============================================================================
 
 void LightmapBaker::AddMeshInstance(uint32_t objectIndex,
-                                     const std::vector<Vector3>& positions,
-                                     const std::vector<Vector3>& normals,
-                                     const std::vector<Vector3>& uvs,
-                                     const std::vector<uint32_t>& indices)
+                                     const gx::Vector<Vector3>& positions,
+                                     const gx::Vector<Vector3>& normals,
+                                     const gx::Vector<Vector3>& uvs,
+                                     const gx::Vector<uint32_t>& indices)
 {
     MeshInstance mesh;
     mesh.objectIndex = objectIndex;
@@ -203,7 +203,7 @@ void LightmapBaker::BakeDirectPass()
 void LightmapBaker::BakeBouncePass(uint32_t bounceIndex)
 {
     // 前回のライトマップ結果を保持（バウンスの入力として使う）
-    std::vector<std::vector<LightmapTexel>> previousTexels;
+    gx::Vector<gx::Vector<LightmapTexel>> previousTexels;
     for (const auto& chart : m_atlas.charts)
     {
         previousTexels.push_back(chart.texelData);
@@ -441,7 +441,7 @@ PackResult LightmapBaker::PackAtlas()
     uint32_t padding = m_config.padding;
 
     // チャートを高さの降順にソート（インデックスでソート）
-    std::vector<size_t> sortedIndices(m_atlas.charts.size());
+    gx::Vector<size_t> sortedIndices(m_atlas.charts.size());
     std::iota(sortedIndices.begin(), sortedIndices.end(), 0u);
     std::sort(sortedIndices.begin(), sortedIndices.end(),
               [this](size_t a, size_t b) {
@@ -456,7 +456,7 @@ PackResult LightmapBaker::PackAtlas()
         uint32_t usedWidth;
     };
 
-    std::vector<Shelf> shelves;
+    gx::Vector<Shelf> shelves;
     uint32_t maxWidth = m_config.maxAtlasSize;
     uint32_t totalUsedTexels = 0;
 

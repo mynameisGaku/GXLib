@@ -44,7 +44,7 @@ TEST(TLSFAllocatorTest, AllocateAfterFreeCoalescing) {
 TEST(TLSFAllocatorTest, MultipleAllocations) {
     TLSFAllocator alloc;
     alloc.Initialize(4096);
-    std::vector<size_t> offsets;
+    gx::Vector<size_t> offsets;
     for (int i = 0; i < 10; i++) {
         size_t off = alloc.Allocate(64);
         EXPECT_NE(off, std::numeric_limits<size_t>::max());
@@ -116,7 +116,7 @@ TEST(TLSFAllocatorTest, PoolMetrics) {
 TEST(TLSFAllocatorTest, StressTest) {
     TLSFAllocator alloc;
     alloc.Initialize(65536, 32);
-    std::vector<size_t> offsets;
+    gx::Vector<size_t> offsets;
 
     // Allocate many small blocks
     for (int i = 0; i < 100; i++) {

@@ -14,8 +14,8 @@ using namespace gx;
 TEST(NavMesh3DTest, BuildCreatesGridOfCorrectSize)
 {
     NavMesh3D nav;
-    XMFLOAT3 minB = { 0.0f, 0.0f, 0.0f };
-    XMFLOAT3 maxB = { 10.0f, 5.0f, 8.0f };
+    Vector3 minB = { 0.0f, 0.0f, 0.0f };
+    Vector3 maxB = { 10.0f, 5.0f, 8.0f };
     EXPECT_TRUE(nav.Build(minB, maxB, 1.0f));
     EXPECT_EQ(nav.GetSizeX(), 10);
     EXPECT_EQ(nav.GetSizeY(), 5);
@@ -25,8 +25,8 @@ TEST(NavMesh3DTest, BuildCreatesGridOfCorrectSize)
 TEST(NavMesh3DTest, AllVoxelsInitiallyOpen)
 {
     NavMesh3D nav;
-    XMFLOAT3 minB = { 0.0f, 0.0f, 0.0f };
-    XMFLOAT3 maxB = { 3.0f, 3.0f, 3.0f };
+    Vector3 minB = { 0.0f, 0.0f, 0.0f };
+    Vector3 maxB = { 3.0f, 3.0f, 3.0f };
     nav.Build(minB, maxB, 1.0f);
 
     // ビルド後、すべてのボクセルはOpenであるべき
@@ -47,7 +47,7 @@ TEST(NavMesh3DTest, GetMinBounds)
 {
     NavMesh3D nav;
     nav.Build({ -5.0f, -3.0f, -1.0f }, { 5.0f, 3.0f, 1.0f }, 1.0f);
-    XMFLOAT3 mb = nav.GetMinBounds();
+    Vector3 mb = nav.GetMinBounds();
     EXPECT_FLOAT_EQ(mb.x, -5.0f);
     EXPECT_FLOAT_EQ(mb.y, -3.0f);
     EXPECT_FLOAT_EQ(mb.z, -1.0f);
@@ -86,7 +86,7 @@ TEST(NavMesh3DTest, WorldToVoxelRoundTrip)
     nav.Build({ 0, 0, 0 }, { 10, 10, 10 }, 1.0f);
 
     // ボクセル(3,4,5)の中心は(3.5, 4.5, 5.5)
-    XMFLOAT3 worldPos = nav.VoxelToWorld(3, 4, 5);
+    Vector3 worldPos = nav.VoxelToWorld(3, 4, 5);
     int vx, vy, vz;
     bool inBounds = nav.WorldToVoxel(worldPos, vx, vy, vz);
     EXPECT_TRUE(inBounds);
@@ -102,7 +102,7 @@ TEST(NavMesh3DTest, WorldToVoxelBoundsCheck)
 
     int vx, vy, vz;
     // グリッド外の位置
-    XMFLOAT3 outside = { -10.0f, -10.0f, -10.0f };
+    Vector3 outside = { -10.0f, -10.0f, -10.0f };
     bool inBounds = nav.WorldToVoxel(outside, vx, vy, vz);
     EXPECT_FALSE(inBounds);
 }
@@ -116,9 +116,9 @@ TEST(NavMesh3DTest, FindPathStraightLine)
     NavMesh3D nav;
     nav.Build({ 0, 0, 0 }, { 10, 1, 1 }, 1.0f);
 
-    XMFLOAT3 start = { 0.5f, 0.5f, 0.5f };
-    XMFLOAT3 end   = { 9.5f, 0.5f, 0.5f };
-    std::vector<XMFLOAT3> path;
+    Vector3 start = { 0.5f, 0.5f, 0.5f };
+    Vector3 end   = { 9.5f, 0.5f, 0.5f };
+    gx::Vector<Vector3> path;
     bool found = nav.FindPath(start, end, path);
     EXPECT_TRUE(found);
     EXPECT_GE(path.size(), 2u);
@@ -135,9 +135,9 @@ TEST(NavMesh3DTest, FindPathAroundBlockedVoxel)
     // 中央の列をブロックし、z方向への迂回を強制
     nav.SetVoxel(2, 0, 1, VoxelState::Blocked);
 
-    XMFLOAT3 start = { 0.5f, 0.5f, 1.5f };
-    XMFLOAT3 end   = { 4.5f, 0.5f, 1.5f };
-    std::vector<XMFLOAT3> path;
+    Vector3 start = { 0.5f, 0.5f, 1.5f };
+    Vector3 end   = { 4.5f, 0.5f, 1.5f };
+    gx::Vector<Vector3> path;
     bool found = nav.FindPath(start, end, path);
     EXPECT_TRUE(found);
     EXPECT_GE(path.size(), 2u);
@@ -154,9 +154,9 @@ TEST(NavMesh3DTest, FindPathNoPathWhenCompletelyBlocked)
             if (!(x == 0 && z == 0))
                 nav.SetVoxel(x, 0, z, VoxelState::Blocked);
 
-    XMFLOAT3 start = { 0.5f, 0.5f, 0.5f };
-    XMFLOAT3 end   = { 2.5f, 0.5f, 2.5f };
-    std::vector<XMFLOAT3> path;
+    Vector3 start = { 0.5f, 0.5f, 0.5f };
+    Vector3 end   = { 2.5f, 0.5f, 2.5f };
+    gx::Vector<Vector3> path;
     bool found = nav.FindPath(start, end, path);
     EXPECT_FALSE(found);
 }
@@ -172,9 +172,9 @@ TEST(NavMesh3DTest, FindPathAllowedStatesFilter)
     // Openのみ許可（ビット1 = 0x02）、Waterは不許可（ビット2 = 0x04）
     uint8_t allowOnlyOpen = (1 << static_cast<int>(VoxelState::Open));
 
-    XMFLOAT3 start = { 0.5f, 0.5f, 0.5f };
-    XMFLOAT3 end   = { 4.5f, 0.5f, 0.5f };
-    std::vector<XMFLOAT3> path;
+    Vector3 start = { 0.5f, 0.5f, 0.5f };
+    Vector3 end   = { 4.5f, 0.5f, 0.5f };
+    gx::Vector<Vector3> path;
     bool found = nav.FindPath(start, end, path, allowOnlyOpen);
     // 幅1の通路ではこのフィルタでWaterを通過できない
     EXPECT_FALSE(found);
@@ -221,12 +221,12 @@ TEST(NavMesh3DTest, FindNearestOpenFindsItself)
     NavMesh3D nav;
     nav.Build({ 0, 0, 0 }, { 5, 5, 5 }, 1.0f);
     // すべてのボクセルがOpenなので、任意の位置から最も近いOpenはボクセル中心
-    XMFLOAT3 pos = { 2.5f, 2.5f, 2.5f };
-    XMFLOAT3 nearest = nav.FindNearestOpen(pos);
+    Vector3 pos = { 2.5f, 2.5f, 2.5f };
+    Vector3 nearest = nav.FindNearestOpen(pos);
     // posを含むボクセルの中心を返すべき
     int vx, vy, vz;
     nav.WorldToVoxel(pos, vx, vy, vz);
-    XMFLOAT3 expected = nav.VoxelToWorld(vx, vy, vz);
+    Vector3 expected = nav.VoxelToWorld(vx, vy, vz);
     EXPECT_NEAR(nearest.x, expected.x, 0.01f);
     EXPECT_NEAR(nearest.y, expected.y, 0.01f);
     EXPECT_NEAR(nearest.z, expected.z, 0.01f);
@@ -238,8 +238,8 @@ TEST(NavMesh3DTest, FindNearestOpenFindsNearbyIfBlocked)
     nav.Build({ 0, 0, 0 }, { 5, 1, 1 }, 1.0f);
     // (2,0,0)のボクセルをブロックし、FindNearestOpenが隣接するボクセルを見つけることを確認
     nav.SetVoxel(2, 0, 0, VoxelState::Blocked);
-    XMFLOAT3 pos = { 2.5f, 0.5f, 0.5f }; // ブロックされたボクセルの中心
-    XMFLOAT3 nearest = nav.FindNearestOpen(pos);
+    Vector3 pos = { 2.5f, 0.5f, 0.5f }; // ブロックされたボクセルの中心
+    Vector3 nearest = nav.FindNearestOpen(pos);
     // ブロックされたボクセルの中心であってはならない
     int vx, vy, vz;
     nav.WorldToVoxel(nearest, vx, vy, vz);
@@ -256,9 +256,9 @@ TEST(NavMesh3DTest, RaycastHitsBlockedVoxel)
     nav.Build({ 0, 0, 0 }, { 10, 1, 1 }, 1.0f);
     nav.SetVoxel(5, 0, 0, VoxelState::Blocked);
 
-    XMFLOAT3 origin = { 0.5f, 0.5f, 0.5f };
-    XMFLOAT3 dir    = { 1.0f, 0.0f, 0.0f };
-    XMFLOAT3 hitPos;
+    Vector3 origin = { 0.5f, 0.5f, 0.5f };
+    Vector3 dir    = { 1.0f, 0.0f, 0.0f };
+    Vector3 hitPos;
     bool hit = nav.Raycast(origin, dir, 20.0f, hitPos);
     EXPECT_TRUE(hit);
     // ヒット位置はボクセル5の手前またはボクセル5にあるべき
@@ -271,9 +271,9 @@ TEST(NavMesh3DTest, RaycastMissesInOpenSpace)
     nav.Build({ 0, 0, 0 }, { 10, 1, 1 }, 1.0f);
     // すべてOpen、ブロックされたボクセルなし
 
-    XMFLOAT3 origin = { 0.5f, 0.5f, 0.5f };
-    XMFLOAT3 dir    = { 1.0f, 0.0f, 0.0f };
-    XMFLOAT3 hitPos;
+    Vector3 origin = { 0.5f, 0.5f, 0.5f };
+    Vector3 dir    = { 1.0f, 0.0f, 0.0f };
+    Vector3 hitPos;
     bool hit = nav.Raycast(origin, dir, 20.0f, hitPos);
     EXPECT_FALSE(hit);
 }

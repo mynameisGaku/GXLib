@@ -6,6 +6,7 @@
 #include "Graphics/3D/GraphicsComponents.h"
 #include "Graphics/3D/Renderer3D.h"
 #include "Graphics/3D/Camera3D.h"
+#include "Math/MathConvert.h"
 #include "Core/Scene/Components.h"
 
 namespace gx
@@ -32,7 +33,7 @@ void SceneRenderer::Render(Scene& scene, Renderer3D& renderer)
 
 void SceneRenderer::Render(Scene& scene, Renderer3D& renderer, const Camera3D& camera)
 {
-    XMMATRIX vp = camera.GetViewMatrix() * camera.GetProjectionMatrix();
+    XMMATRIX vp = ToXMMATRIX(camera.GetViewMatrix()) * ToXMMATRIX(camera.GetProjectionMatrix());
     Frustum frustum = Frustum::FromViewProjection(vp);
     RenderInternal(scene, renderer, &frustum, &camera);
 }
@@ -56,8 +57,8 @@ void SceneRenderer::RenderInternal(Scene& scene, Renderer3D& renderer,
         Animator* animator;
     };
 
-    std::vector<StaticDrawEntry> staticDraws;
-    std::vector<SkinnedDrawEntry> skinnedDraws;
+    gx::Vector<StaticDrawEntry> staticDraws;
+    gx::Vector<SkinnedDrawEntry> skinnedDraws;
 
     const auto& entities = scene.GetEntities();
 
@@ -130,7 +131,7 @@ void SceneRenderer::RenderInternal(Scene& scene, Renderer3D& renderer,
     }
 
     // Phase 2: Group static draws by model for instancing
-    std::unordered_map<const Model*, std::vector<size_t>> modelGroups;
+    gx::HashMap<const Model*, gx::Vector<size_t>> modelGroups;
     for (size_t i = 0; i < staticDraws.size(); ++i)
     {
         if (!staticDraws[i].materialOverride)
@@ -144,7 +145,7 @@ void SceneRenderer::RenderInternal(Scene& scene, Renderer3D& renderer,
     {
         if (indices.size() >= k_InstancingThreshold)
         {
-            std::vector<Transform3D> transforms;
+            gx::Vector<Transform3D> transforms;
             transforms.reserve(indices.size());
             for (size_t idx : indices)
                 transforms.push_back(staticDraws[idx].transform);

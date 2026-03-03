@@ -7,14 +7,16 @@
 
 using Ctx = gx_internal::CompatContext;
 
+namespace gx {
+
 // ============================================================================
 // カメラ
 // ============================================================================
 int SetCameraPositionAndTarget(VECTOR position, VECTOR target)
 {
     auto& ctx = Ctx::Instance();
-    ctx.camera.SetPosition({ position.x, position.y, position.z });
-    ctx.camera.SetTarget({ target.x, target.y, target.z });
+    ctx.camera.SetPosition(position);
+    ctx.camera.SetTarget(target);
     return 0;
 }
 
@@ -95,7 +97,7 @@ int SetModelPosition(int handle, VECTOR position)
     auto& ctx = Ctx::Instance();
     if (handle < 0 || handle >= static_cast<int>(ctx.models.size())) return -1;
     if (!ctx.models[handle].valid) return -1;
-    ctx.models[handle].transform.SetPosition({ position.x, position.y, position.z });
+    ctx.models[handle].transform.SetPosition(position);
     return 0;
 }
 
@@ -104,7 +106,7 @@ int SetModelScale(int handle, VECTOR scale)
     auto& ctx = Ctx::Instance();
     if (handle < 0 || handle >= static_cast<int>(ctx.models.size())) return -1;
     if (!ctx.models[handle].valid) return -1;
-    ctx.models[handle].transform.SetScale({ scale.x, scale.y, scale.z });
+    ctx.models[handle].transform.SetScale(scale);
     return 0;
 }
 
@@ -113,7 +115,7 @@ int SetModelRotation(int handle, VECTOR rotation)
     auto& ctx = Ctx::Instance();
     if (handle < 0 || handle >= static_cast<int>(ctx.models.size())) return -1;
     if (!ctx.models[handle].valid) return -1;
-    ctx.models[handle].transform.SetRotation({ rotation.x, rotation.y, rotation.z });
+    ctx.models[handle].transform.SetRotation(rotation);
     return 0;
 }
 
@@ -177,7 +179,7 @@ int GetModelMaterialHandle(int handle, int materialIndex)
 int CreateMaterial()
 {
     auto& ctx = Ctx::Instance();
-    gx::Material mat;
+    Material mat;
     return ctx.renderer3D.GetMaterialManager().CreateMaterial(mat);
 }
 
@@ -192,7 +194,7 @@ int SetMaterialParam(int materialHandle, const GX_MATERIAL_PARAM* param)
 {
     if (!param) return -1;
     auto& ctx = Ctx::Instance();
-    gx::Material* mat = ctx.renderer3D.GetMaterialManager().GetMaterial(materialHandle);
+    Material* mat = ctx.renderer3D.GetMaterialManager().GetMaterial(materialHandle);
     if (!mat) return -1;
 
     mat->constants.albedoFactor = { param->albedoR, param->albedoG, param->albedoB, param->albedoA };
@@ -207,14 +209,14 @@ int SetMaterialParam(int materialHandle, const GX_MATERIAL_PARAM* param)
 int SetMaterialTexture(int materialHandle, int slot, int textureHandle)
 {
     auto& ctx = Ctx::Instance();
-    gx::MaterialTextureSlot slotEnum;
+    MaterialTextureSlot slotEnum;
     switch (slot)
     {
-    case GX_MATERIAL_TEX_ALBEDO:     slotEnum = gx::MaterialTextureSlot::Albedo; break;
-    case GX_MATERIAL_TEX_NORMAL:     slotEnum = gx::MaterialTextureSlot::Normal; break;
-    case GX_MATERIAL_TEX_METALROUGH: slotEnum = gx::MaterialTextureSlot::MetalRoughness; break;
-    case GX_MATERIAL_TEX_AO:         slotEnum = gx::MaterialTextureSlot::AO; break;
-    case GX_MATERIAL_TEX_EMISSIVE:   slotEnum = gx::MaterialTextureSlot::Emissive; break;
+    case GX_MATERIAL_TEX_ALBEDO:     slotEnum = MaterialTextureSlot::Albedo; break;
+    case GX_MATERIAL_TEX_NORMAL:     slotEnum = MaterialTextureSlot::Normal; break;
+    case GX_MATERIAL_TEX_METALROUGH: slotEnum = MaterialTextureSlot::MetalRoughness; break;
+    case GX_MATERIAL_TEX_AO:         slotEnum = MaterialTextureSlot::AO; break;
+    case GX_MATERIAL_TEX_EMISSIVE:   slotEnum = MaterialTextureSlot::Emissive; break;
     default: return -1;
     }
     return ctx.renderer3D.GetMaterialManager().SetTexture(materialHandle, slotEnum, textureHandle) ? 0 : -1;
@@ -230,7 +232,7 @@ int CreateMaterialShader(const char* vsPath, const char* psPath)
 {
     if (!vsPath || !psPath) return -1;
     auto& ctx = Ctx::Instance();
-    gx::ShaderProgramDesc desc;
+    ShaderProgramDesc desc;
     desc.vsPath = gx_internal::ToWString(vsPath);
     desc.psPath = gx_internal::ToWString(psPath);
     return ctx.renderer3D.CreateMaterialShader(desc);
@@ -286,3 +288,5 @@ int UpdateModelAnimation(int handle, float deltaTime)
     ctx.models[handle].animator.Update(deltaTime);
     return 0;
 }
+
+} // namespace gx

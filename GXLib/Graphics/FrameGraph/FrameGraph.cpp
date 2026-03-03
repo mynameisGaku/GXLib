@@ -10,13 +10,13 @@
 namespace gx
 {
 
-const std::vector<BarrierEntry> FrameGraph::s_emptyBarriers;
+const gx::Vector<BarrierEntry> FrameGraph::s_emptyBarriers;
 
 // ============================================================================
 // リソース宣言
 // ============================================================================
 
-uint32_t FrameGraph::DeclareResource(const std::string& name, DXGI_FORMAT format,
+uint32_t FrameGraph::DeclareResource(const gx::String& name, DXGI_FORMAT format,
                                       uint32_t width, uint32_t height,
                                       D3D12_RESOURCE_STATES initialState)
 {
@@ -37,7 +37,7 @@ uint32_t FrameGraph::DeclareResource(const std::string& name, DXGI_FORMAT format
     return node.id;
 }
 
-uint32_t FrameGraph::DeclareBuffer(const std::string& name,
+uint32_t FrameGraph::DeclareBuffer(const gx::String& name,
                                     D3D12_RESOURCE_STATES initialState)
 {
     ResourceNode node;
@@ -73,7 +73,7 @@ void FrameGraph::BindResource(uint32_t resourceId, ID3D12Resource* resource)
 // パス管理
 // ============================================================================
 
-uint32_t FrameGraph::AddPass(const std::string& name,
+uint32_t FrameGraph::AddPass(const gx::String& name,
                               std::function<void(const PassContext&)> executeFn)
 {
     RenderPass pass;
@@ -168,11 +168,11 @@ bool FrameGraph::TopologicalSort()
     // 先に宣言されたライターは、リーダーおよび後続のライターより先に実行される必要がある。
     struct ResourcePassInfo
     {
-        std::vector<uint32_t> writers; // このリソースに書き込むパスID（宣言順）
-        std::vector<uint32_t> readers; // このリソースを読み取るパスID
+        gx::Vector<uint32_t> writers; // このリソースに書き込むパスID（宣言順）
+        gx::Vector<uint32_t> readers; // このリソースを読み取るパスID
     };
 
-    std::vector<ResourcePassInfo> resourcePasses(m_resources.size());
+    gx::Vector<ResourcePassInfo> resourcePasses(m_resources.size());
 
     for (uint32_t pi = 0; pi < passCount; ++pi)
     {
@@ -190,11 +190,11 @@ bool FrameGraph::TopologicalSort()
     }
 
     // 隣接リストと入次数カウントを構築する
-    std::vector<std::vector<uint32_t>> adjacency(passCount);
-    std::vector<uint32_t> inDegree(passCount, 0);
+    gx::Vector<gx::Vector<uint32_t>> adjacency(passCount);
+    gx::Vector<uint32_t> inDegree(passCount, 0);
 
     // 重複辺を回避するためのセット
-    std::vector<std::unordered_set<uint32_t>> edgeSet(passCount);
+    gx::Vector<gx::HashSet<uint32_t>> edgeSet(passCount);
 
     auto addEdge = [&](uint32_t from, uint32_t to)
     {
@@ -240,7 +240,7 @@ bool FrameGraph::TopologicalSort()
     }
 
     // カーンのアルゴリズム
-    std::queue<uint32_t> queue;
+    gx::Queue<uint32_t> queue;
     for (uint32_t pi = 0; pi < passCount; ++pi)
     {
         if (m_passes[pi].enabled && inDegree[pi] == 0)
@@ -368,7 +368,7 @@ void FrameGraph::Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex
         const auto& barriers = m_passBarriers[execIdx];
         if (!barriers.empty())
         {
-            std::vector<D3D12_RESOURCE_BARRIER> d3dBarriers;
+            gx::Vector<D3D12_RESOURCE_BARRIER> d3dBarriers;
             d3dBarriers.reserve(barriers.size());
 
             for (const auto& be : barriers)
@@ -429,7 +429,7 @@ void FrameGraph::Clear()
 // アクセサ
 // ============================================================================
 
-const std::vector<BarrierEntry>& FrameGraph::GetBarriersForPass(uint32_t executionIndex) const
+const gx::Vector<BarrierEntry>& FrameGraph::GetBarriersForPass(uint32_t executionIndex) const
 {
     if (executionIndex < static_cast<uint32_t>(m_passBarriers.size()))
     {

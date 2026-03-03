@@ -41,7 +41,7 @@ void FrameRingBuffer::PushFrame(const uint8_t* rgbaData, uint32_t dataSize)
         m_frameCount++;
 }
 
-bool FrameRingBuffer::ExportToVideo(VideoRecorder& recorder, const std::wstring& outputPath)
+bool FrameRingBuffer::ExportToVideo(VideoRecorder& recorder, const gx::WString& outputPath)
 {
     if (!m_initialized || m_frameCount == 0)
     {

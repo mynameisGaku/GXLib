@@ -16,24 +16,24 @@ AudioListener::AudioListener()
     m_listener.Velocity    = { 0.0f, 0.0f, 0.0f };
 }
 
-void AudioListener::SetPosition(const XMFLOAT3& pos)
+void AudioListener::SetPosition(const Vector3& pos)
 {
     m_listener.Position = { pos.x, pos.y, pos.z };
 }
 
-void AudioListener::SetOrientation(const XMFLOAT3& front, const XMFLOAT3& up)
+void AudioListener::SetOrientation(const Vector3& front, const Vector3& up)
 {
     m_listener.OrientFront = { front.x, front.y, front.z };
     m_listener.OrientTop   = { up.x, up.y, up.z };
 }
 
-void AudioListener::SetVelocity(const XMFLOAT3& vel)
+void AudioListener::SetVelocity(const Vector3& vel)
 {
     m_listener.Velocity = { vel.x, vel.y, vel.z };
 }
 
-void AudioListener::UpdateFromTransform(const XMFLOAT3& position, const XMFLOAT3& forward,
-                                          const XMFLOAT3& up, float deltaTime)
+void AudioListener::UpdateFromTransform(const Vector3& position, const Vector3& forward,
+                                          const Vector3& up, float deltaTime)
 {
     // 速度を前フレームの位置差分から計算（ドップラー効果用）
     if (deltaTime > 0.0f)

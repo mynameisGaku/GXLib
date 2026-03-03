@@ -3,6 +3,7 @@
 #include "pch_common.h"
 #include "Physics/CharacterController.h"
 #include "Physics/PhysicsWorld3D.h"
+#include "Math/MathConvert.h"
 #include "Core/Logger.h"
 
 #include <Jolt/Jolt.h>
@@ -190,11 +191,9 @@ Matrix4x4 CharacterController::GetWorldTransform() const
         static_cast<float>(pos.GetZ())
     );
 
-    XMFLOAT4X4 result;
-    XMStoreFloat4x4(&result, XMMatrixMultiply(rotMat, transMat));
-    Matrix4x4 mat;
-    std::memcpy(&mat, &result, sizeof(Matrix4x4));
-    return mat;
+    Matrix4x4 result;
+    XMStoreFloat4x4(XM(&result), XMMatrixMultiply(rotMat, transMat));
+    return result;
 }
 
 CharacterGroundState CharacterController::GetGroundState() const

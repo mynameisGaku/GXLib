@@ -42,7 +42,7 @@ LegState ProceduralAnimator::GetLegState(int index) const
 // ============================================================================
 // GetFootTarget
 // ============================================================================
-XMFLOAT3 ProceduralAnimator::GetFootTarget(int legIndex) const
+Vector3 ProceduralAnimator::GetFootTarget(int legIndex) const
 {
     if (legIndex >= 0 && legIndex < static_cast<int>(m_legs.size()))
         return m_legs[static_cast<size_t>(legIndex)].state.targetFootPosition;
@@ -158,7 +158,7 @@ void ProceduralAnimator::Update(float deltaTime)
             float oneMinusT = 1.0f - t;
 
             // 二次ベジェ: P(t) = (1-t)^2 * P0 + 2(1-t)*t * P1 + t^2 * P2
-            XMFLOAT3 midPoint;
+            Vector3 midPoint;
             midPoint.x = (leg.liftoffPos.x + leg.landingPos.x) * 0.5f;
             midPoint.y = (std::max)(leg.liftoffPos.y, leg.landingPos.y) + leg.config.stepHeight;
             midPoint.z = (leg.liftoffPos.z + leg.landingPos.z) * 0.5f;

@@ -4,6 +4,7 @@
 #include "Graphics/3D/HiZBuffer.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Device/BarrierBatch.h"
+#include "Math/MathConvert.h"
 #include "Core/Logger.h"
 
 namespace gx
@@ -242,7 +243,7 @@ void HiZBuffer::GenerateHiZ(ID3D12GraphicsCommandList* cmdList,
 
 void HiZBuffer::CullObjects(ID3D12GraphicsCommandList* cmdList,
                               const HiZObjectBounds* bounds, uint32_t objectCount,
-                              const XMMATRIX& viewProjection, uint32_t frameIndex)
+                              const Matrix4x4& viewProjection, uint32_t frameIndex)
 {
     if (!m_ready || objectCount == 0) return;
     objectCount = (std::min)(objectCount, k_MaxCullObjects);
@@ -333,13 +334,13 @@ void HiZBuffer::CullObjects(ID3D12GraphicsCommandList* cmdList,
     // 定数バッファ
     struct CullConstants
     {
-        XMFLOAT4X4 viewProjection;
+        Matrix4x4 viewProjection;
         uint32_t objectCount;
         uint32_t hiZW, hiZH;
         uint32_t hiZMipLevels;
     };
     CullConstants cb;
-    XMStoreFloat4x4(&cb.viewProjection, XMMatrixTranspose(viewProjection));
+    XMStoreFloat4x4(XM(&cb.viewProjection), XMMatrixTranspose(ToXMMATRIX(viewProjection)));
     cb.objectCount = objectCount;
     cb.hiZW = m_width / 2;
     cb.hiZH = m_height / 2;

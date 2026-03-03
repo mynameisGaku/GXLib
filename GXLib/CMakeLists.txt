@@ -30,6 +30,15 @@ macro(gxlib_setup_module target pch_header)
 endmacro()
 
 # =============================================================================
+# GXLib_Container — EASTL風高速コンテナライブラリ
+# 依存: なし (Foundation と同レベル)
+# =============================================================================
+file(GLOB_RECURSE CONTAINER_SOURCES "Container/*.cpp" "Container/*.h")
+add_library(GXLib_Container STATIC ${CONTAINER_SOURCES})
+gxlib_setup_module(GXLib_Container pch_common.h)
+set_target_properties(GXLib_Container PROPERTIES FOLDER "Engine")
+
+# =============================================================================
 # GXLib_Foundation — Math, Collision, Spatial
 # 依存: なし
 # =============================================================================
@@ -37,6 +46,7 @@ file(GLOB_RECURSE FOUNDATION_SOURCES "Math/*.cpp" "Math/*.h")
 add_library(GXLib_Foundation STATIC ${FOUNDATION_SOURCES})
 gxlib_setup_module(GXLib_Foundation pch_common.h)
 set_target_properties(GXLib_Foundation PROPERTIES FOLDER "Engine")
+target_link_libraries(GXLib_Foundation PUBLIC GXLib_Container)
 
 # =============================================================================
 # GXLib_Core — Application, Window, Timer, Logger, Allocators
@@ -211,12 +221,33 @@ endif()
 # =============================================================================
 file(GLOB_RECURSE COMPAT_SOURCES "Compat/*.cpp" "Compat/*.h" "GX/*.cpp" "GX/*.h")
 list(APPEND COMPAT_SOURCES "pch.cpp" "pch.h")
+
+# ImGui sources (デバッグオーバーレイ用)
+set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/imgui)
+set(IMGUI_SOURCES
+    ${IMGUI_DIR}/imgui.cpp
+    ${IMGUI_DIR}/imgui_demo.cpp
+    ${IMGUI_DIR}/imgui_draw.cpp
+    ${IMGUI_DIR}/imgui_tables.cpp
+    ${IMGUI_DIR}/imgui_widgets.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_win32.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_dx12.cpp
+)
+list(APPEND COMPAT_SOURCES ${IMGUI_SOURCES})
+
 add_library(GXLib STATIC ${COMPAT_SOURCES})
 gxlib_setup_module(GXLib pch.h)
 set_target_properties(GXLib PROPERTIES FOLDER "Engine")
 
+# ImGui ソースは独自ヘッダーを使うため PCH をスキップ
+set_source_files_properties(${IMGUI_SOURCES} PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
+
+# ImGui インクルードパス
+target_include_directories(GXLib PUBLIC ${IMGUI_DIR} ${IMGUI_DIR}/backends)
+
 # 全サブライブラリをリンク（PUBLIC で依存先も連鎖）
 target_link_libraries(GXLib PUBLIC
+    GXLib_Container
     GXLib_Foundation
     GXLib_Core
     GXLib_Input
@@ -244,6 +275,7 @@ target_include_directories(GXLib PUBLIC ${joltphysics_SOURCE_DIR}/..)
 
 # ヘッダーインストール（ディレクトリ構造保持）
 install(DIRECTORY
+    ${CMAKE_CURRENT_SOURCE_DIR}/Container
     ${CMAKE_CURRENT_SOURCE_DIR}/AI
     ${CMAKE_CURRENT_SOURCE_DIR}/Audio
     ${CMAKE_CURRENT_SOURCE_DIR}/Compat
@@ -276,7 +308,7 @@ install(FILES
 
 # ライブラリインストール（Debug/Release を $<CONFIG> で分岐）
 install(TARGETS
-    GXLib GXLib_Foundation GXLib_Core GXLib_Input GXLib_Audio
+    GXLib GXLib_Container GXLib_Foundation GXLib_Core GXLib_Input GXLib_Audio
     GXLib_IO GXLib_Physics GXLib_AI GXLib_Scene GXLib_ECS
     GXLib_Graphics GXLib_GUI GXLib_Editor
     ARCHIVE DESTINATION lib/$<CONFIG>

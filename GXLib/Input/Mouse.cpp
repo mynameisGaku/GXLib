@@ -9,6 +9,7 @@ namespace gx
 void Mouse::Initialize()
 {
     m_x = m_y = m_prevX = m_prevY = 0;
+    m_rawX = m_rawY = 0;
     m_wheelDelta = 0;
     m_wheelAccum = 0;
     m_currentButtons.fill(false);
@@ -20,8 +21,12 @@ void Mouse::Update()
 {
     m_previousButtons = m_currentButtons;
     m_currentButtons = m_rawButtons;
+    // 位置もボタンと同様にダブルバッファリング:
+    // ProcessMessage が m_rawX/Y を更新 → Update で prev/current を確定
     m_prevX = m_x;
     m_prevY = m_y;
+    m_x = m_rawX;
+    m_y = m_rawY;
     // フレーム内に複数回届いたWM_MOUSEWHEELの合算値を確定し、蓄積をリセット
     m_wheelDelta = m_wheelAccum;
     m_wheelAccum = 0;
@@ -33,8 +38,9 @@ bool Mouse::ProcessMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
     case WM_MOUSEMOVE:
         // lParamの下位/上位16bitがクライアント座標。shortキャストでマルチモニタの負座標にも対応
-        m_x = static_cast<int>(static_cast<short>(LOWORD(lParam)));
-        m_y = static_cast<int>(static_cast<short>(HIWORD(lParam)));
+        // ダブルバッファリング: raw に書き込み、Update() で current に反映
+        m_rawX = static_cast<int>(static_cast<short>(LOWORD(lParam)));
+        m_rawY = static_cast<int>(static_cast<short>(HIWORD(lParam)));
         return true;
 
     case WM_LBUTTONDOWN: m_rawButtons[MouseButton::Left]   = true;  return true;

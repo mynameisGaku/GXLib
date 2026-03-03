@@ -156,7 +156,7 @@ void JobSystem::ParallelFor(uint32_t count, const std::function<void(uint32_t)>&
 
     // バッチに分割
     uint32_t batchCount = (count + minBatchSize - 1) / minBatchSize;
-    std::vector<JobHandle> handles;
+    gx::Vector<JobHandle> handles;
     handles.reserve(batchCount);
 
     for (uint32_t batch = 0; batch < batchCount; ++batch)

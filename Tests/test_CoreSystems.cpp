@@ -217,9 +217,9 @@ TEST(ActionSchedulerTest, Cancel)
 TEST(ActionSchedulerTest, RunSequence)
 {
     ActionScheduler sched;
-    std::vector<int> order;
+    gx::Vector<int> order;
 
-    std::vector<SequenceStep> steps = {
+    gx::Vector<SequenceStep> steps = {
         { 0.0f, [&]() { order.push_back(1); } },
         { 0.1f, [&]() { order.push_back(2); } },
         { 0.1f, [&]() { order.push_back(3); } },
@@ -246,7 +246,7 @@ TEST(ActionSchedulerTest, RunSequence)
 TEST(GameStateMachineTest, BasicFlow)
 {
     GameStateMachine gsm;
-    std::string log;
+    gx::String log;
 
     auto titleId = gsm.RegisterState({
         "Title",
@@ -266,24 +266,24 @@ TEST(GameStateMachineTest, BasicFlow)
 
     gsm.ChangeState(titleId);
     EXPECT_EQ(gsm.GetCurrentStateName(), "Title");
-    EXPECT_TRUE(log.find("enter_title;") != std::string::npos);
+    EXPECT_TRUE(log.find("enter_title;") != gx::String::npos);
 
     gsm.Update(0.016f);
-    EXPECT_TRUE(log.find("update_title;") != std::string::npos);
+    EXPECT_TRUE(log.find("update_title;") != gx::String::npos);
 
     gsm.Draw();
-    EXPECT_TRUE(log.find("draw_title;") != std::string::npos);
+    EXPECT_TRUE(log.find("draw_title;") != gx::String::npos);
 
     gsm.ChangeState(gameId);
     EXPECT_EQ(gsm.GetCurrentStateName(), "Game");
-    EXPECT_TRUE(log.find("exit_title;") != std::string::npos);
-    EXPECT_TRUE(log.find("enter_game;") != std::string::npos);
+    EXPECT_TRUE(log.find("exit_title;") != gx::String::npos);
+    EXPECT_TRUE(log.find("enter_game;") != gx::String::npos);
 }
 
 TEST(GameStateMachineTest, PushPopState)
 {
     GameStateMachine gsm;
-    std::string current;
+    gx::String current;
 
     auto gameId = gsm.RegisterState({ "Game", nullptr, nullptr, nullptr, nullptr });
     auto pauseId = gsm.RegisterState({ "Pause", nullptr, nullptr, nullptr, nullptr });
@@ -324,9 +324,9 @@ protected:
     }
     void TearDown() override
     {
-        std::filesystem::remove_all(m_saveDir);
+        std::filesystem::remove_all(std::filesystem::path(m_saveDir.c_str()));
     }
-    std::string m_saveDir;
+    gx::String m_saveDir;
 };
 
 TEST_F(SaveSystemTest, SetAndGet)

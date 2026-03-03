@@ -8,6 +8,7 @@
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
+#include "Math/MathConvert.h"
 #include "Core/Logger.h"
 
 namespace gx
@@ -125,16 +126,16 @@ void SkyAtmosphere::Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameIn
     cmdList->SetDescriptorHeaps(1, heaps);
 
     // 定数バッファを構築
-    XMMATRIX vpMat = camera.GetViewProjectionMatrix();
+    XMMATRIX vpMat = ToXMMATRIX(camera.GetViewProjectionMatrix());
     XMMATRIX invVP = XMMatrixInverse(nullptr, vpMat);
 
     // 太陽方向を正規化（太陽に向かう方向）
-    XMVECTOR sunDir = XMVector3Normalize(XMLoadFloat3(&m_sunDirection));
-    XMFLOAT3 sunDirF;
-    XMStoreFloat3(&sunDirF, sunDir);
+    XMVECTOR sunDir = XMVector3Normalize(XMLoadFloat3(XM(&m_sunDirection)));
+    Vector3 sunDirF;
+    XMStoreFloat3(XM(&sunDirF), sunDir);
 
     SkyAtmosphereConstants cb = {};
-    XMStoreFloat4x4(&cb.invViewProjection, XMMatrixTranspose(invVP));
+    XMStoreFloat4x4(XM(&cb.invViewProjection), XMMatrixTranspose(invVP));
     cb.cameraPosition    = camera.GetPosition();
     cb.planetRadius      = m_planetRadius;
     cb.sunDirection      = sunDirF;
@@ -171,7 +172,7 @@ void SkyAtmosphere::OnResize(ID3D12Device* /*device*/, uint32_t width, uint32_t 
     m_height = height;
 }
 
-XMFLOAT3 SkyAtmosphere::ComputeSunColor(float sunElevation)
+Vector3 SkyAtmosphere::ComputeSunColor(float sunElevation)
 {
     // Perez方式モデル: 天頂では太陽は白色、地平線では大気経路長の増加により赤みを帯びる
     // sunElevation: 0 = 地平線、PI/2 = 天頂

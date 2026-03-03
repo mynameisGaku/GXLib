@@ -16,14 +16,14 @@ OggStream::~OggStream()
     Close();
 }
 
-bool OggStream::Open(const std::wstring& filePath)
+bool OggStream::Open(const gx::WString& filePath)
 {
     Close();
 
     // ワイド文字列をマルチバイトに変換
     int size = WideCharToMultiByte(CP_UTF8, 0, filePath.c_str(), -1, nullptr, 0, nullptr, nullptr);
-    std::string path(size - 1, '\0');
-    WideCharToMultiByte(CP_UTF8, 0, filePath.c_str(), -1, path.data(), size, nullptr, nullptr);
+    gx::String path(size - 1, '\0');
+    WideCharToMultiByte(CP_UTF8, 0, filePath.c_str(), -1, path.DataMut(), size, nullptr, nullptr);
 
     int error = 0;
     m_vorbis = stb_vorbis_open_filename(path.c_str(), &error, nullptr);

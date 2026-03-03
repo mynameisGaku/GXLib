@@ -3,6 +3,7 @@
 /// @brief Grid-based navigation mesh with A* pathfinding
 
 #include "AI/NavMesh.h"
+#include "Math/MathConvert.h"
 #include "Graphics/3D/Terrain.h"
 #include "Graphics/3D/PrimitiveBatch3D.h"
 #include "Core/Logger.h"
@@ -78,7 +79,7 @@ bool NavMesh::BuildFromTerrain(const Terrain& terrain,
     {
         for (int x = 0; x < m_gridWidth; ++x)
         {
-            XMFLOAT3 worldPos = CellToWorld(x, z);
+            Vector3 worldPos = CellToWorld(x, z);
             float h = terrain.GetHeight(worldPos.x, worldPos.z);
             m_grid[static_cast<size_t>(z) * m_gridWidth + x].height = h;
         }
@@ -140,9 +141,9 @@ bool NavMesh::BuildFromGeometry(const float* vertices, int vertexCount,
         if (i0 < 0 || i0 >= vertexCount || i1 < 0 || i1 >= vertexCount || i2 < 0 || i2 >= vertexCount)
             continue;
 
-        XMFLOAT3 v0 = { vertices[i0 * 3 + 0], vertices[i0 * 3 + 1], vertices[i0 * 3 + 2] };
-        XMFLOAT3 v1 = { vertices[i1 * 3 + 0], vertices[i1 * 3 + 1], vertices[i1 * 3 + 2] };
-        XMFLOAT3 v2 = { vertices[i2 * 3 + 0], vertices[i2 * 3 + 1], vertices[i2 * 3 + 2] };
+        Vector3 v0 = { vertices[i0 * 3 + 0], vertices[i0 * 3 + 1], vertices[i0 * 3 + 2] };
+        Vector3 v1 = { vertices[i1 * 3 + 0], vertices[i1 * 3 + 1], vertices[i1 * 3 + 2] };
+        Vector3 v2 = { vertices[i2 * 3 + 0], vertices[i2 * 3 + 1], vertices[i2 * 3 + 2] };
 
         // Triangle XZ AABB
         float triMinX = std::min({ v0.x, v1.x, v2.x });
@@ -161,11 +162,11 @@ bool NavMesh::BuildFromGeometry(const float* vertices, int vertexCount,
         czMax = std::min(m_gridHeight - 1, czMax);
 
         // Compute triangle normal for slope check
-        XMVECTOR e1 = XMVectorSubtract(XMLoadFloat3(&v1), XMLoadFloat3(&v0));
-        XMVECTOR e2 = XMVectorSubtract(XMLoadFloat3(&v2), XMLoadFloat3(&v0));
+        XMVECTOR e1 = XMVectorSubtract(XMLoadFloat3(XM(&v1)), XMLoadFloat3(XM(&v0)));
+        XMVECTOR e2 = XMVectorSubtract(XMLoadFloat3(XM(&v2)), XMLoadFloat3(XM(&v0)));
         XMVECTOR normal = XMVector3Normalize(XMVector3Cross(e1, e2));
-        XMFLOAT3 n;
-        XMStoreFloat3(&n, normal);
+        Vector3 n;
+        XMStoreFloat3(XM(&n), normal);
 
         // Slope angle from normal (angle between normal and up vector)
         float slopeAngle = std::acos(std::max(0.0f, std::min(1.0f, std::abs(n.y))))
@@ -175,7 +176,7 @@ bool NavMesh::BuildFromGeometry(const float* vertices, int vertexCount,
         {
             for (int cx = cxMin; cx <= cxMax; ++cx)
             {
-                XMFLOAT3 cellWorld = CellToWorld(cx, cz);
+                Vector3 cellWorld = CellToWorld(cx, cz);
 
                 // Barycentric test to check if cell center is inside triangle (XZ projection)
                 float dx0 = v1.x - v0.x, dz0 = v1.z - v0.z;
@@ -299,8 +300,8 @@ void NavMesh::SetCellCost(int cellX, int cellZ, float costMultiplier)
 // ============================================================================
 // FindPath (A*)
 // ============================================================================
-bool NavMesh::FindPath(const XMFLOAT3& start, const XMFLOAT3& end,
-                       std::vector<XMFLOAT3>& path, bool smooth) const
+bool NavMesh::FindPath(const Vector3& start, const Vector3& end,
+                       gx::Vector<Vector3>& path, bool smooth) const
 {
     path.clear();
     if (!m_built) return false;
@@ -331,14 +332,14 @@ bool NavMesh::FindPath(const XMFLOAT3& start, const XMFLOAT3& end,
     size_t gridSize = static_cast<size_t>(m_gridWidth) * m_gridHeight;
 
     // Closed set + g-scores + parent tracking
-    std::vector<bool>  closed(gridSize, false);
-    std::vector<float> gScore(gridSize, FLT_MAX);
-    std::vector<int>   parentX(gridSize, -1);
-    std::vector<int>   parentZ(gridSize, -1);
+    gx::Vector<bool>  closed(gridSize, false);
+    gx::Vector<float> gScore(gridSize, FLT_MAX);
+    gx::Vector<int>   parentX(gridSize, -1);
+    gx::Vector<int>   parentZ(gridSize, -1);
 
     // Min-heap priority queue
     auto cmp = [](const AStarNode& a, const AStarNode& b) { return a.f > b.f; };
-    std::priority_queue<AStarNode, std::vector<AStarNode>, decltype(cmp)> openList(cmp);
+    gx::PriorityQueue<AStarNode, gx::Deque<AStarNode>, decltype(cmp)> openList(cmp);
 
     // Start node
     size_t startIdx = static_cast<size_t>(sz) * m_gridWidth + sx;
@@ -414,7 +415,7 @@ bool NavMesh::FindPath(const XMFLOAT3& start, const XMFLOAT3& end,
     if (!found) return false;
 
     // Reconstruct path (from end to start)
-    std::vector<XMFLOAT3> reversePath;
+    gx::Vector<Vector3> reversePath;
     int cx = ex, cz = ez;
     while (cx != -1 && cz != -1)
     {
@@ -444,7 +445,7 @@ bool NavMesh::FindPath(const XMFLOAT3& start, const XMFLOAT3& end,
 // ============================================================================
 // FindNearestWalkable (spiral search)
 // ============================================================================
-bool NavMesh::FindNearestWalkable(const XMFLOAT3& position, XMFLOAT3& nearest) const
+bool NavMesh::FindNearestWalkable(const Vector3& position, Vector3& nearest) const
 {
     if (!m_built) return false;
 
@@ -492,7 +493,7 @@ bool NavMesh::FindNearestWalkable(const XMFLOAT3& position, XMFLOAT3& nearest) c
 // ============================================================================
 // IsWalkable
 // ============================================================================
-bool NavMesh::IsWalkable(const XMFLOAT3& position) const
+bool NavMesh::IsWalkable(const Vector3& position) const
 {
     if (!m_built) return false;
 
@@ -512,8 +513,8 @@ void NavMesh::DebugDraw(PrimitiveBatch3D& batch) const
 {
     if (!m_built) return;
 
-    const XMFLOAT4 walkableColor   = { 0.1f, 0.8f, 0.2f, 0.4f };
-    const XMFLOAT4 unwalkableColor = { 0.9f, 0.15f, 0.1f, 0.5f };
+    const Vector4 walkableColor   = { 0.1f, 0.8f, 0.2f, 0.4f };
+    const Vector4 unwalkableColor = { 0.9f, 0.15f, 0.1f, 0.5f };
     const float drawOffset = 0.05f; // Slight Y offset to avoid z-fighting
 
     for (int z = 0; z < m_gridHeight; ++z)
@@ -521,18 +522,18 @@ void NavMesh::DebugDraw(PrimitiveBatch3D& batch) const
         for (int x = 0; x < m_gridWidth; ++x)
         {
             const Cell& cell = m_grid[static_cast<size_t>(z) * m_gridWidth + x];
-            XMFLOAT3 center = CellToWorld(x, z);
+            Vector3 center = CellToWorld(x, z);
             center.y = cell.height + drawOffset;
 
-            const XMFLOAT4& color = cell.walkable ? walkableColor : unwalkableColor;
+            const Vector4& color = cell.walkable ? walkableColor : unwalkableColor;
 
             float half = m_cellSize * 0.45f; // Slightly smaller than cell to see grid lines
 
             // Draw cell as 4 lines (rectangle outline on XZ plane)
-            XMFLOAT3 p0 = { center.x - half, center.y, center.z - half };
-            XMFLOAT3 p1 = { center.x + half, center.y, center.z - half };
-            XMFLOAT3 p2 = { center.x + half, center.y, center.z + half };
-            XMFLOAT3 p3 = { center.x - half, center.y, center.z + half };
+            Vector3 p0 = { center.x - half, center.y, center.z - half };
+            Vector3 p1 = { center.x + half, center.y, center.z - half };
+            Vector3 p2 = { center.x + half, center.y, center.z + half };
+            Vector3 p3 = { center.x - half, center.y, center.z + half };
 
             batch.DrawLine(p0, p1, color);
             batch.DrawLine(p1, p2, color);
@@ -546,16 +547,16 @@ void NavMesh::DebugDraw(PrimitiveBatch3D& batch) const
 // DebugDrawPath
 // ============================================================================
 void NavMesh::DebugDrawPath(PrimitiveBatch3D& batch,
-                            const std::vector<XMFLOAT3>& path,
-                            const XMFLOAT4& color) const
+                            const gx::Vector<Vector3>& path,
+                            const Vector4& color) const
 {
     if (path.size() < 2) return;
 
     const float yOffset = 0.15f;
     for (size_t i = 0; i + 1 < path.size(); ++i)
     {
-        XMFLOAT3 a = path[i];
-        XMFLOAT3 b = path[i + 1];
+        Vector3 a = path[i];
+        Vector3 b = path[i + 1];
         a.y += yOffset;
         b.y += yOffset;
         batch.DrawLine(a, b, color);
@@ -571,7 +572,7 @@ void NavMesh::WorldToCell(float worldX, float worldZ, int& cellX, int& cellZ) co
     cellZ = static_cast<int>(std::floor((worldZ - m_worldMinZ) / m_cellSize));
 }
 
-XMFLOAT3 NavMesh::CellToWorld(int cellX, int cellZ) const
+Vector3 NavMesh::CellToWorld(int cellX, int cellZ) const
 {
     float wx = m_worldMinX + (cellX + 0.5f) * m_cellSize;
     float wz = m_worldMinZ + (cellZ + 0.5f) * m_cellSize;

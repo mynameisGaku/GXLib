@@ -2,6 +2,7 @@
 /// @brief 3Dカメラの実装
 #include "pch_graphics.h"
 #include "Graphics/3D/Camera3D.h"
+#include "Math/MathConvert.h"
 
 namespace gx
 {
@@ -24,7 +25,7 @@ void Camera3D::SetOrthographic(float width, float height, float nearZ, float far
     m_farZ   = farZ;
 }
 
-void Camera3D::LookAt(const XMFLOAT3& target)
+void Camera3D::LookAt(const Vector3& target)
 {
     float dx = target.x - m_position.x;
     float dy = target.y - m_position.y;
@@ -52,7 +53,6 @@ void Camera3D::Rotate(float deltaPitch, float deltaYaw)
     m_pitch += deltaPitch;
     m_yaw   += deltaYaw;
 
-    // ピッチ制限（±89度）
     constexpr float maxPitch = XM_PIDIV2 - 0.01f;
     if (m_pitch > maxPitch)  m_pitch = maxPitch;
     if (m_pitch < -maxPitch) m_pitch = -maxPitch;
@@ -63,28 +63,27 @@ void Camera3D::Rotate(float deltaPitch, float deltaYaw)
 void Camera3D::MoveForward(float distance)
 {
     UpdateVectors();
-    XMVECTOR pos = XMLoadFloat3(&m_position);
-    XMVECTOR fwd = XMLoadFloat3(&m_forward);
+    XMVECTOR pos = XMLoadFloat3(XM(&m_position));
+    XMVECTOR fwd = XMLoadFloat3(XM(&m_forward));
     pos = XMVectorAdd(pos, XMVectorScale(fwd, distance));
-    XMStoreFloat3(&m_position, pos);
+    XMStoreFloat3(XM(&m_position), pos);
 }
 
 void Camera3D::MoveRight(float distance)
 {
     UpdateVectors();
-    XMVECTOR pos = XMLoadFloat3(&m_position);
-    XMVECTOR right = XMLoadFloat3(&m_right);
+    XMVECTOR pos = XMLoadFloat3(XM(&m_position));
+    XMVECTOR right = XMLoadFloat3(XM(&m_right));
     pos = XMVectorAdd(pos, XMVectorScale(right, distance));
-    XMStoreFloat3(&m_position, pos);
+    XMStoreFloat3(XM(&m_position), pos);
 }
 
 void Camera3D::MoveUp(float distance)
 {
-    // ワールドアップ方向に移動（カメラローカルではなく）
     m_position.y += distance;
 }
 
-XMMATRIX Camera3D::GetViewMatrix() const
+Matrix4x4 Camera3D::GetViewMatrix() const
 {
     UpdateVectors();
 
@@ -93,72 +92,66 @@ XMMATRIX Camera3D::GetViewMatrix() const
     case CameraMode::Free:
     case CameraMode::FPS:
     {
-        XMVECTOR pos = XMLoadFloat3(&m_position);
-        XMVECTOR fwd = XMLoadFloat3(&m_forward);
+        XMVECTOR pos = XMLoadFloat3(XM(&m_position));
+        XMVECTOR fwd = XMLoadFloat3(XM(&m_forward));
         XMVECTOR up  = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-        return XMMatrixLookToLH(pos, fwd, up);
+        return FromXMMATRIX(XMMatrixLookToLH(pos, fwd, up));
     }
     case CameraMode::TPS:
     {
-        // ターゲットの後方にカメラを配置
-        XMVECTOR target = XMLoadFloat3(&m_target);
-        XMVECTOR offset = XMLoadFloat3(&m_tpsOffset);
+        XMVECTOR target = XMLoadFloat3(XM(&m_target));
+        XMVECTOR offset = XMLoadFloat3(XM(&m_tpsOffset));
         target = XMVectorAdd(target, offset);
 
-        XMVECTOR fwd = XMLoadFloat3(&m_forward);
+        XMVECTOR fwd = XMLoadFloat3(XM(&m_forward));
         XMVECTOR pos = XMVectorSubtract(target, XMVectorScale(fwd, m_tpsDistance));
-        XMStoreFloat3(&const_cast<Camera3D*>(this)->m_position, pos);
+        XMStoreFloat3(XM(&const_cast<Camera3D*>(this)->m_position), pos);
 
         XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-        return XMMatrixLookAtLH(pos, target, up);
+        return FromXMMATRIX(XMMatrixLookAtLH(pos, target, up));
     }
     }
 
-    return XMMatrixIdentity();
+    return Matrix4x4{};
 }
 
-XMMATRIX Camera3D::GetProjectionMatrix() const
+Matrix4x4 Camera3D::GetProjectionMatrix() const
 {
     if (m_isPerspective)
-        return XMMatrixPerspectiveFovLH(m_fovY, m_aspect, m_nearZ, m_farZ);
+        return FromXMMATRIX(XMMatrixPerspectiveFovLH(m_fovY, m_aspect, m_nearZ, m_farZ));
     else
-        return XMMatrixOrthographicLH(m_orthoWidth, m_orthoHeight, m_nearZ, m_farZ);
+        return FromXMMATRIX(XMMatrixOrthographicLH(m_orthoWidth, m_orthoHeight, m_nearZ, m_farZ));
 }
 
-XMMATRIX Camera3D::GetJitteredProjectionMatrix() const
+Matrix4x4 Camera3D::GetJitteredProjectionMatrix() const
 {
-    XMMATRIX proj = GetProjectionMatrix();
-    // ジッターが無い場合はそのまま返す
+    Matrix4x4 proj = GetProjectionMatrix();
     if (m_jitterOffset.x == 0.0f && m_jitterOffset.y == 0.0f)
         return proj;
 
-    // 射影行列の _31, _32 にジッターオフセットを加算してサブピクセルずらしを実現
-    // TAAで毎フレーム微妙にずらした映像を蓄積し、エイリアシングを軽減する
-    XMFLOAT4X4 projF;
-    XMStoreFloat4x4(&projF, proj);
-    projF._31 += m_jitterOffset.x;
-    projF._32 += m_jitterOffset.y;
-    return XMLoadFloat4x4(&projF);
+    proj._31 += m_jitterOffset.x;
+    proj._32 += m_jitterOffset.y;
+    return proj;
 }
 
-XMMATRIX Camera3D::GetViewProjectionMatrix() const
+Matrix4x4 Camera3D::GetViewProjectionMatrix() const
 {
     return GetViewMatrix() * GetProjectionMatrix();
 }
 
-XMFLOAT3 Camera3D::GetForward() const
+Vector3 Camera3D::GetForward() const
 {
     UpdateVectors();
     return m_forward;
 }
 
-XMFLOAT3 Camera3D::GetRight() const
+Vector3 Camera3D::GetRight() const
 {
     UpdateVectors();
     return m_right;
 }
 
-XMFLOAT3 Camera3D::GetUp() const
+Vector3 Camera3D::GetUp() const
 {
     UpdateVectors();
     return m_up;
@@ -169,7 +162,6 @@ void Camera3D::UpdateVectors() const
     if (!m_dirtyVectors)
         return;
 
-    // pitch/yawから方向ベクトルを計算
     float cosPitch = cosf(m_pitch);
     float sinPitch = sinf(m_pitch);
     float cosYaw   = cosf(m_yaw);
@@ -181,18 +173,15 @@ void Camera3D::UpdateVectors() const
         cosPitch * cosYaw
     };
 
-    // forwardを正規化
-    XMVECTOR fwd = XMVector3Normalize(XMLoadFloat3(&m_forward));
-    XMStoreFloat3(&m_forward, fwd);
+    XMVECTOR fwd = XMVector3Normalize(XMLoadFloat3(XM(&m_forward)));
+    XMStoreFloat3(XM(&m_forward), fwd);
 
-    // right = normalize(cross(worldUp, forward))
     XMVECTOR worldUp = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
     XMVECTOR right = XMVector3Normalize(XMVector3Cross(worldUp, fwd));
-    XMStoreFloat3(&m_right, right);
+    XMStoreFloat3(XM(&m_right), right);
 
-    // up = cross(forward, right)
     XMVECTOR up = XMVector3Cross(fwd, right);
-    XMStoreFloat3(&m_up, up);
+    XMStoreFloat3(XM(&m_up), up);
 
     m_dirtyVectors = false;
 }

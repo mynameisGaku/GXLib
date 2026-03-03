@@ -147,7 +147,7 @@ TEST(AnimLayerStackTest, EvaluateOverride)
     basePose[0].position = {0, 0, 0};
     basePose[1].position = {0, 0, 0};
 
-    std::vector<std::vector<BonePose>> layerPoses(1);
+    gx::Vector<gx::Vector<BonePose>> layerPoses(1);
     layerPoses[0].resize(boneCount);
     layerPoses[0][0].position = {10, 0, 0};
     layerPoses[0][1].position = {0, 20, 0};
@@ -169,7 +169,7 @@ TEST(AnimLayerStackTest, EvaluateAdditive)
     BonePose basePose[boneCount];
     basePose[0].position = {5, 5, 5};
 
-    std::vector<std::vector<BonePose>> layerPoses(1);
+    gx::Vector<gx::Vector<BonePose>> layerPoses(1);
     layerPoses[0].resize(boneCount);
     layerPoses[0][0].position = {3, 0, 0}; // additive offset from zero reference
 
@@ -190,7 +190,7 @@ TEST(AnimLayerStackTest, EvaluateDisabledLayer)
     BonePose basePose[boneCount];
     basePose[0].position = {1, 2, 3};
 
-    std::vector<std::vector<BonePose>> layerPoses(1);
+    gx::Vector<gx::Vector<BonePose>> layerPoses(1);
     layerPoses[0].resize(boneCount);
     layerPoses[0][0].position = {99, 99, 99};
 

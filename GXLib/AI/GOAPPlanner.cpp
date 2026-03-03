@@ -28,7 +28,7 @@ void GOAPPlanner::AddAction(const GOAPAction& action)
 // ============================================================================
 // RemoveAction
 // ============================================================================
-bool GOAPPlanner::RemoveAction(const std::string& name)
+bool GOAPPlanner::RemoveAction(const gx::String& name)
 {
     for (auto it = m_actions.begin(); it != m_actions.end(); ++it)
     {
@@ -44,7 +44,7 @@ bool GOAPPlanner::RemoveAction(const std::string& name)
 // ============================================================================
 // GetAction / HasAction
 // ============================================================================
-const GOAPAction* GOAPPlanner::GetAction(const std::string& name) const
+const GOAPAction* GOAPPlanner::GetAction(const gx::String& name) const
 {
     for (const auto& a : m_actions)
     {
@@ -54,7 +54,7 @@ const GOAPAction* GOAPPlanner::GetAction(const std::string& name) const
     return nullptr;
 }
 
-bool GOAPPlanner::HasAction(const std::string& name) const
+bool GOAPPlanner::HasAction(const gx::String& name) const
 {
     return GetAction(name) != nullptr;
 }
@@ -75,7 +75,7 @@ Plan GOAPPlanner::MakePlan(const WorldState& currentState, const GOAPGoal& goal)
     if (m_actions.empty()) return result;
 
     // 初期ノード: ゴールの要件
-    std::vector<SearchNode> allNodes;
+    gx::Vector<SearchNode> allNodes;
     allNodes.reserve(256);
 
     SearchNode startNode;
@@ -95,7 +95,7 @@ Plan GOAPPlanner::MakePlan(const WorldState& currentState, const GOAPGoal& goal)
         bool operator>(const OpenEntry& other) const { return f > other.f; }
     };
 
-    std::priority_queue<OpenEntry, std::vector<OpenEntry>, std::greater<OpenEntry>> openList;
+    gx::PriorityQueue<OpenEntry, gx::Deque<OpenEntry>, std::greater<OpenEntry>> openList;
     openList.push({ 0, startNode.f });
 
     int iterations = 0;
@@ -118,7 +118,7 @@ Plan GOAPPlanner::MakePlan(const WorldState& currentState, const GOAPGoal& goal)
         if (currentState.Satisfies(currentNode.state))
         {
             // 計画を逆順で構築
-            std::vector<const GOAPAction*> planActions;
+            gx::Vector<const GOAPAction*> planActions;
             float totalCost = currentNode.g;
             int nodeIdx = current.index;
             while (nodeIdx >= 0)
@@ -206,10 +206,10 @@ Plan GOAPPlanner::MakePlan(const WorldState& currentState, const GOAPGoal& goal)
 // MakePlanForBestGoal — 最優先ゴールに対して計画を作成
 // ============================================================================
 Plan GOAPPlanner::MakePlanForBestGoal(const WorldState& currentState,
-                                       const std::vector<GOAPGoal>& goals) const
+                                       const gx::Vector<GOAPGoal>& goals) const
 {
     // 優先度の高い順にソート
-    std::vector<const GOAPGoal*> sorted;
+    gx::Vector<const GOAPGoal*> sorted;
     sorted.reserve(goals.size());
     for (const auto& g : goals)
         sorted.push_back(&g);

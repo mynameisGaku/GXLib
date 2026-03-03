@@ -12,27 +12,27 @@ using namespace gx;
 
 TEST(GPUDebugLayerTest, TranslateDeviceHung)
 {
-    std::string msg = GPUDebugLayer::TranslateDeviceRemovedReason(DXGI_ERROR_DEVICE_HUNG);
+    gx::String msg = GPUDebugLayer::TranslateDeviceRemovedReason(DXGI_ERROR_DEVICE_HUNG);
     EXPECT_FALSE(msg.empty());
     // "HUNG"を含むはず（HRESULT名の一部）
-    EXPECT_NE(msg.find("HUNG"), std::string::npos);
+    EXPECT_NE(msg.find("HUNG"), gx::String::npos);
 }
 
 TEST(GPUDebugLayerTest, TranslateDeviceRemoved)
 {
-    std::string msg = GPUDebugLayer::TranslateDeviceRemovedReason(DXGI_ERROR_DEVICE_REMOVED);
+    gx::String msg = GPUDebugLayer::TranslateDeviceRemovedReason(DXGI_ERROR_DEVICE_REMOVED);
     EXPECT_FALSE(msg.empty());
 }
 
 TEST(GPUDebugLayerTest, TranslateOK)
 {
-    std::string msg = GPUDebugLayer::TranslateDeviceRemovedReason(S_OK);
+    gx::String msg = GPUDebugLayer::TranslateDeviceRemovedReason(S_OK);
     EXPECT_FALSE(msg.empty());
 }
 
 TEST(GPUDebugLayerTest, TranslateUnknown)
 {
-    std::string msg = GPUDebugLayer::TranslateDeviceRemovedReason(E_FAIL);
+    gx::String msg = GPUDebugLayer::TranslateDeviceRemovedReason(E_FAIL);
     EXPECT_FALSE(msg.empty());
 }
 

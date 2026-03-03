@@ -7,7 +7,7 @@
 using namespace gx;
 
 // ヘルパー: テスト用アイテム定義を生成
-static ItemDef MakeItem(const std::string& id, const std::string& category = "misc",
+static ItemDef MakeItem(const gx::String& id, const gx::String& category = "misc",
                         int maxStack = 99, float weight = 1.0f)
 {
     ItemDef def;
@@ -264,7 +264,7 @@ TEST(InventorySystemTest, OnChangedCallback)
     InventorySystem inv;
     inv.RegisterItemDef(MakeItem("gem"));
 
-    std::vector<InventoryChangedEvent> events;
+    gx::Vector<InventoryChangedEvent> events;
     inv.OnChanged = [&](const InventoryChangedEvent& e) {
         events.push_back(e);
     };

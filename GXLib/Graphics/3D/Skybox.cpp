@@ -16,7 +16,7 @@ bool Skybox::Initialize(ID3D12Device* device)
         return false;
 
     // フルスクリーンキューブの頂点（位置のみ）
-    struct SkyVertex { XMFLOAT3 position; };
+    struct SkyVertex { Vector3 position; };
     SkyVertex vertices[] = {
         // 前面
         {{ -1, -1,  1 }}, {{  1, -1,  1 }}, {{  1,  1,  1 }}, {{ -1,  1,  1 }},
@@ -102,20 +102,20 @@ bool Skybox::CreatePipelineState(ID3D12Device* device)
     return m_pso != nullptr;
 }
 
-void Skybox::SetColors(const XMFLOAT3& topColor, const XMFLOAT3& bottomColor)
+void Skybox::SetColors(const Vector3& topColor, const Vector3& bottomColor)
 {
     m_topColor    = topColor;
     m_bottomColor = bottomColor;
 }
 
-void Skybox::SetSun(const XMFLOAT3& direction, float intensity)
+void Skybox::SetSun(const Vector3& direction, float intensity)
 {
     m_sunDirection = direction;
     m_sunIntensity = intensity;
 }
 
 void Skybox::Draw(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
-                   const XMFLOAT4X4& viewProjection)
+                   const Matrix4x4& viewProjection)
 {
     // 定数バッファ更新
     void* cbData = m_constantBuffer.Map(frameIndex);

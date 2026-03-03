@@ -28,8 +28,8 @@ void CloudSaveManager::Disconnect()
     m_state = CloudState::Disconnected;
 }
 
-bool CloudSaveManager::SaveToCloud(const std::string& slotId, const std::vector<uint8_t>& data,
-                                    const std::unordered_map<std::string, std::string>& metadata)
+bool CloudSaveManager::SaveToCloud(const gx::String& slotId, const gx::Vector<uint8_t>& data,
+                                    const gx::HashMap<gx::String, gx::String>& metadata)
 {
     if (m_state != CloudState::Connected) return false;
 
@@ -62,14 +62,14 @@ bool CloudSaveManager::SaveToCloud(const std::string& slotId, const std::vector<
     return true;
 }
 
-CloudSaveSlot CloudSaveManager::LoadFromCloud(const std::string& slotId) const
+CloudSaveSlot CloudSaveManager::LoadFromCloud(const gx::String& slotId) const
 {
     auto it = m_cloudSlots.find(slotId);
     if (it != m_cloudSlots.end()) return it->second;
     return {};
 }
 
-bool CloudSaveManager::DeleteCloudSave(const std::string& slotId)
+bool CloudSaveManager::DeleteCloudSave(const gx::String& slotId)
 {
     if (m_state != CloudState::Connected) return false;
 
@@ -79,9 +79,9 @@ bool CloudSaveManager::DeleteCloudSave(const std::string& slotId)
     return erased;
 }
 
-std::vector<std::string> CloudSaveManager::GetCloudSlots() const
+gx::Vector<gx::String> CloudSaveManager::GetCloudSlots() const
 {
-    std::vector<std::string> result;
+    gx::Vector<gx::String> result;
     result.reserve(m_cloudSlots.size());
     for (const auto& [id, _] : m_cloudSlots)
     {
@@ -90,7 +90,7 @@ std::vector<std::string> CloudSaveManager::GetCloudSlots() const
     return result;
 }
 
-CloudSaveSlot CloudSaveManager::GetSlotInfo(const std::string& slotId) const
+CloudSaveSlot CloudSaveManager::GetSlotInfo(const gx::String& slotId) const
 {
     auto it = m_cloudSlots.find(slotId);
     if (it != m_cloudSlots.end())
@@ -108,12 +108,12 @@ CloudSaveSlot CloudSaveManager::GetSlotInfo(const std::string& slotId) const
     return {};
 }
 
-bool CloudSaveManager::HasCloudSave(const std::string& slotId) const
+bool CloudSaveManager::HasCloudSave(const gx::String& slotId) const
 {
     return m_cloudSlots.find(slotId) != m_cloudSlots.end();
 }
 
-SyncResult CloudSaveManager::SyncSlot(const std::string& slotId)
+SyncResult CloudSaveManager::SyncSlot(const gx::String& slotId)
 {
     SyncResult result;
 
@@ -172,12 +172,12 @@ SyncResult CloudSaveManager::SyncSlot(const std::string& slotId)
     return result;
 }
 
-std::vector<SyncResult> CloudSaveManager::SyncAll()
+gx::Vector<SyncResult> CloudSaveManager::SyncAll()
 {
-    std::vector<SyncResult> results;
+    gx::Vector<SyncResult> results;
 
     // ローカルとクラウドの全スロットIDを収集
-    std::unordered_map<std::string, bool> allSlots;
+    gx::HashMap<gx::String, bool> allSlots;
     for (const auto& [id, _] : m_localSlots) allSlots[id] = true;
     for (const auto& [id, _] : m_cloudSlots) allSlots[id] = true;
 
@@ -189,7 +189,7 @@ std::vector<SyncResult> CloudSaveManager::SyncAll()
     return results;
 }
 
-bool CloudSaveManager::ResolveConflict(const std::string& slotId, bool useLocal)
+bool CloudSaveManager::ResolveConflict(const gx::String& slotId, bool useLocal)
 {
     auto conflictIt = m_conflicts.find(slotId);
     if (conflictIt == m_conflicts.end()) return false;
@@ -215,9 +215,9 @@ bool CloudSaveManager::ResolveConflict(const std::string& slotId, bool useLocal)
     return true;
 }
 
-bool CloudSaveManager::SubmitScore(const std::string& boardId, int64_t score,
-                                    const std::string& playerName,
-                                    const std::unordered_map<std::string, std::string>& metadata)
+bool CloudSaveManager::SubmitScore(const gx::String& boardId, int64_t score,
+                                    const gx::String& playerName,
+                                    const gx::HashMap<gx::String, gx::String>& metadata)
 {
     if (m_state != CloudState::Connected) return false;
 
@@ -229,7 +229,7 @@ bool CloudSaveManager::SubmitScore(const std::string& boardId, int64_t score,
     auto& entries = m_leaderboards[boardId];
 
     // プレイヤーIDはplayerNameのハッシュで簡易生成
-    uint64_t playerId = std::hash<std::string>{}(playerName);
+    uint64_t playerId = std::hash<gx::String>{}(playerName);
 
     // 既存エントリを検索
     auto existIt = std::find_if(entries.begin(), entries.end(),
@@ -288,7 +288,7 @@ bool CloudSaveManager::SubmitScore(const std::string& boardId, int64_t score,
     return true;
 }
 
-std::vector<LeaderboardEntry> CloudSaveManager::GetLeaderboard(const std::string& boardId,
+gx::Vector<LeaderboardEntry> CloudSaveManager::GetLeaderboard(const gx::String& boardId,
                                                                 uint32_t offset, uint32_t count) const
 {
     auto it = m_leaderboards.find(boardId);
@@ -298,7 +298,7 @@ std::vector<LeaderboardEntry> CloudSaveManager::GetLeaderboard(const std::string
     if (offset >= entries.size()) return {};
 
     uint32_t end = std::min(offset + count, static_cast<uint32_t>(entries.size()));
-    std::vector<LeaderboardEntry> result(entries.begin() + offset, entries.begin() + end);
+    gx::Vector<LeaderboardEntry> result(entries.begin() + offset, entries.begin() + end);
 
     // ランクを設定
     for (uint32_t i = 0; i < result.size(); i++)
@@ -309,7 +309,7 @@ std::vector<LeaderboardEntry> CloudSaveManager::GetLeaderboard(const std::string
     return result;
 }
 
-LeaderboardEntry CloudSaveManager::GetPlayerRank(const std::string& boardId, uint64_t playerId) const
+LeaderboardEntry CloudSaveManager::GetPlayerRank(const gx::String& boardId, uint64_t playerId) const
 {
     auto it = m_leaderboards.find(boardId);
     if (it == m_leaderboards.end()) return {};
@@ -328,7 +328,7 @@ LeaderboardEntry CloudSaveManager::GetPlayerRank(const std::string& boardId, uin
     return {};
 }
 
-uint32_t CloudSaveManager::GetLeaderboardCount(const std::string& boardId) const
+uint32_t CloudSaveManager::GetLeaderboardCount(const gx::String& boardId) const
 {
     auto it = m_leaderboards.find(boardId);
     if (it == m_leaderboards.end()) return 0;
@@ -347,14 +347,14 @@ bool CloudSaveManager::CreateLeaderboard(const LeaderboardConfig& config)
     return true;
 }
 
-bool CloudSaveManager::DeleteLeaderboard(const std::string& boardId)
+bool CloudSaveManager::DeleteLeaderboard(const gx::String& boardId)
 {
     bool erased = m_leaderboardConfigs.erase(boardId) > 0;
     m_leaderboards.erase(boardId);
     return erased;
 }
 
-std::vector<LeaderboardEntry> CloudSaveManager::GetAroundPlayer(const std::string& boardId,
+gx::Vector<LeaderboardEntry> CloudSaveManager::GetAroundPlayer(const gx::String& boardId,
                                                                   uint64_t playerId, uint32_t count) const
 {
     auto it = m_leaderboards.find(boardId);
@@ -378,7 +378,7 @@ std::vector<LeaderboardEntry> CloudSaveManager::GetAroundPlayer(const std::strin
     int end = std::min(static_cast<int>(entries.size()), start + static_cast<int>(count));
     start = std::max(0, end - static_cast<int>(count));
 
-    std::vector<LeaderboardEntry> result;
+    gx::Vector<LeaderboardEntry> result;
     for (int i = start; i < end; i++)
     {
         LeaderboardEntry entry = entries[i];
@@ -403,7 +403,7 @@ void CloudSaveManager::Update(float deltaTime)
     }
 }
 
-uint32_t CloudSaveManager::ComputeChecksum(const std::vector<uint8_t>& data) const
+uint32_t CloudSaveManager::ComputeChecksum(const gx::Vector<uint8_t>& data) const
 {
     // シンプルなCRC-like checksum
     uint32_t checksum = 0;
@@ -423,7 +423,7 @@ uint64_t CloudSaveManager::GetCurrentTimestamp() const
         std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count());
 }
 
-void CloudSaveManager::SortLeaderboard(const std::string& boardId)
+void CloudSaveManager::SortLeaderboard(const gx::String& boardId)
 {
     auto cfgIt = m_leaderboardConfigs.find(boardId);
     if (cfgIt == m_leaderboardConfigs.end()) return;

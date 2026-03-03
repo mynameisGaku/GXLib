@@ -17,9 +17,9 @@ static constexpr uint32_t k_SampleRate = 44100;
 static constexpr uint32_t k_SampleCount = 1024;
 
 /// 正弦波バッファを生成（モノラル）
-static std::vector<float> GenerateSine(uint32_t sampleCount, float frequency, float amplitude = 0.8f)
+static gx::Vector<float> GenerateSine(uint32_t sampleCount, float frequency, float amplitude = 0.8f)
 {
-    std::vector<float> buf(sampleCount);
+    gx::Vector<float> buf(sampleCount);
     for (uint32_t i = 0; i < sampleCount; ++i)
     {
         float t = static_cast<float>(i) / k_SampleRate;
@@ -29,9 +29,9 @@ static std::vector<float> GenerateSine(uint32_t sampleCount, float frequency, fl
 }
 
 /// ステレオ正弦波を生成（インターリーブL/R）
-static std::vector<float> GenerateStereoSine(uint32_t sampleCountPerChannel, float frequency, float amplitude = 0.8f)
+static gx::Vector<float> GenerateStereoSine(uint32_t sampleCountPerChannel, float frequency, float amplitude = 0.8f)
 {
-    std::vector<float> buf(sampleCountPerChannel * 2);
+    gx::Vector<float> buf(sampleCountPerChannel * 2);
     for (uint32_t i = 0; i < sampleCountPerChannel; ++i)
     {
         float t = static_cast<float>(i) / k_SampleRate;
@@ -43,7 +43,7 @@ static std::vector<float> GenerateStereoSine(uint32_t sampleCountPerChannel, flo
 }
 
 /// すべてのサンプルが有効範囲[-1, 1]内にあるか確認
-static bool AllSamplesInRange(const std::vector<float>& buf, float minVal = -1.5f, float maxVal = 1.5f)
+static bool AllSamplesInRange(const gx::Vector<float>& buf, float minVal = -1.5f, float maxVal = 1.5f)
 {
     for (float s : buf)
     {
@@ -376,7 +376,7 @@ TEST(AudioDSP, ResetThenApplyReverb)
 TEST(AudioDSP, SilentBufferLowPass)
 {
     AudioDSP dsp;
-    std::vector<float> silence(k_SampleCount, 0.0f);
+    gx::Vector<float> silence(k_SampleCount, 0.0f);
 
     LowPassParams params;
     dsp.ApplyLowPass(silence.data(), k_SampleCount, 1, k_SampleRate, params);
@@ -391,7 +391,7 @@ TEST(AudioDSP, SilentBufferLowPass)
 TEST(AudioDSP, SilentBufferCompressor)
 {
     AudioDSP dsp;
-    std::vector<float> silence(k_SampleCount, 0.0f);
+    gx::Vector<float> silence(k_SampleCount, 0.0f);
 
     CompressorParams params;
     dsp.ApplyCompressor(silence.data(), k_SampleCount, 1, k_SampleRate, params);
@@ -516,7 +516,7 @@ TEST(AudioDSP, HighPassVeryHighCutoff)
 TEST(AudioDSP, SilentBufferHighPass)
 {
     AudioDSP dsp;
-    std::vector<float> silence(k_SampleCount, 0.0f);
+    gx::Vector<float> silence(k_SampleCount, 0.0f);
 
     HighPassParams params;
     dsp.ApplyHighPass(silence.data(), k_SampleCount, 1, k_SampleRate, params);
@@ -530,7 +530,7 @@ TEST(AudioDSP, SilentBufferHighPass)
 TEST(AudioDSP, SilentBufferDelay)
 {
     AudioDSP dsp;
-    std::vector<float> silence(k_SampleCount, 0.0f);
+    gx::Vector<float> silence(k_SampleCount, 0.0f);
 
     DelayParams params;
     dsp.ApplyDelay(silence.data(), k_SampleCount, 1, k_SampleRate, params);
@@ -545,7 +545,7 @@ TEST(AudioDSP, SilentBufferDelay)
 TEST(AudioDSP, SilentBufferReverb)
 {
     AudioDSP dsp;
-    std::vector<float> silence(k_SampleCount, 0.0f);
+    gx::Vector<float> silence(k_SampleCount, 0.0f);
 
     DSPReverbParams params;
     dsp.ApplyReverb(silence.data(), k_SampleCount, 1, k_SampleRate, params);

@@ -48,41 +48,41 @@ ProfilerGUI::ProfilerGUI()
 // カテゴリ推定
 // ============================================================================
 
-std::string ProfilerGUI::InferCategory(const std::string& sectionName)
+gx::String ProfilerGUI::InferCategory(const gx::String& sectionName)
 {
     // セクション名からカテゴリを推定する
     // 大文字小文字を考慮せず部分文字列でマッチ
-    std::string lower = sectionName;
+    gx::String lower = sectionName;
     for (auto& c : lower) c = static_cast<char>(::tolower(static_cast<unsigned char>(c)));
 
-    if (lower.find("render") != std::string::npos || lower.find("draw") != std::string::npos ||
-        lower.find("shadow") != std::string::npos || lower.find("gbuffer") != std::string::npos ||
-        lower.find("light") != std::string::npos || lower.find("post") != std::string::npos)
+    if (lower.find("render") != gx::String::npos || lower.find("draw") != gx::String::npos ||
+        lower.find("shadow") != gx::String::npos || lower.find("gbuffer") != gx::String::npos ||
+        lower.find("light") != gx::String::npos || lower.find("post") != gx::String::npos)
         return "Render";
 
-    if (lower.find("physics") != std::string::npos || lower.find("collisi") != std::string::npos ||
-        lower.find("simulate") != std::string::npos)
+    if (lower.find("physics") != gx::String::npos || lower.find("collisi") != gx::String::npos ||
+        lower.find("simulate") != gx::String::npos)
         return "Physics";
 
-    if (lower.find("ai") != std::string::npos || lower.find("nav") != std::string::npos ||
-        lower.find("pathfind") != std::string::npos || lower.find("behavior") != std::string::npos)
+    if (lower.find("ai") != gx::String::npos || lower.find("nav") != gx::String::npos ||
+        lower.find("pathfind") != gx::String::npos || lower.find("behavior") != gx::String::npos)
         return "AI";
 
-    if (lower.find("audio") != std::string::npos || lower.find("sound") != std::string::npos ||
-        lower.find("music") != std::string::npos)
+    if (lower.find("audio") != gx::String::npos || lower.find("sound") != gx::String::npos ||
+        lower.find("music") != gx::String::npos)
         return "Audio";
 
-    if (lower.find("script") != std::string::npos || lower.find("lua") != std::string::npos)
+    if (lower.find("script") != gx::String::npos || lower.find("lua") != gx::String::npos)
         return "Script";
 
-    if (lower.find("input") != std::string::npos || lower.find("gamepad") != std::string::npos)
+    if (lower.find("input") != gx::String::npos || lower.find("gamepad") != gx::String::npos)
         return "Input";
 
-    if (lower.find("scene") != std::string::npos || lower.find("entity") != std::string::npos)
+    if (lower.find("scene") != gx::String::npos || lower.find("entity") != gx::String::npos)
         return "Scene";
 
-    if (lower.find("io") != std::string::npos || lower.find("file") != std::string::npos ||
-        lower.find("load") != std::string::npos)
+    if (lower.find("io") != gx::String::npos || lower.find("file") != gx::String::npos ||
+        lower.find("load") != gx::String::npos)
         return "IO";
 
     return "Render"; // デフォルト
@@ -92,7 +92,7 @@ std::string ProfilerGUI::InferCategory(const std::string& sectionName)
 // カテゴリカラー
 // ============================================================================
 
-uint32_t ProfilerGUI::GetCategoryColor(const std::string& category)
+uint32_t ProfilerGUI::GetCategoryColor(const gx::String& category)
 {
     for (size_t i = 0; i < k_NumCategoryColors; ++i)
     {
@@ -175,9 +175,9 @@ const FrameSnapshot& ProfilerGUI::GetCurrentSnapshot() const
     return m_history[currentIdx];
 }
 
-std::vector<FrameSnapshot> ProfilerGUI::GetFrameHistory(uint32_t count) const
+gx::Vector<FrameSnapshot> ProfilerGUI::GetFrameHistory(uint32_t count) const
 {
-    std::vector<FrameSnapshot> result;
+    gx::Vector<FrameSnapshot> result;
 
     uint32_t available = static_cast<uint32_t>(m_historyCount);
     uint32_t toReturn = std::min(count, available);
@@ -224,7 +224,7 @@ float ProfilerGUI::GetPeakFrameTime() const
     return peak;
 }
 
-SectionStats ProfilerGUI::GetSectionStats(const std::string& name) const
+SectionStats ProfilerGUI::GetSectionStats(const gx::String& name) const
 {
     SectionStats stats;
     stats.minMs = 1e30f;

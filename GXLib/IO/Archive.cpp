@@ -16,7 +16,7 @@ static constexpr uint8_t  k_EntryFlagCompressed = 0x01;
 // アーカイブ読み取り (Reader)
 // ============================================================================
 
-bool Archive::Open(const std::string& filePath, const std::string& password)
+bool Archive::Open(const gx::String& filePath, const gx::String& password)
 {
     Close();
     m_filePath = filePath;
@@ -75,7 +75,7 @@ bool Archive::Open(const std::string& filePath, const std::string& password)
     }
 
     // TOCデータを読む（各ファイルのパス・オフセット・サイズが格納されている）
-    std::vector<uint8_t> tocData(tocSize);
+    gx::Vector<uint8_t> tocData(tocSize);
     file.read(reinterpret_cast<char*>(tocData.data()), tocSize);
     if (!file.good())
     {
@@ -145,7 +145,7 @@ void Archive::Close()
     m_key = {};
 }
 
-bool Archive::Contains(const std::string& path) const
+bool Archive::Contains(const gx::String& path) const
 {
     for (const auto& e : m_entries)
     {
@@ -155,7 +155,7 @@ bool Archive::Contains(const std::string& path) const
     return false;
 }
 
-FileData Archive::Read(const std::string& path) const
+FileData Archive::Read(const gx::String& path) const
 {
     const ArchiveEntry* found = nullptr;
     for (const auto& e : m_entries)
@@ -177,7 +177,7 @@ FileData Archive::Read(const std::string& path) const
     // ファイルデータ位置にシーク
     file.seekg(m_dataOffset + found->offset);
 
-    std::vector<uint8_t> compressed(found->compressedSize);
+    gx::Vector<uint8_t> compressed(found->compressedSize);
     file.read(reinterpret_cast<char*>(compressed.data()), found->compressedSize);
 
     FileData result;
@@ -211,7 +211,7 @@ FileData Archive::Read(const std::string& path) const
 // アーカイブ書き込み (ArchiveWriter)
 // ============================================================================
 
-void ArchiveWriter::SetPassword(const std::string& password)
+void ArchiveWriter::SetPassword(const gx::String& password)
 {
     m_password = password;
 }
@@ -221,7 +221,7 @@ void ArchiveWriter::SetCompression(bool enable)
     m_compress = enable;
 }
 
-void ArchiveWriter::AddFile(const std::string& archivePath, const std::string& diskPath)
+void ArchiveWriter::AddFile(const gx::String& archivePath, const gx::String& diskPath)
 {
     std::ifstream file(diskPath, std::ios::binary | std::ios::ate);
     if (!file.is_open())
@@ -241,7 +241,7 @@ void ArchiveWriter::AddFile(const std::string& archivePath, const std::string& d
     m_files.push_back(std::move(pf));
 }
 
-void ArchiveWriter::AddFile(const std::string& archivePath, const void* data, size_t size)
+void ArchiveWriter::AddFile(const gx::String& archivePath, const void* data, size_t size)
 {
     PendingFile pf;
     pf.archivePath = archivePath;
@@ -250,21 +250,21 @@ void ArchiveWriter::AddFile(const std::string& archivePath, const void* data, si
     m_files.push_back(std::move(pf));
 }
 
-bool ArchiveWriter::Save(const std::string& outputPath)
+bool ArchiveWriter::Save(const gx::String& outputPath)
 {
     bool encrypted = !m_password.empty();
-    std::array<uint8_t, 32> key = {};
+    gx::Array<uint8_t, 32> key = {};
     if (encrypted)
         key = Crypto::SHA256(m_password.c_str(), m_password.size());
 
     // ファイルを圧縮しエントリを構築する
     struct FileBlock {
-        std::vector<uint8_t> data;
+        gx::Vector<uint8_t> data;
         uint32_t originalSize;
         uint8_t flags;
     };
-    std::vector<FileBlock> blocks;
-    std::vector<ArchiveEntry> entries;
+    gx::Vector<FileBlock> blocks;
+    gx::Vector<ArchiveEntry> entries;
     blocks.reserve(m_files.size());
     entries.reserve(m_files.size());
 
@@ -278,7 +278,7 @@ bool ArchiveWriter::Save(const std::string& outputPath)
         if (m_compress && pf.data.size() > 64) // 64バイト以上のみ圧縮 (小さすぎると効果が薄い)
         {
             int maxCompressed = LZ4_compressBound(static_cast<int>(pf.data.size()));
-            std::vector<uint8_t> compressed(maxCompressed);
+            gx::Vector<uint8_t> compressed(maxCompressed);
             int compressedSize = LZ4_compress_default(
                 reinterpret_cast<const char*>(pf.data.data()),
                 reinterpret_cast<char*>(compressed.data()),
@@ -315,7 +315,7 @@ bool ArchiveWriter::Save(const std::string& outputPath)
     }
 
     // TOCを構築する
-    std::vector<uint8_t> tocData;
+    gx::Vector<uint8_t> tocData;
     for (const auto& entry : entries)
     {
         uint16_t pathLen = static_cast<uint16_t>(entry.path.size());
@@ -337,7 +337,7 @@ bool ArchiveWriter::Save(const std::string& outputPath)
 
     // 必要ならTOCを暗号化する
     uint32_t tocSize;
-    std::vector<uint8_t> tocFinal;
+    gx::Vector<uint8_t> tocFinal;
     if (encrypted)
     {
         uint8_t iv[16];

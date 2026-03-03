@@ -309,7 +309,7 @@ TEST(CharacterControllerSettings, LayerDefault)
 TEST(CharacterControllerTest, AllGroundStatesDistinct)
 {
     // すべてのground stateが互いに異なる値を持つことを検証
-    std::set<int> values;
+    gx::Set<int> values;
     values.insert(static_cast<int>(CharacterGroundState::OnGround));
     values.insert(static_cast<int>(CharacterGroundState::OnSteepGround));
     values.insert(static_cast<int>(CharacterGroundState::NotSupported));

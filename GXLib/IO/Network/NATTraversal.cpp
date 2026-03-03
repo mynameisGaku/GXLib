@@ -53,10 +53,10 @@ void NATTraversal::Update()
     }
 }
 
-std::vector<uint8_t> NATTraversal::BuildSTUNBindingRequest()
+gx::Vector<uint8_t> NATTraversal::BuildSTUNBindingRequest()
 {
     // RFC 5389 STUN Binding Request
-    std::vector<uint8_t> packet(20, 0);
+    gx::Vector<uint8_t> packet(20, 0);
 
     // Message type: 0x0001 (Binding Request)
     packet[0] = 0x00; packet[1] = 0x01;
@@ -120,8 +120,8 @@ STUNResult NATTraversal::ParseSTUNResponse(const uint8_t* data, size_t size)
                 ip[2] = data[offset + 6] ^ 0xA4;
                 ip[3] = data[offset + 7] ^ 0x42;
 
-                result.mappedEndpoint.host = std::to_string(ip[0]) + "." +
-                    std::to_string(ip[1]) + "." + std::to_string(ip[2]) + "." + std::to_string(ip[3]);
+                result.mappedEndpoint.host = gx::String((std::to_string(ip[0]) + "." +
+                    std::to_string(ip[1]) + "." + std::to_string(ip[2]) + "." + std::to_string(ip[3])).c_str());
                 result.success = true;
             }
         }

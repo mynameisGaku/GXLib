@@ -1,5 +1,6 @@
 #include "pch_graphics.h"
 #include "GUI/UIRenderer.h"
+#include "Math/MathConvert.h"
 #include "Graphics/Rendering/SpriteBatch.h"
 #include "Graphics/Rendering/TextRenderer.h"
 #include "Graphics/Rendering/FontManager.h"
@@ -124,7 +125,7 @@ void UIRenderer::UpdateProjectionMatrix()
     float h = static_cast<float>(m_screenHeight);
 
     XMMATRIX proj = XMMatrixOrthographicOffCenterLH(0.0f, w, h, 0.0f, 0.0f, 1.0f);
-    XMStoreFloat4x4(&m_projectionMatrix, XMMatrixTranspose(proj));
+    XMStoreFloat4x4(XM(&m_projectionMatrix), XMMatrixTranspose(proj));
 }
 
 // ============================================================================
@@ -264,7 +265,7 @@ void UIRenderer::DrawGradientRect(float x, float y, float w, float h,
                                   const StyleColor& startColor, const StyleColor& endColor,
                                   float dirX, float dirY, float cornerRadius, float opacity)
 {
-    XMFLOAT2 dir = { dirX, dirY };
+    Vector2 dir = { dirX, dirY };
     DrawRectInternal(x, y, w, h, startColor, cornerRadius,
                      0.0f, {}, 0.0f, 0.0f, 0.0f, 0.0f,
                      opacity * GetOpacity(), &endColor, dir, nullptr);
@@ -277,7 +278,7 @@ void UIRenderer::DrawRectInternal(float x, float y, float w, float h,
                                    float shadowBlur, float shadowAlpha,
                                    float opacity,
                                    const StyleColor* gradientColor,
-                                   const XMFLOAT2& gradientDir,
+                                   const Vector2& gradientDir,
                                    const UIRectEffect* effect)
 {
     if (w <= 0.0f || h <= 0.0f) return;
@@ -371,10 +372,10 @@ void UIRenderer::DrawRectInternal(float x, float y, float w, float h,
     auto* verts = reinterpret_cast<UIRectVertex*>(baseVerts + rectIdx * k_VertexStride);
 
     // 左上（影の領域を含む）
-    XMFLOAT2 p0 = { drawX,         drawY };
-    XMFLOAT2 p1 = { drawX + drawW, drawY };
-    XMFLOAT2 p2 = { drawX,         drawY + drawH };
-    XMFLOAT2 p3 = { drawX + drawW, drawY + drawH };
+    Vector2 p0 = { drawX,         drawY };
+    Vector2 p1 = { drawX + drawW, drawY };
+    Vector2 p2 = { drawX,         drawY + drawH };
+    Vector2 p3 = { drawX + drawW, drawY + drawH };
 
     const Transform2D& t = GetTransform();
     if (!IsIdentityTransform(t))
@@ -432,7 +433,7 @@ void UIRenderer::DrawRectInternal(float x, float y, float w, float h,
 // テキスト描画
 // ============================================================================
 
-void UIRenderer::DrawText(float x, float y, int fontHandle, const std::wstring& text,
+void UIRenderer::DrawText(float x, float y, int fontHandle, const gx::WString& text,
                            const StyleColor& color, float opacity)
 {
     if (text.empty() || !m_spriteBatch || !m_fontManager) return;
@@ -495,10 +496,10 @@ void UIRenderer::DrawText(float x, float y, int fontHandle, const std::wstring& 
 
         if (useTransform)
         {
-            XMFLOAT2 p0 = TransformPoint(t, sx, sy);
-            XMFLOAT2 p1 = TransformPoint(t, sx + sw, sy);
-            XMFLOAT2 p2 = TransformPoint(t, sx + sw, sy + sh);
-            XMFLOAT2 p3 = TransformPoint(t, sx, sy + sh);
+            Vector2 p0 = TransformPoint(t, sx, sy);
+            Vector2 p1 = TransformPoint(t, sx + sw, sy);
+            Vector2 p2 = TransformPoint(t, sx + sw, sy + sh);
+            Vector2 p3 = TransformPoint(t, sx, sy + sh);
             m_spriteBatch->DrawRectModiGraph(p0.x, p0.y, p1.x, p1.y,
                                              p2.x, p2.y, p3.x, p3.y,
                                              static_cast<float>(srcX), static_cast<float>(srcY),
@@ -538,10 +539,10 @@ void UIRenderer::DrawImageUV(float x, float y, float w, float h, int textureHand
     float sw = w * m_guiScale;
     float sh = h * m_guiScale;
 
-    XMFLOAT2 p0 = { sx,      sy };
-    XMFLOAT2 p1 = { sx + sw, sy };
-    XMFLOAT2 p2 = { sx + sw, sy + sh };
-    XMFLOAT2 p3 = { sx,      sy + sh };
+    Vector2 p0 = { sx,      sy };
+    Vector2 p1 = { sx + sw, sy };
+    Vector2 p2 = { sx + sw, sy + sh };
+    Vector2 p3 = { sx,      sy + sh };
 
     const Transform2D& t = GetTransform();
     if (!IsIdentityTransform(t))
@@ -571,7 +572,7 @@ void UIRenderer::DrawImageUV(float x, float y, float w, float h, int textureHand
     m_spriteBatch->SetDrawColor(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
-int UIRenderer::GetTextWidth(int fontHandle, const std::wstring& text)
+int UIRenderer::GetTextWidth(int fontHandle, const gx::WString& text)
 {
     if (!m_textRenderer) return 0;
     return m_textRenderer->GetStringWidth(fontHandle, text);

@@ -112,7 +112,7 @@ TEST_F(JobSystemTest, SubmitMultipleJobs)
     ASSERT_TRUE(JobSystem::Instance().Initialize(4));
 
     std::atomic<int> counter{ 0 };
-    std::vector<JobHandle> handles;
+    gx::Vector<JobHandle> handles;
 
     for (int i = 0; i < 10; ++i)
     {
@@ -194,7 +194,7 @@ TEST_F(JobSystemTest, ParallelFor)
     ASSERT_TRUE(JobSystem::Instance().Initialize(4));
 
     const uint32_t count = 1000;
-    std::vector<int> data(count, 0);
+    gx::Vector<int> data(count, 0);
 
     JobSystem::Instance().ParallelFor(count, [&](uint32_t index) {
         data[index] = static_cast<int>(index * 2);
@@ -474,7 +474,7 @@ TEST_F(JobSystemTest, ParallelForLargeRange)
     ASSERT_TRUE(JobSystem::Instance().Initialize(4));
 
     const uint32_t count = 10000;
-    std::vector<int> data(count, 0);
+    gx::Vector<int> data(count, 0);
 
     JobSystem::Instance().ParallelFor(count, [&](uint32_t index) {
         data[index] = 1;

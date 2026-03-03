@@ -7,20 +7,22 @@
 
 using Ctx = gx_internal::CompatContext;
 
+namespace gx {
+
 // ============================================================================
 // ブレンドモード変換
 // ============================================================================
-static gx::BlendMode ConvertBlendMode(int mode)
+static BlendMode ConvertBlendMode(int mode)
 {
     switch (mode)
     {
-    case GX_BLENDMODE_ALPHA:   return gx::BlendMode::Alpha;
-    case GX_BLENDMODE_ADD:     return gx::BlendMode::Add;
-    case GX_BLENDMODE_SUB:     return gx::BlendMode::Sub;
-    case GX_BLENDMODE_MUL:     return gx::BlendMode::Mul;
-    case GX_BLENDMODE_SCREEN:  return gx::BlendMode::Screen;
+    case GX_BLENDMODE_ALPHA:   return BlendMode::Alpha;
+    case GX_BLENDMODE_ADD:     return BlendMode::Add;
+    case GX_BLENDMODE_SUB:     return BlendMode::Sub;
+    case GX_BLENDMODE_MUL:     return BlendMode::Mul;
+    case GX_BLENDMODE_SCREEN:  return BlendMode::Screen;
     case GX_BLENDMODE_NOBLEND:
-    default:                   return gx::BlendMode::None;
+    default:                   return BlendMode::None;
     }
 }
 
@@ -351,3 +353,5 @@ int SetDrawBright(int r, int g, int b)
     ctx.drawBright_b = static_cast<uint32_t>(b & 0xFF);
     return 0;
 }
+
+} // namespace gx

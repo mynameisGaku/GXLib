@@ -9,7 +9,7 @@ namespace gx { namespace ecs {
 // 構築
 // ---------------------------------------------------------------------------
 Archetype::Archetype(ComponentMask mask,
-                     const std::vector<std::pair<ComponentID, uint32_t>>& componentInfos)
+                     const gx::Vector<std::pair<ComponentID, uint32_t>>& componentInfos)
     : m_mask(mask)
 {
     m_storages.reserve(componentInfos.size());

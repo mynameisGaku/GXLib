@@ -25,17 +25,17 @@ bool ShaderLibrary::Initialize(ID3D12Device* device)
     return true;
 }
 
-ShaderBlob ShaderLibrary::GetShader(const std::wstring& filePath,
-                                     const std::wstring& entryPoint,
-                                     const std::wstring& target)
+ShaderBlob ShaderLibrary::GetShader(const gx::WString& filePath,
+                                     const gx::WString& entryPoint,
+                                     const gx::WString& target)
 {
     return GetShaderVariant(filePath, entryPoint, target, {});
 }
 
-ShaderBlob ShaderLibrary::GetShaderVariant(const std::wstring& filePath,
-                                            const std::wstring& entryPoint,
-                                            const std::wstring& target,
-                                            const std::vector<std::pair<std::wstring, std::wstring>>& defines)
+ShaderBlob ShaderLibrary::GetShaderVariant(const gx::WString& filePath,
+                                            const gx::WString& entryPoint,
+                                            const gx::WString& target,
+                                            const gx::Vector<std::pair<gx::WString, gx::WString>>& defines)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
 
@@ -76,7 +76,7 @@ ShaderBlob ShaderLibrary::GetShaderVariant(const std::wstring& filePath,
     return blob;
 }
 
-PSOCallbackID ShaderLibrary::RegisterPSORebuilder(const std::wstring& shaderPath,
+PSOCallbackID ShaderLibrary::RegisterPSORebuilder(const gx::WString& shaderPath,
                                                     PSORebuilder callback)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
@@ -95,32 +95,32 @@ void ShaderLibrary::UnregisterPSORebuilder(PSOCallbackID id)
         m_rebuilders.end());
 }
 
-bool ShaderLibrary::InvalidateFile(const std::wstring& filePath)
+bool ShaderLibrary::InvalidateFile(const gx::WString& filePath)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
 
-    std::wstring normalizedPath = NormalizePath(filePath);
+    gx::WString normalizedPath = NormalizePath(filePath);
 
     // .hlsliはヘッダファイルなのでどのシェーダーが依存しているか分からない。
     // include依存グラフの追跡は省略し、安全策として全キャッシュをクリアする。
     bool isInclude = false;
     if (normalizedPath.size() > 6)
     {
-        std::wstring ext = normalizedPath.substr(normalizedPath.size() - 6);
+        gx::WString ext = normalizedPath.substr(normalizedPath.size() - 6);
         for (auto& c : ext) c = towlower(c);
         isInclude = (ext == L".hlsli");
     }
 
     // 依存する.hlslファイルのリストを構築する
     // .hlsli → 依存グラフから該当する.hlslを特定、.hlsl → そのファイルのみ
-    std::vector<std::wstring> affectedHlsl;
+    gx::Vector<gx::WString> affectedHlsl;
 
     if (isInclude)
     {
         // .hlsliファイル名部分だけ抽出して正規化（依存グラフのキーはファイル名のみ）
-        std::wstring includeFileName = normalizedPath;
+        gx::WString includeFileName = normalizedPath;
         auto slashPos = includeFileName.rfind(L'/');
-        if (slashPos != std::wstring::npos)
+        if (slashPos != gx::WString::npos)
             includeFileName = includeFileName.substr(slashPos + 1);
 
         auto depIt = m_includeDeps.find(includeFileName);
@@ -176,9 +176,9 @@ bool ShaderLibrary::InvalidateFile(const std::wstring& filePath)
         if (isInclude)
         {
             // .hlsliファイル名を抽出
-            std::wstring includeFileName = normalizedPath;
+            gx::WString includeFileName = normalizedPath;
             auto slashPos = includeFileName.rfind(L'/');
-            if (slashPos != std::wstring::npos)
+            if (slashPos != gx::WString::npos)
                 includeFileName = includeFileName.substr(slashPos + 1);
 
             auto depIt = m_includeDeps.find(includeFileName);
@@ -229,17 +229,17 @@ void ShaderLibrary::Shutdown()
     GX_LOG_INFO("ShaderLibrary: Shutdown");
 }
 
-void ShaderLibrary::ScanIncludes(const std::wstring& hlslPath)
+void ShaderLibrary::ScanIncludes(const gx::WString& hlslPath)
 {
     // HLSLファイルを開いて #include "..." を探す
     std::ifstream file(hlslPath);
     if (!file.is_open())
         return;
 
-    std::wstring normalizedHlsl = NormalizePath(hlslPath);
+    gx::WString normalizedHlsl = NormalizePath(hlslPath);
 
-    std::string line;
-    while (std::getline(file, line))
+    gx::String line;
+    while (gx::container::getline(file, line))
     {
         // #include "filename.hlsli" パターンを検索
         // 先頭の空白を許容する
@@ -259,21 +259,22 @@ void ShaderLibrary::ScanIncludes(const std::wstring& hlslPath)
 
         ++pos; // '"' をスキップ
         size_t endQuote = line.find('"', pos);
-        if (endQuote == std::string::npos)
+        if (endQuote == gx::String::npos)
             continue;
 
-        std::string includeName = line.substr(pos, endQuote - pos);
+        gx::String includeName = line.substr(pos, endQuote - pos);
 
         // パス部分を除去してファイル名だけにする
         size_t lastSlash = includeName.rfind('/');
-        if (lastSlash != std::string::npos)
+        if (lastSlash != gx::String::npos)
             includeName = includeName.substr(lastSlash + 1);
         size_t lastBackSlash = includeName.rfind('\\');
-        if (lastBackSlash != std::string::npos)
+        if (lastBackSlash != gx::String::npos)
             includeName = includeName.substr(lastBackSlash + 1);
 
         // narrow → wide 変換して正規化
-        std::wstring wIncludeName(includeName.begin(), includeName.end());
+        std::wstring tmpWide(includeName.begin(), includeName.end());
+        gx::WString wIncludeName(tmpWide.c_str());
         for (auto& c : wIncludeName)
             c = towlower(c);
 
@@ -293,10 +294,10 @@ void ShaderLibrary::ScanIncludes(const std::wstring& hlslPath)
     }
 }
 
-std::wstring ShaderLibrary::NormalizePath(const std::wstring& path)
+gx::WString ShaderLibrary::NormalizePath(const gx::WString& path)
 {
     // パス比較を安定させるため、区切り文字と大文字小文字を統一する
-    std::wstring result = path;
+    gx::WString result = path;
     for (auto& c : result)
     {
         if (c == L'\\') c = L'/';

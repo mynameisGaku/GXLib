@@ -30,7 +30,7 @@ TEST(SaveVersionTest, WriteReadHeader)
 {
     SaveVersionManager mgr;
 
-    std::vector<uint8_t> data = {0x01, 0x02, 0x03, 0x04};
+    gx::Vector<uint8_t> data = {0x01, 0x02, 0x03, 0x04};
     mgr.WriteHeader(data);
 
     SaveFormatHeader header;
@@ -44,8 +44,8 @@ TEST(SaveVersionTest, HeaderRoundTrip)
 {
     SaveVersionManager mgr;
 
-    std::vector<uint8_t> originalPayload = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE};
-    std::vector<uint8_t> data = originalPayload;
+    gx::Vector<uint8_t> originalPayload = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE};
+    gx::Vector<uint8_t> data = originalPayload;
 
     mgr.WriteHeader(data, 1, 0x42);
 
@@ -58,7 +58,7 @@ TEST(SaveVersionTest, HeaderRoundTrip)
     EXPECT_GT(header.timestamp, 0u);
 
     // ペイロードが保持されていることを確認
-    std::vector<uint8_t> extractedPayload(data.begin() + SaveVersionManager::k_HeaderSize, data.end());
+    gx::Vector<uint8_t> extractedPayload(data.begin() + SaveVersionManager::k_HeaderSize, data.end());
     EXPECT_EQ(extractedPayload, originalPayload);
 }
 
@@ -140,7 +140,7 @@ TEST(SaveVersionTest, RegisterMigration)
 {
     SaveVersionManager mgr;
 
-    mgr.RegisterMigration(1, 2, "Add score field", [](std::vector<uint8_t>& data) {
+    mgr.RegisterMigration(1, 2, "Add score field", [](gx::Vector<uint8_t>& data) {
         data.push_back(0x00); // ダミーフィールド追加
         return true;
     });
@@ -154,9 +154,9 @@ TEST(SaveVersionTest, MigrationCount)
 
     EXPECT_EQ(mgr.GetMigrationCount(), 0u);
 
-    mgr.RegisterMigration(1, 2, "v1->v2", [](std::vector<uint8_t>&) { return true; });
-    mgr.RegisterMigration(2, 3, "v2->v3", [](std::vector<uint8_t>&) { return true; });
-    mgr.RegisterMigration(3, 4, "v3->v4", [](std::vector<uint8_t>&) { return true; });
+    mgr.RegisterMigration(1, 2, "v1->v2", [](gx::Vector<uint8_t>&) { return true; });
+    mgr.RegisterMigration(2, 3, "v2->v3", [](gx::Vector<uint8_t>&) { return true; });
+    mgr.RegisterMigration(3, 4, "v3->v4", [](gx::Vector<uint8_t>&) { return true; });
 
     EXPECT_EQ(mgr.GetMigrationCount(), 3u);
 }
@@ -167,15 +167,15 @@ TEST(SaveVersionTest, MigrateSimple)
     mgr.SetCurrentVersion(2);
 
     bool migrationCalled = false;
-    mgr.RegisterMigration(1, 2, "Add field", [&](std::vector<uint8_t>& data) {
+    mgr.RegisterMigration(1, 2, "Add field", [&](gx::Vector<uint8_t>& data) {
         migrationCalled = true;
         data.push_back(0xFF);
         return true;
     });
 
     // v1のデータを作成
-    std::vector<uint8_t> payload = {0x01, 0x02, 0x03};
-    std::vector<uint8_t> data = payload;
+    gx::Vector<uint8_t> payload = {0x01, 0x02, 0x03};
+    gx::Vector<uint8_t> data = payload;
 
     // v1ヘッダーを書き込み（一時的にcurrentVersionを1に設定）
     mgr.SetCurrentVersion(1);
@@ -200,22 +200,22 @@ TEST(SaveVersionTest, MigrateChain)
     int callOrder = 0;
     int call1 = 0, call2 = 0, call3 = 0;
 
-    mgr.RegisterMigration(1, 2, "v1->v2", [&](std::vector<uint8_t>&) {
+    mgr.RegisterMigration(1, 2, "v1->v2", [&](gx::Vector<uint8_t>&) {
         call1 = ++callOrder;
         return true;
     });
-    mgr.RegisterMigration(2, 3, "v2->v3", [&](std::vector<uint8_t>&) {
+    mgr.RegisterMigration(2, 3, "v2->v3", [&](gx::Vector<uint8_t>&) {
         call2 = ++callOrder;
         return true;
     });
-    mgr.RegisterMigration(3, 4, "v3->v4", [&](std::vector<uint8_t>&) {
+    mgr.RegisterMigration(3, 4, "v3->v4", [&](gx::Vector<uint8_t>&) {
         call3 = ++callOrder;
         return true;
     });
 
     // v1データを作成
-    std::vector<uint8_t> payload = {0xAA};
-    std::vector<uint8_t> data = payload;
+    gx::Vector<uint8_t> payload = {0xAA};
+    gx::Vector<uint8_t> data = payload;
     mgr.SetCurrentVersion(1);
     mgr.WriteHeader(data, 1);
     mgr.SetCurrentVersion(4);
@@ -238,8 +238,8 @@ TEST(SaveVersionTest, CanMigrate)
     SaveVersionManager mgr;
     mgr.SetCurrentVersion(3);
 
-    mgr.RegisterMigration(1, 2, "v1->v2", [](std::vector<uint8_t>&) { return true; });
-    mgr.RegisterMigration(2, 3, "v2->v3", [](std::vector<uint8_t>&) { return true; });
+    mgr.RegisterMigration(1, 2, "v1->v2", [](gx::Vector<uint8_t>&) { return true; });
+    mgr.RegisterMigration(2, 3, "v2->v3", [](gx::Vector<uint8_t>&) { return true; });
 
     EXPECT_TRUE(mgr.CanMigrate(1));
     EXPECT_TRUE(mgr.CanMigrate(2));
@@ -248,7 +248,7 @@ TEST(SaveVersionTest, CanMigrate)
     // パスが存在しない場合
     SaveVersionManager mgr2;
     mgr2.SetCurrentVersion(3);
-    mgr2.RegisterMigration(1, 2, "v1->v2", [](std::vector<uint8_t>&) { return true; });
+    mgr2.RegisterMigration(1, 2, "v1->v2", [](gx::Vector<uint8_t>&) { return true; });
     // v2->v3が未登録
     EXPECT_FALSE(mgr2.CanMigrate(1));
 }
@@ -276,7 +276,7 @@ TEST(SaveVersionTest, ChecksumVerify)
 {
     SaveVersionManager mgr;
 
-    std::vector<uint8_t> payload = {0x10, 0x20, 0x30};
+    gx::Vector<uint8_t> payload = {0x10, 0x20, 0x30};
     uint32_t checksum = SaveVersionManager::ComputeChecksum(payload.data(), payload.size());
 
     SaveFormatHeader header;
@@ -289,7 +289,7 @@ TEST(SaveVersionTest, ChecksumMismatch)
 {
     SaveVersionManager mgr;
 
-    std::vector<uint8_t> payload = {0x10, 0x20, 0x30};
+    gx::Vector<uint8_t> payload = {0x10, 0x20, 0x30};
 
     SaveFormatHeader header;
     header.checksum = 0xDEADBEEF; // 不正なチェックサム
@@ -304,7 +304,7 @@ TEST(SaveVersionTest, ChecksumMismatch)
 TEST(SaveVersionTest, ClearMigrations)
 {
     SaveVersionManager mgr;
-    mgr.RegisterMigration(1, 2, "test", [](std::vector<uint8_t>&) { return true; });
+    mgr.RegisterMigration(1, 2, "test", [](gx::Vector<uint8_t>&) { return true; });
     EXPECT_EQ(mgr.GetMigrationCount(), 1u);
 
     mgr.Clear();

@@ -8,7 +8,7 @@ namespace gx { namespace ecs {
 // ---------------------------------------------------------------------------
 // 構築 / 破棄
 // ---------------------------------------------------------------------------
-ComponentStorage::ComponentStorage(ComponentID id, uint32_t componentSize, const std::string& name)
+ComponentStorage::ComponentStorage(ComponentID id, uint32_t componentSize, const gx::String& name)
     : m_componentId(id)
     , m_componentSize(componentSize)
     , m_name(name)

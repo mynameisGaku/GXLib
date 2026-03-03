@@ -115,7 +115,7 @@ private:
     /// @param outMin AABB最小点（出力）
     /// @param outMax AABB最大点（出力）
     /// @return AABB計算に成功した場合true
-    static bool ComputeEntityAABB(const SceneEntity& entity, XMFLOAT3& outMin, XMFLOAT3& outMax);
+    static bool ComputeEntityAABB(const SceneEntity& entity, gx::Vector3& outMin, gx::Vector3& outMax);
 
     // --- オービットカメラ ---
 
@@ -217,7 +217,7 @@ private:
     float m_orbitPitch = 0.5f;    ///< 仰角（ラジアン、±π/2制限）
     float m_orbitDistance = 8.0f;  ///< ターゲットからの距離
     float m_orbitMaxDistance = 200.0f;
-    XMFLOAT3 m_orbitTarget = { 0.0f, 0.0f, 0.0f };  ///< 注視点（パン移動可能）
+    gx::Vector3 m_orbitTarget = { 0.0f, 0.0f, 0.0f };  ///< 注視点（パン移動可能）
     bool  m_orbitDragActive = false;   ///< ドラッグ操作中フラグ
     int   m_prevSelectedBone = -1;     ///< ボーン選択変化検出用
 
@@ -287,8 +287,8 @@ private:
     // --- Undo/Redo ---
     UndoSystem m_undoSystem;                       ///< コマンド履歴管理
     bool       m_gizmoWasUsing     = false;        ///< 前フレームの ImGuizmo::IsUsing()
-    XMFLOAT3   m_gizmoStartPos    = {};            ///< ギズモ操作開始時の位置
-    XMFLOAT3   m_gizmoStartRot    = {};            ///< ギズモ操作開始時の回転
-    XMFLOAT3   m_gizmoStartScale  = {};            ///< ギズモ操作開始時のスケール
+    gx::Vector3   m_gizmoStartPos    = {};            ///< ギズモ操作開始時の位置
+    gx::Vector3   m_gizmoStartRot    = {};            ///< ギズモ操作開始時の回転
+    gx::Vector3   m_gizmoStartScale  = {};            ///< ギズモ操作開始時のスケール
     int        m_gizmoStartEntity = -1;            ///< ギズモ操作対象エンティティ
 };

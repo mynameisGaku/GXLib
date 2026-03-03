@@ -2,6 +2,7 @@
 /// @brief DXR アクセラレーション構造の実装
 #include "pch_graphics.h"
 #include "Graphics/RayTracing/RTAccelerationStructure.h"
+#include "Math/MathConvert.h"
 #include "Core/Logger.h"
 
 namespace gx
@@ -117,8 +118,8 @@ void RTAccelerationStructure::AddInstance(int blasIndex, const XMMATRIX& worldMa
 
     // DirectXMath (行ベクトル v*M) → D3D12 TLAS (列ベクトル M*v) 変換
     // TLAS Transform は列ベクトル規約の3x4行列なので、Transposeが必要
-    XMFLOAT4X4 mat;
-    XMStoreFloat4x4(&mat, XMMatrixTranspose(worldMatrix));
+    Matrix4x4 mat;
+    XMStoreFloat4x4(XM(&mat), XMMatrixTranspose(worldMatrix));
     desc.Transform[0][0] = mat._11; desc.Transform[0][1] = mat._12; desc.Transform[0][2] = mat._13; desc.Transform[0][3] = mat._14;
     desc.Transform[1][0] = mat._21; desc.Transform[1][1] = mat._22; desc.Transform[1][2] = mat._23; desc.Transform[1][3] = mat._24;
     desc.Transform[2][0] = mat._31; desc.Transform[2][1] = mat._32; desc.Transform[2][2] = mat._33; desc.Transform[2][3] = mat._34;

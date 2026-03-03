@@ -14,9 +14,9 @@ namespace
 {
 
 /// JSON出力用に文字列をエスケープする（クォートとバックスラッシュを処理）
-std::string EscapeJsonString(const std::string& s)
+gx::String EscapeJsonString(const gx::String& s)
 {
-    std::string out;
+    gx::String out;
     out.reserve(s.size() + 2);
     for (char c : s)
     {
@@ -34,9 +34,9 @@ std::string EscapeJsonString(const std::string& s)
 }
 
 /// JSON文字列値のアンエスケープ
-std::string UnescapeJsonString(const std::string& s)
+gx::String UnescapeJsonString(const gx::String& s)
 {
-    std::string out;
+    gx::String out;
     out.reserve(s.size());
     for (size_t i = 0; i < s.size(); ++i)
     {
@@ -62,10 +62,10 @@ std::string UnescapeJsonString(const std::string& s)
 }
 
 /// 先頭/末尾の空白を除去
-std::string Trim(const std::string& s)
+gx::String Trim(const gx::String& s)
 {
     size_t start = s.find_first_not_of(" \t\r\n");
-    if (start == std::string::npos) return {};
+    if (start == gx::String::npos) return {};
     size_t end = s.find_last_not_of(" \t\r\n");
     return s.substr(start, end - start + 1);
 }
@@ -83,7 +83,7 @@ void WriteFloat(void* obj, uint32_t offset, float value)
 }
 
 /// floatを末尾ゼロなしでフォーマットする（最低1桁の小数は保持）
-std::string FloatToString(float v)
+gx::String FloatToString(float v)
 {
     char buf[64];
     snprintf(buf, sizeof(buf), "%.6g", static_cast<double>(v));
@@ -92,16 +92,16 @@ std::string FloatToString(float v)
 
 /// JSONオブジェクト文字列から指定キーの値文字列を検索する
 /// 見つからない場合は空文字列を返す
-std::string FindJsonValue(const std::string& json, const std::string& key)
+gx::String FindJsonValue(const gx::String& json, const gx::String& key)
 {
     // "key":を検索
-    std::string searchKey = "\"" + key + "\"";
+    gx::String searchKey = "\"" + key + "\"";
     size_t pos = json.find(searchKey);
-    if (pos == std::string::npos) return {};
+    if (pos == gx::String::npos) return {};
 
     // コロンをスキップ
     pos = json.find(':', pos + searchKey.size());
-    if (pos == std::string::npos) return {};
+    if (pos == gx::String::npos) return {};
     ++pos;
 
     // 空白をスキップ
@@ -152,9 +152,9 @@ std::string FindJsonValue(const std::string& json, const std::string& key)
 }
 
 /// JSONサブオブジェクトからキーでfloatを抽出する（例: {"x": 1.0} => 1.0）
-float ExtractFloatKey(const std::string& json, const std::string& key)
+float ExtractFloatKey(const gx::String& json, const gx::String& key)
 {
-    std::string val = FindJsonValue(json, key);
+    gx::String val = FindJsonValue(json, key);
     if (val.empty()) return 0.0f;
     return static_cast<float>(atof(val.c_str()));
 }
@@ -164,7 +164,7 @@ float ExtractFloatKey(const std::string& json, const std::string& key)
 // ---------------------------------------------------------------------------
 // SerializeProperty
 // ---------------------------------------------------------------------------
-std::string JsonSerializer::SerializeProperty(const PropertyMeta& prop, const void* obj)
+gx::String JsonSerializer::SerializeProperty(const PropertyMeta& prop, const void* obj)
 {
     const char* base = static_cast<const char*>(obj);
 
@@ -173,7 +173,7 @@ std::string JsonSerializer::SerializeProperty(const PropertyMeta& prop, const vo
     case PropertyType::Bool:
     {
         bool v = *reinterpret_cast<const bool*>(base + prop.offset);
-        return std::string("\"") + prop.name + "\": " + (v ? "true" : "false");
+        return gx::String("\"") + prop.name + "\": " + (v ? "true" : "false");
     }
     case PropertyType::Int:
     {
@@ -187,11 +187,11 @@ std::string JsonSerializer::SerializeProperty(const PropertyMeta& prop, const vo
     }
     case PropertyType::String:
     {
-        std::string v;
+        gx::String v;
         if (prop.getter)
             prop.getter(obj, &v);
         else
-            v = *reinterpret_cast<const std::string*>(base + prop.offset);
+            v = *reinterpret_cast<const gx::String*>(base + prop.offset);
         return "\"" + prop.name + "\": \"" + EscapeJsonString(v) + "\"";
     }
     case PropertyType::Vec3:
@@ -246,9 +246,9 @@ std::string JsonSerializer::SerializeProperty(const PropertyMeta& prop, const vo
 // ---------------------------------------------------------------------------
 // Serialize
 // ---------------------------------------------------------------------------
-std::string JsonSerializer::Serialize(const TypeInfo& type, const void* obj)
+gx::String JsonSerializer::Serialize(const TypeInfo& type, const void* obj)
 {
-    std::string result = "{\n  \"_type\": \"" + type.GetName() + "\"";
+    gx::String result = "{\n  \"_type\": \"" + type.GetName() + "\"";
 
     for (const auto& prop : type.GetProperties())
     {
@@ -263,7 +263,7 @@ std::string JsonSerializer::Serialize(const TypeInfo& type, const void* obj)
 // ---------------------------------------------------------------------------
 // DeserializeProperty
 // ---------------------------------------------------------------------------
-bool JsonSerializer::DeserializeProperty(const PropertyMeta& prop, void* obj, const std::string& value)
+bool JsonSerializer::DeserializeProperty(const PropertyMeta& prop, void* obj, const gx::String& value)
 {
     char* base = static_cast<char*>(obj);
     if (prop.readOnly) return false;
@@ -272,7 +272,7 @@ bool JsonSerializer::DeserializeProperty(const PropertyMeta& prop, void* obj, co
     {
     case PropertyType::Bool:
     {
-        std::string trimmed = Trim(value);
+        gx::String trimmed = Trim(value);
         bool v = (trimmed == "true" || trimmed == "1");
         *reinterpret_cast<bool*>(base + prop.offset) = v;
         return true;
@@ -295,11 +295,11 @@ bool JsonSerializer::DeserializeProperty(const PropertyMeta& prop, void* obj, co
     }
     case PropertyType::String:
     {
-        std::string unescaped = UnescapeJsonString(value);
+        gx::String unescaped = UnescapeJsonString(value);
         if (prop.setter)
             prop.setter(obj, &unescaped);
         else
-            *reinterpret_cast<std::string*>(base + prop.offset) = unescaped;
+            *reinterpret_cast<gx::String*>(base + prop.offset) = unescaped;
         return true;
     }
     case PropertyType::Vec3:
@@ -341,14 +341,14 @@ bool JsonSerializer::DeserializeProperty(const PropertyMeta& prop, void* obj, co
 // ---------------------------------------------------------------------------
 // Deserialize
 // ---------------------------------------------------------------------------
-bool JsonSerializer::Deserialize(const TypeInfo& type, void* obj, const std::string& json)
+bool JsonSerializer::Deserialize(const TypeInfo& type, void* obj, const gx::String& json)
 {
     if (json.empty()) return false;
 
     bool anySuccess = false;
     for (const auto& prop : type.GetProperties())
     {
-        std::string rawValue = FindJsonValue(json, prop.name);
+        gx::String rawValue = FindJsonValue(json, prop.name);
         if (!rawValue.empty())
         {
             if (DeserializeProperty(prop, obj, rawValue))

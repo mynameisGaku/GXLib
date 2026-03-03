@@ -190,12 +190,12 @@ void PostEffectPanel::DrawContent(gx::PostEffectPipeline& pipeline)
                 outline.SetIntensity(intensity);
 
             // Line color as RGBA
-            // OutlineEffect stores XMFLOAT4 but we use float[4] for ImGui
+            // OutlineEffect stores Color but we use float[4] for ImGui
             const auto& lc = outline.GetLineColor();
-            float color[4] = { lc.x, lc.y, lc.z, lc.w };
+            float color[4] = { lc.r, lc.g, lc.b, lc.a };
             if (ImGui::ColorEdit4("Color##Outline", color))
             {
-                DirectX::XMFLOAT4 newColor(color[0], color[1], color[2], color[3]);
+                gx::Color newColor{color[0], color[1], color[2], color[3]};
                 outline.SetLineColor(newColor);
             }
         }

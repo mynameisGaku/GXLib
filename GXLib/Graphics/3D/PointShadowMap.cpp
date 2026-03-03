@@ -2,6 +2,7 @@
 /// @brief ポイントライト用キューブシャドウマップの実装
 #include "pch_graphics.h"
 #include "Graphics/3D/PointShadowMap.h"
+#include "Math/MathConvert.h"
 #include "Core/Logger.h"
 
 namespace gx
@@ -77,9 +78,9 @@ bool PointShadowMap::Create(ID3D12Device* device, DescriptorHeap* srvHeap, uint3
     return true;
 }
 
-void PointShadowMap::Update(const XMFLOAT3& lightPos, float range)
+void PointShadowMap::Update(const Vector3& lightPos, float range)
 {
-    XMVECTOR pos = XMLoadFloat3(&lightPos);
+    XMVECTOR pos = XMLoadFloat3(XM(&lightPos));
 
     // 6面の向き: +X, -X, +Y, -Y, +Z, -Z
     struct FaceInfo
@@ -105,7 +106,7 @@ void PointShadowMap::Update(const XMFLOAT3& lightPos, float range)
         XMVECTOR target = XMVectorAdd(pos, faces[face].target);
         XMMATRIX view = XMMatrixLookAtLH(pos, target, faces[face].up);
         XMMATRIX vp = view * proj;
-        XMStoreFloat4x4(&m_faceVP[face], XMMatrixTranspose(vp));
+        XMStoreFloat4x4(XM(&m_faceVP[face]), XMMatrixTranspose(vp));
     }
 }
 

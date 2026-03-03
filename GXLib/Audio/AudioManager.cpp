@@ -51,7 +51,7 @@ int AudioManager::AllocateHandle()
     return handle;
 }
 
-int AudioManager::LoadSound(const std::wstring& filePath)
+int AudioManager::LoadSound(const gx::WString& filePath)
 {
     // 同一パスが既に読み込み済みならキャッシュからハンドルを返す（二重読み込み防止）
     auto it = m_pathCache.find(filePath);

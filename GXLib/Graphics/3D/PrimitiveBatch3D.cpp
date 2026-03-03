@@ -5,6 +5,7 @@
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
+#include "Math/MathConvert.h"
 #include "Core/Logger.h"
 
 namespace gx
@@ -78,7 +79,7 @@ bool PrimitiveBatch3D::CreatePipelineState(ID3D12Device* device)
 }
 
 void PrimitiveBatch3D::Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
-                              const XMFLOAT4X4& viewProjection)
+                              const Matrix4x4& viewProjection)
 {
     m_cmdList    = cmdList;
     m_frameIndex = frameIndex;
@@ -90,12 +91,12 @@ void PrimitiveBatch3D::Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameI
     void* cbData = m_constantBuffer.Map(frameIndex);
     if (cbData)
     {
-        memcpy(cbData, &viewProjection, sizeof(XMFLOAT4X4));
+        memcpy(cbData, &viewProjection, sizeof(Matrix4x4));
         m_constantBuffer.Unmap(frameIndex);
     }
 }
 
-void PrimitiveBatch3D::DrawLine(const XMFLOAT3& p0, const XMFLOAT3& p1, const XMFLOAT4& color)
+void PrimitiveBatch3D::DrawLine(const Vector3& p0, const Vector3& p1, const Vector4& color)
 {
     if (!m_mappedVertices || m_vertexCount + 2 > k_MaxVertices)
         return;
@@ -104,13 +105,13 @@ void PrimitiveBatch3D::DrawLine(const XMFLOAT3& p0, const XMFLOAT3& p1, const XM
     m_mappedVertices[m_vertexCount++] = { p1, color };
 }
 
-void PrimitiveBatch3D::DrawWireBox(const XMFLOAT3& center, const XMFLOAT3& extents, const XMFLOAT4& color)
+void PrimitiveBatch3D::DrawWireBox(const Vector3& center, const Vector3& extents, const Vector4& color)
 {
     float cx = center.x, cy = center.y, cz = center.z;
     float ex = extents.x, ey = extents.y, ez = extents.z;
 
     // 8頂点
-    XMFLOAT3 v[8] = {
+    Vector3 v[8] = {
         { cx - ex, cy - ey, cz - ez }, { cx + ex, cy - ey, cz - ez },
         { cx + ex, cy + ey, cz - ez }, { cx - ex, cy + ey, cz - ez },
         { cx - ex, cy - ey, cz + ez }, { cx + ex, cy - ey, cz + ez },
@@ -128,7 +129,7 @@ void PrimitiveBatch3D::DrawWireBox(const XMFLOAT3& center, const XMFLOAT3& exten
         DrawLine(v[e[0]], v[e[1]], color);
 }
 
-void PrimitiveBatch3D::DrawWireSphere(const XMFLOAT3& center, float radius, const XMFLOAT4& color,
+void PrimitiveBatch3D::DrawWireSphere(const Vector3& center, float radius, const Vector4& color,
                                         uint32_t segments)
 {
     float step = XM_2PI / static_cast<float>(segments);
@@ -159,7 +160,7 @@ void PrimitiveBatch3D::DrawWireSphere(const XMFLOAT3& center, float radius, cons
     }
 }
 
-void PrimitiveBatch3D::DrawGrid(float size, uint32_t divisions, const XMFLOAT4& color)
+void PrimitiveBatch3D::DrawGrid(float size, uint32_t divisions, const Vector4& color)
 {
     float step = size / static_cast<float>(divisions);
     float half = size * 0.5f;
@@ -172,17 +173,17 @@ void PrimitiveBatch3D::DrawGrid(float size, uint32_t divisions, const XMFLOAT4& 
     }
 }
 
-void PrimitiveBatch3D::DrawWireCone(const XMFLOAT3& center, const XMFLOAT3& direction,
-                                     float height, float radius, const XMFLOAT4& color,
+void PrimitiveBatch3D::DrawWireCone(const Vector3& center, const Vector3& direction,
+                                     float height, float radius, const Vector4& color,
                                      uint32_t segments)
 {
     // Compute tip position
-    XMVECTOR vCenter = XMLoadFloat3(&center);
-    XMVECTOR vDir    = XMVector3Normalize(XMLoadFloat3(&direction));
+    XMVECTOR vCenter = XMLoadFloat3(XM(&center));
+    XMVECTOR vDir    = XMVector3Normalize(XMLoadFloat3(XM(&direction)));
     XMVECTOR vTip    = XMVectorAdd(vCenter, XMVectorScale(vDir, height));
 
-    XMFLOAT3 tip;
-    XMStoreFloat3(&tip, vTip);
+    Vector3 tip;
+    XMStoreFloat3(XM(&tip), vTip);
 
     // Build two perpendicular vectors to the direction axis
     XMVECTOR vRef = (fabsf(direction.y) > 0.9f)
@@ -193,7 +194,7 @@ void PrimitiveBatch3D::DrawWireCone(const XMFLOAT3& center, const XMFLOAT3& dire
 
     float step = XM_2PI / static_cast<float>(segments);
 
-    XMFLOAT3 prevBase;
+    Vector3 prevBase;
     for (uint32_t i = 0; i <= segments; ++i)
     {
         float angle = step * i;
@@ -202,8 +203,8 @@ void PrimitiveBatch3D::DrawWireCone(const XMFLOAT3& center, const XMFLOAT3& dire
             XMVectorScale(vUp,    sinf(angle) * radius));
         XMVECTOR vBasePoint = XMVectorAdd(vCenter, vOffset);
 
-        XMFLOAT3 basePoint;
-        XMStoreFloat3(&basePoint, vBasePoint);
+        Vector3 basePoint;
+        XMStoreFloat3(XM(&basePoint), vBasePoint);
 
         if (i > 0)
         {
@@ -221,17 +222,17 @@ void PrimitiveBatch3D::DrawWireCone(const XMFLOAT3& center, const XMFLOAT3& dire
     }
 }
 
-void PrimitiveBatch3D::DrawWireCapsule(const XMFLOAT3& p0, const XMFLOAT3& p1, float radius,
-                                        const XMFLOAT4& color, uint32_t segments)
+void PrimitiveBatch3D::DrawWireCapsule(const Vector3& p0, const Vector3& p1, float radius,
+                                        const Vector4& color, uint32_t segments)
 {
-    XMVECTOR vP0   = XMLoadFloat3(&p0);
-    XMVECTOR vP1   = XMLoadFloat3(&p1);
+    XMVECTOR vP0   = XMLoadFloat3(XM(&p0));
+    XMVECTOR vP1   = XMLoadFloat3(XM(&p1));
     XMVECTOR vAxis = XMVectorSubtract(vP1, vP0);
     XMVECTOR vDir  = XMVector3Normalize(vAxis);
 
     // Build two perpendicular vectors to the capsule axis
-    XMFLOAT3 dir;
-    XMStoreFloat3(&dir, vDir);
+    Vector3 dir;
+    XMStoreFloat3(XM(&dir), vDir);
     XMVECTOR vRef = (fabsf(dir.y) > 0.9f)
                     ? XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f)
                     : XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
@@ -241,7 +242,7 @@ void PrimitiveBatch3D::DrawWireCapsule(const XMFLOAT3& p0, const XMFLOAT3& p1, f
     float step = XM_2PI / static_cast<float>(segments);
 
     // --- Draw circles at p0 and p1, plus 4 connecting lines ---
-    XMFLOAT3 prevP0Circle, prevP1Circle;
+    Vector3 prevP0Circle, prevP1Circle;
     for (uint32_t i = 0; i <= segments; ++i)
     {
         float angle = step * i;
@@ -249,9 +250,9 @@ void PrimitiveBatch3D::DrawWireCapsule(const XMFLOAT3& p0, const XMFLOAT3& p1, f
             XMVectorScale(vRight, cosf(angle) * radius),
             XMVectorScale(vUp,    sinf(angle) * radius));
 
-        XMFLOAT3 cp0, cp1;
-        XMStoreFloat3(&cp0, XMVectorAdd(vP0, vOffset));
-        XMStoreFloat3(&cp1, XMVectorAdd(vP1, vOffset));
+        Vector3 cp0, cp1;
+        XMStoreFloat3(XM(&cp0), XMVectorAdd(vP0, vOffset));
+        XMStoreFloat3(XM(&cp1), XMVectorAdd(vP1, vOffset));
 
         if (i > 0)
         {
@@ -275,7 +276,7 @@ void PrimitiveBatch3D::DrawWireCapsule(const XMFLOAT3& p0, const XMFLOAT3& p1, f
     // Helper lambda: draw a semicircle arc on a given plane at a given endpoint
     auto drawHemisphereArc = [&](XMVECTOR vCenter, XMVECTOR vTangent, XMVECTOR vAxisDir, float sign)
     {
-        XMFLOAT3 prev;
+        Vector3 prev;
         for (uint32_t i = 0; i <= segments; ++i)
         {
             float angle = halfStep * i;  // 0 to PI
@@ -284,8 +285,8 @@ void PrimitiveBatch3D::DrawWireCapsule(const XMFLOAT3& p0, const XMFLOAT3& p1, f
                     XMVectorScale(vTangent, cosf(angle) * radius),
                     XMVectorScale(vAxisDir, sinf(angle) * radius * sign)));
 
-            XMFLOAT3 pt;
-            XMStoreFloat3(&pt, vPoint);
+            Vector3 pt;
+            XMStoreFloat3(XM(&pt), vPoint);
 
             if (i > 0)
                 DrawLine(prev, pt, color);
@@ -303,12 +304,12 @@ void PrimitiveBatch3D::DrawWireCapsule(const XMFLOAT3& p0, const XMFLOAT3& p1, f
     drawHemisphereArc(vP1, vUp,    vDir, 1.0f);
 }
 
-void PrimitiveBatch3D::DrawWireFrustum(const XMFLOAT4X4& inverseViewProjection, const XMFLOAT4& color)
+void PrimitiveBatch3D::DrawWireFrustum(const Matrix4x4& inverseViewProjection, const Vector4& color)
 {
-    XMMATRIX invVP = XMLoadFloat4x4(&inverseViewProjection);
+    XMMATRIX invVP = XMLoadFloat4x4(XM(&inverseViewProjection));
 
     // NDC corners: (x, y, z) where z=0 is near, z=1 is far
-    XMFLOAT3 ndcCorners[8] = {
+    Vector3 ndcCorners[8] = {
         { -1.0f, -1.0f, 0.0f }, {  1.0f, -1.0f, 0.0f },
         {  1.0f,  1.0f, 0.0f }, { -1.0f,  1.0f, 0.0f },
         { -1.0f, -1.0f, 1.0f }, {  1.0f, -1.0f, 1.0f },
@@ -316,12 +317,12 @@ void PrimitiveBatch3D::DrawWireFrustum(const XMFLOAT4X4& inverseViewProjection, 
     };
 
     // Unproject NDC corners to world space
-    XMFLOAT3 worldCorners[8];
+    Vector3 worldCorners[8];
     for (int i = 0; i < 8; ++i)
     {
-        XMVECTOR vNDC = XMLoadFloat3(&ndcCorners[i]);
+        XMVECTOR vNDC = XMLoadFloat3(XM(&ndcCorners[i]));
         XMVECTOR vWorld = XMVector3TransformCoord(vNDC, invVP);
-        XMStoreFloat3(&worldCorners[i], vWorld);
+        XMStoreFloat3(XM(&worldCorners[i]), vWorld);
     }
 
     // 12 edges: 4 near, 4 far, 4 connecting
@@ -335,11 +336,11 @@ void PrimitiveBatch3D::DrawWireFrustum(const XMFLOAT4X4& inverseViewProjection, 
         DrawLine(worldCorners[e[0]], worldCorners[e[1]], color);
 }
 
-void PrimitiveBatch3D::DrawWireCircle(const XMFLOAT3& center, const XMFLOAT3& normal, float radius,
-                                       const XMFLOAT4& color, uint32_t segments)
+void PrimitiveBatch3D::DrawWireCircle(const Vector3& center, const Vector3& normal, float radius,
+                                       const Vector4& color, uint32_t segments)
 {
-    XMVECTOR vCenter = XMLoadFloat3(&center);
-    XMVECTOR vNormal = XMVector3Normalize(XMLoadFloat3(&normal));
+    XMVECTOR vCenter = XMLoadFloat3(XM(&center));
+    XMVECTOR vNormal = XMVector3Normalize(XMLoadFloat3(XM(&normal)));
 
     // Build two perpendicular vectors to the normal
     XMVECTOR vRef = (fabsf(normal.y) > 0.9f)
@@ -350,7 +351,7 @@ void PrimitiveBatch3D::DrawWireCircle(const XMFLOAT3& center, const XMFLOAT3& no
 
     float step = XM_2PI / static_cast<float>(segments);
 
-    XMFLOAT3 prev;
+    Vector3 prev;
     for (uint32_t i = 0; i <= segments; ++i)
     {
         float angle = step * i;
@@ -359,8 +360,8 @@ void PrimitiveBatch3D::DrawWireCircle(const XMFLOAT3& center, const XMFLOAT3& no
             XMVectorScale(vUp,    sinf(angle) * radius));
         XMVECTOR vPoint = XMVectorAdd(vCenter, vOffset);
 
-        XMFLOAT3 pt;
-        XMStoreFloat3(&pt, vPoint);
+        Vector3 pt;
+        XMStoreFloat3(XM(&pt), vPoint);
 
         if (i > 0)
             DrawLine(prev, pt, color);
@@ -369,7 +370,7 @@ void PrimitiveBatch3D::DrawWireCircle(const XMFLOAT3& center, const XMFLOAT3& no
     }
 }
 
-void PrimitiveBatch3D::DrawAxis(const XMFLOAT3& origin, float size, float alpha)
+void PrimitiveBatch3D::DrawAxis(const Vector3& origin, float size, float alpha)
 {
     // X axis - Red
     DrawLine(origin, { origin.x + size, origin.y, origin.z },

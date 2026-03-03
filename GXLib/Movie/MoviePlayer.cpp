@@ -23,7 +23,7 @@ MoviePlayer::~MoviePlayer()
     Close();
 }
 
-bool MoviePlayer::Open(const std::string& filePath, GraphicsDevice& device, TextureManager& texManager)
+bool MoviePlayer::Open(const gx::String& filePath, GraphicsDevice& device, TextureManager& texManager)
 {
     Close();
     m_texManager = &texManager;
@@ -39,8 +39,8 @@ bool MoviePlayer::Open(const std::string& filePath, GraphicsDevice& device, Text
 
     // パスを wide 文字列へ変換（WinAPI用）。
     int wLen = MultiByteToWideChar(CP_UTF8, 0, filePath.c_str(), -1, nullptr, 0);
-    std::wstring wPath(wLen - 1, L'\0');
-    MultiByteToWideChar(CP_UTF8, 0, filePath.c_str(), -1, wPath.data(), wLen);
+    gx::WString wPath(wLen - 1, L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, filePath.c_str(), -1, wPath.DataMut(), wLen);
 
     // ソースリーダーを作成（動画ストリームを読む入口）。
     IMFAttributes* pAttributes = nullptr;
@@ -272,7 +272,7 @@ bool MoviePlayer::DecodeNextFrame(GraphicsDevice& device)
 
     // Media FoundationのRGB32はBGRAかつボトムアップ配列のため、
     // RGBA＋トップダウン配列に並べ替えて変換する
-    std::vector<uint8_t> rgba(m_width * m_height * 4);
+    gx::Vector<uint8_t> rgba(m_width * m_height * 4);
     for (uint32_t y = 0; y < m_height; ++y)
     {
         // 縦反転（MFは下から上の並び）

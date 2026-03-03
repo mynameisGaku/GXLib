@@ -47,9 +47,9 @@ void InterestManagement::RemoveEntity(uint32_t entityId)
     m_entities.erase(it);
 }
 
-std::vector<uint32_t> InterestManagement::QueryRelevantEntities(uint32_t observerEntityId) const
+gx::Vector<uint32_t> InterestManagement::QueryRelevantEntities(uint32_t observerEntityId) const
 {
-    std::vector<uint32_t> result;
+    gx::Vector<uint32_t> result;
     auto obsIt = m_entities.find(observerEntityId);
     if (obsIt == m_entities.end()) return result;
 

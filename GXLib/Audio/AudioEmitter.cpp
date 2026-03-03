@@ -26,19 +26,19 @@ AudioEmitter::AudioEmitter()
     UpdateNative();
 }
 
-void AudioEmitter::SetPosition(const XMFLOAT3& pos)
+void AudioEmitter::SetPosition(const Vector3& pos)
 {
     m_position = pos;
     m_emitter.Position = { pos.x, pos.y, pos.z };
 }
 
-void AudioEmitter::SetVelocity(const XMFLOAT3& vel)
+void AudioEmitter::SetVelocity(const Vector3& vel)
 {
     m_velocity = vel;
     m_emitter.Velocity = { vel.x, vel.y, vel.z };
 }
 
-void AudioEmitter::SetDirection(const XMFLOAT3& front)
+void AudioEmitter::SetDirection(const Vector3& front)
 {
     m_direction = front;
     m_emitter.OrientFront = { front.x, front.y, front.z };

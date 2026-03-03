@@ -99,7 +99,7 @@ bool MatchmakingLobby::JoinLobby(uint64_t lobbyId)
     return true;
 }
 
-bool MatchmakingLobby::JoinByCode(const std::string& inviteCode)
+bool MatchmakingLobby::JoinByCode(const gx::String& inviteCode)
 {
     auto it = m_inviteCodes.find(inviteCode);
     if (it == m_inviteCodes.end())
@@ -167,7 +167,7 @@ const PlayerInfo* MatchmakingLobby::GetPlayer(uint64_t playerId) const
     return nullptr;
 }
 
-std::vector<PlayerInfo> MatchmakingLobby::FindPlayers() const
+gx::Vector<PlayerInfo> MatchmakingLobby::FindPlayers() const
 {
     if (!m_inLobby) return {};
     return m_currentLobby.players;
@@ -279,7 +279,7 @@ void MatchmakingLobby::CancelSearch()
     }
 }
 
-std::string MatchmakingLobby::GenerateInviteCode() const
+gx::String MatchmakingLobby::GenerateInviteCode() const
 {
     static const char chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     static constexpr int kCodeLength = 6;
@@ -288,7 +288,7 @@ std::string MatchmakingLobby::GenerateInviteCode() const
     std::mt19937 gen(rd());
     std::uniform_int_distribution<int> dist(0, static_cast<int>(sizeof(chars) - 2));
 
-    std::string code;
+    gx::String code;
     code.reserve(kCodeLength);
     for (int i = 0; i < kCodeLength; i++)
     {
@@ -303,11 +303,11 @@ void MatchmakingLobby::SetMatchFilter(const MatchFilter& filter)
     m_matchFilter = filter;
 }
 
-void MatchmakingLobby::SendChatMessage(const std::string& message)
+void MatchmakingLobby::SendChatMessage(const gx::String& message)
 {
     if (!m_inLobby) return;
 
-    std::string senderName = m_localPlayer.displayName;
+    gx::String senderName = m_localPlayer.displayName;
     m_chatHistory.emplace_back(senderName, message);
 
     if (OnChatMessage) OnChatMessage(senderName, message);

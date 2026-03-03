@@ -8,7 +8,7 @@
 namespace gx
 {
 
-OcclusionParams AudioOcclusion::Calculate(const DirectX::XMFLOAT3& emitterPos) const
+OcclusionParams AudioOcclusion::Calculate(const Vector3& emitterPos) const
 {
     OcclusionParams params;
 

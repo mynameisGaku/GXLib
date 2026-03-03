@@ -89,7 +89,7 @@ TEST(ECS_ComponentStorage, MoveConstructor)
 // ---------------------------------------------------------------------------
 TEST(ECS_Archetype, CreateAndAddEntity)
 {
-    std::vector<std::pair<ComponentID, uint32_t>> infos = {
+    gx::Vector<std::pair<ComponentID, uint32_t>> infos = {
         { 0, sizeof(Position) },
         { 1, sizeof(Velocity) }
     };
@@ -115,7 +115,7 @@ TEST(ECS_Archetype, CreateAndAddEntity)
 
 TEST(ECS_Archetype, RemoveEntitySwapAndPop)
 {
-    std::vector<std::pair<ComponentID, uint32_t>> infos = {
+    gx::Vector<std::pair<ComponentID, uint32_t>> infos = {
         { 0, sizeof(int) }
     };
     Archetype arch(1ULL, infos);

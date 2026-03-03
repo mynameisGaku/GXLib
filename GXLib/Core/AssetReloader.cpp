@@ -3,6 +3,7 @@
 #include "pch_common.h"
 
 #include "Core/AssetReloader.h"
+#include "Core/AssetRemapper.h"
 #include "Core/HotReloadManager.h"
 #include "Core/Logger.h"
 
@@ -30,31 +31,31 @@ bool AssetReloader::Initialize(HotReloadManager* hotReloadMgr)
 
     // HotReloadManagerに各アセットタイプのコールバックを登録
     m_hotReloadMgr->OnReload(HotReloadAssetType::Texture,
-        [this](const std::wstring& filePath, HotReloadAssetType)
+        [this](const gx::WString& filePath, HotReloadAssetType)
         {
             OnFileChanged(filePath);
         });
 
     m_hotReloadMgr->OnReload(HotReloadAssetType::Script,
-        [this](const std::wstring& filePath, HotReloadAssetType)
+        [this](const gx::WString& filePath, HotReloadAssetType)
         {
             OnFileChanged(filePath);
         });
 
     m_hotReloadMgr->OnReload(HotReloadAssetType::Shader,
-        [this](const std::wstring& filePath, HotReloadAssetType)
+        [this](const gx::WString& filePath, HotReloadAssetType)
         {
             OnFileChanged(filePath);
         });
 
     m_hotReloadMgr->OnReload(HotReloadAssetType::StyleSheet,
-        [this](const std::wstring& filePath, HotReloadAssetType)
+        [this](const gx::WString& filePath, HotReloadAssetType)
         {
             OnFileChanged(filePath);
         });
 
     m_hotReloadMgr->OnReload(HotReloadAssetType::Config,
-        [this](const std::wstring& filePath, HotReloadAssetType)
+        [this](const gx::WString& filePath, HotReloadAssetType)
         {
             OnFileChanged(filePath);
         });
@@ -75,6 +76,7 @@ void AssetReloader::Shutdown()
     m_onReload = nullptr;
     m_hotReloadMgr = nullptr;
     m_textureManager = nullptr;
+    m_remapper = nullptr;
     m_successCount = 0;
     m_failureCount = 0;
     m_initialized = false;
@@ -83,17 +85,17 @@ void AssetReloader::Shutdown()
 // ============================================================================
 // 登録メソッド
 // ============================================================================
-void AssetReloader::RegisterTexture(const std::wstring& filePath, int textureHandle)
+void AssetReloader::RegisterTexture(const gx::WString& filePath, int textureHandle)
 {
     m_textureMap[filePath] = textureHandle;
 }
 
-void AssetReloader::RegisterMaterial(const std::wstring& filePath, const std::string& materialName)
+void AssetReloader::RegisterMaterial(const gx::WString& filePath, const gx::String& materialName)
 {
     m_materialMap[filePath] = materialName;
 }
 
-void AssetReloader::RegisterScript(const std::wstring& filePath, const std::string& scriptName)
+void AssetReloader::RegisterScript(const gx::WString& filePath, const gx::String& scriptName)
 {
     m_scriptMap[filePath] = scriptName;
 }
@@ -101,9 +103,25 @@ void AssetReloader::RegisterScript(const std::wstring& filePath, const std::stri
 // ============================================================================
 // OnFileChanged
 // ============================================================================
-void AssetReloader::OnFileChanged(const std::wstring& filePath)
+void AssetReloader::OnFileChanged(const gx::WString& filePath)
 {
     if (!m_autoReload) return;
+
+    // Remapper に先に委譲（GUIDベース差し替えが優先）
+    if (m_remapper)
+    {
+        // WString → String 変換（Remapper は String パスを使用）
+        gx::String narrowPath;
+        narrowPath.reserve(filePath.size());
+        for (size_t i = 0; i < filePath.size(); ++i)
+            narrowPath.push_back(static_cast<char>(filePath[i]));
+
+        if (m_remapper->OnFileChanged(narrowPath))
+        {
+            ++m_successCount;
+            return; // Remapper がハンドルした
+        }
+    }
 
     ReloadableAssetType type = ClassifyAsset(filePath);
 
@@ -169,12 +187,12 @@ void AssetReloader::OnFileChanged(const std::wstring& filePath)
 // ============================================================================
 // ClassifyAsset
 // ============================================================================
-ReloadableAssetType AssetReloader::ClassifyAsset(const std::wstring& path) const
+ReloadableAssetType AssetReloader::ClassifyAsset(const gx::WString& path) const
 {
     // 拡張子を抽出して小文字に変換
-    std::wstring ext;
+    gx::WString ext;
     auto dotPos = path.rfind(L'.');
-    if (dotPos != std::wstring::npos)
+    if (dotPos != gx::WString::npos)
     {
         ext = path.substr(dotPos);
         for (auto& ch : ext)
@@ -231,7 +249,7 @@ ReloadableAssetType AssetReloader::ClassifyAsset(const std::wstring& path) const
 // ============================================================================
 // ReloadTexture
 // ============================================================================
-bool AssetReloader::ReloadTexture(const std::wstring& filePath)
+bool AssetReloader::ReloadTexture(const gx::WString& filePath)
 {
     ReloadEvent event;
     event.type = ReloadableAssetType::Texture;
@@ -279,7 +297,7 @@ bool AssetReloader::ReloadTexture(const std::wstring& filePath)
 // ============================================================================
 // ReloadMaterial
 // ============================================================================
-bool AssetReloader::ReloadMaterial(const std::wstring& filePath)
+bool AssetReloader::ReloadMaterial(const gx::WString& filePath)
 {
     ReloadEvent event;
     event.type = ReloadableAssetType::Material;
@@ -310,7 +328,7 @@ bool AssetReloader::ReloadMaterial(const std::wstring& filePath)
 // ============================================================================
 // ReloadScript
 // ============================================================================
-bool AssetReloader::ReloadScript(const std::wstring& filePath)
+bool AssetReloader::ReloadScript(const gx::WString& filePath)
 {
     ReloadEvent event;
     event.type = ReloadableAssetType::Script;

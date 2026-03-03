@@ -23,7 +23,7 @@ void TypeRegistry::RegisterType(std::unique_ptr<TypeInfo> type)
 {
     if (!type) return;
 
-    const std::string name = type->GetName();
+    const gx::String name = type->GetName();
     uint32_t hash = type->GetTypeHash();
 
     // 重複登録のチェック
@@ -47,7 +47,7 @@ void TypeRegistry::RegisterType(std::unique_ptr<TypeInfo> type)
 // ---------------------------------------------------------------------------
 // 検索
 // ---------------------------------------------------------------------------
-const TypeInfo* TypeRegistry::FindType(const std::string& name) const
+const TypeInfo* TypeRegistry::FindType(const gx::String& name) const
 {
     auto it = m_types.find(name);
     return (it != m_types.end()) ? it->second.get() : nullptr;
@@ -59,9 +59,9 @@ const TypeInfo* TypeRegistry::FindTypeByHash(uint32_t hash) const
     return (it != m_hashMap.end()) ? it->second : nullptr;
 }
 
-std::vector<const TypeInfo*> TypeRegistry::GetAllTypes() const
+gx::Vector<const TypeInfo*> TypeRegistry::GetAllTypes() const
 {
-    std::vector<const TypeInfo*> result;
+    gx::Vector<const TypeInfo*> result;
     result.reserve(m_types.size());
     for (const auto& [name, info] : m_types)
     {

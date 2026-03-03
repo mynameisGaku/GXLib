@@ -113,7 +113,7 @@ TEST(ClothSimulatorTest, PinnedVertexStays)
     desc.pinnedVertices = { 0, 2 }; // 左上と右上をピン留め
     cloth.Initialize(desc);
 
-    XMFLOAT3 pin0 = cloth.GetPositions()[0];
+    Vector3 pin0 = cloth.GetPositions()[0];
 
     cloth.Update(0.1f, 4);
 
@@ -132,7 +132,7 @@ TEST(ClothSimulatorTest, PinAndUnpin)
     cloth.Initialize(desc);
 
     cloth.PinVertex(4);
-    XMFLOAT3 pos4 = cloth.GetPositions()[4];
+    Vector3 pos4 = cloth.GetPositions()[4];
     cloth.Update(0.1f, 2);
     EXPECT_FLOAT_EQ(cloth.GetPositions()[4].y, pos4.y);
 
@@ -232,7 +232,7 @@ TEST(NetworkManagerTest, RegisterRPC)
 {
     NetworkManager net;
     bool called = false;
-    net.RegisterRPC("TestRPC", [&](ClientId, const std::vector<uint8_t>&) {
+    net.RegisterRPC("TestRPC", [&](ClientId, const gx::Vector<uint8_t>&) {
         called = true;
     });
     // RPCは登録されたがまだ呼ばれていない

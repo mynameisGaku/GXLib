@@ -19,12 +19,12 @@ TEST(NavMeshSmoothTest, StraightLine_FewerWaypoints)
     mesh.Build(0.0f, 0.0f, 20.0f, 20.0f, 0.5f);
 
     // 生パス（スムージングなし）
-    std::vector<XMFLOAT3> rawPath;
+    gx::Vector<Vector3> rawPath;
     bool found = mesh.FindPath({1, 0, 1}, {19, 0, 1}, rawPath, false);
     ASSERT_TRUE(found);
 
     // スムージング済みパス
-    std::vector<XMFLOAT3> smoothPath;
+    gx::Vector<Vector3> smoothPath;
     found = mesh.FindPath({1, 0, 1}, {19, 0, 1}, smoothPath, true);
     ASSERT_TRUE(found);
 
@@ -37,10 +37,10 @@ TEST(NavMeshSmoothTest, Diagonal_FewerWaypoints)
     NavMesh mesh;
     mesh.Build(0.0f, 0.0f, 20.0f, 20.0f, 0.5f);
 
-    std::vector<XMFLOAT3> rawPath;
+    gx::Vector<Vector3> rawPath;
     mesh.FindPath({1, 0, 1}, {19, 0, 19}, rawPath, false);
 
-    std::vector<XMFLOAT3> smoothPath;
+    gx::Vector<Vector3> smoothPath;
     mesh.FindPath({1, 0, 1}, {19, 0, 19}, smoothPath, true);
 
     // スムージング済みの対角線はずっと短くなるはず
@@ -56,7 +56,7 @@ TEST(NavMeshSmoothTest, AroundObstacle_StillFindsPath)
     for (int x = 5; x < 35; ++x)
         mesh.SetCellWalkable(x, 20, false);
 
-    std::vector<XMFLOAT3> smoothPath;
+    gx::Vector<Vector3> smoothPath;
     bool found = mesh.FindPath({10, 0, 5}, {10, 0, 15}, smoothPath, true);
     EXPECT_TRUE(found);
     EXPECT_GT(smoothPath.size(), 2u);
@@ -73,10 +73,10 @@ TEST(NavMeshSmoothTest, LShape_ReducedWaypoints)
     for (int z = 10; z < 20; ++z)
         mesh.SetCellWalkable(20, z, false);
 
-    std::vector<XMFLOAT3> rawPath;
+    gx::Vector<Vector3> rawPath;
     mesh.FindPath({5, 0, 5}, {15, 0, 15}, rawPath, false);
 
-    std::vector<XMFLOAT3> smoothPath;
+    gx::Vector<Vector3> smoothPath;
     mesh.FindPath({5, 0, 5}, {15, 0, 15}, smoothPath, true);
 
     if (!rawPath.empty() && !smoothPath.empty())
@@ -90,7 +90,7 @@ TEST(NavMeshSmoothTest, SameStartEnd_EmptyOrSinglePoint)
     NavMesh mesh;
     mesh.Build(0.0f, 0.0f, 10.0f, 10.0f, 0.5f);
 
-    std::vector<XMFLOAT3> path;
+    gx::Vector<Vector3> path;
     mesh.FindPath({5, 0, 5}, {5, 0, 5}, path, true);
     // 空または1点 — ウェイポイント不要
     EXPECT_LE(path.size(), 2u);
@@ -108,10 +108,10 @@ TEST(RVOTest, NoNeighbors_ReturnsDesired)
     self.radius = 0.5f;
     self.maxSpeed = 3.5f;
 
-    XMFLOAT3 desired = {2, 0, 0};
-    std::vector<RVO::AgentState> others; // empty
+    Vector3 desired = {2, 0, 0};
+    gx::Vector<RVO::AgentState> others; // empty
 
-    XMFLOAT3 result = RVO::ComputeAvoidanceVelocity(self, desired, others);
+    Vector3 result = RVO::ComputeAvoidanceVelocity(self, desired, others);
     // 近隣エージェントがいない場合、結果は希望速度と一致するはず
     EXPECT_NEAR(result.x, desired.x, 0.01f);
     EXPECT_NEAR(result.z, desired.z, 0.01f);
@@ -135,10 +135,10 @@ TEST(RVOTest, CloseApproach_VelocityDiverges)
     other.radius = 0.5f;
     other.maxSpeed = 3.5f;
 
-    XMFLOAT3 desired = {0.3f, 0, 0};
-    std::vector<RVO::AgentState> others = {other};
+    Vector3 desired = {0.3f, 0, 0};
+    gx::Vector<RVO::AgentState> others = {other};
 
-    XMFLOAT3 result = RVO::ComputeAvoidanceVelocity(self, desired, others, 2.0f);
+    Vector3 result = RVO::ComputeAvoidanceVelocity(self, desired, others, 2.0f);
 
     // 回避速度は希望速度と異なるはず
     float diffX = result.x - desired.x;
@@ -161,10 +161,10 @@ TEST(RVOTest, FarApartAgents_NoAvoidanceNeeded)
     other.radius = 0.5f;
     other.maxSpeed = 3.5f;
 
-    XMFLOAT3 desired = {1, 0, 0};
-    std::vector<RVO::AgentState> others = {other};
+    Vector3 desired = {1, 0, 0};
+    gx::Vector<RVO::AgentState> others = {other};
 
-    XMFLOAT3 result = RVO::ComputeAvoidanceVelocity(self, desired, others);
+    Vector3 result = RVO::ComputeAvoidanceVelocity(self, desired, others);
     // 十分遠いので回避は不要なはず
     EXPECT_NEAR(result.x, desired.x, 0.1f);
     EXPECT_NEAR(result.z, desired.z, 0.1f);
@@ -184,10 +184,10 @@ TEST(RVOTest, SpeedClamped)
     other.radius = 0.5f;
     other.maxSpeed = 3.5f;
 
-    XMFLOAT3 desired = {2, 0, 0};
-    std::vector<RVO::AgentState> others = {other};
+    Vector3 desired = {2, 0, 0};
+    gx::Vector<RVO::AgentState> others = {other};
 
-    XMFLOAT3 result = RVO::ComputeAvoidanceVelocity(self, desired, others);
+    Vector3 result = RVO::ComputeAvoidanceVelocity(self, desired, others);
     float speed = std::sqrt(result.x * result.x + result.z * result.z);
     EXPECT_LE(speed, self.maxSpeed + 0.01f);
 }
@@ -216,7 +216,7 @@ TEST(NavAgentRVOTest, UpdateWithNeighbors_Runs)
     agent1.SetDestination({15, 0, 5});
     agent2.SetDestination({0, 0, 5});
 
-    std::vector<NavAgent*> neighbors = {&agent2};
+    gx::Vector<NavAgent*> neighbors = {&agent2};
     // クラッシュしないことを確認
     agent1.UpdateWithNeighbors(1.0f / 60.0f, neighbors);
 }

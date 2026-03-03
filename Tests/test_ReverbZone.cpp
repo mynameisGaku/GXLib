@@ -14,7 +14,7 @@ using namespace gx;
 
 static ReverbZoneConfig MakeZone(float x, float y, float z,
                                   float innerR = 5.0f, float outerR = 15.0f,
-                                  int priority = 0, const std::string& name = "zone")
+                                  int priority = 0, const gx::String& name = "zone")
 {
     ReverbZoneConfig cfg;
     cfg.position[0] = x;

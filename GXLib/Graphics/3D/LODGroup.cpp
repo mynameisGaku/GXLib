@@ -3,6 +3,7 @@
 /// @brief LOD（Level of Detail）グループ管理の実装
 
 #include "Graphics/3D/LODGroup.h"
+#include "Math/MathConvert.h"
 #include "Graphics/3D/Camera3D.h"
 #include "Graphics/3D/Transform3D.h"
 #include "Graphics/3D/Model.h"
@@ -32,11 +33,11 @@ Model* LODGroup::SelectLOD(const Camera3D& camera, const Transform3D& transform,
         return nullptr;
 
     // カメラ位置とオブジェクト位置の距離を計算
-    const XMFLOAT3& camPos = camera.GetPosition();
-    const XMFLOAT3& objPos = transform.GetPosition();
+    const Vector3& camPos = camera.GetPosition();
+    const Vector3& objPos = transform.GetPosition();
 
-    XMVECTOR vCam = XMLoadFloat3(&camPos);
-    XMVECTOR vObj = XMLoadFloat3(&objPos);
+    XMVECTOR vCam = XMLoadFloat3(XM(&camPos));
+    XMVECTOR vObj = XMLoadFloat3(XM(&objPos));
     XMVECTOR vDiff = XMVectorSubtract(vObj, vCam);
 
     float distance = 0.0f;

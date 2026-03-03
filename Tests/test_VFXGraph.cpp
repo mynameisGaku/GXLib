@@ -296,7 +296,7 @@ TEST(VFXInstanceTest, SetAndGetPosition)
 {
     VFXInstance inst;
     inst.SetPosition({ 1.0f, 2.0f, 3.0f });
-    XMFLOAT3 pos = inst.GetPosition();
+    Vector3 pos = inst.GetPosition();
     EXPECT_FLOAT_EQ(pos.x, 1.0f);
     EXPECT_FLOAT_EQ(pos.y, 2.0f);
     EXPECT_FLOAT_EQ(pos.z, 3.0f);

@@ -104,7 +104,7 @@ TEST(DecalEnhancedTest, BlendModeMultiply)
 // ============================================================================
 TEST(DecalEnhancedTest, PrioritySort)
 {
-    std::vector<EnhancedDecalData> decals(4);
+    gx::Vector<EnhancedDecalData> decals(4);
     decals[0].priority = 200;
     decals[1].priority = 50;
     decals[2].priority = 128;

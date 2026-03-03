@@ -6,9 +6,9 @@
 namespace gx
 {
 
-std::vector<std::unique_ptr<NodeDef>>& NodeGraph::GetDefs()
+gx::Vector<std::unique_ptr<NodeDef>>& NodeGraph::GetDefs()
 {
-    static std::vector<std::unique_ptr<NodeDef>> defs;
+    static gx::Vector<std::unique_ptr<NodeDef>> defs;
     return defs;
 }
 
@@ -17,7 +17,7 @@ void NodeGraph::RegisterNodeDef(std::unique_ptr<NodeDef> def)
     GetDefs().push_back(std::move(def));
 }
 
-const NodeDef* NodeGraph::FindNodeDef(const std::string& name)
+const NodeDef* NodeGraph::FindNodeDef(const gx::String& name)
 {
     for (const auto& d : GetDefs())
     {
@@ -31,7 +31,7 @@ void NodeGraph::ClearNodeDefs()
     GetDefs().clear();
 }
 
-uint32_t NodeGraph::AddNode(const std::string& defName)
+uint32_t NodeGraph::AddNode(const gx::String& defName)
 {
     const NodeDef* def = FindNodeDef(defName);
     if (!def) return 0xFFFFFFFF;
@@ -111,7 +111,7 @@ void NodeGraph::PropagateInputs(uint32_t nodeId)
 void NodeGraph::Execute(uint32_t startNodeId)
 {
     // BFS的にフローピンを辿って実行
-    std::vector<uint32_t> queue;
+    gx::Vector<uint32_t> queue;
     queue.push_back(startNodeId);
 
     // 無限ループ防止

@@ -22,13 +22,13 @@ using namespace DirectX;
 class AssetDatabaseTest : public ::testing::Test
 {
 protected:
-    std::string testDir;
+    gx::String testDir;
 
     void SetUp() override
     {
         AssetDatabase::Instance().Clear();
         testDir = (std::filesystem::temp_directory_path() / "gx_asset_test").string();
-        std::filesystem::create_directories(testDir);
+        std::filesystem::create_directories(std::filesystem::path(testDir.c_str()));
 
         // テストファイルを作成
         CreateFile("texture.png");
@@ -39,7 +39,7 @@ protected:
         CreateFile("shader.hlsl");
         CreateFile("script.lua");
         CreateFile("readme.txt");
-        std::filesystem::create_directories(testDir + "/sub");
+        std::filesystem::create_directories(std::filesystem::path((testDir + "/sub").c_str()));
         CreateFile("sub/nested.png");
     }
 
@@ -47,10 +47,10 @@ protected:
     {
         AssetDatabase::Instance().Clear();
         std::error_code ec;
-        std::filesystem::remove_all(testDir, ec);
+        std::filesystem::remove_all(std::filesystem::path(testDir.c_str()), ec);
     }
 
-    void CreateFile(const std::string& name)
+    void CreateFile(const gx::String& name)
     {
         std::ofstream f(testDir + "/" + name);
         f << "test data for " << name;
@@ -254,7 +254,7 @@ TEST(AudioOcclusionTest, FullOcclusion)
 {
     AudioOcclusion occ;
     occ.SetListenerPosition({ 0, 0, 0 });
-    occ.SetOcclusionCallback([](const XMFLOAT3&, const XMFLOAT3&) -> float {
+    occ.SetOcclusionCallback([](const Vector3&, const Vector3&) -> float {
         return 1.0f; // 完全遮蔽
     });
 
@@ -268,7 +268,7 @@ TEST(AudioOcclusionTest, HalfOcclusion)
 {
     AudioOcclusion occ;
     occ.SetListenerPosition({ 0, 0, 0 });
-    occ.SetOcclusionCallback([](const XMFLOAT3&, const XMFLOAT3&) -> float {
+    occ.SetOcclusionCallback([](const Vector3&, const Vector3&) -> float {
         return 0.5f;
     });
 
@@ -281,7 +281,7 @@ TEST(AudioOcclusionTest, Disabled)
 {
     AudioOcclusion occ;
     occ.SetEnabled(false);
-    occ.SetOcclusionCallback([](const XMFLOAT3&, const XMFLOAT3&) -> float {
+    occ.SetOcclusionCallback([](const Vector3&, const Vector3&) -> float {
         return 1.0f;
     });
 
@@ -292,7 +292,7 @@ TEST(AudioOcclusionTest, Disabled)
 TEST(AudioOcclusionTest, OcclusionClamped)
 {
     AudioOcclusion occ;
-    occ.SetOcclusionCallback([](const XMFLOAT3&, const XMFLOAT3&) -> float {
+    occ.SetOcclusionCallback([](const Vector3&, const Vector3&) -> float {
         return 5.0f; // 1.0を超過
     });
 
@@ -309,11 +309,11 @@ TEST(ScenePersistenceTest, SerializeEmptyScene)
 {
     Scene scene("TestScene");
 
-    std::string text = ScenePersistence::SerializeToString(scene);
+    gx::String text = ScenePersistence::SerializeToString(scene);
     EXPECT_FALSE(text.empty());
-    EXPECT_NE(text.find("GXSCENE 1"), std::string::npos);
-    EXPECT_NE(text.find("scene_name: TestScene"), std::string::npos);
-    EXPECT_NE(text.find("entity_count: 0"), std::string::npos);
+    EXPECT_NE(text.find("GXSCENE 1"), gx::String::npos);
+    EXPECT_NE(text.find("scene_name: TestScene"), gx::String::npos);
+    EXPECT_NE(text.find("entity_count: 0"), gx::String::npos);
 }
 
 TEST(ScenePersistenceTest, SerializeWithEntities)
@@ -322,10 +322,10 @@ TEST(ScenePersistenceTest, SerializeWithEntities)
     scene.CreateEntity("Player");
     scene.CreateEntity("Enemy");
 
-    std::string text = ScenePersistence::SerializeToString(scene);
-    EXPECT_NE(text.find("Player"), std::string::npos);
-    EXPECT_NE(text.find("Enemy"), std::string::npos);
-    EXPECT_NE(text.find("entity_count: 2"), std::string::npos);
+    gx::String text = ScenePersistence::SerializeToString(scene);
+    EXPECT_NE(text.find("Player"), gx::String::npos);
+    EXPECT_NE(text.find("Enemy"), gx::String::npos);
+    EXPECT_NE(text.find("entity_count: 2"), gx::String::npos);
 }
 
 TEST(ScenePersistenceTest, TextRoundTrip)
@@ -341,7 +341,7 @@ TEST(ScenePersistenceTest, TextRoundTrip)
     auto* enemy = scene.CreateEntity("Enemy");
     enemy->GetTransform().SetPosition(10.0f, 0.0f, -5.0f);
 
-    std::string text = ScenePersistence::SerializeToString(scene);
+    gx::String text = ScenePersistence::SerializeToString(scene);
     auto loaded = ScenePersistence::DeserializeFromString(text);
     ASSERT_NE(loaded, nullptr);
 
@@ -385,7 +385,7 @@ TEST(ScenePersistenceTest, TextRoundTripWithHierarchy)
     auto* child = scene.CreateEntity("Child");
     child->SetParent(parent);
 
-    std::string text = ScenePersistence::SerializeToString(scene);
+    gx::String text = ScenePersistence::SerializeToString(scene);
     auto loaded = ScenePersistence::DeserializeFromString(text);
     ASSERT_NE(loaded, nullptr);
     EXPECT_EQ(loaded->GetEntityCount(), 2u);
@@ -510,14 +510,14 @@ TEST(ScenePersistenceTest, DeserializeInvalidText)
 
 TEST(ScenePersistenceTest, DeserializeInvalidBinary)
 {
-    std::vector<uint8_t> garbage = { 0, 1, 2, 3, 4, 5, 6, 7 };
+    gx::Vector<uint8_t> garbage = { 0, 1, 2, 3, 4, 5, 6, 7 };
     auto loaded = ScenePersistence::DeserializeFromBinary(garbage);
     EXPECT_EQ(loaded, nullptr);
 }
 
 TEST(ScenePersistenceTest, DeserializeEmptyBinary)
 {
-    std::vector<uint8_t> empty;
+    gx::Vector<uint8_t> empty;
     auto loaded = ScenePersistence::DeserializeFromBinary(empty);
     EXPECT_EQ(loaded, nullptr);
 }
@@ -525,7 +525,7 @@ TEST(ScenePersistenceTest, DeserializeEmptyBinary)
 TEST(ScenePersistenceTest, EmptySceneTextRoundTrip)
 {
     Scene scene("Empty");
-    std::string text = ScenePersistence::SerializeToString(scene);
+    gx::String text = ScenePersistence::SerializeToString(scene);
     auto loaded = ScenePersistence::DeserializeFromString(text);
     ASSERT_NE(loaded, nullptr);
     EXPECT_EQ(loaded->GetName(), "Empty");
@@ -557,7 +557,7 @@ TEST(AtlasPackerTest, EmptyInput)
 TEST(AtlasPackerTest, SingleRect)
 {
     AtlasPacker packer;
-    std::vector<AtlasInput> inputs = { { "A", 64, 64 } };
+    gx::Vector<AtlasInput> inputs = { { "A", 64, 64 } };
     auto result = packer.Pack(inputs);
 
     EXPECT_TRUE(result.success);
@@ -572,7 +572,7 @@ TEST(AtlasPackerTest, SingleRect)
 TEST(AtlasPackerTest, MultipleRects)
 {
     AtlasPacker packer;
-    std::vector<AtlasInput> inputs = {
+    gx::Vector<AtlasInput> inputs = {
         { "A", 32, 32 },
         { "B", 64, 64 },
         { "C", 16, 48 },
@@ -589,7 +589,7 @@ TEST(AtlasPackerTest, WithPadding)
     AtlasPacker packer;
     packer.SetPadding(2);
 
-    std::vector<AtlasInput> inputs = {
+    gx::Vector<AtlasInput> inputs = {
         { "A", 30, 30 },
         { "B", 30, 30 },
     };
@@ -613,7 +613,7 @@ TEST(AtlasPackerTest, TooLargeForMaxSize)
     AtlasPacker packer;
     packer.SetMaxSize(32, 32);
 
-    std::vector<AtlasInput> inputs = {
+    gx::Vector<AtlasInput> inputs = {
         { "A", 64, 64 }, // 最大アトラスサイズより大きい
     };
     auto result = packer.Pack(inputs);
@@ -623,7 +623,7 @@ TEST(AtlasPackerTest, TooLargeForMaxSize)
 TEST(AtlasPackerTest, PowerOf2Output)
 {
     AtlasPacker packer;
-    std::vector<AtlasInput> inputs = {
+    gx::Vector<AtlasInput> inputs = {
         { "A", 100, 100 },
     };
     auto result = packer.Pack(inputs);
@@ -639,7 +639,7 @@ TEST(AtlasPackerTest, ManySmallRects)
     AtlasPacker packer;
     packer.SetMaxSize(1024, 1024);
 
-    std::vector<AtlasInput> inputs;
+    gx::Vector<AtlasInput> inputs;
     for (int i = 0; i < 50; ++i)
     {
         inputs.push_back({ "R" + std::to_string(i), 16, 16 });

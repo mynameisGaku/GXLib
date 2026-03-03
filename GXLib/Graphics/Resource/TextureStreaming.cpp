@@ -107,7 +107,7 @@ void TextureStreamingManager::Shutdown()
 // テクスチャ登録
 // ============================================================================
 
-void TextureStreamingManager::RegisterTexture(int handle, const std::wstring& path,
+void TextureStreamingManager::RegisterTexture(int handle, const gx::WString& path,
                                                uint32_t width, uint32_t height,
                                                uint32_t mipCount)
 {

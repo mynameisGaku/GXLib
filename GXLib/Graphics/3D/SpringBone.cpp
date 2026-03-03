@@ -5,6 +5,7 @@
 #include "Graphics/3D/Skeleton.h"
 #include "Graphics/3D/AnimationClip.h"
 #include "Math/MathUtil.h"
+#include "Math/MathConvert.h"
 
 namespace gx
 {
@@ -59,7 +60,7 @@ static Vector3 ResolveCapsuleCollision(const Vector3& pos, float boneRadius,
 }
 
 /// @brief グローバル変換行列からワールド位置を取得する
-static Vector3 GetWorldPosition(const DirectX::XMFLOAT4X4& globalTransform)
+static Vector3 GetWorldPosition(const Matrix4x4& globalTransform)
 {
     return Vector3(globalTransform._41, globalTransform._42, globalTransform._43);
 }
@@ -80,7 +81,7 @@ void SpringBone::AddBone(const SpringBoneConfig& config)
     m_bones.push_back(state);
 }
 
-void SpringBone::AddChain(const std::vector<int>& boneIndices, float stiffness, float damping)
+void SpringBone::AddChain(const gx::Vector<int>& boneIndices, float stiffness, float damping)
 {
     for (int idx : boneIndices)
     {
@@ -158,8 +159,8 @@ void SpringBone::Reset()
 }
 
 void SpringBone::Update(float deltaTime, const Skeleton& skeleton,
-                          std::vector<TransformTRS>& localTransforms,
-                          const std::vector<DirectX::XMFLOAT4X4>& globalTransforms)
+                          gx::Vector<TransformTRS>& localTransforms,
+                          const gx::Vector<Matrix4x4>& globalTransforms)
 {
     if (!m_enabled || deltaTime <= 0.0f)
         return;
@@ -294,7 +295,7 @@ void SpringBone::Update(float deltaTime, const Skeleton& skeleton,
             if (restLocalLen > 1e-6f)
             {
                 // 親の逆グローバル変換を使ってワールド→親ローカルに変換
-                XMMATRIX parentGlobal = XMLoadFloat4x4(&globalTransforms[parentIdx]);
+                XMMATRIX parentGlobal = XMLoadFloat4x4(XM(&globalTransforms[parentIdx]));
                 XMMATRIX parentGlobalInv = XMMatrixInverse(nullptr, parentGlobal);
 
                 // シミュレーション後の位置を親ローカル空間に変換
@@ -302,10 +303,8 @@ void SpringBone::Update(float deltaTime, const Skeleton& skeleton,
                                                     bone.currentPosition.y,
                                                     bone.currentPosition.z, 1.0f);
                 XMVECTOR simLocalPos = XMVector3TransformCoord(simWorldPos, parentGlobalInv);
-                XMFLOAT3 simLocal;
-                XMStoreFloat3(&simLocal, simLocalPos);
-
-                Vector3 simLocalVec(simLocal.x, simLocal.y, simLocal.z);
+                Vector3 simLocalVec;
+                XMStoreFloat3(XM(&simLocalVec), simLocalPos);
                 float simLocalLen = simLocalVec.Length();
 
                 if (simLocalLen > 1e-6f)

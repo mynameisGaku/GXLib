@@ -57,16 +57,16 @@ TEST_F(GizmoTest, HitTestNoHit)
 {
     Transform3D transform;
     // すべての軸から離れる方向のレイ
-    XMFLOAT3 origin = { 100.0f, 100.0f, 100.0f };
-    XMFLOAT3 dir = { 0.0f, 0.0f, 1.0f };
+    Vector3 origin = { 100.0f, 100.0f, 100.0f };
+    Vector3 dir = { 0.0f, 0.0f, 1.0f };
     auto axis = gizmo.HitTest(origin, dir, transform);
     EXPECT_EQ(axis, GizmoAxis::None);
 }
 
 TEST_F(GizmoTest, BeginEndDrag)
 {
-    XMFLOAT3 origin = { 0.0f, 0.0f, 0.0f };
-    XMFLOAT3 dir = { 1.0f, 0.0f, 0.0f };
+    Vector3 origin = { 0.0f, 0.0f, 0.0f };
+    Vector3 dir = { 1.0f, 0.0f, 0.0f };
     gizmo.BeginDrag(GizmoAxis::X, origin, dir);
     EXPECT_TRUE(gizmo.IsDragging());
     EXPECT_EQ(gizmo.GetDragAxis(), GizmoAxis::X);
@@ -78,10 +78,10 @@ TEST_F(GizmoTest, BeginEndDrag)
 // EntityPickerテスト
 TEST(EntityPickerTest, RayAABBHit)
 {
-    XMFLOAT3 origin = { -5.0f, 0.0f, 0.0f };
-    XMFLOAT3 dir = { 1.0f, 0.0f, 0.0f };
-    XMFLOAT3 aabbMin = { -1.0f, -1.0f, -1.0f };
-    XMFLOAT3 aabbMax = { 1.0f, 1.0f, 1.0f };
+    Vector3 origin = { -5.0f, 0.0f, 0.0f };
+    Vector3 dir = { 1.0f, 0.0f, 0.0f };
+    Vector3 aabbMin = { -1.0f, -1.0f, -1.0f };
+    Vector3 aabbMax = { 1.0f, 1.0f, 1.0f };
 
     float t = EntityPicker::RayAABBIntersect(origin, dir, aabbMin, aabbMax);
     EXPECT_GT(t, 0.0f);
@@ -90,10 +90,10 @@ TEST(EntityPickerTest, RayAABBHit)
 
 TEST(EntityPickerTest, RayAABBMiss)
 {
-    XMFLOAT3 origin = { -5.0f, 5.0f, 0.0f };
-    XMFLOAT3 dir = { 1.0f, 0.0f, 0.0f };
-    XMFLOAT3 aabbMin = { -1.0f, -1.0f, -1.0f };
-    XMFLOAT3 aabbMax = { 1.0f, 1.0f, 1.0f };
+    Vector3 origin = { -5.0f, 5.0f, 0.0f };
+    Vector3 dir = { 1.0f, 0.0f, 0.0f };
+    Vector3 aabbMin = { -1.0f, -1.0f, -1.0f };
+    Vector3 aabbMax = { 1.0f, 1.0f, 1.0f };
 
     float t = EntityPicker::RayAABBIntersect(origin, dir, aabbMin, aabbMax);
     EXPECT_LT(t, 0.0f);
@@ -101,10 +101,10 @@ TEST(EntityPickerTest, RayAABBMiss)
 
 TEST(EntityPickerTest, RayInsideAABB)
 {
-    XMFLOAT3 origin = { 0.0f, 0.0f, 0.0f };
-    XMFLOAT3 dir = { 1.0f, 0.0f, 0.0f };
-    XMFLOAT3 aabbMin = { -1.0f, -1.0f, -1.0f };
-    XMFLOAT3 aabbMax = { 1.0f, 1.0f, 1.0f };
+    Vector3 origin = { 0.0f, 0.0f, 0.0f };
+    Vector3 dir = { 1.0f, 0.0f, 0.0f };
+    Vector3 aabbMin = { -1.0f, -1.0f, -1.0f };
+    Vector3 aabbMax = { 1.0f, 1.0f, 1.0f };
 
     float t = EntityPicker::RayAABBIntersect(origin, dir, aabbMin, aabbMax);
     EXPECT_GE(t, 0.0f);
@@ -114,7 +114,7 @@ TEST(EntityPickerTest, ScreenToRay)
 {
     // 単位ビュー・プロジェクション行列: 画面中央はおおよそ(0,0,-1)方向を返すはず
     XMMATRIX vp = XMMatrixIdentity();
-    XMFLOAT3 origin, dir;
+    Vector3 origin, dir;
     EntityPicker::ScreenToRay(400.0f, 300.0f, 800.0f, 600.0f, vp, origin, dir);
     // 方向はアンプロジェクトに応じて大まかに-Zまたは+Z方向になるはず
     EXPECT_TRUE(std::isfinite(dir.x) && std::isfinite(dir.y) && std::isfinite(dir.z));

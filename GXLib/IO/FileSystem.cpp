@@ -10,9 +10,9 @@ FileSystem& FileSystem::Instance()
     return s_instance;
 }
 
-std::string FileSystem::NormalizePath(const std::string& path)
+gx::String FileSystem::NormalizePath(const gx::String& path)
 {
-    std::string result = path;
+    gx::String result = path;
     // バックスラッシュをスラッシュに統一する (Windows表記→共通表記)
     for (auto& c : result)
     {
@@ -20,11 +20,11 @@ std::string FileSystem::NormalizePath(const std::string& path)
     }
     // 先頭スラッシュを除去する
     while (!result.empty() && result[0] == '/')
-        result.erase(result.begin());
+        result.erase(0, 1);
     return result;
 }
 
-void FileSystem::Mount(const std::string& mountPoint, std::shared_ptr<IFileProvider> provider)
+void FileSystem::Mount(const gx::String& mountPoint, std::shared_ptr<IFileProvider> provider)
 {
     MountEntry entry;
     entry.mountPoint = NormalizePath(mountPoint);
@@ -38,18 +38,18 @@ void FileSystem::Mount(const std::string& mountPoint, std::shared_ptr<IFileProvi
         });
 }
 
-void FileSystem::Unmount(const std::string& mountPoint)
+void FileSystem::Unmount(const gx::String& mountPoint)
 {
-    std::string normalized = NormalizePath(mountPoint);
+    gx::String normalized = NormalizePath(mountPoint);
     m_mounts.erase(
         std::remove_if(m_mounts.begin(), m_mounts.end(),
             [&](const MountEntry& e) { return e.mountPoint == normalized; }),
         m_mounts.end());
 }
 
-bool FileSystem::Exists(const std::string& path) const
+bool FileSystem::Exists(const gx::String& path) const
 {
-    std::string normalized = NormalizePath(path);
+    gx::String normalized = NormalizePath(path);
 
     for (const auto& mount : m_mounts)
     {
@@ -58,12 +58,12 @@ bool FileSystem::Exists(const std::string& path) const
             (normalized.size() >= mount.mountPoint.size() &&
              normalized.compare(0, mount.mountPoint.size(), mount.mountPoint) == 0))
         {
-            std::string relativePath = mount.mountPoint.empty()
+            gx::String relativePath = mount.mountPoint.empty()
                 ? normalized
                 : normalized.substr(mount.mountPoint.size());
             // 相対パスの先頭スラッシュを除去する
             while (!relativePath.empty() && relativePath[0] == '/')
-                relativePath.erase(relativePath.begin());
+                relativePath.erase(0, 1);
 
             if (mount.provider->Exists(relativePath.empty() ? normalized : relativePath))
                 return true;
@@ -72,9 +72,9 @@ bool FileSystem::Exists(const std::string& path) const
     return false;
 }
 
-FileData FileSystem::ReadFile(const std::string& path) const
+FileData FileSystem::ReadFile(const gx::String& path) const
 {
-    std::string normalized = NormalizePath(path);
+    gx::String normalized = NormalizePath(path);
 
     for (const auto& mount : m_mounts)
     {
@@ -82,13 +82,13 @@ FileData FileSystem::ReadFile(const std::string& path) const
             (normalized.size() >= mount.mountPoint.size() &&
              normalized.compare(0, mount.mountPoint.size(), mount.mountPoint) == 0))
         {
-            std::string relativePath = mount.mountPoint.empty()
+            gx::String relativePath = mount.mountPoint.empty()
                 ? normalized
                 : normalized.substr(mount.mountPoint.size());
             while (!relativePath.empty() && relativePath[0] == '/')
-                relativePath.erase(relativePath.begin());
+                relativePath.erase(0, 1);
 
-            const std::string& lookupPath = relativePath.empty() ? normalized : relativePath;
+            const gx::String& lookupPath = relativePath.empty() ? normalized : relativePath;
             if (mount.provider->Exists(lookupPath))
                 return mount.provider->Read(lookupPath);
         }
@@ -97,9 +97,9 @@ FileData FileSystem::ReadFile(const std::string& path) const
     return FileData{};
 }
 
-bool FileSystem::WriteFile(const std::string& path, const void* data, size_t size)
+bool FileSystem::WriteFile(const gx::String& path, const void* data, size_t size)
 {
-    std::string normalized = NormalizePath(path);
+    gx::String normalized = NormalizePath(path);
 
     for (auto& mount : m_mounts)
     {
@@ -107,13 +107,13 @@ bool FileSystem::WriteFile(const std::string& path, const void* data, size_t siz
             (normalized.size() >= mount.mountPoint.size() &&
              normalized.compare(0, mount.mountPoint.size(), mount.mountPoint) == 0))
         {
-            std::string relativePath = mount.mountPoint.empty()
+            gx::String relativePath = mount.mountPoint.empty()
                 ? normalized
                 : normalized.substr(mount.mountPoint.size());
             while (!relativePath.empty() && relativePath[0] == '/')
-                relativePath.erase(relativePath.begin());
+                relativePath.erase(0, 1);
 
-            const std::string& writePath = relativePath.empty() ? normalized : relativePath;
+            const gx::String& writePath = relativePath.empty() ? normalized : relativePath;
             if (mount.provider->Write(writePath, data, size))
                 return true;
         }

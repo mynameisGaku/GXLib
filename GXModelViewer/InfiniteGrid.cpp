@@ -6,6 +6,7 @@
 
 #include "InfiniteGrid.h"
 #include "Graphics/Pipeline/PipelineState.h"
+#include "Math/MathConvert.h"
 #include "Core/Logger.h"
 
 bool InfiniteGrid::Initialize(ID3D12Device* device, gx::Shader& shader)
@@ -68,16 +69,16 @@ void InfiniteGrid::Draw(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
                          const gx::Camera3D& camera)
 {
     // Update constant buffer
-    XMMATRIX view = camera.GetViewMatrix();
-    XMMATRIX proj = camera.GetProjectionMatrix();
+    XMMATRIX view = ToXMMATRIX(camera.GetViewMatrix());
+    XMMATRIX proj = ToXMMATRIX(camera.GetProjectionMatrix());
     XMMATRIX vp   = view * proj;
 
     XMVECTOR det;
     XMMATRIX vpInverse = XMMatrixInverse(&det, vp);
 
     GridCBData cbData = {};
-    XMStoreFloat4x4(&cbData.viewProjectionInverse, XMMatrixTranspose(vpInverse));
-    XMStoreFloat4x4(&cbData.viewProjection, XMMatrixTranspose(vp));
+    XMStoreFloat4x4(XM(&cbData.viewProjectionInverse), XMMatrixTranspose(vpInverse));
+    XMStoreFloat4x4(XM(&cbData.viewProjection), XMMatrixTranspose(vp));
     cbData.cameraPos    = camera.GetPosition();
     cbData.gridScale    = gridScale;
     cbData.fadeDistance  = fadeDistance;

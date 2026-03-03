@@ -343,7 +343,7 @@ TEST(PrefabVariantTest, InheritanceChain)
 
 TEST(PrefabVariantTest, SaveLoad)
 {
-    const std::string testPath = "test_prefab_variant.gxpv";
+    const gx::String testPath = "test_prefab_variant.gxpv";
 
     PrefabVariantSystem sys;
     PrefabData data;

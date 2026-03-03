@@ -31,9 +31,9 @@ protected:
     }
     void TearDown() override
     {
-        std::filesystem::remove_all(m_saveDir);
+        std::filesystem::remove_all(std::filesystem::path(m_saveDir.c_str()));
     }
-    std::string m_saveDir;
+    gx::String m_saveDir;
 };
 
 TEST_F(IntegrationSaveTest, SaveSystemRoundTrip)
@@ -93,7 +93,7 @@ TEST_F(IntegrationSaveTest, SaveSystemOverwrite)
 
 namespace
 {
-    struct DamageEvent { int damage = 0; std::string target; };
+    struct DamageEvent { int damage = 0; gx::String target; };
     struct HealEvent { int amount = 0; };
     struct LevelUpEvent { int newLevel = 0; };
 }
@@ -108,7 +108,7 @@ protected:
 TEST_F(IntegrationEventBusTest, EventBusTypedEvent)
 {
     int lastDamage = 0;
-    std::string lastTarget;
+    gx::String lastTarget;
 
     EventBus::Instance().Subscribe<DamageEvent>([&](const DamageEvent& e) {
         lastDamage = e.damage;
@@ -162,7 +162,7 @@ TEST_F(IntegrationEventBusTest, EventBusQueueDispatch)
 TEST(IntegrationTest, GameStateLifecycle)
 {
     GameStateMachine gsm;
-    std::vector<std::string> log;
+    gx::Vector<gx::String> log;
 
     auto titleId = gsm.RegisterState({
         "Title",
@@ -187,7 +187,7 @@ TEST(IntegrationTest, GameStateLifecycle)
 TEST(IntegrationTest, GameStatePushPop)
 {
     GameStateMachine gsm;
-    std::string lastState;
+    gx::String lastState;
 
     auto gameId = gsm.RegisterState({
         "Game",
@@ -356,7 +356,7 @@ TEST(IntegrationTest, MaterialManagerMultiple)
     MaterialManager mgr;
 
     // Create many materials and verify they all have unique handles
-    std::vector<int> handles;
+    gx::Vector<int> handles;
     for (int i = 0; i < 50; ++i)
     {
         Material mat;

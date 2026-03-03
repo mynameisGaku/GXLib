@@ -25,7 +25,7 @@ TEST(GameConsoleTest, RegisterCommand)
     ConsoleCommand cmd;
     cmd.name        = "test";
     cmd.description = "A test command";
-    cmd.handler     = [](const std::vector<std::string>&) { return std::string("ok"); };
+    cmd.handler     = [](const gx::Vector<gx::String>&) { return gx::String("ok"); };
 
     console.RegisterCommand(cmd);
     EXPECT_TRUE(console.HasCommand("test"));
@@ -37,7 +37,7 @@ TEST(GameConsoleTest, UnregisterCommand)
     GameConsole console;
     ConsoleCommand cmd;
     cmd.name    = "test";
-    cmd.handler = [](const std::vector<std::string>&) { return std::string("ok"); };
+    cmd.handler = [](const gx::Vector<gx::String>&) { return gx::String("ok"); };
 
     console.RegisterCommand(cmd);
     EXPECT_TRUE(console.HasCommand("test"));
@@ -54,7 +54,7 @@ TEST(GameConsoleTest, HasCommand)
 
     ConsoleCommand cmd;
     cmd.name    = "exists";
-    cmd.handler = [](const std::vector<std::string>&) { return std::string(); };
+    cmd.handler = [](const gx::Vector<gx::String>&) { return gx::String(); };
     console.RegisterCommand(cmd);
 
     EXPECT_TRUE(console.HasCommand("exists"));
@@ -68,12 +68,12 @@ TEST(GameConsoleTest, GetCommandCount)
 
     ConsoleCommand cmd1;
     cmd1.name    = "cmd1";
-    cmd1.handler = [](const std::vector<std::string>&) { return std::string(); };
+    cmd1.handler = [](const gx::Vector<gx::String>&) { return gx::String(); };
     console.RegisterCommand(cmd1);
 
     ConsoleCommand cmd2;
     cmd2.name    = "cmd2";
-    cmd2.handler = [](const std::vector<std::string>&) { return std::string(); };
+    cmd2.handler = [](const gx::Vector<gx::String>&) { return gx::String(); };
     console.RegisterCommand(cmd2);
 
     EXPECT_EQ(console.GetCommandCount(), 2u);
@@ -85,12 +85,12 @@ TEST(GameConsoleTest, GetCommandNames)
 
     ConsoleCommand cmdB;
     cmdB.name    = "beta";
-    cmdB.handler = [](const std::vector<std::string>&) { return std::string(); };
+    cmdB.handler = [](const gx::Vector<gx::String>&) { return gx::String(); };
     console.RegisterCommand(cmdB);
 
     ConsoleCommand cmdA;
     cmdA.name    = "alpha";
-    cmdA.handler = [](const std::vector<std::string>&) { return std::string(); };
+    cmdA.handler = [](const gx::Vector<gx::String>&) { return gx::String(); };
     console.RegisterCommand(cmdA);
 
     auto names = console.GetCommandNames();
@@ -109,10 +109,10 @@ TEST(GameConsoleTest, ExecuteSimple)
     GameConsole console;
     ConsoleCommand cmd;
     cmd.name    = "greet";
-    cmd.handler = [](const std::vector<std::string>&) { return std::string("hello"); };
+    cmd.handler = [](const gx::Vector<gx::String>&) { return gx::String("hello"); };
     console.RegisterCommand(cmd);
 
-    std::string result = console.Execute("greet");
+    gx::String result = console.Execute("greet");
     EXPECT_EQ(result, "hello");
 }
 
@@ -121,7 +121,7 @@ TEST(GameConsoleTest, ExecuteWithArgs)
     GameConsole console;
     ConsoleCommand cmd;
     cmd.name    = "add";
-    cmd.handler = [](const std::vector<std::string>& args) -> std::string
+    cmd.handler = [](const gx::Vector<gx::String>& args) -> gx::String
     {
         if (args.size() < 2) return "need 2 args";
         int a = std::stoi(args[0]);
@@ -130,7 +130,7 @@ TEST(GameConsoleTest, ExecuteWithArgs)
     };
     console.RegisterCommand(cmd);
 
-    std::string result = console.Execute("add 3 5");
+    gx::String result = console.Execute("add 3 5");
     EXPECT_EQ(result, "8");
 }
 
@@ -138,10 +138,10 @@ TEST(GameConsoleTest, ExecuteUnknown)
 {
     GameConsole console;
 
-    std::string result = console.Execute("nosuchcommand");
+    gx::String result = console.Execute("nosuchcommand");
     EXPECT_FALSE(result.empty());
     // Should contain error message about unknown command
-    EXPECT_NE(result.find("Unknown command"), std::string::npos);
+    EXPECT_NE(result.find("Unknown command"), gx::String::npos);
 }
 
 // =============================================================================
@@ -154,12 +154,12 @@ TEST(GameConsoleTest, AutoComplete)
 
     ConsoleCommand cmd1;
     cmd1.name    = "help";
-    cmd1.handler = [](const std::vector<std::string>&) { return std::string(); };
+    cmd1.handler = [](const gx::Vector<gx::String>&) { return gx::String(); };
     console.RegisterCommand(cmd1);
 
     ConsoleCommand cmd2;
     cmd2.name    = "hello";
-    cmd2.handler = [](const std::vector<std::string>&) { return std::string(); };
+    cmd2.handler = [](const gx::Vector<gx::String>&) { return gx::String(); };
     console.RegisterCommand(cmd2);
 
     // Empty partial returns all
@@ -173,17 +173,17 @@ TEST(GameConsoleTest, AutoCompletePartial)
 
     ConsoleCommand cmd1;
     cmd1.name    = "help";
-    cmd1.handler = [](const std::vector<std::string>&) { return std::string(); };
+    cmd1.handler = [](const gx::Vector<gx::String>&) { return gx::String(); };
     console.RegisterCommand(cmd1);
 
     ConsoleCommand cmd2;
     cmd2.name    = "hello";
-    cmd2.handler = [](const std::vector<std::string>&) { return std::string(); };
+    cmd2.handler = [](const gx::Vector<gx::String>&) { return gx::String(); };
     console.RegisterCommand(cmd2);
 
     ConsoleCommand cmd3;
     cmd3.name    = "quit";
-    cmd3.handler = [](const std::vector<std::string>&) { return std::string(); };
+    cmd3.handler = [](const gx::Vector<gx::String>&) { return gx::String(); };
     console.RegisterCommand(cmd3);
 
     auto matches = console.GetAutoComplete("hel");
@@ -205,7 +205,7 @@ TEST(GameConsoleTest, History)
     GameConsole console;
     ConsoleCommand cmd;
     cmd.name    = "test";
-    cmd.handler = [](const std::vector<std::string>&) { return std::string("result"); };
+    cmd.handler = [](const gx::Vector<gx::String>&) { return gx::String("result"); };
     console.RegisterCommand(cmd);
 
     console.Execute("test");
@@ -225,7 +225,7 @@ TEST(GameConsoleTest, MaxHistory)
 
     ConsoleCommand cmd;
     cmd.name    = "echo";
-    cmd.handler = [](const std::vector<std::string>& args) -> std::string
+    cmd.handler = [](const gx::Vector<gx::String>& args) -> gx::String
     {
         return args.empty() ? "" : args[0];
     };
@@ -245,7 +245,7 @@ TEST(GameConsoleTest, ClearHistory)
     GameConsole console;
     ConsoleCommand cmd;
     cmd.name    = "test";
-    cmd.handler = [](const std::vector<std::string>&) { return std::string("ok"); };
+    cmd.handler = [](const gx::Vector<gx::String>&) { return gx::String("ok"); };
     console.RegisterCommand(cmd);
 
     console.Execute("test");
@@ -291,15 +291,15 @@ TEST(GameConsoleTest, RegisterBuiltins)
     EXPECT_TRUE(console.HasCommand("clear"));
 
     // Test echo
-    std::string echoResult = console.Execute("echo hello world");
+    gx::String echoResult = console.Execute("echo hello world");
     EXPECT_EQ(echoResult, "hello world");
 
     // Test set/get
     console.Execute("set myvar 42");
     EXPECT_EQ(console.GetCVar("myvar"), "42");
 
-    std::string getResult = console.Execute("get myvar");
-    EXPECT_NE(getResult.find("42"), std::string::npos);
+    gx::String getResult = console.Execute("get myvar");
+    EXPECT_NE(getResult.find("42"), gx::String::npos);
 }
 
 // =============================================================================
@@ -313,13 +313,13 @@ TEST(GameConsoleTest, EnableDisable)
 
     ConsoleCommand cmd;
     cmd.name    = "test";
-    cmd.handler = [](const std::vector<std::string>&) { return std::string("ok"); };
+    cmd.handler = [](const gx::Vector<gx::String>&) { return gx::String("ok"); };
     console.RegisterCommand(cmd);
 
     // Disable — Execute should return empty
     console.SetEnabled(false);
     EXPECT_FALSE(console.IsEnabled());
-    std::string result = console.Execute("test");
+    gx::String result = console.Execute("test");
     EXPECT_TRUE(result.empty());
 
     // Re-enable

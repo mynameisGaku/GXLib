@@ -129,7 +129,7 @@ void CutsceneSystem::Update(float deltaTime)
             case CutsceneActionType::MoveTo:
                 if (m_callbacks.onMoveTo)
                 {
-                    XMFLOAT3 interpolated;
+                    Vector3 interpolated;
                     interpolated.x = action.targetPosition.x * progress;
                     interpolated.y = action.targetPosition.y * progress;
                     interpolated.z = action.targetPosition.z * progress;
@@ -140,7 +140,7 @@ void CutsceneSystem::Update(float deltaTime)
             case CutsceneActionType::RotateTo:
                 if (m_callbacks.onRotateTo)
                 {
-                    XMFLOAT3 interpolated;
+                    Vector3 interpolated;
                     interpolated.x = action.targetRotation.x * progress;
                     interpolated.y = action.targetRotation.y * progress;
                     interpolated.z = action.targetRotation.z * progress;

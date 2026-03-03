@@ -20,7 +20,7 @@ bool ShaderHotReload::Initialize(ID3D12Device* device, CommandQueue* cmdQueue)
     m_cmdQueue = cmdQueue;
 
     // Shadersディレクトリを監視
-    m_watcher.Watch("Shaders", [this](const std::string& path) {
+    m_watcher.Watch("Shaders", [this](const gx::String& path) {
         OnShaderFileChanged(path);
     });
 
@@ -28,13 +28,13 @@ bool ShaderHotReload::Initialize(ID3D12Device* device, CommandQueue* cmdQueue)
     return true;
 }
 
-void ShaderHotReload::OnShaderFileChanged(const std::string& path)
+void ShaderHotReload::OnShaderFileChanged(const gx::String& path)
 {
     if (!IsShaderFile(path)) return;
 
-    // FileWatcherはUTF-8のstd::stringで通知するので、ShaderLibrary用にwstringに変換
+    // FileWatcherはUTF-8のgx::Stringで通知するので、ShaderLibrary用にwstringに変換
     int len = MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, nullptr, 0);
-    std::wstring wpath(len - 1, L'\0');
+    gx::WString wpath(len - 1, L'\0');
     MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, wpath.data(), len);
 
     {
@@ -51,10 +51,10 @@ void ShaderHotReload::OnShaderFileChanged(const std::string& path)
     }
 }
 
-bool ShaderHotReload::IsShaderFile(const std::string& path)
+bool ShaderHotReload::IsShaderFile(const gx::String& path)
 {
     if (path.size() < 5) return false;
-    std::string ext = path.substr(path.size() - 5);
+    gx::String ext = path.substr(path.size() - 5);
     for (auto& c : ext) c = static_cast<char>(tolower(c));
     if (ext == ".hlsl") return true;
 
@@ -89,7 +89,7 @@ void ShaderHotReload::Update(float deltaTime)
     if (m_debounceTimer > 0.0f) return;
 
     // デバウンス完了。変更リストを取り出してリロード実行
-    std::vector<std::wstring> changes;
+    gx::Vector<gx::WString> changes;
     {
         std::lock_guard<std::mutex> lock(m_pendingMutex);
         changes.swap(m_pendingChanges);

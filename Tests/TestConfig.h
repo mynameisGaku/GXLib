@@ -12,7 +12,7 @@ namespace gx { namespace Testing {
 inline bool IsCI()
 {
     const char* ci = std::getenv("CI");
-    return ci != nullptr && std::string(ci) == "true";
+    return ci != nullptr && gx::String(ci) == "true";
 }
 
 /// @brief GPU利用可能か判定（CIではfalseの可能性）

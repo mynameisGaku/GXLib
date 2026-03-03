@@ -95,7 +95,7 @@ void UITweenManager::Update(float dt)
     if (m_animations.empty()) return;
 
     // 完了したアニメーションのコールバックを後から呼ぶ
-    std::vector<std::function<void()>> completedCallbacks;
+    gx::Vector<std::function<void()>> completedCallbacks;
 
     auto it = m_animations.begin();
     while (it != m_animations.end())

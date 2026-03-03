@@ -70,7 +70,7 @@ void AudioEffectChain::Apply()
     if (!m_initialized || !m_submixVoice) return;
 
     // アクティブなエフェクト数をカウント
-    std::vector<XAUDIO2_EFFECT_DESCRIPTOR> descriptors;
+    gx::Vector<XAUDIO2_EFFECT_DESCRIPTOR> descriptors;
     IUnknown* reverbEffect = nullptr;
     IUnknown* eqEffect = nullptr;
 

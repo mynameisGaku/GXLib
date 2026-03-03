@@ -2,14 +2,15 @@
 /// @brief 視線IKの実装
 #include "pch_graphics.h"
 #include "Graphics/3D/LookAtIK.h"
+#include "Math/MathConvert.h"
 #include "Core/Logger.h"
 
 namespace gx
 {
 
 void LookAtIK::Setup(const Skeleton& skeleton,
-                     const std::string& headJoint,
-                     const std::string& neckJoint)
+                     const gx::String& headJoint,
+                     const gx::String& neckJoint)
 {
     m_headJointIndex = skeleton.FindJointIndex(headJoint);
     if (m_headJointIndex < 0)
@@ -26,20 +27,20 @@ void LookAtIK::Setup(const Skeleton& skeleton,
     }
 }
 
-void LookAtIK::RotateJointToward(int jointIndex, const XMFLOAT3& targetModelPos,
+void LookAtIK::RotateJointToward(int jointIndex, const Vector3& targetModelPos,
                                   float maxAngle, float weight,
                                   const Skeleton& skeleton,
-                                  XMFLOAT4X4* localTransforms,
-                                  XMFLOAT4X4* globalTransforms)
+                                  Matrix4x4* localTransforms,
+                                  Matrix4x4* globalTransforms)
 {
     const auto& joints = skeleton.GetJoints();
 
     // ジョイントのグローバル位置
-    const XMFLOAT4X4& jointGlobal = globalTransforms[jointIndex];
+    const Matrix4x4& jointGlobal = globalTransforms[jointIndex];
     XMVECTOR jointPos = XMVectorSet(jointGlobal._41, jointGlobal._42, jointGlobal._43, 1.0f);
 
     // ターゲットへの方向
-    XMVECTOR targetPos = XMLoadFloat3(&targetModelPos);
+    XMVECTOR targetPos = XMLoadFloat3(XM(&targetModelPos));
     XMVECTOR toTarget = XMVectorSubtract(targetPos, jointPos);
     float dist = XMVectorGetX(XMVector3Length(toTarget));
     if (dist < 0.001f)
@@ -105,7 +106,7 @@ void LookAtIK::RotateJointToward(int jointIndex, const XMFLOAT3& targetModelPos,
     XMVECTOR worldRotation = XMQuaternionRotationAxis(axis, angle);
 
     // ジョイントのグローバル回転を取得
-    XMMATRIX jointGlobalMat = XMLoadFloat4x4(&globalTransforms[jointIndex]);
+    XMMATRIX jointGlobalMat = XMLoadFloat4x4(XM(&globalTransforms[jointIndex]));
     XMVECTOR gScale, gRot, gTrans;
     XMMatrixDecompose(&gScale, &gRot, &gTrans, jointGlobalMat);
 
@@ -117,7 +118,7 @@ void LookAtIK::RotateJointToward(int jointIndex, const XMFLOAT3& targetModelPos,
     XMVECTOR parentGlobalRot = XMQuaternionIdentity();
     if (parentIdx >= 0)
     {
-        XMMATRIX parentGlobal = XMLoadFloat4x4(&globalTransforms[parentIdx]);
+        XMMATRIX parentGlobal = XMLoadFloat4x4(XM(&globalTransforms[parentIdx]));
         XMVECTOR ps, pr, pt;
         XMMatrixDecompose(&ps, &pr, &pt, parentGlobal);
         parentGlobalRot = pr;
@@ -128,37 +129,37 @@ void LookAtIK::RotateJointToward(int jointIndex, const XMFLOAT3& targetModelPos,
         XMQuaternionMultiply(XMQuaternionInverse(parentGlobalRot), newGlobalRot));
 
     // ローカル変換行列を再構成
-    XMMATRIX localMat = XMLoadFloat4x4(&localTransforms[jointIndex]);
+    XMMATRIX localMat = XMLoadFloat4x4(XM(&localTransforms[jointIndex]));
     XMVECTOR lScale, lRot, lTrans;
     XMMatrixDecompose(&lScale, &lRot, &lTrans, localMat);
 
     XMMATRIX S = XMMatrixScalingFromVector(lScale);
     XMMATRIX R = XMMatrixRotationQuaternion(newLocalRot);
     XMMATRIX T = XMMatrixTranslationFromVector(lTrans);
-    XMStoreFloat4x4(&localTransforms[jointIndex], S * R * T);
+    XMStoreFloat4x4(XM(&localTransforms[jointIndex]), S * R * T);
 
     // このジョイント以下のFKを再計算
     uint32_t jointCount = skeleton.GetJointCount();
     for (uint32_t i = static_cast<uint32_t>(jointIndex); i < jointCount; ++i)
     {
-        XMMATRIX lm = XMLoadFloat4x4(&localTransforms[i]);
+        XMMATRIX lm = XMLoadFloat4x4(XM(&localTransforms[i]));
         if (joints[i].parentIndex >= 0)
         {
-            XMMATRIX pm = XMLoadFloat4x4(&globalTransforms[joints[i].parentIndex]);
-            XMStoreFloat4x4(&globalTransforms[i], lm * pm);
+            XMMATRIX pm = XMLoadFloat4x4(XM(&globalTransforms[joints[i].parentIndex]));
+            XMStoreFloat4x4(XM(&globalTransforms[i]), lm * pm);
         }
         else
         {
-            XMStoreFloat4x4(&globalTransforms[i], lm);
+            XMStoreFloat4x4(XM(&globalTransforms[i]), lm);
         }
     }
 }
 
-void LookAtIK::Apply(XMFLOAT4X4* localTransforms,
-                     XMFLOAT4X4* globalTransforms,
+void LookAtIK::Apply(Matrix4x4* localTransforms,
+                     Matrix4x4* globalTransforms,
                      const Skeleton& skeleton,
                      const Transform3D& worldTransform,
-                     const XMFLOAT3& targetWorldPos,
+                     const Vector3& targetWorldPos,
                      float weight)
 {
     if (!m_enabled || m_headJointIndex < 0)
@@ -169,12 +170,12 @@ void LookAtIK::Apply(XMFLOAT4X4* localTransforms,
         return;
 
     // ワールド空間のターゲットをモデル空間に逆変換
-    XMMATRIX worldMat = worldTransform.GetWorldMatrix();
+    XMMATRIX worldMat = ToXMMATRIX(worldTransform.GetWorldMatrix());
     XMMATRIX worldInv = XMMatrixInverse(nullptr, worldMat);
-    XMVECTOR targetWorld = XMLoadFloat3(&targetWorldPos);
+    XMVECTOR targetWorld = XMLoadFloat3(XM(&targetWorldPos));
     XMVECTOR targetModel = XMVector3Transform(targetWorld, worldInv);
-    XMFLOAT3 targetModelPos;
-    XMStoreFloat3(&targetModelPos, targetModel);
+    Vector3 targetModelPos;
+    XMStoreFloat3(XM(&targetModelPos), targetModel);
 
     // 首がある場合、首→頭の順に回転（首が先に半分回転し、頭が残りを補う）
     if (m_neckJointIndex >= 0)

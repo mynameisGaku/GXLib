@@ -4,7 +4,7 @@
 
 namespace gx {
 
-PhysicalFileProvider::PhysicalFileProvider(const std::string& rootDir)
+PhysicalFileProvider::PhysicalFileProvider(const gx::String& rootDir)
     : m_rootDir(rootDir)
 {
     // 末尾スラッシュを整える (なければ追加)
@@ -12,21 +12,21 @@ PhysicalFileProvider::PhysicalFileProvider(const std::string& rootDir)
         m_rootDir += '/';
 }
 
-std::string PhysicalFileProvider::ResolvePath(const std::string& path) const
+gx::String PhysicalFileProvider::ResolvePath(const gx::String& path) const
 {
     return m_rootDir + path;
 }
 
-bool PhysicalFileProvider::Exists(const std::string& path) const
+bool PhysicalFileProvider::Exists(const gx::String& path) const
 {
-    std::string fullPath = ResolvePath(path);
+    gx::String fullPath = ResolvePath(path);
     DWORD attrib = GetFileAttributesA(fullPath.c_str());
     return (attrib != INVALID_FILE_ATTRIBUTES && !(attrib & FILE_ATTRIBUTE_DIRECTORY));
 }
 
-FileData PhysicalFileProvider::Read(const std::string& path) const
+FileData PhysicalFileProvider::Read(const gx::String& path) const
 {
-    std::string fullPath = ResolvePath(path);
+    gx::String fullPath = ResolvePath(path);
     std::ifstream file(fullPath, std::ios::binary | std::ios::ate);
     if (!file.is_open())
         return FileData{};
@@ -43,9 +43,9 @@ FileData PhysicalFileProvider::Read(const std::string& path) const
     return result;
 }
 
-bool PhysicalFileProvider::Write(const std::string& path, const void* data, size_t size)
+bool PhysicalFileProvider::Write(const gx::String& path, const void* data, size_t size)
 {
-    std::string fullPath = ResolvePath(path);
+    gx::String fullPath = ResolvePath(path);
     std::ofstream file(fullPath, std::ios::binary);
     if (!file.is_open())
         return false;

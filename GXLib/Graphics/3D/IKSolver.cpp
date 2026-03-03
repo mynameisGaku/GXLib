@@ -2,25 +2,26 @@
 /// @brief CCD-IKソルバーの実装
 #include "pch_graphics.h"
 #include "Graphics/3D/IKSolver.h"
+#include "Math/MathConvert.h"
 
 namespace gx
 {
 
-XMVECTOR CCDIKSolver::GetJointPosition(const XMFLOAT4X4* globalTransforms, int jointIndex)
+XMVECTOR CCDIKSolver::GetJointPosition(const Matrix4x4* globalTransforms, int jointIndex)
 {
-    const XMFLOAT4X4& m = globalTransforms[jointIndex];
+    const Matrix4x4& m = globalTransforms[jointIndex];
     return XMVectorSet(m._41, m._42, m._43, 1.0f);
 }
 
-bool CCDIKSolver::Solve(const IKChain& chain, const XMFLOAT3& targetPos,
+bool CCDIKSolver::Solve(const IKChain& chain, const Vector3& targetPos,
                          const Skeleton& skeleton,
-                         XMFLOAT4X4* localTransforms,
-                         XMFLOAT4X4* globalTransforms)
+                         Matrix4x4* localTransforms,
+                         Matrix4x4* globalTransforms)
 {
     if (chain.jointIndices.empty() || chain.effectorIndex < 0)
         return false;
 
-    XMVECTOR target = XMLoadFloat3(&targetPos);
+    XMVECTOR target = XMLoadFloat3(XM(&targetPos));
 
     for (uint32_t iter = 0; iter < chain.maxIterations; ++iter)
     {
@@ -75,10 +76,10 @@ bool CCDIKSolver::Solve(const IKChain& chain, const XMFLOAT3& targetPos,
 
             XMMATRIX parentGlobalInv = XMMatrixIdentity();
             if (parentIdx >= 0)
-                parentGlobalInv = XMMatrixInverse(nullptr, XMLoadFloat4x4(&globalTransforms[parentIdx]));
+                parentGlobalInv = XMMatrixInverse(nullptr, XMLoadFloat4x4(XM(&globalTransforms[parentIdx])));
 
             // 現在のジョイントのグローバル回転を取得
-            XMMATRIX jointGlobal = XMLoadFloat4x4(&globalTransforms[jointIdx]);
+            XMMATRIX jointGlobal = XMLoadFloat4x4(XM(&globalTransforms[jointIdx]));
             XMVECTOR jointGlobalScale, jointGlobalRot, jointGlobalTrans;
             XMMatrixDecompose(&jointGlobalScale, &jointGlobalRot, &jointGlobalTrans, jointGlobal);
 
@@ -88,7 +89,7 @@ bool CCDIKSolver::Solve(const IKChain& chain, const XMFLOAT3& targetPos,
 
             // ローカル変換を更新:
             // 現在のローカル変換を分解 → 回転だけ差し替え → 再構築
-            XMMATRIX localMat = XMLoadFloat4x4(&localTransforms[jointIdx]);
+            XMMATRIX localMat = XMLoadFloat4x4(XM(&localTransforms[jointIdx]));
             XMVECTOR localScale, localRot, localTrans;
             XMMatrixDecompose(&localScale, &localRot, &localTrans, localMat);
 
@@ -98,7 +99,7 @@ bool CCDIKSolver::Solve(const IKChain& chain, const XMFLOAT3& targetPos,
             XMVECTOR parentGlobalRot = XMQuaternionIdentity();
             if (parentIdx >= 0)
             {
-                XMMATRIX parentGlobal = XMLoadFloat4x4(&globalTransforms[parentIdx]);
+                XMMATRIX parentGlobal = XMLoadFloat4x4(XM(&globalTransforms[parentIdx]));
                 XMVECTOR ps, pr, pt;
                 XMMatrixDecompose(&ps, &pr, &pt, parentGlobal);
                 parentGlobalRot = pr;
@@ -111,7 +112,7 @@ bool CCDIKSolver::Solve(const IKChain& chain, const XMFLOAT3& targetPos,
             XMMATRIX S = XMMatrixScalingFromVector(localScale);
             XMMATRIX R = XMMatrixRotationQuaternion(newLocalRot);
             XMMATRIX T = XMMatrixTranslationFromVector(localTrans);
-            XMStoreFloat4x4(&localTransforms[jointIdx], S * R * T);
+            XMStoreFloat4x4(XM(&localTransforms[jointIdx]), S * R * T);
 
             // このジョイント以下のFKを再計算
             RecomputeFK(jointIdx, skeleton, localTransforms, globalTransforms);
@@ -125,8 +126,8 @@ bool CCDIKSolver::Solve(const IKChain& chain, const XMFLOAT3& targetPos,
 }
 
 void CCDIKSolver::RecomputeFK(int fromJoint, const Skeleton& skeleton,
-                               const XMFLOAT4X4* localTransforms,
-                               XMFLOAT4X4* globalTransforms)
+                               const Matrix4x4* localTransforms,
+                               Matrix4x4* globalTransforms)
 {
     const auto& joints = skeleton.GetJoints();
     uint32_t jointCount = skeleton.GetJointCount();
@@ -135,16 +136,16 @@ void CCDIKSolver::RecomputeFK(int fromJoint, const Skeleton& skeleton,
     // ジョイントはトポロジカル順（親が子より前）と仮定
     for (uint32_t i = static_cast<uint32_t>(fromJoint); i < jointCount; ++i)
     {
-        XMMATRIX localMat = XMLoadFloat4x4(&localTransforms[i]);
+        XMMATRIX localMat = XMLoadFloat4x4(XM(&localTransforms[i]));
 
         if (joints[i].parentIndex >= 0)
         {
-            XMMATRIX parentGlobal = XMLoadFloat4x4(&globalTransforms[joints[i].parentIndex]);
-            XMStoreFloat4x4(&globalTransforms[i], localMat * parentGlobal);
+            XMMATRIX parentGlobal = XMLoadFloat4x4(XM(&globalTransforms[joints[i].parentIndex]));
+            XMStoreFloat4x4(XM(&globalTransforms[i]), localMat * parentGlobal);
         }
         else
         {
-            XMStoreFloat4x4(&globalTransforms[i], localMat);
+            XMStoreFloat4x4(XM(&globalTransforms[i]), localMat);
         }
     }
 }

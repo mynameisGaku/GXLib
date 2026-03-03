@@ -76,7 +76,7 @@ TEST(SkyAtmosphereTest, ScatteringParameters)
 TEST(SkyAtmosphereTest, ComputeSunColorZenith)
 {
     // 天頂（PI/2）では太陽は明るく白っぽいはず
-    XMFLOAT3 c = SkyAtmosphere::ComputeSunColor(3.14159265f / 2.0f);
+    Vector3 c = SkyAtmosphere::ComputeSunColor(3.14159265f / 2.0f);
     EXPECT_GT(c.x, 0.5f);
     EXPECT_GT(c.y, 0.5f);
     EXPECT_GT(c.z, 0.5f);
@@ -85,7 +85,7 @@ TEST(SkyAtmosphereTest, ComputeSunColorZenith)
 TEST(SkyAtmosphereTest, ComputeSunColorHorizon)
 {
     // 地平線（0）では太陽はより赤みがかった暖色になるはず
-    XMFLOAT3 c = SkyAtmosphere::ComputeSunColor(0.0f);
+    Vector3 c = SkyAtmosphere::ComputeSunColor(0.0f);
     // 赤チャンネルは緑・青チャンネル以上であるはず（夕焼けの赤み）
     EXPECT_GE(c.x, c.z);
 }
@@ -93,7 +93,7 @@ TEST(SkyAtmosphereTest, ComputeSunColorHorizon)
 TEST(SkyAtmosphereTest, ComputeSunColorBelowHorizon)
 {
     // 地平線より下（負の値）でも有効な色を返すはず（クランプ済み）
-    XMFLOAT3 c = SkyAtmosphere::ComputeSunColor(-0.5f);
+    Vector3 c = SkyAtmosphere::ComputeSunColor(-0.5f);
     EXPECT_GE(c.x, 0.0f);
     EXPECT_GE(c.y, 0.0f);
     EXPECT_GE(c.z, 0.0f);

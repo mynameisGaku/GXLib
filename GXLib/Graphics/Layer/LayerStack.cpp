@@ -7,7 +7,7 @@
 namespace gx
 {
 
-RenderLayer* LayerStack::CreateLayer(ID3D12Device* device, const std::string& name,
+RenderLayer* LayerStack::CreateLayer(ID3D12Device* device, const gx::String& name,
                                       int32_t zOrder, uint32_t w, uint32_t h)
 {
     auto layer = std::make_unique<RenderLayer>();
@@ -22,7 +22,7 @@ RenderLayer* LayerStack::CreateLayer(ID3D12Device* device, const std::string& na
     return ptr;
 }
 
-RenderLayer* LayerStack::GetLayer(const std::string& name)
+RenderLayer* LayerStack::GetLayer(const gx::String& name)
 {
     for (auto& layer : m_layers)
     {
@@ -32,7 +32,7 @@ RenderLayer* LayerStack::GetLayer(const std::string& name)
     return nullptr;
 }
 
-bool LayerStack::RemoveLayer(const std::string& name)
+bool LayerStack::RemoveLayer(const gx::String& name)
 {
     for (auto it = m_layers.begin(); it != m_layers.end(); ++it)
     {
@@ -47,7 +47,7 @@ bool LayerStack::RemoveLayer(const std::string& name)
     return false;
 }
 
-const std::vector<RenderLayer*>& LayerStack::GetSortedLayers()
+const gx::Vector<RenderLayer*>& LayerStack::GetSortedLayers()
 {
     if (m_needsSort)
         SortLayers();

@@ -7,9 +7,9 @@
 using namespace gx;
 
 // ヘルパー: 単純なクエスト定義を生成
-static QuestDef MakeQuest(const std::string& id,
-                          std::vector<QuestObjective> objectives = {},
-                          std::vector<std::string> prereqs = {},
+static QuestDef MakeQuest(const gx::String& id,
+                          gx::Vector<QuestObjective> objectives = {},
+                          gx::Vector<gx::String> prereqs = {},
                           bool autoComplete = false)
 {
     QuestDef def;
@@ -23,7 +23,7 @@ static QuestDef MakeQuest(const std::string& id,
 }
 
 // ヘルパー: 目標を生成
-static QuestObjective MakeObjective(const std::string& id, int required = 1)
+static QuestObjective MakeObjective(const gx::String& id, int required = 1)
 {
     QuestObjective obj;
     obj.id            = id;
@@ -281,7 +281,7 @@ TEST(QuestSystemTest, OnStateChangedCallback)
     QuestSystem qs;
     qs.RegisterQuest(MakeQuest("q1"));
 
-    std::vector<QuestStateChangedEvent> events;
+    gx::Vector<QuestStateChangedEvent> events;
     qs.OnStateChanged = [&](const QuestStateChangedEvent& e) {
         events.push_back(e);
     };
@@ -304,7 +304,7 @@ TEST(QuestSystemTest, OnProgressCallback)
     qs.RegisterQuest(MakeQuest("q1", { MakeObjective("gather", 10) }));
     qs.StartQuest("q1");
 
-    std::vector<QuestProgressEvent> events;
+    gx::Vector<QuestProgressEvent> events;
     qs.OnProgress = [&](const QuestProgressEvent& e) {
         events.push_back(e);
     };

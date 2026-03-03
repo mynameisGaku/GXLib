@@ -75,7 +75,7 @@ void InputCapture::Update(const Keyboard& keyboard, const Mouse& mouse, const Ga
     }
 }
 
-bool InputCapture::ApplyToAction(ActionMapping& mapping, const std::string& actionName, int bindingIndex) const
+bool InputCapture::ApplyToAction(ActionMapping& mapping, const gx::String& actionName, int bindingIndex) const
 {
     if (m_state != CaptureState::Captured) return false;
 

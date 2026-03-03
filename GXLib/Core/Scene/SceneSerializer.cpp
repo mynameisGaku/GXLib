@@ -12,26 +12,26 @@ using json = nlohmann::json;
 namespace gx
 {
 
-// --- ヘルパー: XMFLOAT3 → JSON ---
-static json Float3ToJson(const XMFLOAT3& v)
+// --- ヘルパー: Vector3 → JSON ---
+static json Float3ToJson(const Vector3& v)
 {
     return json::array({ v.x, v.y, v.z });
 }
 
-// --- ヘルパー: JSON → XMFLOAT3 ---
-static XMFLOAT3 JsonToFloat3(const json& j)
+// --- ヘルパー: JSON → Vector3 ---
+static Vector3 JsonToFloat3(const json& j)
 {
     return { j[0].get<float>(), j[1].get<float>(), j[2].get<float>() };
 }
 
-// --- ヘルパー: XMFLOAT4 → JSON ---
-static json Float4ToJson(const XMFLOAT4& v)
+// --- ヘルパー: Color → JSON ---
+static json Float4ToJson(const Color& v)
 {
-    return json::array({ v.x, v.y, v.z, v.w });
+    return json::array({ v.r, v.g, v.b, v.a });
 }
 
-// --- ヘルパー: JSON → XMFLOAT4 ---
-static XMFLOAT4 JsonToFloat4(const json& j)
+// --- ヘルパー: JSON → Color ---
+static Color JsonToFloat4(const json& j)
 {
     return { j[0].get<float>(), j[1].get<float>(), j[2].get<float>(), j[3].get<float>() };
 }
@@ -137,7 +137,7 @@ static void DeserializeEntity(Entity* entity, const json& j,
     {
         for (const auto& compJson : j["components"])
         {
-            std::string type = compJson.value("type", "Unknown");
+            gx::String type = compJson.value("type", "Unknown");
             bool enabled = compJson.value("enabled", true);
 
             if (type == "MeshRenderer")
@@ -188,7 +188,7 @@ static void DeserializeEntity(Entity* entity, const json& j,
 
 // --- 公開API実装 ---
 
-std::string SceneSerializer::ToJsonString(const Scene& scene)
+gx::String SceneSerializer::ToJsonString(const Scene& scene)
 {
     json root;
     root["scene"]["name"] = scene.GetName();
@@ -203,9 +203,9 @@ std::string SceneSerializer::ToJsonString(const Scene& scene)
     return root.dump(2);
 }
 
-bool SceneSerializer::SaveToJson(const Scene& scene, const std::string& filePath)
+bool SceneSerializer::SaveToJson(const Scene& scene, const gx::String& filePath)
 {
-    std::string jsonStr = ToJsonString(scene);
+    gx::String jsonStr = ToJsonString(scene);
     std::ofstream file(filePath);
     if (!file.is_open())
     {
@@ -218,7 +218,7 @@ bool SceneSerializer::SaveToJson(const Scene& scene, const std::string& filePath
     return true;
 }
 
-bool SceneSerializer::FromJsonString(Scene& scene, const std::string& jsonStr,
+bool SceneSerializer::FromJsonString(Scene& scene, const gx::String& jsonStr,
                                       ModelLoadCallback modelLoader)
 {
     json root;
@@ -238,14 +238,14 @@ bool SceneSerializer::FromJsonString(Scene& scene, const std::string& jsonStr,
     scene.SetName(sceneJson.value("name", "Untitled"));
 
     // パス1: 全エンティティ作成
-    std::unordered_map<int, Entity*> idToEntity;
-    std::unordered_map<Entity*, int> entityParentId;
+    gx::HashMap<int, Entity*> idToEntity;
+    gx::HashMap<Entity*, int> entityParentId;
 
     if (sceneJson.contains("entities"))
     {
         for (const auto& entityJson : sceneJson["entities"])
         {
-            std::string name = entityJson.value("name", "Entity");
+            gx::String name = entityJson.value("name", "Entity");
             Entity* entity = scene.CreateEntity(name);
 
             int id = entityJson.value("id", 0);
@@ -273,7 +273,7 @@ bool SceneSerializer::FromJsonString(Scene& scene, const std::string& jsonStr,
     return true;
 }
 
-bool SceneSerializer::LoadFromJson(Scene& scene, const std::string& filePath,
+bool SceneSerializer::LoadFromJson(Scene& scene, const gx::String& filePath,
                                     ModelLoadCallback modelLoader)
 {
     std::ifstream file(filePath);
@@ -283,8 +283,8 @@ bool SceneSerializer::LoadFromJson(Scene& scene, const std::string& filePath,
         return false;
     }
 
-    std::string content((std::istreambuf_iterator<char>(file)),
-                         std::istreambuf_iterator<char>());
+    gx::String content(std::string((std::istreambuf_iterator<char>(file)),
+                                    std::istreambuf_iterator<char>()));
     file.close();
 
     return FromJsonString(scene, content, modelLoader);

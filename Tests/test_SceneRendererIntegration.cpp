@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 #include "Graphics/3D/SceneRenderer.h"
 #include "Graphics/3D/Camera3D.h"
+#include "Math/MathConvert.h"
 #include "Math/Collision/Collision3D.h"
 #include "Core/Scene/Scene.h"
 #include "Core/Scene/Entity.h"
@@ -106,7 +107,7 @@ TEST(FrustumCulling, SphereInsideFrustum_Visible)
     camera.SetYaw(0.0f);
     camera.SetPitch(0.0f);
 
-    XMMATRIX vp = camera.GetViewProjectionMatrix();
+    XMMATRIX vp = ToXMMATRIX(camera.GetViewProjectionMatrix());
     Frustum frustum = Frustum::FromViewProjection(vp);
 
     // Sphere at the center of the view, well inside the frustum
@@ -122,7 +123,7 @@ TEST(FrustumCulling, SphereFarOutside_Culled)
     camera.SetYaw(0.0f);
     camera.SetPitch(0.0f);
 
-    XMMATRIX vp = camera.GetViewProjectionMatrix();
+    XMMATRIX vp = ToXMMATRIX(camera.GetViewProjectionMatrix());
     Frustum frustum = Frustum::FromViewProjection(vp);
 
     // Sphere far to the right, outside the frustum
@@ -138,7 +139,7 @@ TEST(FrustumCulling, SphereBehindCamera_Culled)
     camera.SetYaw(0.0f);
     camera.SetPitch(0.0f);
 
-    XMMATRIX vp = camera.GetViewProjectionMatrix();
+    XMMATRIX vp = ToXMMATRIX(camera.GetViewProjectionMatrix());
     Frustum frustum = Frustum::FromViewProjection(vp);
 
     // Sphere behind the camera (negative Z for default forward=+Z)
@@ -154,7 +155,7 @@ TEST(FrustumCulling, SphereBeyondFarPlane_Culled)
     camera.SetYaw(0.0f);
     camera.SetPitch(0.0f);
 
-    XMMATRIX vp = camera.GetViewProjectionMatrix();
+    XMMATRIX vp = ToXMMATRIX(camera.GetViewProjectionMatrix());
     Frustum frustum = Frustum::FromViewProjection(vp);
 
     // Sphere well beyond the far plane
@@ -170,7 +171,7 @@ TEST(FrustumCulling, AABBInsideFrustum_Visible)
     camera.SetYaw(0.0f);
     camera.SetPitch(0.0f);
 
-    XMMATRIX vp = camera.GetViewProjectionMatrix();
+    XMMATRIX vp = ToXMMATRIX(camera.GetViewProjectionMatrix());
     Frustum frustum = Frustum::FromViewProjection(vp);
 
     AABB3D aabb(Vector3(-1, -1, -1), Vector3(1, 1, 1));
@@ -185,7 +186,7 @@ TEST(FrustumCulling, AABBOutsideFrustum_Culled)
     camera.SetYaw(0.0f);
     camera.SetPitch(0.0f);
 
-    XMMATRIX vp = camera.GetViewProjectionMatrix();
+    XMMATRIX vp = ToXMMATRIX(camera.GetViewProjectionMatrix());
     Frustum frustum = Frustum::FromViewProjection(vp);
 
     AABB3D aabb(Vector3(500, 500, 500), Vector3(510, 510, 510));
@@ -200,7 +201,7 @@ TEST(FrustumCulling, PointInsideFrustum_Visible)
     camera.SetYaw(0.0f);
     camera.SetPitch(0.0f);
 
-    XMMATRIX vp = camera.GetViewProjectionMatrix();
+    XMMATRIX vp = ToXMMATRIX(camera.GetViewProjectionMatrix());
     Frustum frustum = Frustum::FromViewProjection(vp);
 
     EXPECT_TRUE(Collision3D::TestFrustumVsPoint(frustum, Vector3(0, 0, 0)));
@@ -214,7 +215,7 @@ TEST(FrustumCulling, PointOutsideFrustum_Culled)
     camera.SetYaw(0.0f);
     camera.SetPitch(0.0f);
 
-    XMMATRIX vp = camera.GetViewProjectionMatrix();
+    XMMATRIX vp = ToXMMATRIX(camera.GetViewProjectionMatrix());
     Frustum frustum = Frustum::FromViewProjection(vp);
 
     EXPECT_FALSE(Collision3D::TestFrustumVsPoint(frustum, Vector3(1000, 0, 0)));

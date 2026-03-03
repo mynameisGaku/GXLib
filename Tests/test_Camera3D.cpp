@@ -4,6 +4,7 @@
 #include "pch.h"
 #include <gtest/gtest.h>
 #include "Graphics/3D/Camera3D.h"
+#include "Math/MathConvert.h"
 
 using namespace gx;
 
@@ -49,9 +50,7 @@ TEST(Camera3DTest, SetPerspective_FOV)
 TEST(Camera3DTest, ProjectionMatrix_NotZero)
 {
     Camera3D cam = MakePerspCam();
-    XMMATRIX proj = cam.GetProjectionMatrix();
-    XMFLOAT4X4 m;
-    XMStoreFloat4x4(&m, proj);
+    Matrix4x4 m = cam.GetProjectionMatrix();
     // 透視投影行列の対角成分はゼロでない
     EXPECT_GT(fabsf(m._11), kEps);
     EXPECT_GT(fabsf(m._22), kEps);
@@ -61,9 +60,7 @@ TEST(Camera3DTest, ProjectionMatrix_NotZero)
 TEST(Camera3DTest, ViewMatrix_AtOrigin)
 {
     Camera3D cam = MakePerspCam();
-    XMMATRIX view = cam.GetViewMatrix();
-    XMFLOAT4X4 m;
-    XMStoreFloat4x4(&m, view);
+    Matrix4x4 m = cam.GetViewMatrix();
     // 原点で前方を向いたビュー行列: 回転部分は単位行列に近い
     EXPECT_FALSE(std::isnan(m._11));
 }
@@ -82,9 +79,7 @@ TEST(Camera3DTest, OrthoProjectionMatrix_NotZero)
 {
     Camera3D cam;
     cam.SetOrthographic(10.0f, 7.5f, 0.1f, 100.0f);
-    XMMATRIX proj = cam.GetProjectionMatrix();
-    XMFLOAT4X4 m;
-    XMStoreFloat4x4(&m, proj);
+    Matrix4x4 m = cam.GetProjectionMatrix();
     EXPECT_GT(fabsf(m._11), kEps);
     EXPECT_GT(fabsf(m._22), kEps);
 }
@@ -94,7 +89,7 @@ TEST(Camera3DTest, OrthoProjectionMatrix_NotZero)
 TEST(Camera3DTest, SetPosition_Float3)
 {
     Camera3D cam;
-    cam.SetPosition(XMFLOAT3{1.0f, 2.0f, 3.0f});
+    cam.SetPosition(Vector3{1.0f, 2.0f, 3.0f});
     const auto& pos = cam.GetPosition();
     EXPECT_NEAR(pos.x, 1.0f, kEps);
     EXPECT_NEAR(pos.y, 2.0f, kEps);
@@ -117,8 +112,8 @@ TEST(Camera3DTest, LookAt_Forward)
 {
     Camera3D cam = MakePerspCam();
     cam.SetPosition(0.0f, 0.0f, -5.0f);
-    cam.LookAt(XMFLOAT3{0.0f, 0.0f, 0.0f});
-    XMFLOAT3 fwd = cam.GetForward();
+    cam.LookAt(Vector3{0.0f, 0.0f, 0.0f});
+    Vector3 fwd = cam.GetForward();
     // +Z方向を向いているべき（-5zから原点に向かって）
     EXPECT_GT(fwd.z, 0.5f);
 }
@@ -127,9 +122,9 @@ TEST(Camera3DTest, LookAt_SetsPitchYaw)
 {
     Camera3D cam = MakePerspCam();
     cam.SetPosition(0.0f, 0.0f, -10.0f);
-    cam.LookAt(XMFLOAT3{10.0f, 0.0f, 0.0f});
+    cam.LookAt(Vector3{10.0f, 0.0f, 0.0f});
     // -10zから+10xに向かって見る: 前方ベクトルは+xと+z成分を持つべき
-    XMFLOAT3 fwd = cam.GetForward();
+    Vector3 fwd = cam.GetForward();
     EXPECT_GT(fwd.x, 0.3f);
     EXPECT_GT(fwd.z, 0.3f);
 }
@@ -139,8 +134,8 @@ TEST(Camera3DTest, LookAt_SetsPitchYaw)
 TEST(Camera3DTest, Forward_IsUnit)
 {
     Camera3D cam = MakePerspCam();
-    cam.LookAt(XMFLOAT3{10.0f, 0.0f, 10.0f});
-    XMFLOAT3 fwd = cam.GetForward();
+    cam.LookAt(Vector3{10.0f, 0.0f, 10.0f});
+    Vector3 fwd = cam.GetForward();
     float len = sqrtf(fwd.x * fwd.x + fwd.y * fwd.y + fwd.z * fwd.z);
     EXPECT_NEAR(len, 1.0f, 1e-3f);
 }
@@ -148,7 +143,7 @@ TEST(Camera3DTest, Forward_IsUnit)
 TEST(Camera3DTest, Right_IsUnit)
 {
     Camera3D cam = MakePerspCam();
-    XMFLOAT3 right = cam.GetRight();
+    Vector3 right = cam.GetRight();
     float len = sqrtf(right.x * right.x + right.y * right.y + right.z * right.z);
     EXPECT_NEAR(len, 1.0f, 1e-3f);
 }
@@ -156,7 +151,7 @@ TEST(Camera3DTest, Right_IsUnit)
 TEST(Camera3DTest, Up_IsUnit)
 {
     Camera3D cam = MakePerspCam();
-    XMFLOAT3 up = cam.GetUp();
+    Vector3 up = cam.GetUp();
     float len = sqrtf(up.x * up.x + up.y * up.y + up.z * up.z);
     EXPECT_NEAR(len, 1.0f, 1e-3f);
 }
@@ -164,9 +159,9 @@ TEST(Camera3DTest, Up_IsUnit)
 TEST(Camera3DTest, ForwardRight_Orthogonal)
 {
     Camera3D cam = MakePerspCam();
-    cam.LookAt(XMFLOAT3{1.0f, 0.0f, 1.0f});
-    XMFLOAT3 fwd = cam.GetForward();
-    XMFLOAT3 right = cam.GetRight();
+    cam.LookAt(Vector3{1.0f, 0.0f, 1.0f});
+    Vector3 fwd = cam.GetForward();
+    Vector3 right = cam.GetRight();
     float dot = fwd.x * right.x + fwd.y * right.y + fwd.z * right.z;
     EXPECT_NEAR(dot, 0.0f, 0.01f);
 }
@@ -196,10 +191,10 @@ TEST(Camera3DTest, SetPitch_Clamps)
 TEST(Camera3DTest, MoveForward)
 {
     Camera3D cam = MakePerspCam();
-    cam.LookAt(XMFLOAT3{0.0f, 0.0f, 10.0f});
-    XMFLOAT3 before = cam.GetPosition();
+    cam.LookAt(Vector3{0.0f, 0.0f, 10.0f});
+    Vector3 before = cam.GetPosition();
     cam.MoveForward(5.0f);
-    XMFLOAT3 after = cam.GetPosition();
+    Vector3 after = cam.GetPosition();
     float dist = sqrtf(
         (after.x - before.x) * (after.x - before.x) +
         (after.y - before.y) * (after.y - before.y) +
@@ -210,9 +205,9 @@ TEST(Camera3DTest, MoveForward)
 TEST(Camera3DTest, MoveRight)
 {
     Camera3D cam = MakePerspCam();
-    XMFLOAT3 before = cam.GetPosition();
+    Vector3 before = cam.GetPosition();
     cam.MoveRight(3.0f);
-    XMFLOAT3 after = cam.GetPosition();
+    Vector3 after = cam.GetPosition();
     float dist = sqrtf(
         (after.x - before.x) * (after.x - before.x) +
         (after.y - before.y) * (after.y - before.y) +
@@ -232,7 +227,7 @@ TEST(Camera3DTest, MoveUp)
 TEST(Camera3DTest, Jitter_Default)
 {
     Camera3D cam = MakePerspCam();
-    XMFLOAT2 jitter = cam.GetJitter();
+    Vector2 jitter = cam.GetJitter();
     EXPECT_NEAR(jitter.x, 0.0f, kEps);
     EXPECT_NEAR(jitter.y, 0.0f, kEps);
 }
@@ -241,7 +236,7 @@ TEST(Camera3DTest, SetJitter)
 {
     Camera3D cam = MakePerspCam();
     cam.SetJitter(0.5f, -0.3f);
-    XMFLOAT2 j = cam.GetJitter();
+    Vector2 j = cam.GetJitter();
     EXPECT_NEAR(j.x, 0.5f, kEps);
     EXPECT_NEAR(j.y, -0.3f, kEps);
 }
@@ -251,7 +246,7 @@ TEST(Camera3DTest, ClearJitter)
     Camera3D cam = MakePerspCam();
     cam.SetJitter(1.0f, 2.0f);
     cam.ClearJitter();
-    XMFLOAT2 j = cam.GetJitter();
+    Vector2 j = cam.GetJitter();
     EXPECT_NEAR(j.x, 0.0f, kEps);
     EXPECT_NEAR(j.y, 0.0f, kEps);
 }
@@ -259,12 +254,9 @@ TEST(Camera3DTest, ClearJitter)
 TEST(Camera3DTest, JitteredProjection_DiffersFromNormal)
 {
     Camera3D cam = MakePerspCam();
-    XMMATRIX normal = cam.GetProjectionMatrix();
+    Matrix4x4 n = cam.GetProjectionMatrix();
     cam.SetJitter(0.5f, 0.5f);
-    XMMATRIX jittered = cam.GetJitteredProjectionMatrix();
-    XMFLOAT4X4 n, j;
-    XMStoreFloat4x4(&n, normal);
-    XMStoreFloat4x4(&j, jittered);
+    Matrix4x4 j = cam.GetJitteredProjectionMatrix();
     // ジッター行列は平行移動成分が異なるべき
     bool differs = false;
     for (int i = 0; i < 16; ++i)
@@ -302,10 +294,8 @@ TEST(Camera3DTest, VP_NotZero)
 {
     Camera3D cam = MakePerspCam();
     cam.SetPosition(0, 5, -10);
-    cam.LookAt(XMFLOAT3{0, 0, 0});
-    XMMATRIX vp = cam.GetViewProjectionMatrix();
-    XMFLOAT4X4 m;
-    XMStoreFloat4x4(&m, vp);
+    cam.LookAt(Vector3{0, 0, 0});
+    Matrix4x4 m = cam.GetViewProjectionMatrix();
     bool allZero = true;
     for (int i = 0; i < 16; ++i)
         if (fabsf((&m._11)[i]) > kEps) allZero = false;
@@ -319,10 +309,8 @@ TEST(Camera3DTest, TPS_Distance)
     Camera3D cam;
     cam.SetMode(CameraMode::TPS);
     cam.SetTPSDistance(10.0f);
-    cam.SetTarget(XMFLOAT3{0, 0, 0});
+    cam.SetTarget(Vector3{0, 0, 0});
     // ビュー行列はカメラをターゲットの後ろに配置すべき
-    XMMATRIX view = cam.GetViewMatrix();
-    XMFLOAT4X4 m;
-    XMStoreFloat4x4(&m, view);
+    Matrix4x4 m = cam.GetViewMatrix();
     EXPECT_FALSE(std::isnan(m._11));
 }

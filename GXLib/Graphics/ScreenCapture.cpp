@@ -52,7 +52,7 @@ bool ScreenCapture::EnsureReadbackBuffer(uint32_t width, uint32_t height)
 bool ScreenCapture::CaptureToMemory(ID3D12GraphicsCommandList* cmdList,
                                      ID3D12Resource* backBuffer,
                                      uint32_t width, uint32_t height,
-                                     std::vector<uint8_t>& outPixels,
+                                     gx::Vector<uint8_t>& outPixels,
                                      uint32_t& outWidth, uint32_t& outHeight)
 {
     if (!m_device || !cmdList || !backBuffer) return false;
@@ -100,9 +100,9 @@ bool ScreenCapture::CaptureToMemory(ID3D12GraphicsCommandList* cmdList,
 bool ScreenCapture::CaptureToFile(ID3D12GraphicsCommandList* cmdList,
                                    ID3D12Resource* backBuffer,
                                    uint32_t width, uint32_t height,
-                                   const std::string& filePath)
+                                   const gx::String& filePath)
 {
-    std::vector<uint8_t> pixels;
+    gx::Vector<uint8_t> pixels;
     uint32_t outW, outH;
     if (!CaptureToMemory(cmdList, backBuffer, width, height, pixels, outW, outH))
         return false;

@@ -139,7 +139,7 @@ TEST_F(ShaderGraphTest, ValidateUnconnectedPin)
     bool foundError = false;
     for (const auto& e : errors)
     {
-        if (e.find("BaseColor") != std::string::npos)
+        if (e.find("BaseColor") != gx::String::npos)
             foundError = true;
     }
     EXPECT_TRUE(foundError);
@@ -226,7 +226,7 @@ TEST_F(ShaderGraphTest, SaveLoad)
     graph.SetTargetModel("Phong");
     graph.SetNodeProperty(colorId, "r", "0.5");
 
-    std::string path = (std::filesystem::temp_directory_path() / "gx_shadergraph_test.sg").string();
+    gx::String path = (std::filesystem::temp_directory_path() / "gx_shadergraph_test.sg").string();
     EXPECT_TRUE(graph.Save(path));
 
     ShaderGraph loaded;
@@ -251,7 +251,7 @@ TEST_F(ShaderGraphTest, SaveLoad)
         EXPECT_EQ(loaded.GetNodeProperty(loadedColor->id, "r"), "0.5");
     }
 
-    std::filesystem::remove(path);
+    std::filesystem::remove(std::filesystem::path(path.c_str()));
 }
 
 TEST_F(ShaderGraphTest, ClearGraph)

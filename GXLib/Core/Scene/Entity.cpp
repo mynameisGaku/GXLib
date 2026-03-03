@@ -3,11 +3,12 @@
 /// @brief エンティティ実装
 
 #include "Core/Scene/Entity.h"
+#include "Math/MathConvert.h"
 
 namespace gx
 {
 
-Entity::Entity(const std::string& name)
+Entity::Entity(const gx::String& name)
     : m_name(name)
 {
     for (int i = 0; i < static_cast<int>(ComponentType::_Count); ++i)
@@ -49,12 +50,14 @@ void Entity::SetParent(Entity* parent)
     }
 }
 
-XMMATRIX Entity::GetWorldMatrix() const
+Matrix4x4 Entity::GetWorldMatrix() const
 {
-    XMMATRIX local = m_transform.GetWorldMatrix();
+    Matrix4x4 local = m_transform.GetWorldMatrix();
     if (m_parent)
     {
-        return local * m_parent->GetWorldMatrix();
+        Matrix4x4 parentWorld = m_parent->GetWorldMatrix();
+        XMMATRIX result = ToXMMATRIX(local) * ToXMMATRIX(parentWorld);
+        return FromXMMATRIX(result);
     }
     return local;
 }
@@ -82,7 +85,7 @@ void Entity::SetBounds(const AABB3D& aabb)
 Sphere Entity::GetWorldBoundingSphere() const
 {
     Vector3 localCenter = m_bounds.localAABB.Center();
-    XMMATRIX world = GetWorldMatrix();
+    XMMATRIX world = ToXMMATRIX(GetWorldMatrix());
     XMVECTOR cen = XMVector3Transform(
         XMVectorSet(localCenter.x, localCenter.y, localCenter.z, 1.0f), world);
 
@@ -92,9 +95,9 @@ Sphere Entity::GetWorldBoundingSphere() const
     XMVECTOR scaleZ = XMVector3Length(world.r[2]);
     float maxScale = (std::max)({XMVectorGetX(scaleX), XMVectorGetX(scaleY), XMVectorGetX(scaleZ)});
 
-    XMFLOAT3 wc;
-    XMStoreFloat3(&wc, cen);
-    return Sphere(Vector3(wc.x, wc.y, wc.z), m_bounds.boundingSphereRadius * maxScale);
+    Vector3 wc;
+    XMStoreFloat3(XM(&wc), cen);
+    return Sphere(wc, m_bounds.boundingSphereRadius * maxScale);
 }
 
 } // namespace gx

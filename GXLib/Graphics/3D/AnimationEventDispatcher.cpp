@@ -6,7 +6,7 @@
 namespace gx
 {
 
-void AnimationEventDispatcher::RegisterHandler(const std::string& eventName, AnimationEventCallback callback)
+void AnimationEventDispatcher::RegisterHandler(const gx::String& eventName, AnimationEventCallback callback)
 {
     m_handlers[eventName] = std::move(callback);
 }
@@ -16,7 +16,7 @@ void AnimationEventDispatcher::RegisterGlobalHandler(AnimationEventCallback call
     m_globalHandler = std::move(callback);
 }
 
-void AnimationEventDispatcher::UnregisterHandler(const std::string& eventName)
+void AnimationEventDispatcher::UnregisterHandler(const gx::String& eventName)
 {
     m_handlers.erase(eventName);
 }
@@ -27,7 +27,7 @@ void AnimationEventDispatcher::ClearAllHandlers()
     m_globalHandler = nullptr;
 }
 
-bool AnimationEventDispatcher::HasHandler(const std::string& eventName) const
+bool AnimationEventDispatcher::HasHandler(const gx::String& eventName) const
 {
     return m_handlers.find(eventName) != m_handlers.end();
 }
@@ -37,7 +37,7 @@ void AnimationEventDispatcher::Update(const AnimationClip* clip, float previousT
     if (!clip) return;
 
     // CollectEvents はループ境界を跨ぐケースも正しく処理する
-    std::vector<const AnimationEvent*> events;
+    gx::Vector<const AnimationEvent*> events;
     clip->CollectEvents(previousTime, currentTime, events);
 
     for (const auto* evt : events)

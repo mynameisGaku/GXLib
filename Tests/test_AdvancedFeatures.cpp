@@ -115,12 +115,12 @@ TEST_F(LocalizationTest, GXLOCMacro)
 
 TEST(TimelineTest, Float3TrackInterpolation)
 {
-    XMFLOAT3 result = { 0, 0, 0 };
+    Vector3 result = { 0, 0, 0 };
 
     auto track = std::make_unique<Float3Track>();
     track->AddKeyframe(0.0f, { 0, 0, 0 });
     track->AddKeyframe(1.0f, { 10, 20, 30 });
-    track->SetTarget([&](const XMFLOAT3& v) { result = v; });
+    track->SetTarget([&](const Vector3& v) { result = v; });
 
     Timeline timeline;
     timeline.AddTrack(std::move(track));

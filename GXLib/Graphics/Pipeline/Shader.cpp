@@ -28,9 +28,9 @@ bool Shader::Initialize()
     return true;
 }
 
-ShaderBlob Shader::CompileFromFile(const std::wstring& filePath,
-                                    const std::wstring& entryPoint,
-                                    const std::wstring& target)
+ShaderBlob Shader::CompileFromFile(const gx::WString& filePath,
+                                    const gx::WString& entryPoint,
+                                    const gx::WString& target)
 {
     ShaderBlob result;
 
@@ -45,7 +45,7 @@ ShaderBlob Shader::CompileFromFile(const std::wstring& filePath,
 
     // DXCコンパイル引数を組み立てる
     // Debugビルドではデバッグ情報(-Zi)と最適化無効(-Od)、Releaseでは最大最適化(-O3)
-    std::vector<LPCWSTR> arguments;
+    gx::Vector<LPCWSTR> arguments;
     arguments.push_back(filePath.c_str());
     arguments.push_back(L"-E");
     arguments.push_back(entryPoint.c_str());
@@ -60,9 +60,9 @@ ShaderBlob Shader::CompileFromFile(const std::wstring& filePath,
 #endif
 
     // HLSLファイルと同じディレクトリをインクルードパスに追加（#include解決用）
-    std::wstring dirPath = filePath;
+    gx::WString dirPath = filePath;
     auto lastSlash = dirPath.find_last_of(L"/\\");
-    if (lastSlash != std::wstring::npos)
+    if (lastSlash != gx::WString::npos)
         dirPath = dirPath.substr(0, lastSlash);
     else
         dirPath = L".";
@@ -111,10 +111,10 @@ ShaderBlob Shader::CompileFromFile(const std::wstring& filePath,
     return result;
 }
 
-ShaderBlob Shader::CompileFromFile(const std::wstring& filePath,
-                                    const std::wstring& entryPoint,
-                                    const std::wstring& target,
-                                    const std::vector<std::pair<std::wstring, std::wstring>>& defines)
+ShaderBlob Shader::CompileFromFile(const gx::WString& filePath,
+                                    const gx::WString& entryPoint,
+                                    const gx::WString& target,
+                                    const gx::Vector<std::pair<gx::WString, gx::WString>>& defines)
 {
     ShaderBlob result;
     m_lastError.clear();
@@ -128,7 +128,7 @@ ShaderBlob Shader::CompileFromFile(const std::wstring& filePath,
         return result;
     }
 
-    std::vector<LPCWSTR> arguments;
+    gx::Vector<LPCWSTR> arguments;
     arguments.push_back(filePath.c_str());
     arguments.push_back(L"-E");
     arguments.push_back(entryPoint.c_str());
@@ -142,9 +142,9 @@ ShaderBlob Shader::CompileFromFile(const std::wstring& filePath,
     arguments.push_back(L"-O3");
 #endif
 
-    std::wstring dirPath = filePath;
+    gx::WString dirPath = filePath;
     auto lastSlash = dirPath.find_last_of(L"/\\");
-    if (lastSlash != std::wstring::npos)
+    if (lastSlash != gx::WString::npos)
         dirPath = dirPath.substr(0, lastSlash);
     else
         dirPath = L".";
@@ -153,7 +153,7 @@ ShaderBlob Shader::CompileFromFile(const std::wstring& filePath,
 
     // -D NAME=VALUE 形式のマクロ定義引数を構築
     // defineStrsはポインタの生存期間を引数リストより長く保つ必要がある
-    std::vector<std::wstring> defineStrs;
+    gx::Vector<gx::WString> defineStrs;
     for (auto& [name, value] : defines)
     {
         if (value.empty())
@@ -210,7 +210,7 @@ ShaderBlob Shader::CompileFromFile(const std::wstring& filePath,
     return result;
 }
 
-ShaderBlob Shader::CompileLibrary(const std::wstring& filePath)
+ShaderBlob Shader::CompileLibrary(const gx::WString& filePath)
 {
     // DXR用シェーダーライブラリのコンパイル。
     // lib_6_3ターゲットではエントリポイントを指定せず、
@@ -228,7 +228,7 @@ ShaderBlob Shader::CompileLibrary(const std::wstring& filePath)
     }
 
     // エントリポイントなし（-Eフラグを付けてはいけない）
-    std::vector<LPCWSTR> arguments;
+    gx::Vector<LPCWSTR> arguments;
     arguments.push_back(filePath.c_str());
     arguments.push_back(L"-T");
     arguments.push_back(L"lib_6_3");
@@ -241,9 +241,9 @@ ShaderBlob Shader::CompileLibrary(const std::wstring& filePath)
 #endif
 
     // ファイルのディレクトリをインクルードパスに追加
-    std::wstring dirPath = filePath;
+    gx::WString dirPath = filePath;
     auto lastSlash = dirPath.find_last_of(L"/\\");
-    if (lastSlash != std::wstring::npos)
+    if (lastSlash != gx::WString::npos)
         dirPath = dirPath.substr(0, lastSlash);
     else
         dirPath = L".";

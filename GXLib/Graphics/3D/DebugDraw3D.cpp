@@ -3,6 +3,7 @@
 #include "pch_graphics.h"
 #include "Graphics/3D/DebugDraw3D.h"
 #include "Graphics/3D/PrimitiveBatch3D.h"
+#include "Math/MathConvert.h"
 #include "Core/Logger.h"
 #include <cmath>
 #include <string>
@@ -18,13 +19,13 @@ DebugDraw3D& DebugDraw3D::Instance()
     return instance;
 }
 
-void DebugDraw3D::DrawLine(const XMFLOAT3& from, const XMFLOAT3& to, const Color& color)
+void DebugDraw3D::DrawLine(const Vector3& from, const Vector3& to, const Color& color)
 {
     if (!m_enabled) return;
     m_lines.push_back({ from, to, color });
 }
 
-void DebugDraw3D::DrawWireBox(const XMFLOAT3& center, const XMFLOAT3& extent, const Color& color)
+void DebugDraw3D::DrawWireBox(const Vector3& center, const Vector3& extent, const Color& color)
 {
     if (!m_enabled) return;
 
@@ -49,7 +50,7 @@ void DebugDraw3D::DrawWireBox(const XMFLOAT3& center, const XMFLOAT3& extent, co
     DrawLine({ x0,y0,z1 }, { x0,y1,z1 }, color);
 }
 
-void DebugDraw3D::DrawWireSphere(const XMFLOAT3& center, float radius,
+void DebugDraw3D::DrawWireSphere(const Vector3& center, float radius,
                                   const Color& color, int segments)
 {
     if (!m_enabled) return;
@@ -77,7 +78,7 @@ void DebugDraw3D::DrawWireSphere(const XMFLOAT3& center, float radius,
     }
 }
 
-void DebugDraw3D::DrawArrow(const XMFLOAT3& from, const XMFLOAT3& to,
+void DebugDraw3D::DrawArrow(const Vector3& from, const Vector3& to,
                              const Color& color, float headSize)
 {
     if (!m_enabled) return;
@@ -95,7 +96,7 @@ void DebugDraw3D::DrawArrow(const XMFLOAT3& from, const XMFLOAT3& to,
     dx *= invLen; dy *= invLen; dz *= invLen;
 
     // 直交ベクトルを求める
-    XMFLOAT3 up = { 0, 1, 0 };
+    Vector3 up = { 0, 1, 0 };
     if (std::abs(dy) > 0.99f) up = { 1, 0, 0 };
 
     float perpX = dy * up.z - dz * up.y;
@@ -107,7 +108,7 @@ void DebugDraw3D::DrawArrow(const XMFLOAT3& from, const XMFLOAT3& to,
         perpX /= perpLen; perpY /= perpLen; perpZ /= perpLen;
     }
 
-    XMFLOAT3 base = { to.x - dx * headSize, to.y - dy * headSize, to.z - dz * headSize };
+    Vector3 base = { to.x - dx * headSize, to.y - dy * headSize, to.z - dz * headSize };
     DrawLine(to, { base.x + perpX * headSize * 0.5f,
                    base.y + perpY * headSize * 0.5f,
                    base.z + perpZ * headSize * 0.5f }, color);
@@ -116,28 +117,28 @@ void DebugDraw3D::DrawArrow(const XMFLOAT3& from, const XMFLOAT3& to,
                    base.z - perpZ * headSize * 0.5f }, color);
 }
 
-void DebugDraw3D::DrawText3D(const XMFLOAT3& worldPos, const std::string& text,
+void DebugDraw3D::DrawText3D(const Vector3& worldPos, const gx::String& text,
                               const Color& color)
 {
     if (!m_enabled) return;
     m_texts.push_back({ worldPos, text, color });
 }
 
-void DebugDraw3D::SetViewProjection(const XMMATRIX& viewProj)
+void DebugDraw3D::SetViewProjection(const Matrix4x4& viewProj)
 {
-    XMStoreFloat4x4(&m_viewProj, viewProj);
+    m_viewProj = viewProj;
 }
 
 void DebugDraw3D::RenderText(float screenWidth, float screenHeight)
 {
     if (!m_enabled || m_texts.empty()) return;
 
-    XMMATRIX vp = XMLoadFloat4x4(&m_viewProj);
+    XMMATRIX vp = XMLoadFloat4x4(XM(&m_viewProj));
 
     for (const auto& entry : m_texts)
     {
         // ワールド座標をクリップ空間に変換
-        XMVECTOR worldPos = XMLoadFloat3(&entry.worldPos);
+        XMVECTOR worldPos = XMLoadFloat3(XM(&entry.worldPos));
         worldPos = XMVectorSetW(worldPos, 1.0f);
         XMVECTOR clipPos = XMVector4Transform(worldPos, vp);
 
@@ -162,14 +163,14 @@ void DebugDraw3D::RenderText(float screenWidth, float screenHeight)
     }
 }
 
-void DebugDraw3D::DrawLinePersistent(const XMFLOAT3& from, const XMFLOAT3& to,
+void DebugDraw3D::DrawLinePersistent(const Vector3& from, const Vector3& to,
                                       const Color& color, float duration)
 {
     if (!m_enabled) return;
     m_persistentLines.push_back({ from, to, color, duration });
 }
 
-void DebugDraw3D::DrawWireBoxPersistent(const XMFLOAT3& center, const XMFLOAT3& extent,
+void DebugDraw3D::DrawWireBoxPersistent(const Vector3& center, const Vector3& extent,
                                          const Color& color, float duration)
 {
     if (!m_enabled) return;
@@ -178,7 +179,7 @@ void DebugDraw3D::DrawWireBoxPersistent(const XMFLOAT3& center, const XMFLOAT3& 
     float y0 = center.y - extent.y, y1 = center.y + extent.y;
     float z0 = center.z - extent.z, z1 = center.z + extent.z;
 
-    auto add = [&](const XMFLOAT3& a, const XMFLOAT3& b)
+    auto add = [&](const Vector3& a, const Vector3& b)
     {
         m_persistentLines.push_back({ a, b, color, duration });
     };
@@ -195,20 +196,20 @@ void DebugDraw3D::Render(PrimitiveBatch3D& batch, float deltaTime)
 {
     if (!m_enabled) return;
 
-    auto toFloat4 = [](const Color& c) -> XMFLOAT4 {
+    auto toVec4 = [](const Color& c) -> Vector4 {
         return { c.r, c.g, c.b, c.a };
     };
 
     // 即時描画
     for (const auto& line : m_lines)
     {
-        batch.DrawLine(line.from, line.to, toFloat4(line.color));
+        batch.DrawLine(line.from, line.to, toVec4(line.color));
     }
 
     // 永続描画
     for (auto it = m_persistentLines.begin(); it != m_persistentLines.end(); )
     {
-        batch.DrawLine(it->from, it->to, toFloat4(it->color));
+        batch.DrawLine(it->from, it->to, toVec4(it->color));
         it->remainingTime -= deltaTime;
         if (it->remainingTime <= 0.0f)
             it = m_persistentLines.erase(it);

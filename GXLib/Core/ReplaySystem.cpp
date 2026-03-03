@@ -13,7 +13,7 @@ namespace gx
 // ReplayRecorder
 // =============================================================================
 
-void ReplayRecorder::StartRecording(const std::string& name)
+void ReplayRecorder::StartRecording(const gx::String& name)
 {
     m_recording     = true;
     m_lastRecordTime = -1.0f;
@@ -45,7 +45,7 @@ bool ReplayRecorder::IsRecording() const
     return m_recording;
 }
 
-void ReplayRecorder::RecordFrame(float timestamp, const std::vector<ReplayEntityState>& entities)
+void ReplayRecorder::RecordFrame(float timestamp, const gx::Vector<ReplayEntityState>& entities)
 {
     if (!m_recording)
     {
@@ -85,7 +85,7 @@ void ReplayRecorder::RecordFrame(float timestamp, const std::vector<ReplayEntity
     }
 }
 
-void ReplayRecorder::SetVariable(const std::string& name, float value)
+void ReplayRecorder::SetVariable(const gx::String& name, float value)
 {
     m_currentVars[name] = value;
 }
@@ -95,7 +95,7 @@ const ReplayHeader& ReplayRecorder::GetHeader() const
     return m_header;
 }
 
-const std::vector<ReplayFrame>& ReplayRecorder::GetFrames() const
+const gx::Vector<ReplayFrame>& ReplayRecorder::GetFrames() const
 {
     return m_frames;
 }
@@ -133,7 +133,7 @@ void ReplayRecorder::SetRecordInterval(float interval)
 // ReplayPlayer
 // =============================================================================
 
-void ReplayPlayer::SetReplay(const std::vector<ReplayFrame>& frames, const ReplayHeader& header)
+void ReplayPlayer::SetReplay(const gx::Vector<ReplayFrame>& frames, const ReplayHeader& header)
 {
     m_frames = frames;
     m_header = header;

@@ -10,7 +10,7 @@
 namespace gx
 {
 
-int SoundBank::CreateCue(const std::string& name, SoundCueMode mode)
+int SoundBank::CreateCue(const gx::String& name, SoundCueMode mode)
 {
     SoundCue cue;
     cue.name = name;
@@ -126,7 +126,7 @@ int SoundBank::Play3D(int cueIndex, AudioManager& audioManager, float currentTim
     return entry.handle;
 }
 
-int SoundBank::FindCue(const std::string& name) const
+int SoundBank::FindCue(const gx::String& name) const
 {
     for (int i = 0; i < static_cast<int>(m_cues.size()); ++i)
     {

@@ -162,7 +162,7 @@ void GPUDrivenRenderer::UploadMeshlets(ID3D12Device* device,
 }
 
 void GPUDrivenRenderer::Render(ID3D12GraphicsCommandList6* cmdList, uint32_t frameIndex,
-                                const DirectX::XMFLOAT4X4& viewProj, uint32_t meshletCount)
+                                const Matrix4x4& viewProj, uint32_t meshletCount)
 {
     if (!m_available || !cmdList)
         return;
@@ -194,7 +194,7 @@ void GPUDrivenRenderer::Render(ID3D12GraphicsCommandList6* cmdList, uint32_t fra
         uint32_t pad[3];
     } constants = {};
 
-    // XMFLOAT4X4は行優先4x4 = 16 floats
+    // Matrix4x4は行優先4x4 = 16 floats
     std::memcpy(constants.viewProj, &viewProj, sizeof(float) * 16);
     constants.meshletCount = dispatchCount;
 
@@ -290,7 +290,7 @@ void GPUDrivenRenderer::UploadMeshletBounds(ID3D12Device* device, const MeshletB
 }
 
 void GPUDrivenRenderer::CullAndDraw(ID3D12GraphicsCommandList* cmdList,
-                                      const XMFLOAT4X4& viewProj, uint32_t objectCount)
+                                      const Matrix4x4& viewProj, uint32_t objectCount)
 {
     if (!cmdList || !m_indirectReady || objectCount == 0)
         return;

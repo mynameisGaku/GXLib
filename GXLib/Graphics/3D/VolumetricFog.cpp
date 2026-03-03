@@ -9,6 +9,7 @@
 #include "Graphics/3D/VolumetricFog.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
+#include "Math/MathConvert.h"
 #include "Core/Logger.h"
 
 namespace gx
@@ -201,7 +202,7 @@ void VolumetricFog::RemoveFogVolume(int id)
 }
 
 void VolumetricFog::Execute(ID3D12GraphicsCommandList* cmdList,
-                            const XMMATRIX& invViewProj, const XMFLOAT3& cameraPos,
+                            const Matrix4x4& invViewProj, const Vector3& cameraPos,
                             ID3D12Resource* depthSRV, const void* lightConstants,
                             uint32_t frameIndex)
 {
@@ -213,17 +214,17 @@ void VolumetricFog::Execute(ID3D12GraphicsCommandList* cmdList,
     {
         struct InjectCB
         {
-            XMFLOAT4X4 invViewProj;
-            XMFLOAT3   cameraPos;
+            Matrix4x4  invViewProj;
+            Vector3    cameraPos;
             float      maxDistance;
-            XMFLOAT3   fogColor;
+            Vector3    fogColor;
             float      globalDensity;
             float      absorption;
             uint32_t   resX, resY, resZ;
             float      pad;
         } cb = {};
 
-        XMStoreFloat4x4(&cb.invViewProj, invViewProj);
+        cb.invViewProj  = invViewProj;
         cb.cameraPos    = cameraPos;
         cb.maxDistance   = m_settings.maxDistance;
         cb.fogColor     = { 0.6f, 0.65f, 0.7f };  // デフォルトフォグ色

@@ -9,7 +9,7 @@
 namespace gx
 {
 
-bool Tilemap::LoadFromTMX(const std::string& path, TextureManager& texManager)
+bool Tilemap::LoadFromTMX(const gx::String& path, TextureManager& texManager)
 {
     GUI::XMLDocument doc;
     if (!doc.LoadFromFile(path))
@@ -32,9 +32,9 @@ bool Tilemap::LoadFromTMX(const std::string& path, TextureManager& texManager)
     m_tileHeight = std::stoi(root->GetAttribute("tileheight", "32"));
 
     // TMXファイルのディレクトリを取得（テクスチャパス解決用）
-    std::string dir;
+    gx::String dir;
     auto slashPos = path.find_last_of("/\\");
-    if (slashPos != std::string::npos)
+    if (slashPos != gx::String::npos)
         dir = path.substr(0, slashPos + 1);
 
     // タイルセットを読み込む
@@ -54,11 +54,12 @@ bool Tilemap::LoadFromTMX(const std::string& path, TextureManager& texManager)
             {
                 if (tsChild->tag == "image")
                 {
-                    std::string source = tsChild->GetAttribute("source");
+                    gx::String source = tsChild->GetAttribute("source");
                     if (!source.empty())
                     {
-                        std::string texPath = dir + source;
-                        std::wstring wTexPath(texPath.begin(), texPath.end());
+                        gx::String texPath = dir + source;
+                        std::wstring tmpWide(texPath.begin(), texPath.end());
+                        gx::WString wTexPath(tmpWide.c_str());
                         ts.textureHandle = texManager.LoadTexture(wTexPath);
                     }
                 }
@@ -83,13 +84,13 @@ bool Tilemap::LoadFromTMX(const std::string& path, TextureManager& texManager)
             {
                 if (dataChild->tag == "data")
                 {
-                    std::string encoding = dataChild->GetAttribute("encoding", "csv");
+                    gx::String encoding = dataChild->GetAttribute("encoding", "csv");
                     if (encoding == "csv")
                     {
                         // CSV パース
-                        const std::string& text = dataChild->text;
+                        const gx::String& text = dataChild->text;
                         layer.tiles.reserve(layer.width * layer.height);
-                        std::string num;
+                        gx::String num;
                         for (char c : text)
                         {
                             if (c >= '0' && c <= '9')

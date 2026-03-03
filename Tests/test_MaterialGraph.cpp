@@ -314,7 +314,7 @@ TEST(MaterialGraphTest, SerializeToJSON_NotEmpty)
 {
     MaterialGraph graph;
     graph.AddNode(MaterialNodeType::Float, "A");
-    std::string json = graph.SerializeToJSON();
+    gx::String json = graph.SerializeToJSON();
     EXPECT_FALSE(json.empty());
     EXPECT_EQ(json[0], '{');
 }
@@ -329,7 +329,7 @@ TEST(MaterialGraphTest, SerializeDeserialize_RoundTrip)
     graph.Connect(b, 0, add, 1);
     graph.SetOutputNode(add);
 
-    std::string json = graph.SerializeToJSON();
+    gx::String json = graph.SerializeToJSON();
 
     MaterialGraph loaded;
     bool ok = loaded.DeserializeFromJSON(json);
@@ -364,7 +364,7 @@ TEST(MaterialGraphTest, DeserializeFromJSON_InvalidJSON)
 
 TEST(MaterialGraphTest, NodeTypes_AllDistinct)
 {
-    std::vector<MaterialNodeType> types = {
+    gx::Vector<MaterialNodeType> types = {
         MaterialNodeType::Float, MaterialNodeType::Vector2,
         MaterialNodeType::Vector3, MaterialNodeType::Vector4,
         MaterialNodeType::Texture, MaterialNodeType::Add,
@@ -387,7 +387,7 @@ TEST(MaterialGraphTest, NodeTypes_AllDistinct)
 
 TEST(MaterialGraphTest, PinTypes_AllDistinct)
 {
-    std::vector<PinType> types = {
+    gx::Vector<PinType> types = {
         PinType::Float, PinType::Vec2, PinType::Vec3, PinType::Vec4, PinType::Texture
     };
 

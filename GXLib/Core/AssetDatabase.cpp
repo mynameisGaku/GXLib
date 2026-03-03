@@ -2,6 +2,7 @@
 /// @brief アセットデータベース実装
 #include "pch_common.h"
 #include "Core/AssetDatabase.h"
+#include "Core/AssetMeta.h"
 #include "Core/Logger.h"
 #include <filesystem>
 #include <algorithm>
@@ -27,24 +28,24 @@ AssetDatabase& AssetDatabase::Instance()
 // 静的ヘルパー
 // ============================================================================
 
-std::string AssetDatabase::ToLower(const std::string& s)
+gx::String AssetDatabase::ToLower(const gx::String& s)
 {
-    std::string result = s;
+    gx::String result = s;
     std::transform(result.begin(), result.end(), result.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     return result;
 }
 
-std::string AssetDatabase::NormalizePath(const std::string& path)
+gx::String AssetDatabase::NormalizePath(const gx::String& path)
 {
-    std::string result = path;
+    gx::String result = path;
     std::replace(result.begin(), result.end(), '\\', '/');
     return result;
 }
 
-AssetType AssetDatabase::ClassifyExtension(const std::string& ext)
+AssetType AssetDatabase::ClassifyExtension(const gx::String& ext)
 {
-    std::string lower = ToLower(ext);
+    gx::String lower = ToLower(ext);
 
     // テクスチャ
     if (lower == ".png" || lower == ".jpg" || lower == ".jpeg" ||
@@ -107,14 +108,14 @@ AssetType AssetDatabase::ClassifyExtension(const std::string& ext)
 // レガシーAPI
 // ============================================================================
 
-bool AssetDatabase::Scan(const std::string& rootDirectory, bool recursive)
+bool AssetDatabase::Scan(const gx::String& rootDirectory, bool recursive)
 {
     m_lastRootDirectory = rootDirectory;
     m_lastRecursive = recursive;
     m_entries.clear();
 
     std::error_code ec;
-    if (!fs::exists(rootDirectory, ec) || !fs::is_directory(rootDirectory, ec))
+    if (!fs::exists(fs::path(rootDirectory.c_str()), ec) || !fs::is_directory(fs::path(rootDirectory.c_str()), ec))
         return false;
 
     auto processEntry = [&](const fs::directory_entry& entry)
@@ -122,11 +123,11 @@ bool AssetDatabase::Scan(const std::string& rootDirectory, bool recursive)
         if (!entry.is_regular_file(ec)) return;
 
         AssetEntry asset;
-        asset.path = NormalizePath(entry.path().string());
+        asset.path = NormalizePath(gx::String(entry.path().string().c_str()));
         asset.fullPath = asset.path;
-        asset.name = entry.path().filename().string();
-        asset.extension = ToLower(entry.path().extension().string());
-        asset.type = ClassifyExtension(entry.path().extension().string());
+        asset.name = gx::String(entry.path().filename().string().c_str());
+        asset.extension = ToLower(gx::String(entry.path().extension().string().c_str()));
+        asset.type = ClassifyExtension(gx::String(entry.path().extension().string().c_str()));
         asset.fileSize = static_cast<uint64_t>(entry.file_size(ec));
 
         auto ftime = entry.last_write_time(ec);
@@ -136,47 +137,47 @@ bool AssetDatabase::Scan(const std::string& rootDirectory, bool recursive)
 
         // 相対パスを計算
         std::error_code relEc;
-        auto relPath = fs::relative(entry.path(), rootDirectory, relEc);
+        auto relPath = fs::relative(entry.path(), fs::path(rootDirectory.c_str()), relEc);
         if (!relEc)
         {
-            asset.relativePath = NormalizePath(relPath.string());
+            asset.relativePath = NormalizePath(gx::String(relPath.string().c_str()));
         }
 
-        std::string key = NormalizePath(entry.path().string());
+        gx::String key = NormalizePath(gx::String(entry.path().string().c_str()));
         m_entries[key] = std::move(asset);
     };
 
     if (recursive)
     {
-        for (const auto& entry : fs::recursive_directory_iterator(rootDirectory, ec))
+        for (const auto& entry : fs::recursive_directory_iterator(fs::path(rootDirectory.c_str()), ec))
             processEntry(entry);
     }
     else
     {
-        for (const auto& entry : fs::directory_iterator(rootDirectory, ec))
+        for (const auto& entry : fs::directory_iterator(fs::path(rootDirectory.c_str()), ec))
             processEntry(entry);
     }
 
     return true;
 }
 
-const AssetEntry* AssetDatabase::Find(const std::string& path) const
+const AssetEntry* AssetDatabase::Find(const gx::String& path) const
 {
-    std::string key = NormalizePath(path);
+    gx::String key = NormalizePath(path);
     auto it = m_entries.find(key);
     if (it != m_entries.end()) return &it->second;
     return nullptr;
 }
 
-std::vector<const AssetEntry*> AssetDatabase::Search(const std::string& pattern) const
+gx::Vector<const AssetEntry*> AssetDatabase::Search(const gx::String& pattern) const
 {
-    std::string lowerPattern = ToLower(pattern);
-    std::vector<const AssetEntry*> results;
+    gx::String lowerPattern = ToLower(pattern);
+    gx::Vector<const AssetEntry*> results;
 
     for (const auto& [key, entry] : m_entries)
     {
-        std::string lowerPath = ToLower(entry.path);
-        if (lowerPath.find(lowerPattern) != std::string::npos)
+        gx::String lowerPath = ToLower(entry.path);
+        if (lowerPath.find(lowerPattern) != gx::String::npos)
             results.push_back(&entry);
     }
 
@@ -192,13 +193,14 @@ bool AssetDatabase::Refresh()
 void AssetDatabase::Clear()
 {
     m_entries.clear();
+    m_guidToPath.clear();
 }
 
 // ============================================================================
 // 新API (Phase 7)
 // ============================================================================
 
-void AssetDatabase::Initialize(const std::string& rootPath)
+void AssetDatabase::Initialize(const gx::String& rootPath)
 {
     m_lastRootDirectory = rootPath;
     m_lastRecursive = true;
@@ -216,14 +218,14 @@ void AssetDatabase::ScanAll()
     m_entries.clear();
 
     std::error_code ec;
-    if (!fs::exists(m_lastRootDirectory, ec) || !fs::is_directory(m_lastRootDirectory, ec))
+    if (!fs::exists(fs::path(m_lastRootDirectory.c_str()), ec) || !fs::is_directory(fs::path(m_lastRootDirectory.c_str()), ec))
     {
         Logger::Warn("AssetDatabase::ScanAll: root path '%s' does not exist or is not a directory",
                      m_lastRootDirectory.c_str());
         return;
     }
 
-    ScanDirectory(fs::path(m_lastRootDirectory));
+    ScanDirectory(fs::path(m_lastRootDirectory.c_str()));
 }
 
 void AssetDatabase::ScanDirectory(const std::filesystem::path& dir)
@@ -242,12 +244,17 @@ void AssetDatabase::ScanDirectory(const std::filesystem::path& dir)
         if (!entry.is_regular_file(ec))
             continue;
 
+        // .meta ファイルはスキップ（アセットとは別扱い）
+        gx::String ext = ToLower(gx::String(entry.path().extension().string().c_str()));
+        if (ext == ".meta")
+            continue;
+
         AssetEntry asset;
-        asset.path = NormalizePath(entry.path().string());
+        asset.path = NormalizePath(gx::String(entry.path().string().c_str()));
         asset.fullPath = asset.path;
-        asset.name = entry.path().filename().string();
-        asset.extension = ToLower(entry.path().extension().string());
-        asset.type = ClassifyExtension(entry.path().extension().string());
+        asset.name = gx::String(entry.path().filename().string().c_str());
+        asset.extension = ToLower(gx::String(entry.path().extension().string().c_str()));
+        asset.type = ClassifyExtension(gx::String(entry.path().extension().string().c_str()));
         asset.fileSize = static_cast<uint64_t>(entry.file_size(ec));
 
         auto ftime = entry.last_write_time(ec);
@@ -257,14 +264,39 @@ void AssetDatabase::ScanDirectory(const std::filesystem::path& dir)
 
         // 相対パスを計算
         std::error_code relEc;
-        auto relPath = fs::relative(entry.path(), m_lastRootDirectory, relEc);
+        auto relPath = fs::relative(entry.path(), fs::path(m_lastRootDirectory.c_str()), relEc);
         if (!relEc)
         {
-            asset.relativePath = NormalizePath(relPath.string());
+            asset.relativePath = NormalizePath(gx::String(relPath.string().c_str()));
+        }
+
+        // .meta ファイルからGUIDを読み込み、なければ自動生成
+        gx::String metaPath = AssetMeta::GetMetaPath(asset.fullPath);
+        AssetMetaData metaData;
+        if (AssetMeta::Load(metaPath, metaData))
+        {
+            asset.guid = metaData.guid;
+            // インポート設定をマージ
+            for (const auto& [k, v] : metaData.importSettings)
+                asset.importSettings.Set(k, v);
+        }
+        else
+        {
+            // .meta がない場合は新規生成して書き出し
+            metaData.guid = GUID::Generate();
+            asset.guid = metaData.guid;
+            AssetMeta::Save(metaPath, metaData);
+        }
+
+        // GUID逆引きマップに登録
+        if (asset.guid.IsValid())
+        {
+            gx::String relPathStr = asset.relativePath.empty() ? asset.path : asset.relativePath;
+            m_guidToPath[asset.guid] = relPathStr;
         }
 
         // キーは正規化された完全パス（レガシー互換のため）
-        std::string key = asset.path;
+        gx::String key = asset.path;
         m_entries[key] = std::move(asset);
     }
 }
@@ -276,7 +308,7 @@ int AssetDatabase::DetectChanges()
 
     for (auto& [key, asset] : m_entries)
     {
-        fs::path filePath(asset.fullPath);
+        fs::path filePath(asset.fullPath.c_str());
 
         if (!fs::exists(filePath, ec))
         {
@@ -307,9 +339,9 @@ int AssetDatabase::DetectChanges()
     return changeCount;
 }
 
-const AssetEntry* AssetDatabase::FindAsset(const std::string& relativePath) const
+const AssetEntry* AssetDatabase::FindAsset(const gx::String& relativePath) const
 {
-    std::string normalizedRel = NormalizePath(relativePath);
+    gx::String normalizedRel = NormalizePath(relativePath);
 
     // 相対パスで検索
     for (const auto& [key, entry] : m_entries)
@@ -326,9 +358,9 @@ const AssetEntry* AssetDatabase::FindAsset(const std::string& relativePath) cons
     return nullptr;
 }
 
-std::vector<const AssetEntry*> AssetDatabase::FindByType(AssetType type) const
+gx::Vector<const AssetEntry*> AssetDatabase::FindByType(AssetType type) const
 {
-    std::vector<const AssetEntry*> results;
+    gx::Vector<const AssetEntry*> results;
     for (const auto& [key, entry] : m_entries)
     {
         if (entry.type == type)
@@ -337,15 +369,15 @@ std::vector<const AssetEntry*> AssetDatabase::FindByType(AssetType type) const
     return results;
 }
 
-std::vector<const AssetEntry*> AssetDatabase::FindByName(const std::string& pattern) const
+gx::Vector<const AssetEntry*> AssetDatabase::FindByName(const gx::String& pattern) const
 {
-    std::string lowerPattern = ToLower(pattern);
-    std::vector<const AssetEntry*> results;
+    gx::String lowerPattern = ToLower(pattern);
+    gx::Vector<const AssetEntry*> results;
 
     for (const auto& [key, entry] : m_entries)
     {
-        std::string lowerName = ToLower(entry.name);
-        if (lowerName.find(lowerPattern) != std::string::npos)
+        gx::String lowerName = ToLower(entry.name);
+        if (lowerName.find(lowerPattern) != gx::String::npos)
             results.push_back(&entry);
     }
 
@@ -353,14 +385,14 @@ std::vector<const AssetEntry*> AssetDatabase::FindByName(const std::string& patt
 }
 
 // static
-AssetType AssetDatabase::DetectType(const std::string& extension)
+AssetType AssetDatabase::DetectType(const gx::String& extension)
 {
     return ClassifyExtension(extension);
 }
 
-ImportSettings* AssetDatabase::GetImportSettings(const std::string& relativePath)
+ImportSettings* AssetDatabase::GetImportSettings(const gx::String& relativePath)
 {
-    std::string normalizedRel = NormalizePath(relativePath);
+    gx::String normalizedRel = NormalizePath(relativePath);
 
     // 相対パスで検索
     for (auto& [key, entry] : m_entries)
@@ -377,8 +409,8 @@ ImportSettings* AssetDatabase::GetImportSettings(const std::string& relativePath
     return nullptr;
 }
 
-void AssetDatabase::SetImportSetting(const std::string& relativePath,
-                                      const std::string& key, const std::string& value)
+void AssetDatabase::SetImportSetting(const gx::String& relativePath,
+                                      const gx::String& key, const gx::String& value)
 {
     ImportSettings* settings = GetImportSettings(relativePath);
     if (settings)
@@ -392,9 +424,9 @@ void AssetDatabase::SetImportSetting(const std::string& relativePath,
     }
 }
 
-bool AssetDatabase::SaveMetadata(const std::string& filePath) const
+bool AssetDatabase::SaveMetadata(const gx::String& filePath) const
 {
-    std::ofstream file(filePath);
+    std::ofstream file(filePath.c_str());
     if (!file.is_open())
     {
         Logger::Error("AssetDatabase::SaveMetadata: failed to open '%s' for writing",
@@ -405,7 +437,7 @@ bool AssetDatabase::SaveMetadata(const std::string& filePath) const
     // フォーマット: 設定ごとに1行 — "relativePath:key=value"
     for (const auto& [entryKey, entry] : m_entries)
     {
-        const std::string& assetPath = entry.relativePath.empty() ? entry.path : entry.relativePath;
+        const gx::String& assetPath = entry.relativePath.empty() ? entry.path : entry.relativePath;
 
         for (const auto& [settingKey, settingValue] : entry.importSettings.values)
         {
@@ -416,9 +448,9 @@ bool AssetDatabase::SaveMetadata(const std::string& filePath) const
     return true;
 }
 
-bool AssetDatabase::LoadMetadata(const std::string& filePath)
+bool AssetDatabase::LoadMetadata(const gx::String& filePath)
 {
-    std::ifstream file(filePath);
+    std::ifstream file(filePath.c_str());
     if (!file.is_open())
     {
         Logger::Warn("AssetDatabase::LoadMetadata: failed to open '%s' for reading",
@@ -426,26 +458,26 @@ bool AssetDatabase::LoadMetadata(const std::string& filePath)
         return false;
     }
 
-    std::string line;
-    while (std::getline(file, line))
+    gx::String line;
+    while (gx::container::getline(file, line))
     {
         if (line.empty())
             continue;
 
         // "path:key=value" をパース
         auto colonPos = line.find(':');
-        if (colonPos == std::string::npos)
+        if (colonPos == gx::String::npos)
             continue;
 
-        std::string assetPath = line.substr(0, colonPos);
-        std::string remainder = line.substr(colonPos + 1);
+        gx::String assetPath = line.substr(0, colonPos);
+        gx::String remainder = line.substr(colonPos + 1);
 
         auto equalsPos = remainder.find('=');
-        if (equalsPos == std::string::npos)
+        if (equalsPos == gx::String::npos)
             continue;
 
-        std::string key = remainder.substr(0, equalsPos);
-        std::string value = remainder.substr(equalsPos + 1);
+        gx::String key = remainder.substr(0, equalsPos);
+        gx::String value = remainder.substr(equalsPos + 1);
 
         // アセットを検索して設定を適用
         ImportSettings* settings = GetImportSettings(assetPath);
@@ -458,9 +490,110 @@ bool AssetDatabase::LoadMetadata(const std::string& filePath)
     return true;
 }
 
+// ============================================================================
+// GUID 関連
+// ============================================================================
+
+const AssetEntry* AssetDatabase::FindByGUID(const GUID& guid) const
+{
+    auto it = m_guidToPath.find(guid);
+    if (it == m_guidToPath.end())
+        return nullptr;
+
+    // 相対パスからエントリを検索
+    return FindAsset(it->second);
+}
+
+GUID AssetDatabase::GetOrCreateGUID(const gx::String& relativePath)
+{
+    gx::String normalizedRel = NormalizePath(relativePath);
+
+    // 既にGUIDが割り当て済みか確認
+    for (auto& [key, entry] : m_entries)
+    {
+        if (entry.relativePath == normalizedRel)
+        {
+            if (entry.guid.IsValid())
+                return entry.guid;
+
+            // GUIDが未設定の場合は生成
+            entry.guid = GUID::Generate();
+            m_guidToPath[entry.guid] = normalizedRel;
+
+            // .meta ファイルにも書き出し
+            if (!m_lastRootDirectory.empty())
+            {
+                gx::String fullPath = entry.fullPath;
+                gx::String metaPath = AssetMeta::GetMetaPath(fullPath);
+                AssetMetaData metaData;
+                metaData.guid = entry.guid;
+                AssetMeta::Save(metaPath, metaData);
+            }
+
+            return entry.guid;
+        }
+    }
+
+    return GUID{};
+}
+
+bool AssetDatabase::OnAssetMoved(const gx::String& oldRelativePath, const gx::String& newRelativePath)
+{
+    gx::String oldNorm = NormalizePath(oldRelativePath);
+    gx::String newNorm = NormalizePath(newRelativePath);
+
+    // 旧パスのエントリを探す
+    gx::String oldKey;
+    GUID movedGuid;
+    AssetEntry movedEntry;
+
+    for (auto& [key, entry] : m_entries)
+    {
+        if (entry.relativePath == oldNorm)
+        {
+            oldKey = key;
+            movedGuid = entry.guid;
+            movedEntry = entry;
+            break;
+        }
+    }
+
+    if (oldKey.empty())
+        return false;
+
+    // 旧エントリを削除
+    m_entries.erase(oldKey);
+
+    // 新パスで再登録（GUIDは維持）
+    movedEntry.relativePath = newNorm;
+    movedEntry.name = gx::String(
+        std::filesystem::path(newNorm.c_str()).filename().string().c_str());
+
+    // fullPathを更新
+    if (!m_lastRootDirectory.empty())
+    {
+        std::filesystem::path newFullPath =
+            std::filesystem::path(m_lastRootDirectory.c_str()) / newNorm.c_str();
+        movedEntry.path = NormalizePath(gx::String(newFullPath.string().c_str()));
+        movedEntry.fullPath = movedEntry.path;
+    }
+
+    // GUID逆引きマップ更新
+    if (movedGuid.IsValid())
+    {
+        m_guidToPath[movedGuid] = newNorm;
+    }
+
+    gx::String newKey = movedEntry.path;
+    m_entries[newKey] = std::move(movedEntry);
+
+    return true;
+}
+
 void AssetDatabase::Shutdown()
 {
     m_entries.clear();
+    m_guidToPath.clear();
     m_lastRootDirectory.clear();
     m_lastRecursive = true;
 }

@@ -2,6 +2,7 @@
 /// @brief ブレンドスタックの実装
 #include "pch_graphics.h"
 #include "Graphics/3D/BlendStack.h"
+#include "Math/MathConvert.h"
 
 namespace gx
 {
@@ -110,9 +111,9 @@ void BlendStack::Update(float deltaTime, uint32_t jointCount,
                 outPose[j].translation.y += (m_tempPose[j].translation.y - outPose[j].translation.y) * w;
                 outPose[j].translation.z += (m_tempPose[j].translation.z - outPose[j].translation.z) * w;
 
-                XMVECTOR qCur = XMLoadFloat4(&outPose[j].rotation);
-                XMVECTOR qLayer = XMLoadFloat4(&m_tempPose[j].rotation);
-                XMStoreFloat4(&outPose[j].rotation, XMQuaternionSlerp(qCur, qLayer, w));
+                XMVECTOR qCur = XMLoadFloat4(XM(&outPose[j].rotation));
+                XMVECTOR qLayer = XMLoadFloat4(XM(&m_tempPose[j].rotation));
+                XMStoreFloat4(XM(&outPose[j].rotation), XMQuaternionSlerp(qCur, qLayer, w));
 
                 outPose[j].scale.x += (m_tempPose[j].scale.x - outPose[j].scale.x) * w;
                 outPose[j].scale.y += (m_tempPose[j].scale.y - outPose[j].scale.y) * w;
@@ -128,13 +129,13 @@ void BlendStack::Update(float deltaTime, uint32_t jointCount,
                 outPose[j].translation.z += (m_tempPose[j].translation.z - base.translation.z) * w;
 
                 // 加算回転: delta = inverse(baseQ) * layerQ, result = curQ * slerp(identity, delta, w)
-                XMVECTOR baseQ = XMLoadFloat4(&base.rotation);
-                XMVECTOR layerQ = XMLoadFloat4(&m_tempPose[j].rotation);
+                XMVECTOR baseQ = XMLoadFloat4(XM(&base.rotation));
+                XMVECTOR layerQ = XMLoadFloat4(XM(&m_tempPose[j].rotation));
                 XMVECTOR deltaQ = XMQuaternionMultiply(XMQuaternionInverse(baseQ), layerQ);
                 XMVECTOR identity = XMQuaternionIdentity();
                 XMVECTOR weightedDelta = XMQuaternionSlerp(identity, deltaQ, w);
-                XMVECTOR curQ = XMLoadFloat4(&outPose[j].rotation);
-                XMStoreFloat4(&outPose[j].rotation,
+                XMVECTOR curQ = XMLoadFloat4(XM(&outPose[j].rotation));
+                XMStoreFloat4(XM(&outPose[j].rotation),
                     XMQuaternionNormalize(XMQuaternionMultiply(curQ, weightedDelta)));
 
                 outPose[j].scale.x += (m_tempPose[j].scale.x - base.scale.x) * w;

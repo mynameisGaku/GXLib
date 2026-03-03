@@ -185,7 +185,7 @@ void LightingPanel::DrawContent(gx::Renderer3D& renderer)
     // Apply button
     if (ImGui::Button("Apply Lights") || m_dirty)
     {
-        XMFLOAT3 ambient = { m_ambientColor[0], m_ambientColor[1], m_ambientColor[2] };
+        gx::Vector3 ambient = { m_ambientColor[0], m_ambientColor[1], m_ambientColor[2] };
         if (!m_lights.empty())
         {
             renderer.SetLights(m_lights.data(), static_cast<uint32_t>(m_lights.size()), ambient);

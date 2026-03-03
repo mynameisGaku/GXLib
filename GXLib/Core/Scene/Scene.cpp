@@ -8,14 +8,14 @@
 namespace gx
 {
 
-Scene::Scene(const std::string& name)
+Scene::Scene(const gx::String& name)
     : m_name(name)
 {
 }
 
 Scene::~Scene() = default;
 
-Entity* Scene::CreateEntity(const std::string& name)
+Entity* Scene::CreateEntity(const gx::String& name)
 {
     auto entity = std::make_unique<Entity>(name);
     entity->SetID(m_nextEntityID++);
@@ -31,7 +31,7 @@ void Scene::DestroyEntity(Entity* entity)
     m_pendingDestroy.push_back(entity);
 }
 
-Entity* Scene::FindEntity(const std::string& name) const
+Entity* Scene::FindEntity(const gx::String& name) const
 {
     for (const auto& entity : m_entities)
     {

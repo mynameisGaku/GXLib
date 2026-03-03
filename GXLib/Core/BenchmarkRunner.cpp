@@ -12,7 +12,7 @@
 namespace gx
 {
 
-void BenchmarkRunner::Register(const std::string& name, std::function<void()> fn,
+void BenchmarkRunner::Register(const gx::String& name, std::function<void()> fn,
                                 const BenchmarkConfig& config)
 {
     BenchmarkEntry entry;
@@ -31,7 +31,7 @@ void BenchmarkRunner::RunAll()
     }
 }
 
-bool BenchmarkRunner::Run(const std::string& name)
+bool BenchmarkRunner::Run(const gx::String& name)
 {
     for (auto& entry : m_benchmarks)
     {
@@ -44,7 +44,7 @@ bool BenchmarkRunner::Run(const std::string& name)
     return false;
 }
 
-const BenchmarkResult* BenchmarkRunner::FindResult(const std::string& name) const
+const BenchmarkResult* BenchmarkRunner::FindResult(const gx::String& name) const
 {
     for (const auto& result : m_results)
     {
@@ -54,7 +54,7 @@ const BenchmarkResult* BenchmarkRunner::FindResult(const std::string& name) cons
     return nullptr;
 }
 
-std::string BenchmarkRunner::GenerateReport() const
+gx::String BenchmarkRunner::GenerateReport() const
 {
     std::ostringstream oss;
 
@@ -89,25 +89,27 @@ std::string BenchmarkRunner::GenerateReport() const
     return oss.str();
 }
 
-bool BenchmarkRunner::LoadBaseline(const std::string& filePath)
+bool BenchmarkRunner::LoadBaseline(const gx::String& filePath)
 {
-    std::ifstream file(filePath);
+    std::ifstream file(filePath.c_str());
     if (!file.is_open())
         return false;
 
     m_baselines.clear();
 
-    std::string line;
-    while (std::getline(file, line))
+    gx::String line;
+    while (gx::container::getline(file, line))
     {
         if (line.empty() || line[0] == '#')
             continue;
 
         // "name avg_us" をパース
-        std::istringstream iss(line);
+        std::istringstream iss(line.ToStdString());
         BenchmarkBaseline baseline;
-        if (iss >> baseline.name >> baseline.avgMicroseconds)
+        std::string nameStr;
+        if (iss >> nameStr >> baseline.avgMicroseconds)
         {
+            baseline.name = gx::String(nameStr);
             m_baselines.push_back(baseline);
         }
     }
@@ -115,9 +117,9 @@ bool BenchmarkRunner::LoadBaseline(const std::string& filePath)
     return true;
 }
 
-bool BenchmarkRunner::SaveBaseline(const std::string& filePath) const
+bool BenchmarkRunner::SaveBaseline(const gx::String& filePath) const
 {
-    std::ofstream file(filePath);
+    std::ofstream file(filePath.c_str());
     if (!file.is_open())
         return false;
 
@@ -168,7 +170,7 @@ void BenchmarkRunner::Clear()
     m_baselines.clear();
 }
 
-BenchmarkResult BenchmarkRunner::RunSingle(const std::string& name,
+BenchmarkResult BenchmarkRunner::RunSingle(const gx::String& name,
                                             std::function<void()>& fn,
                                             const BenchmarkConfig& config)
 {
@@ -182,7 +184,7 @@ BenchmarkResult BenchmarkRunner::RunSingle(const std::string& name,
     }
 
     // 全繰り返しの計測時間を収集
-    std::vector<double> durations;
+    gx::Vector<double> durations;
     int totalIterations = config.measureIterations * config.repeatCount;
     durations.reserve(totalIterations);
 

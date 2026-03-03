@@ -133,7 +133,7 @@ TEST(AnimationEventDispatcher, GlobalHandler_ReceivesAllEvents)
     AnimationClip clip = CreateClipWithEvents();
 
     int globalCount = 0;
-    std::vector<std::string> receivedNames;
+    gx::Vector<gx::String> receivedNames;
     dispatcher.RegisterGlobalHandler([&](const AnimationEvent& e) {
         globalCount++;
         receivedNames.push_back(e.name);

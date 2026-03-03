@@ -71,7 +71,7 @@ bool ShaderRegistry::CompileAndCreatePSO(ID3D12Device* device, gxfmt::ShaderMode
     auto psBlob = m_shaderCompiler.CompileFromFile(path, L"PSMain", L"ps_6_0");
 
     // Skinned variant
-    std::vector<std::pair<std::wstring, std::wstring>> skinnedDefines = { { L"SKINNED", L"1" } };
+    gx::Vector<std::pair<gx::WString, gx::WString>> skinnedDefines = { { L"SKINNED", L"1" } };
     auto vsSkinned = m_shaderCompiler.CompileFromFile(path, L"VSMain", L"vs_6_0", skinnedDefines);
     auto psSkinned = m_shaderCompiler.CompileFromFile(path, L"PSMain", L"ps_6_0", skinnedDefines);
 
@@ -124,7 +124,7 @@ bool ShaderRegistry::CompileToonOutlinePSO(ID3D12Device* device)
     auto psBlob = m_shaderCompiler.CompileFromFile(path, L"PSMain_Outline", L"ps_6_0");
 
     // --- Skinned variant ---
-    std::vector<std::pair<std::wstring, std::wstring>> skinnedDefines = { { L"SKINNED", L"1" } };
+    gx::Vector<std::pair<gx::WString, gx::WString>> skinnedDefines = { { L"SKINNED", L"1" } };
     auto vsSkinned = m_shaderCompiler.CompileFromFile(path, L"VSMain_Outline", L"vs_6_0", skinnedDefines);
     auto psSkinned = m_shaderCompiler.CompileFromFile(path, L"PSMain_Outline", L"ps_6_0", skinnedDefines);
 

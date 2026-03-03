@@ -9,7 +9,7 @@ namespace gx { namespace GUI {
 // LoadFromFile（ファイル読み込み）
 // ============================================================================
 
-bool XMLDocument::LoadFromFile(const std::string& path)
+bool XMLDocument::LoadFromFile(const gx::String& path)
 {
     auto fileData = gx::FileSystem::Instance().ReadFile(path);
     if (!fileData.IsValid())
@@ -21,8 +21,8 @@ bool XMLDocument::LoadFromFile(const std::string& path)
             GX_LOG_ERROR("XMLDocument: Failed to open file: %s", path.c_str());
             return false;
         }
-        std::string source((std::istreambuf_iterator<char>(file)),
-                            std::istreambuf_iterator<char>());
+        gx::String source(std::string((std::istreambuf_iterator<char>(file)),
+                                       std::istreambuf_iterator<char>()));
         return LoadFromString(source);
     }
     return LoadFromString(fileData.AsString());
@@ -32,7 +32,7 @@ bool XMLDocument::LoadFromFile(const std::string& path)
 // LoadFromString（文字列読み込み）
 // ============================================================================
 
-bool XMLDocument::LoadFromString(const std::string& source)
+bool XMLDocument::LoadFromString(const gx::String& source)
 {
     ParseContext ctx{ source, 0 };
 
@@ -164,7 +164,7 @@ std::unique_ptr<XMLNode> XMLDocument::ParseNode(ParseContext& ctx)
         ctx.source[ctx.pos] == '<' && ctx.source[ctx.pos + 1] == '/')
     {
         ctx.pos += 2; // skip '</'
-        std::string closeTag = ParseTagName(ctx);
+        gx::String closeTag = ParseTagName(ctx);
         if (closeTag != node->tag)
         {
             GX_LOG_ERROR("XMLDocument: Mismatched tags: expected </%s>, got </%s> at position %zu",
@@ -182,7 +182,7 @@ std::unique_ptr<XMLNode> XMLDocument::ParseNode(ParseContext& ctx)
 // ParseTagName（タグ名解析）
 // ============================================================================
 
-std::string XMLDocument::ParseTagName(ParseContext& ctx)
+gx::String XMLDocument::ParseTagName(ParseContext& ctx)
 {
     size_t start = ctx.pos;
     while (ctx.pos < ctx.source.size() &&
@@ -199,7 +199,7 @@ std::string XMLDocument::ParseTagName(ParseContext& ctx)
 // ============================================================================
 
 void XMLDocument::ParseAttributes(ParseContext& ctx,
-                                   std::unordered_map<std::string, std::string>& attrs)
+                                   gx::HashMap<gx::String, gx::String>& attrs)
 {
     while (ctx.pos < ctx.source.size())
     {
@@ -210,7 +210,7 @@ void XMLDocument::ParseAttributes(ParseContext& ctx,
             break;
 
         // 属性名
-        std::string name = ParseTagName(ctx);
+        gx::String name = ParseTagName(ctx);
         if (name.empty()) break;
 
         SkipWhitespace(ctx);
@@ -220,7 +220,7 @@ void XMLDocument::ParseAttributes(ParseContext& ctx,
         {
             ++ctx.pos;
             SkipWhitespace(ctx);
-            std::string value = ParseAttributeValue(ctx);
+            gx::String value = ParseAttributeValue(ctx);
             attrs[name] = DecodeEntities(value);
         }
         else
@@ -235,7 +235,7 @@ void XMLDocument::ParseAttributes(ParseContext& ctx,
 // ParseAttributeValue（属性値解析）
 // ============================================================================
 
-std::string XMLDocument::ParseAttributeValue(ParseContext& ctx)
+gx::String XMLDocument::ParseAttributeValue(ParseContext& ctx)
 {
     if (ctx.pos >= ctx.source.size())
         return "";
@@ -247,7 +247,7 @@ std::string XMLDocument::ParseAttributeValue(ParseContext& ctx)
         size_t start = ctx.pos;
         while (ctx.pos < ctx.source.size() && ctx.source[ctx.pos] != quote)
             ++ctx.pos;
-        std::string value = ctx.source.substr(start, ctx.pos - start);
+        gx::String value = ctx.source.substr(start, ctx.pos - start);
         if (ctx.pos < ctx.source.size())
             ++ctx.pos; // skip closing quote
         return value;
@@ -268,17 +268,17 @@ std::string XMLDocument::ParseAttributeValue(ParseContext& ctx)
 // ParseTextContent（テキスト内容解析）
 // ============================================================================
 
-std::string XMLDocument::ParseTextContent(ParseContext& ctx)
+gx::String XMLDocument::ParseTextContent(ParseContext& ctx)
 {
     size_t start = ctx.pos;
     while (ctx.pos < ctx.source.size() && ctx.source[ctx.pos] != '<')
         ++ctx.pos;
 
-    std::string text = ctx.source.substr(start, ctx.pos - start);
+    gx::String text = ctx.source.substr(start, ctx.pos - start);
 
     // 前後の空白をトリム
     size_t begin = text.find_first_not_of(" \t\r\n");
-    if (begin == std::string::npos) return "";
+    if (begin == gx::String::npos) return "";
     size_t end = text.find_last_not_of(" \t\r\n");
     return text.substr(begin, end - begin + 1);
 }
@@ -349,9 +349,9 @@ void XMLDocument::SkipXMLDeclaration(ParseContext& ctx)
 // DecodeEntities（エンティティ復号）
 // ============================================================================
 
-std::string XMLDocument::DecodeEntities(const std::string& text)
+gx::String XMLDocument::DecodeEntities(const gx::String& text)
 {
-    std::string result;
+    gx::String result;
     result.reserve(text.size());
 
     size_t i = 0;

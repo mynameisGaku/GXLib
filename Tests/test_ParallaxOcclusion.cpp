@@ -45,7 +45,7 @@ TEST(ParallaxOcclusionTest, MaterialConstantsFlags)
 TEST(ParallaxOcclusionTest, MaterialConstantsDefaults)
 {
     Material mat;
-    EXPECT_NEAR(mat.constants.albedoFactor.x, 1.0f, kEps);
+    EXPECT_NEAR(mat.constants.albedoFactor.r, 1.0f, kEps);
     EXPECT_NEAR(mat.constants.metallicFactor, 0.0f, kEps);
     EXPECT_NEAR(mat.constants.roughnessFactor, 0.5f, kEps);
     EXPECT_NEAR(mat.constants.aoStrength, 1.0f, kEps);

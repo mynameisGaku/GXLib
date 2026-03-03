@@ -2,6 +2,7 @@
 /// @brief パーティクルエミッターの実装
 #include "pch_graphics.h"
 #include "Graphics/3D/ParticleEmitter.h"
+#include "Math/MathConvert.h"
 
 namespace gx
 {
@@ -119,7 +120,7 @@ void ParticleEmitter::SpawnParticle()
     {
         p.position = m_position;
         // 方向ベクトル周りにランダム分散
-        XMFLOAT3 dir = {
+        Vector3 dir = {
             m_direction.x + distNeg1to1(m_rng) * 0.5f,
             m_direction.y + distNeg1to1(m_rng) * 0.5f,
             m_direction.z + distNeg1to1(m_rng) * 0.5f
@@ -138,7 +139,7 @@ void ParticleEmitter::SpawnParticle()
         float theta = dist01(m_rng) * XM_2PI;
         float phi = std::acos(distNeg1to1(m_rng));
         float sinPhi = std::sin(phi);
-        XMFLOAT3 dir = {
+        Vector3 dir = {
             sinPhi * std::cos(theta),
             sinPhi * std::sin(theta),
             std::cos(phi)
@@ -161,12 +162,12 @@ void ParticleEmitter::SpawnParticle()
         float z = cosHalf + dist01(m_rng) * (1.0f - cosHalf);
         float r2 = std::sqrt(1.0f - z * z);
         float phi = dist01(m_rng) * XM_2PI;
-        XMFLOAT3 localDir = { r2 * std::cos(phi), r2 * std::sin(phi), z };
+        Vector3 localDir = { r2 * std::cos(phi), r2 * std::sin(phi), z };
 
         // ローカル方向をm_directionに回転する
         // 簡易版: m_directionがY+の場合はそのまま使用
         XMVECTOR up = XMVectorSet(0, 1, 0, 0);
-        XMVECTOR dir = XMLoadFloat3(&m_direction);
+        XMVECTOR dir = XMLoadFloat3(XM(&m_direction));
         XMVECTOR axis = XMVector3Cross(up, dir);
         float dot = XMVectorGetX(XMVector3Dot(up, dir));
         if (XMVectorGetX(XMVector3Length(axis)) < 0.001f)
@@ -182,10 +183,10 @@ void ParticleEmitter::SpawnParticle()
         {
             float angle = std::acos(std::max(-1.0f, std::min(1.0f, dot)));
             XMMATRIX rot = XMMatrixRotationAxis(axis, angle);
-            XMVECTOR ldir = XMLoadFloat3(&localDir);
+            XMVECTOR ldir = XMLoadFloat3(XM(&localDir));
             XMVECTOR wdir = XMVector3TransformNormal(ldir, rot);
-            XMFLOAT3 wdirF;
-            XMStoreFloat3(&wdirF, wdir);
+            Vector3 wdirF;
+            XMStoreFloat3(XM(&wdirF), wdir);
             p.velocity = { wdirF.x * speed, wdirF.y * speed, wdirF.z * speed };
         }
         break;
@@ -197,7 +198,7 @@ void ParticleEmitter::SpawnParticle()
             m_position.y + distNeg1to1(m_rng) * m_config.boxHalfExtents.y,
             m_position.z + distNeg1to1(m_rng) * m_config.boxHalfExtents.z
         };
-        XMFLOAT3 dir = {
+        Vector3 dir = {
             m_direction.x + distNeg1to1(m_rng) * 0.3f,
             m_direction.y + distNeg1to1(m_rng) * 0.3f,
             m_direction.z + distNeg1to1(m_rng) * 0.3f

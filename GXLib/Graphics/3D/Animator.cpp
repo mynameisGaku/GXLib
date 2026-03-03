@@ -39,9 +39,9 @@ void Animator::EvaluateBindPose()
     for (uint32_t i = 0; i < jointCount; ++i)
     {
         XMMATRIX S = XMMatrixScaling(m_localPose[i].scale.x, m_localPose[i].scale.y, m_localPose[i].scale.z);
-        XMMATRIX R = XMMatrixRotationQuaternion(XMLoadFloat4(&m_localPose[i].rotation));
+        XMMATRIX R = XMMatrixRotationQuaternion(XMLoadFloat4(XM(&m_localPose[i].rotation)));
         XMMATRIX T = XMMatrixTranslation(m_localPose[i].translation.x, m_localPose[i].translation.y, m_localPose[i].translation.z);
-        XMStoreFloat4x4(&m_localTransforms[i], S * R * T);
+        XMStoreFloat4x4(XM(&m_localTransforms[i]), S * R * T);
     }
 
     m_skeleton->ComputeGlobalTransforms(m_localTransforms.data(), m_globalTransforms.data());
@@ -75,9 +75,9 @@ void Animator::SetCurrentTime(float time)
     for (uint32_t i = 0; i < jointCount; ++i)
     {
         XMMATRIX S = XMMatrixScaling(m_localPose[i].scale.x, m_localPose[i].scale.y, m_localPose[i].scale.z);
-        XMMATRIX R = XMMatrixRotationQuaternion(XMLoadFloat4(&m_localPose[i].rotation));
+        XMMATRIX R = XMMatrixRotationQuaternion(XMLoadFloat4(XM(&m_localPose[i].rotation)));
         XMMATRIX T = XMMatrixTranslation(m_localPose[i].translation.x, m_localPose[i].translation.y, m_localPose[i].translation.z);
-        XMStoreFloat4x4(&m_localTransforms[i], S * R * T);
+        XMStoreFloat4x4(XM(&m_localTransforms[i]), S * R * T);
     }
 
     m_skeleton->ComputeGlobalTransforms(m_localTransforms.data(), m_globalTransforms.data());
@@ -170,7 +170,7 @@ void Animator::AdvanceClip(ClipState& state, float deltaTime)
     }
 }
 
-void Animator::SampleClip(const ClipState& state, std::vector<TransformTRS>& outPose)
+void Animator::SampleClip(const ClipState& state, gx::Vector<TransformTRS>& outPose)
 {
     if (!m_skeleton) return;
 
@@ -190,10 +190,10 @@ void Animator::SampleClip(const ClipState& state, std::vector<TransformTRS>& out
         state.clip->SampleTRS(state.time, jointCount, outPose.data(), nullptr);
 }
 
-void Animator::BlendPoses(const std::vector<TransformTRS>& a,
-                          const std::vector<TransformTRS>& b,
+void Animator::BlendPoses(const gx::Vector<TransformTRS>& a,
+                          const gx::Vector<TransformTRS>& b,
                           float t,
-                          std::vector<TransformTRS>& outPose)
+                          gx::Vector<TransformTRS>& outPose)
 {
     const uint32_t count = static_cast<uint32_t>(outPose.size());
     for (uint32_t i = 0; i < count; ++i)
@@ -205,10 +205,10 @@ void Animator::BlendPoses(const std::vector<TransformTRS>& a,
             a[i].translation.z + (b[i].translation.z - a[i].translation.z) * t
         };
 
-        XMVECTOR qa = XMLoadFloat4(&a[i].rotation);
-        XMVECTOR qb = XMLoadFloat4(&b[i].rotation);
-        XMFLOAT4 rot;
-        XMStoreFloat4(&rot, XMQuaternionSlerp(qa, qb, t));
+        XMVECTOR qa = XMLoadFloat4(XM(&a[i].rotation));
+        XMVECTOR qb = XMLoadFloat4(XM(&b[i].rotation));
+        Quaternion rot;
+        XMStoreFloat4(XM(&rot), XMQuaternionSlerp(qa, qb, t));
         out.rotation = rot;
 
         out.scale = {
@@ -300,8 +300,8 @@ void Animator::Update(float deltaTime)
     // ルートモーション抽出（差分を計算してルートボーンを固定）
     if (m_rootMotionEnabled && jointCount > 0 && !m_bindPose.empty())
     {
-        const XMFLOAT3& curPos = m_localPose[0].translation;
-        const XMFLOAT4& curRot = m_localPose[0].rotation;
+        const Vector3& curPos = m_localPose[0].translation;
+        const Quaternion& curRot = m_localPose[0].rotation;
 
         m_rootMotionDelta = {
             curPos.x - m_prevRootPosition.x,
@@ -310,10 +310,10 @@ void Animator::Update(float deltaTime)
         };
 
         // 回転差分: delta = cur * inverse(prev)
-        XMVECTOR qCur  = XMLoadFloat4(&curRot);
-        XMVECTOR qPrev = XMLoadFloat4(&m_prevRootRotation);
+        XMVECTOR qCur  = XMLoadFloat4(XM(&curRot));
+        XMVECTOR qPrev = XMLoadFloat4(XM(&m_prevRootRotation));
         XMVECTOR qDelta = XMQuaternionMultiply(qCur, XMQuaternionInverse(qPrev));
-        XMStoreFloat4(&m_rootMotionRotDelta, XMQuaternionNormalize(qDelta));
+        XMStoreFloat4(XM(&m_rootMotionRotDelta), XMQuaternionNormalize(qDelta));
 
         m_prevRootPosition = curPos;
         m_prevRootRotation = curRot;
@@ -340,9 +340,9 @@ void Animator::Update(float deltaTime)
     for (uint32_t i = 0; i < jointCount; ++i)
     {
         XMMATRIX S = XMMatrixScaling(m_localPose[i].scale.x, m_localPose[i].scale.y, m_localPose[i].scale.z);
-        XMMATRIX R = XMMatrixRotationQuaternion(XMLoadFloat4(&m_localPose[i].rotation));
+        XMMATRIX R = XMMatrixRotationQuaternion(XMLoadFloat4(XM(&m_localPose[i].rotation)));
         XMMATRIX T = XMMatrixTranslation(m_localPose[i].translation.x, m_localPose[i].translation.y, m_localPose[i].translation.z);
-        XMStoreFloat4x4(&m_localTransforms[i], S * R * T);
+        XMStoreFloat4x4(XM(&m_localTransforms[i]), S * R * T);
     }
 
     // ローカル→グローバル変換

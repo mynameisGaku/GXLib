@@ -5,6 +5,7 @@
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
+#include "Math/MathConvert.h"
 #include "Core/Logger.h"
 
 namespace gx
@@ -99,7 +100,7 @@ bool TrailRenderer::CreatePipelineState(ID3D12Device* device)
     return m_pso != nullptr;
 }
 
-void TrailRenderer::AddPoint(const XMFLOAT3& position, const XMFLOAT3& up,
+void TrailRenderer::AddPoint(const Vector3& position, const Vector3& up,
                               float width, const Color& color)
 {
     TrailPoint& pt = m_points[m_head];
@@ -131,7 +132,7 @@ void TrailRenderer::Update(float deltaTime)
     }
 }
 
-void TrailRenderer::BuildVertices(std::vector<TrailVertex>& outVerts) const
+void TrailRenderer::BuildVertices(gx::Vector<TrailVertex>& outVerts) const
 {
     if (m_pointCount < 2)
         return;
@@ -157,17 +158,17 @@ void TrailRenderer::BuildVertices(std::vector<TrailVertex>& outVerts) const
                     : 0.0f;
 
         // カラー（フェード適用）
-        XMFLOAT4 col = { pt.color.r, pt.color.g, pt.color.b, pt.color.a };
+        Color col = { pt.color.r, pt.color.g, pt.color.b, pt.color.a };
         if (fadeWithAge)
-            col.w *= (1.0f - normalizedAge);
+            col.a *= (1.0f - normalizedAge);
 
         // 幅方向のオフセット: position ± up * width
-        XMVECTOR vPos = XMLoadFloat3(&pt.position);
-        XMVECTOR vUp  = XMLoadFloat3(&pt.up);
+        XMVECTOR vPos = XMLoadFloat3(XM(&pt.position));
+        XMVECTOR vUp  = XMLoadFloat3(XM(&pt.up));
 
-        XMFLOAT3 leftPos, rightPos;
-        XMStoreFloat3(&leftPos,  XMVectorAdd(vPos, XMVectorScale(vUp, pt.width)));
-        XMStoreFloat3(&rightPos, XMVectorSubtract(vPos, XMVectorScale(vUp, pt.width)));
+        Vector3 leftPos, rightPos;
+        XMStoreFloat3(XM(&leftPos),  XMVectorAdd(vPos, XMVectorScale(vUp, pt.width)));
+        XMStoreFloat3(XM(&rightPos), XMVectorSubtract(vPos, XMVectorScale(vUp, pt.width)));
 
         // 左頂点 (u=0)
         TrailVertex leftVert;
@@ -193,7 +194,7 @@ void TrailRenderer::Draw(ID3D12GraphicsCommandList* cmdList,
         return;
 
     // 頂点を構築
-    std::vector<TrailVertex> vertices;
+    gx::Vector<TrailVertex> vertices;
     BuildVertices(vertices);
 
     if (vertices.size() < 4)
@@ -213,7 +214,7 @@ void TrailRenderer::Draw(ID3D12GraphicsCommandList* cmdList,
     void* cbData = m_constantBuffer.Map(frameIndex);
     if (cbData)
     {
-        XMMATRIX vp = camera.GetViewProjectionMatrix();
+        XMMATRIX vp = ToXMMATRIX(camera.GetViewProjectionMatrix());
         memcpy(cbData, &vp, sizeof(XMMATRIX));
         m_constantBuffer.Unmap(frameIndex);
     }

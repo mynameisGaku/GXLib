@@ -5,6 +5,7 @@
 /// DoF/MotionBlurと同じ 2-SRV 専用ヒープパターンを使用。
 #include "pch_graphics.h"
 #include "Graphics/PostEffect/SSR.h"
+#include "Math/MathConvert.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
@@ -171,14 +172,14 @@ void SSR::Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
     cmdList->SetDescriptorHeaps(1, heaps);
 
     // 定数バッファ更新
-    XMMATRIX proj = camera.GetProjectionMatrix();
+    XMMATRIX proj = ToXMMATRIX(camera.GetProjectionMatrix());
     XMMATRIX invProj = XMMatrixInverse(nullptr, proj);
-    XMMATRIX viewMat = camera.GetViewMatrix();
+    XMMATRIX viewMat = ToXMMATRIX(camera.GetViewMatrix());
 
     SSRConstants constants = {};
-    XMStoreFloat4x4(&constants.projection, XMMatrixTranspose(proj));
-    XMStoreFloat4x4(&constants.invProjection, XMMatrixTranspose(invProj));
-    XMStoreFloat4x4(&constants.view, XMMatrixTranspose(viewMat));
+    XMStoreFloat4x4(XM(&constants.projection), XMMatrixTranspose(proj));
+    XMStoreFloat4x4(XM(&constants.invProjection), XMMatrixTranspose(invProj));
+    XMStoreFloat4x4(XM(&constants.view), XMMatrixTranspose(viewMat));
     constants.maxDistance  = m_maxDistance;
     constants.stepSize    = m_stepSize;
     constants.maxSteps    = m_maxSteps;

@@ -196,7 +196,7 @@ TEST(DialogueGraphTest, SaveAndLoad)
     graph.AddLink(n0, n1, "next");
     graph.SetVariable("gold", 100);
 
-    std::string data = graph.Save();
+    gx::String data = graph.Save();
     EXPECT_FALSE(data.empty());
 
     DialogueGraph loaded;
@@ -222,7 +222,7 @@ TEST(DialogueGraphTest, Callback)
 {
     DialogueGraph graph;
     uint32_t n0 = graph.AddNode(DialogueNodeType::Text, "A", "Test");
-    std::string entered;
+    gx::String entered;
     graph.SetOnNodeEnter([&](const DialogueGraphNode& node) {
         entered = node.text;
     });

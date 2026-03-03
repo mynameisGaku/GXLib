@@ -2,6 +2,7 @@
 /// @brief 3Dパーティクルシステムの実装
 #include "pch_graphics.h"
 #include "Graphics/3D/ParticleSystem3D.h"
+#include "Math/MathConvert.h"
 #include "Graphics/Resource/TextureManager.h"
 #include "Graphics/Device/DescriptorHeap.h"
 #include "Core/Logger.h"
@@ -211,8 +212,8 @@ void ParticleSystem3D::Draw(ID3D12GraphicsCommandList* cmdList, const Camera3D& 
 
     // 1. 定数バッファを更新
     ParticleCB cb = {};
-    XMMATRIX vp = camera.GetViewProjectionMatrix();
-    XMStoreFloat4x4(&cb.viewProj, XMMatrixTranspose(vp));
+    XMMATRIX vp = ToXMMATRIX(camera.GetViewProjectionMatrix());
+    XMStoreFloat4x4(XM(&cb.viewProj), XMMatrixTranspose(vp));
     cb.cameraRight = camera.GetRight();
     cb.cameraUp = camera.GetUp();
 

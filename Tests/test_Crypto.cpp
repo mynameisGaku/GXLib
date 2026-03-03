@@ -10,7 +10,7 @@ using namespace gx;
 TEST(CryptoTest, AES256_EncryptDecrypt)
 {
     // テスト用データ
-    const std::string plaintext = "Hello, GXLib Crypto! This is a test message.";
+    const gx::String plaintext = "Hello, GXLib Crypto! This is a test message.";
     const auto* data = reinterpret_cast<const uint8_t*>(plaintext.data());
     size_t size = plaintext.size();
 
@@ -29,13 +29,13 @@ TEST(CryptoTest, AES256_EncryptDecrypt)
     EXPECT_EQ(decrypted.size(), size);
 
     // 復号結果が元と一致するか確認
-    std::string result(decrypted.begin(), decrypted.end());
+    gx::String result(reinterpret_cast<const char*>(decrypted.data()), decrypted.size());
     EXPECT_EQ(result, plaintext);
 }
 
 TEST(CryptoTest, AES256_WrongKey)
 {
-    const std::string plaintext = "Secret data";
+    const gx::String plaintext = "Secret data";
     const auto* data = reinterpret_cast<const uint8_t*>(plaintext.data());
 
     uint8_t key[32], wrongKey[32], iv[16];
@@ -49,7 +49,7 @@ TEST(CryptoTest, AES256_WrongKey)
     auto decrypted = Crypto::Decrypt(encrypted.data(), encrypted.size(), wrongKey, iv);
     if (!decrypted.empty())
     {
-        std::string result(decrypted.begin(), decrypted.end());
+        gx::String result(reinterpret_cast<const char*>(decrypted.data()), decrypted.size());
         EXPECT_NE(result, plaintext);
     }
 }
@@ -70,7 +70,7 @@ TEST(CryptoTest, SHA256_KnownHash)
 
 TEST(CryptoTest, SHA256_Deterministic)
 {
-    const std::string data = "test data for hashing";
+    const gx::String data = "test data for hashing";
     auto hash1 = Crypto::SHA256(data.data(), data.size());
     auto hash2 = Crypto::SHA256(data.data(), data.size());
 

@@ -83,7 +83,7 @@ uint32_t AsyncComputeScheduler::GetAsyncEnabledCount() const
     return count;
 }
 
-std::string AsyncComputeScheduler::GetTaskName(AsyncComputeTask task)
+gx::String AsyncComputeScheduler::GetTaskName(AsyncComputeTask task)
 {
     switch (task)
     {

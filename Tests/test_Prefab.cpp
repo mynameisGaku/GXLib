@@ -140,7 +140,7 @@ TEST(PrefabTest, SaveAndLoad_Roundtrip)
     ASSERT_TRUE(original.IsValid());
 
     // 一時ファイルに保存
-    std::string tmpPath = "test_prefab_tmp.json";
+    gx::String tmpPath = "test_prefab_tmp.json";
     ASSERT_TRUE(original.SaveToFile(tmpPath));
 
     // 再読み込み

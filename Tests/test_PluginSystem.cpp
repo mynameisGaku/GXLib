@@ -14,7 +14,7 @@ using namespace gx;
 class MockPlugin : public IPlugin
 {
 public:
-    MockPlugin(const std::string& name, int priority = 0)
+    MockPlugin(const gx::String& name, int priority = 0)
         : m_name(name), m_priority(priority) {}
 
     PluginInfo GetInfo() const override
@@ -50,7 +50,7 @@ public:
     float lastDeltaTime = 0.0f;
 
 private:
-    std::string m_name;
+    gx::String m_name;
     int         m_priority;
 };
 
@@ -328,11 +328,11 @@ TEST(PluginSystemTest, OnPluginLoadedCallback)
     PluginSystem system;
     system.Initialize();
 
-    std::string loadedName;
-    std::string unloadedName;
+    gx::String loadedName;
+    gx::String unloadedName;
 
-    system.OnPluginLoaded = [&](const std::string& name) { loadedName = name; };
-    system.OnPluginUnloaded = [&](const std::string& name) { unloadedName = name; };
+    system.OnPluginLoaded = [&](const gx::String& name) { loadedName = name; };
+    system.OnPluginUnloaded = [&](const gx::String& name) { unloadedName = name; };
 
     system.RegisterPlugin(std::make_unique<MockPlugin>("CallbackTest"));
     EXPECT_EQ(loadedName, "CallbackTest");

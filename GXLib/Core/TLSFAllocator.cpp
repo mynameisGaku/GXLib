@@ -151,12 +151,12 @@ size_t TLSFAllocator::GetLargestFreeBlock() const
     return largest;
 }
 
-std::vector<DefragMove> TLSFAllocator::ComputeDefragPlan() const
+gx::Vector<DefragMove> TLSFAllocator::ComputeDefragPlan() const
 {
-    std::vector<DefragMove> moves;
+    gx::Vector<DefragMove> moves;
 
     // Collect all allocated blocks sorted by offset
-    std::vector<TLSFBlock*> allocated;
+    gx::Vector<TLSFBlock*> allocated;
     for (const auto& b : m_blockStorage)
     {
         if (!b->free)

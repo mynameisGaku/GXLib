@@ -68,7 +68,7 @@ int StyleSelector::Specificity() const
     return s;
 }
 
-StyleSelector StyleSelector::Parse(const std::string& str)
+StyleSelector StyleSelector::Parse(const gx::String& str)
 {
     StyleSelector sel;
     size_t i = 0;
@@ -106,7 +106,7 @@ StyleSelector StyleSelector::Parse(const std::string& str)
     if (i < str.size() && str[i] == ':')
     {
         ++i;
-        std::string pseudo = str.substr(i);
+        gx::String pseudo = str.substr(i);
         if (pseudo == "hover")         sel.pseudo = PseudoClass::Hover;
         else if (pseudo == "pressed")  sel.pseudo = PseudoClass::Pressed;
         else if (pseudo == "disabled") sel.pseudo = PseudoClass::Disabled;
@@ -120,9 +120,9 @@ StyleSelector StyleSelector::Parse(const std::string& str)
 // トークナイザ
 // ============================================================================
 
-std::vector<StyleSheet::Token> StyleSheet::Tokenize(const std::string& source)
+gx::Vector<StyleSheet::Token> StyleSheet::Tokenize(const gx::String& source)
 {
-    std::vector<Token> tokens;
+    gx::Vector<Token> tokens;
     size_t i = 0;
     size_t len = source.size();
 
@@ -195,7 +195,7 @@ std::vector<StyleSheet::Token> StyleSheet::Tokenize(const std::string& source)
             if (c == '-') ++i;
             while (i < len && (std::isdigit(static_cast<unsigned char>(source[i])) || source[i] == '.'))
                 ++i;
-            std::string numStr = source.substr(start, i - start);
+            gx::String numStr = source.substr(start, i - start);
 
             // % の場合
             if (i < len && source[i] == '%')
@@ -232,7 +232,7 @@ std::vector<StyleSheet::Token> StyleSheet::Tokenize(const std::string& source)
 // パーサー
 // ============================================================================
 
-void StyleSheet::ParseTokens(const std::vector<Token>& tokens)
+void StyleSheet::ParseTokens(const gx::Vector<Token>& tokens)
 {
     m_rules.clear();
     size_t pos = 0;
@@ -264,10 +264,10 @@ void StyleSheet::ParseTokens(const std::vector<Token>& tokens)
     }
 }
 
-StyleSelector StyleSheet::ParseSelector(const std::vector<Token>& tokens, size_t& pos)
+StyleSelector StyleSheet::ParseSelector(const gx::Vector<Token>& tokens, size_t& pos)
 {
     // セレクタ領域: '{' の前まで読み取ってセレクタ文字列を組み立てる
-    std::string selectorStr;
+    gx::String selectorStr;
 
     while (pos < tokens.size() && tokens[pos].type != TokenType::LBrace
                                && tokens[pos].type != TokenType::Eof)
@@ -288,9 +288,9 @@ StyleSelector StyleSheet::ParseSelector(const std::vector<Token>& tokens, size_t
     return StyleSelector::Parse(selectorStr);
 }
 
-std::vector<StyleProperty> StyleSheet::ParsePropertyBlock(const std::vector<Token>& tokens, size_t& pos)
+gx::Vector<StyleProperty> StyleSheet::ParsePropertyBlock(const gx::Vector<Token>& tokens, size_t& pos)
 {
-    std::vector<StyleProperty> props;
+    gx::Vector<StyleProperty> props;
 
     while (pos < tokens.size() && tokens[pos].type != TokenType::RBrace
                                && tokens[pos].type != TokenType::Eof)
@@ -301,7 +301,7 @@ std::vector<StyleProperty> StyleSheet::ParsePropertyBlock(const std::vector<Toke
             ++pos;
             continue;
         }
-        std::string name = tokens[pos].text;
+        gx::String name = tokens[pos].text;
         ++pos;
 
         // ':' をスキップ
@@ -309,7 +309,7 @@ std::vector<StyleProperty> StyleSheet::ParsePropertyBlock(const std::vector<Toke
             ++pos;
 
         // 値: ';' または '}' まで読み取る
-        std::string value;
+        gx::String value;
         while (pos < tokens.size() && tokens[pos].type != TokenType::Semicolon
                                    && tokens[pos].type != TokenType::RBrace
                                    && tokens[pos].type != TokenType::Eof)
@@ -342,7 +342,7 @@ std::vector<StyleProperty> StyleSheet::ParsePropertyBlock(const std::vector<Toke
 // LoadFromFile / LoadFromString（読み込み）
 // ============================================================================
 
-bool StyleSheet::LoadFromFile(const std::string& path)
+bool StyleSheet::LoadFromFile(const gx::String& path)
 {
     auto fileData = gx::FileSystem::Instance().ReadFile(path);
     if (!fileData.IsValid())
@@ -350,14 +350,14 @@ bool StyleSheet::LoadFromFile(const std::string& path)
         // 直接ファイルI/Oにフォールバック
         std::ifstream file(path);
         if (!file.is_open()) return false;
-        std::string source((std::istreambuf_iterator<char>(file)),
-                            std::istreambuf_iterator<char>());
+        gx::String source(std::string((std::istreambuf_iterator<char>(file)),
+                                       std::istreambuf_iterator<char>()));
         return LoadFromString(source);
     }
     return LoadFromString(fileData.AsString());
 }
 
-bool StyleSheet::LoadFromString(const std::string& source)
+bool StyleSheet::LoadFromString(const gx::String& source)
 {
     auto tokens = Tokenize(source);
     ParseTokens(tokens);
@@ -369,14 +369,14 @@ bool StyleSheet::LoadFromString(const std::string& source)
 // 例: "flex-direction" → "flexDirection", "border-radius" → "borderRadius"
 // ============================================================================
 
-std::string StyleSheet::NormalizePropertyName(const std::string& name)
+gx::String StyleSheet::NormalizePropertyName(const gx::String& name)
 {
     // CSS標準エイリアス
     if (name == "border-radius") return "cornerRadius";
     if (name == "background-color") return "backgroundColor";
     if (name == "transition-duration") return "transitionDuration";
 
-    std::string result;
+    gx::String result;
     result.reserve(name.size());
     bool nextUpper = false;
     for (char c : name)
@@ -406,9 +406,9 @@ std::string StyleSheet::NormalizePropertyName(const std::string& name)
 // kebab-case / camelCase 両対応（正規化してからマッチ）
 // ============================================================================
 
-void StyleSheet::ApplyProperty(Style& style, const std::string& rawName, const std::string& value)
+void StyleSheet::ApplyProperty(Style& style, const gx::String& rawName, const gx::String& value)
 {
-    std::string name = NormalizePropertyName(rawName);
+    gx::String name = NormalizePropertyName(rawName);
 
     // --- サイズ ---
     if (name == "width")           { style.width    = ParseLength(value); return; }
@@ -539,7 +539,7 @@ void StyleSheet::ApplyProperty(Style& style, const std::string& rawName, const s
 // 値パーサー
 // ============================================================================
 
-StyleLength StyleSheet::ParseLength(const std::string& value)
+StyleLength StyleSheet::ParseLength(const gx::String& value)
 {
     if (value == "auto") return StyleLength::Auto();
 
@@ -551,7 +551,7 @@ StyleLength StyleSheet::ParseLength(const std::string& value)
     }
 
     // px (数値のみ = px扱い)
-    std::string numPart = value;
+    gx::String numPart = value;
     // "100px" → "100"
     if (numPart.size() > 2 && numPart.substr(numPart.size() - 2) == "px")
         numPart = numPart.substr(0, numPart.size() - 2);
@@ -559,7 +559,7 @@ StyleLength StyleSheet::ParseLength(const std::string& value)
     try { return StyleLength::Px(std::stof(numPart)); } catch (...) { return StyleLength::Px(0.0f); }
 }
 
-StyleColor StyleSheet::ParseColor(const std::string& value)
+StyleColor StyleSheet::ParseColor(const gx::String& value)
 {
     if (!value.empty() && value[0] == '#')
         return StyleColor::FromHex(value);
@@ -575,10 +575,10 @@ StyleColor StyleSheet::ParseColor(const std::string& value)
     return {};
 }
 
-StyleEdges StyleSheet::ParseEdges(const std::string& value)
+StyleEdges StyleSheet::ParseEdges(const gx::String& value)
 {
     // 空白区切りで1〜4値
-    std::vector<float> values;
+    gx::Vector<float> values;
     size_t i = 0;
     size_t len = value.size();
     while (i < len)
@@ -606,11 +606,11 @@ StyleEdges StyleSheet::ParseEdges(const std::string& value)
     return {};
 }
 
-int StyleSheet::ParseVec2(const std::string& value, float& outX, float& outY)
+int StyleSheet::ParseVec2(const gx::String& value, float& outX, float& outY)
 {
     outX = 0.0f;
     outY = 0.0f;
-    std::vector<float> values;
+    gx::Vector<float> values;
     size_t i = 0;
     size_t len = value.size();
     while (i < len)
@@ -633,7 +633,7 @@ int StyleSheet::ParseVec2(const std::string& value, float& outX, float& outY)
     return static_cast<int>(values.size());
 }
 
-float StyleSheet::ParseAngleDeg(const std::string& value)
+float StyleSheet::ParseAngleDeg(const gx::String& value)
 {
     if (value.size() > 3 && value.substr(value.size() - 3) == "deg")
         return std::stof(value.substr(0, value.size() - 3));
@@ -642,7 +642,7 @@ float StyleSheet::ParseAngleDeg(const std::string& value)
     return std::stof(value);
 }
 
-float StyleSheet::ParseRatio(const std::string& value)
+float StyleSheet::ParseRatio(const gx::String& value)
 {
     if (!value.empty() && value.back() == '%')
     {
@@ -652,7 +652,7 @@ float StyleSheet::ParseRatio(const std::string& value)
     return std::stof(value);
 }
 
-UIEffectType StyleSheet::ParseEffectType(const std::string& value)
+UIEffectType StyleSheet::ParseEffectType(const gx::String& value)
 {
     if (value == "ripple") return UIEffectType::Ripple;
     return UIEffectType::None;
@@ -662,13 +662,13 @@ UIEffectType StyleSheet::ParseEffectType(const std::string& value)
 // enum パーサー
 // ============================================================================
 
-FlexDirection StyleSheet::ParseFlexDirection(const std::string& v)
+FlexDirection StyleSheet::ParseFlexDirection(const gx::String& v)
 {
     if (v == "row") return FlexDirection::Row;
     return FlexDirection::Column; // default
 }
 
-JustifyContent StyleSheet::ParseJustifyContent(const std::string& v)
+JustifyContent StyleSheet::ParseJustifyContent(const gx::String& v)
 {
     if (v == "center")        return JustifyContent::Center;
     if (v == "end")           return JustifyContent::End;
@@ -679,7 +679,7 @@ JustifyContent StyleSheet::ParseJustifyContent(const std::string& v)
     return JustifyContent::Start;
 }
 
-AlignItems StyleSheet::ParseAlignItems(const std::string& v)
+AlignItems StyleSheet::ParseAlignItems(const gx::String& v)
 {
     if (v == "center")  return AlignItems::Center;
     if (v == "end")     return AlignItems::End;
@@ -687,27 +687,27 @@ AlignItems StyleSheet::ParseAlignItems(const std::string& v)
     return AlignItems::Start;
 }
 
-TextAlign StyleSheet::ParseTextAlign(const std::string& v)
+TextAlign StyleSheet::ParseTextAlign(const gx::String& v)
 {
     if (v == "center") return TextAlign::Center;
     if (v == "right")  return TextAlign::Right;
     return TextAlign::Left;
 }
 
-VAlign StyleSheet::ParseVAlign(const std::string& v)
+VAlign StyleSheet::ParseVAlign(const gx::String& v)
 {
     if (v == "center") return VAlign::Center;
     if (v == "bottom") return VAlign::Bottom;
     return VAlign::Top;
 }
 
-PositionType StyleSheet::ParsePosition(const std::string& v)
+PositionType StyleSheet::ParsePosition(const gx::String& v)
 {
     if (v == "absolute") return PositionType::Absolute;
     return PositionType::Relative;
 }
 
-OverflowMode StyleSheet::ParseOverflow(const std::string& v)
+OverflowMode StyleSheet::ParseOverflow(const gx::String& v)
 {
     if (v == "hidden") return OverflowMode::Hidden;
     if (v == "scroll") return OverflowMode::Scroll;
@@ -732,7 +732,7 @@ void StyleSheet::ApplyTo(Widget* widget) const
         int specificity;
         int sourceOrder;
     };
-    std::vector<MatchedRule> matched;
+    gx::Vector<MatchedRule> matched;
 
     for (const auto& rule : m_rules)
     {

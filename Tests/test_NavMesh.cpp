@@ -48,7 +48,7 @@ TEST(NavMeshTest, FindPath_StraightLine)
 {
     NavMesh mesh;
     mesh.Build(0.0f, 0.0f, 10.0f, 10.0f, 0.5f);
-    std::vector<XMFLOAT3> path;
+    gx::Vector<Vector3> path;
     bool found = mesh.FindPath({1.0f, 0.0f, 1.0f}, {8.0f, 0.0f, 8.0f}, path);
     EXPECT_TRUE(found);
     EXPECT_GT(path.size(), 0u);
@@ -64,7 +64,7 @@ TEST(NavMeshTest, FindPath_AroundObstacle)
         if (x != 0 && x != 19)  // 端に開口部を残す
             mesh.SetCellWalkable(x, 10, false);
     }
-    std::vector<XMFLOAT3> path;
+    gx::Vector<Vector3> path;
     bool found = mesh.FindPath({5.0f, 0.0f, 2.0f}, {5.0f, 0.0f, 8.0f}, path);
     EXPECT_TRUE(found);
     EXPECT_GT(path.size(), 2u);  // 迂回が必要
@@ -81,7 +81,7 @@ TEST(NavMeshTest, FindPath_NoPath)
             if (dx != 0 || dz != 0)
                 mesh.SetCellWalkable(cx + dx, cz + dz, false);
     mesh.SetCellWalkable(cx, cz, false);  // ターゲット自体もブロック
-    std::vector<XMFLOAT3> path;
+    gx::Vector<Vector3> path;
     bool found = mesh.FindPath({1.0f, 0.0f, 1.0f}, {8.25f, 0.0f, 8.25f}, path);
     EXPECT_FALSE(found);
 }
@@ -90,7 +90,7 @@ TEST(NavMeshTest, FindPath_SamePoint)
 {
     NavMesh mesh;
     mesh.Build(0.0f, 0.0f, 10.0f, 10.0f, 0.5f);
-    std::vector<XMFLOAT3> path;
+    gx::Vector<Vector3> path;
     bool found = mesh.FindPath({5.0f, 0.0f, 5.0f}, {5.0f, 0.0f, 5.0f}, path);
     // 0または1のウェイポイントで成功すべき
     EXPECT_TRUE(found);
@@ -101,7 +101,7 @@ TEST(NavMeshTest, FindNearestWalkable)
     NavMesh mesh;
     mesh.Build(0.0f, 0.0f, 10.0f, 10.0f, 0.5f);
     mesh.SetCellWalkable(10, 10, false);
-    XMFLOAT3 nearest;
+    Vector3 nearest;
     bool ok = mesh.FindNearestWalkable({5.25f, 0.0f, 5.25f}, nearest);
     EXPECT_TRUE(ok);
     // 最近接点は歩行可能であるべき
@@ -137,9 +137,9 @@ TEST(NavAgentTest, Update_Moves)
     agent.Initialize(&mesh);
     agent.SetPosition({1.0f, 0.0f, 1.0f});
     agent.SetDestination({8.0f, 0.0f, 8.0f});
-    XMFLOAT3 before = agent.GetPosition();
+    Vector3 before = agent.GetPosition();
     agent.Update(1.0f);
-    XMFLOAT3 after = agent.GetPosition();
+    Vector3 after = agent.GetPosition();
     float moved = std::abs(after.x - before.x) + std::abs(after.z - before.z);
     EXPECT_GT(moved, 0.1f);
 }

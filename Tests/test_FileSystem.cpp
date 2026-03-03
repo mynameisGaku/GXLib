@@ -11,22 +11,22 @@ using namespace gx;
 class MockFileProvider : public IFileProvider
 {
 public:
-    std::unordered_map<std::string, std::vector<uint8_t>> files;
+    gx::HashMap<gx::String, gx::Vector<uint8_t>> files;
     int m_priority;
 
     MockFileProvider(int priority = 0) : m_priority(priority) {}
 
-    void AddFile(const std::string& path, const std::string& content)
+    void AddFile(const gx::String& path, const gx::String& content)
     {
-        files[path] = std::vector<uint8_t>(content.begin(), content.end());
+        files[path] = gx::Vector<uint8_t>(content.begin(), content.end());
     }
 
-    bool Exists(const std::string& path) const override
+    bool Exists(const gx::String& path) const override
     {
         return files.count(path) > 0;
     }
 
-    FileData Read(const std::string& path) const override
+    FileData Read(const gx::String& path) const override
     {
         FileData fd;
         auto it = files.find(path);
@@ -34,9 +34,9 @@ public:
         return fd;
     }
 
-    bool Write(const std::string& path, const void* data, size_t size) override
+    bool Write(const gx::String& path, const void* data, size_t size) override
     {
-        files[path] = std::vector<uint8_t>(
+        files[path] = gx::Vector<uint8_t>(
             static_cast<const uint8_t*>(data),
             static_cast<const uint8_t*>(data) + size);
         return true;
@@ -61,8 +61,8 @@ TEST(FileDataTest, Empty)
 TEST(FileDataTest, AsString)
 {
     FileData fd;
-    std::string content = "Hello World";
-    fd.data = std::vector<uint8_t>(content.begin(), content.end());
+    gx::String content = "Hello World";
+    fd.data = gx::Vector<uint8_t>(content.begin(), content.end());
     EXPECT_TRUE(fd.IsValid());
     EXPECT_EQ(fd.AsString(), "Hello World");
 }
@@ -89,7 +89,7 @@ TEST_F(FileSystemTest, Mount_WriteFile)
 {
     auto provider = std::make_shared<MockFileProvider>();
     FileSystem::Instance().Mount("", provider);
-    std::string content = "written data";
+    gx::String content = "written data";
     FileSystem::Instance().WriteFile("out.txt", content.data(), content.size());
     FileData fd = FileSystem::Instance().ReadFile("out.txt");
     EXPECT_EQ(fd.AsString(), "written data");
@@ -150,8 +150,8 @@ TEST_F(FileSystemTest, Clear_RemovesAll)
 TEST(FileDataTest, DataPointer)
 {
     FileData fd;
-    std::string content = "binary data";
-    fd.data = std::vector<uint8_t>(content.begin(), content.end());
+    gx::String content = "binary data";
+    fd.data = gx::Vector<uint8_t>(content.begin(), content.end());
     EXPECT_NE(fd.Data(), nullptr);
     EXPECT_EQ(fd.Size(), content.size());
 }
@@ -166,8 +166,8 @@ TEST(FileDataTest, SizeOfEmptyData)
 TEST(FileDataTest, AsStringPreservesContent)
 {
     FileData fd;
-    std::string content = "line1\nline2\nline3";
-    fd.data = std::vector<uint8_t>(content.begin(), content.end());
+    gx::String content = "line1\nline2\nline3";
+    fd.data = gx::Vector<uint8_t>(content.begin(), content.end());
     EXPECT_EQ(fd.AsString(), content);
 }
 
@@ -189,7 +189,7 @@ TEST_F(FileSystemTest, WriteAndReadBack)
     auto provider = std::make_shared<MockFileProvider>();
     FileSystem::Instance().Mount("", provider);
 
-    std::string content = "round trip test data";
+    gx::String content = "round trip test data";
     FileSystem::Instance().WriteFile("roundtrip.txt", content.data(), content.size());
 
     FileData fd = FileSystem::Instance().ReadFile("roundtrip.txt");
@@ -203,7 +203,7 @@ TEST_F(FileSystemTest, OverwriteExistingFile)
     provider->AddFile("data.txt", "original");
     FileSystem::Instance().Mount("", provider);
 
-    std::string newContent = "updated";
+    gx::String newContent = "updated";
     FileSystem::Instance().WriteFile("data.txt", newContent.data(), newContent.size());
 
     FileData fd = FileSystem::Instance().ReadFile("data.txt");
@@ -259,7 +259,7 @@ TEST_F(FileSystemTest, LargeFileContent)
     FileSystem::Instance().Mount("", provider);
 
     // 大きなファイルコンテンツ
-    std::string largeContent(10000, 'X');
+    gx::String largeContent(10000, 'X');
     FileSystem::Instance().WriteFile("large.bin", largeContent.data(), largeContent.size());
 
     FileData fd = FileSystem::Instance().ReadFile("large.bin");

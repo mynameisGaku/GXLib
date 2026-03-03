@@ -83,10 +83,10 @@ float TerrainSculptor::EvaluateBrush(float distance, const BrushSettings& settin
 // ブラシマスク取得
 // ============================================================================
 
-std::vector<std::pair<std::pair<int, int>, float>>
+gx::Vector<std::pair<std::pair<int, int>, float>>
 TerrainSculptor::GetBrushMask(float centerX, float centerY) const
 {
-    std::vector<std::pair<std::pair<int, int>, float>> mask;
+    gx::Vector<std::pair<std::pair<int, int>, float>> mask;
     if (!m_heightmap) return mask;
 
     int cx = static_cast<int>(centerX);
@@ -298,10 +298,10 @@ float TerrainSculptor::SampleHeight(float x, float y) const
     return h0 + (h1 - h0) * fy;
 }
 
-std::vector<DirectX::XMFLOAT3> TerrainSculptor::ComputeNormals(const float* heightmap,
+gx::Vector<Vector3> TerrainSculptor::ComputeNormals(const float* heightmap,
                                                                   int width, int height)
 {
-    std::vector<DirectX::XMFLOAT3> normals(static_cast<size_t>(width) * height);
+    gx::Vector<Vector3> normals(static_cast<size_t>(width) * height);
 
     for (int y = 0; y < height; ++y)
     {

@@ -14,14 +14,14 @@ WebSocket::~WebSocket()
     Close();
 }
 
-bool WebSocket::Connect(const std::string& url)
+bool WebSocket::Connect(const gx::String& url)
 {
     Close();
 
     // URLをwstringに変換する (WinHTTPはワイド文字列を要求)
     int wLen = MultiByteToWideChar(CP_UTF8, 0, url.c_str(), -1, nullptr, 0);
-    std::wstring wUrl(wLen - 1, L'\0');
-    MultiByteToWideChar(CP_UTF8, 0, url.c_str(), -1, wUrl.data(), wLen);
+    gx::WString wUrl(wLen - 1, L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, url.c_str(), -1, wUrl.DataMut(), wLen);
 
     // URLを分解する
     URL_COMPONENTS urlComp = {};
@@ -151,7 +151,7 @@ bool WebSocket::IsConnected() const
     return m_hWebSocket != nullptr && m_running.load();
 }
 
-bool WebSocket::Send(const std::string& message)
+bool WebSocket::Send(const gx::String& message)
 {
     std::lock_guard<std::mutex> lock(m_handleMutex);
     if (!m_hWebSocket) return false;
@@ -175,7 +175,7 @@ bool WebSocket::SendBinary(const void* data, size_t size)
 
 void WebSocket::Update()
 {
-    std::vector<QueuedMessage> messages;
+    gx::Vector<QueuedMessage> messages;
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         messages.swap(m_messageQueue);
@@ -203,8 +203,8 @@ void WebSocket::Update()
 
 void WebSocket::ReceiveLoop()
 {
-    std::vector<uint8_t> buffer(8192);
-    std::vector<uint8_t> accumulated;
+    gx::Vector<uint8_t> buffer(8192);
+    gx::Vector<uint8_t> accumulated;
 
     while (m_running.load())
     {
@@ -248,12 +248,12 @@ void WebSocket::ReceiveLoop()
             else if (bufferType == WINHTTP_WEB_SOCKET_UTF8_MESSAGE_BUFFER_TYPE)
             {
                 m_messageQueue.push_back({ QueuedMessage::Text,
-                    std::string(accumulated.begin(), accumulated.end()) });
+                    gx::String(reinterpret_cast<const char*>(accumulated.data()), accumulated.size()) });
             }
             else
             {
                 m_messageQueue.push_back({ QueuedMessage::Binary,
-                    std::string(accumulated.begin(), accumulated.end()) });
+                    gx::String(reinterpret_cast<const char*>(accumulated.data()), accumulated.size()) });
             }
             accumulated.clear();
         }

@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 #include "Graphics/3D/AnimationClip.h"
 #include "Graphics/3D/Skeleton.h"
+#include "Math/MathConvert.h"
 
 using namespace gx;
 
@@ -15,15 +16,15 @@ static Skeleton CreateTestSkeleton()
     Joint root;
     root.name = "Root";
     root.parentIndex = -1;
-    XMStoreFloat4x4(&root.inverseBindMatrix, XMMatrixIdentity());
-    XMStoreFloat4x4(&root.localTransform, XMMatrixIdentity());
+    XMStoreFloat4x4(XM(&root.inverseBindMatrix), XMMatrixIdentity());
+    XMStoreFloat4x4(XM(&root.localTransform), XMMatrixIdentity());
     skel.AddJoint(root);
 
     Joint child;
     child.name = "Child";
     child.parentIndex = 0;
-    XMStoreFloat4x4(&child.inverseBindMatrix, XMMatrixIdentity());
-    XMStoreFloat4x4(&child.localTransform, XMMatrixTranslation(0, 1, 0));
+    XMStoreFloat4x4(XM(&child.inverseBindMatrix), XMMatrixIdentity());
+    XMStoreFloat4x4(XM(&child.localTransform), XMMatrixTranslation(0, 1, 0));
     skel.AddJoint(child);
 
     return skel;
@@ -67,7 +68,7 @@ TEST(AnimationTest, IdentityTRS_Values)
 TEST(AnimationTest, ComposeTRS_Identity)
 {
     TransformTRS trs = IdentityTRS();
-    XMFLOAT4X4 mat = ComposeTRS(trs);
+    Matrix4x4 mat = ComposeTRS(trs);
     EXPECT_NEAR(mat._11, 1.0f, 1e-5f);
     EXPECT_NEAR(mat._22, 1.0f, 1e-5f);
     EXPECT_NEAR(mat._33, 1.0f, 1e-5f);
@@ -79,7 +80,7 @@ TEST(AnimationTest, ComposeTRS_Translation)
 {
     TransformTRS trs = IdentityTRS();
     trs.translation = {5.0f, 0.0f, 0.0f};
-    XMFLOAT4X4 mat = ComposeTRS(trs);
+    Matrix4x4 mat = ComposeTRS(trs);
     EXPECT_NEAR(mat._41, 5.0f, 1e-5f);
 }
 
@@ -88,7 +89,7 @@ TEST(AnimationTest, DecomposeTRS_RoundTrip)
     TransformTRS original = IdentityTRS();
     original.translation = {3.0f, 4.0f, 5.0f};
     original.scale = {2.0f, 2.0f, 2.0f};
-    XMFLOAT4X4 mat = ComposeTRS(original);
+    Matrix4x4 mat = ComposeTRS(original);
     TransformTRS decomposed = DecomposeTRS(mat);
     EXPECT_NEAR(decomposed.translation.x, 3.0f, 1e-3f);
     EXPECT_NEAR(decomposed.translation.y, 4.0f, 1e-3f);
@@ -168,11 +169,11 @@ TEST(AnimationTest, Skeleton_FindJointIndex_NotFound)
 TEST(AnimationTest, Skeleton_ComputeGlobalTransforms)
 {
     Skeleton skel = CreateTestSkeleton();
-    XMFLOAT4X4 local[2];
-    XMStoreFloat4x4(&local[0], XMMatrixIdentity());
-    XMStoreFloat4x4(&local[1], XMMatrixTranslation(0, 1, 0));
+    Matrix4x4 local[2];
+    XMStoreFloat4x4(XM(&local[0]), XMMatrixIdentity());
+    XMStoreFloat4x4(XM(&local[1]), XMMatrixTranslation(0, 1, 0));
 
-    XMFLOAT4X4 global[2];
+    Matrix4x4 global[2];
     skel.ComputeGlobalTransforms(local, global);
 
     // ルートのグローバル変換 == ルートのローカル変換（単位行列）

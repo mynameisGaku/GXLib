@@ -72,7 +72,7 @@ void CameraController::SetRailProgress(float t)
     m_railProgress = std::max(0.0f, std::min(1.0f, t));
 }
 
-XMFLOAT3 CameraController::GetRailPosition() const
+Vector3 CameraController::GetRailPosition() const
 {
     if (m_railPoints.size() < 2)
         return { 0, 0, 0 };
@@ -99,7 +99,7 @@ XMFLOAT3 CameraController::GetRailPosition() const
         localT);
 }
 
-XMFLOAT3 CameraController::GetRailLookTarget() const
+Vector3 CameraController::GetRailLookTarget() const
 {
     if (m_railPoints.size() < 2)
         return { 0, 0, 0 };
@@ -152,7 +152,7 @@ void CameraController::ApplyOrbitToCamera(Camera3D& camera) const
     float cosYaw = std::cos(m_orbitYaw);
     float sinYaw = std::sin(m_orbitYaw);
 
-    XMFLOAT3 cameraPos;
+    Vector3 cameraPos;
     cameraPos.x = m_orbitTarget.x + m_orbitDistance * cosPitch * sinYaw;
     cameraPos.y = m_orbitTarget.y + m_orbitDistance * sinPitch;
     cameraPos.z = m_orbitTarget.z + m_orbitDistance * cosPitch * cosYaw;
@@ -298,15 +298,15 @@ float CameraController::PerlinNoise1D(float x) const
     return a + u * (b - a);         // 線形補間
 }
 
-XMFLOAT3 CameraController::CatmullRom(const XMFLOAT3& p0, const XMFLOAT3& p1,
-                                        const XMFLOAT3& p2, const XMFLOAT3& p3, float t) const
+Vector3 CameraController::CatmullRom(const Vector3& p0, const Vector3& p1,
+                                        const Vector3& p2, const Vector3& p3, float t) const
 {
     // 標準Catmull-Romスプライン補間
     // q(t) = 0.5 * ((2*p1) + (-p0 + p2)*t + (2*p0 - 5*p1 + 4*p2 - p3)*t^2 + (-p0 + 3*p1 - 3*p2 + p3)*t^3)
     float t2 = t * t;
     float t3 = t2 * t;
 
-    XMFLOAT3 result;
+    Vector3 result;
     result.x = 0.5f * ((2.0f * p1.x) +
                         (-p0.x + p2.x) * t +
                         (2.0f * p0.x - 5.0f * p1.x + 4.0f * p2.x - p3.x) * t2 +

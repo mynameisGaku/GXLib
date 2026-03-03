@@ -7,7 +7,7 @@
 namespace gx
 {
 
-const std::string Localization::s_emptyString;
+const gx::String Localization::s_emptyString;
 
 Localization& Localization::Instance()
 {
@@ -15,9 +15,9 @@ Localization& Localization::Instance()
     return instance;
 }
 
-bool Localization::LoadLanguage(const std::string& language, const std::string& filePath)
+bool Localization::LoadLanguage(const gx::String& language, const gx::String& filePath)
 {
-    std::ifstream file(filePath);
+    std::ifstream file(filePath.c_str());
     if (!file.is_open())
     {
         GX_LOG_ERROR("Localization: Failed to open '%s'", filePath.c_str());
@@ -25,24 +25,24 @@ bool Localization::LoadLanguage(const std::string& language, const std::string& 
     }
 
     auto& strings = m_strings[language];
-    std::string line;
-    while (std::getline(file, line))
+    gx::String line;
+    while (gx::container::getline(file, line))
     {
         // 空行とコメント行をスキップ
         if (line.empty() || line[0] == '#' || line[0] == ';') continue;
 
         size_t eq = line.find('=');
-        if (eq == std::string::npos) continue;
+        if (eq == gx::String::npos) continue;
 
-        std::string key = line.substr(0, eq);
-        std::string value = line.substr(eq + 1);
+        gx::String key = line.substr(0, eq);
+        gx::String value = line.substr(eq + 1);
 
         // キーの前後の空白を除去
         while (!key.empty() && key.back() == ' ') key.pop_back();
-        while (!value.empty() && value.front() == ' ') value.erase(value.begin());
+        while (!value.empty() && value.front() == ' ') value.erase(0, 1);
 
         // \n のアンエスケープ
-        for (size_t pos = 0; (pos = value.find("\\n", pos)) != std::string::npos; pos += 1)
+        for (size_t pos = 0; (pos = value.find("\\n", pos)) != gx::String::npos; pos += 1)
             value.replace(pos, 2, "\n");
 
         strings[key] = value;
@@ -52,7 +52,7 @@ bool Localization::LoadLanguage(const std::string& language, const std::string& 
     return true;
 }
 
-const std::string& Localization::GetString(const std::string& key) const
+const gx::String& Localization::GetString(const gx::String& key) const
 {
     // 現在の言語で検索
     const auto& str = LookupString(m_currentLanguage, key);
@@ -69,9 +69,9 @@ const std::string& Localization::GetString(const std::string& key) const
     return key;
 }
 
-std::vector<std::string> Localization::GetAvailableLanguages() const
+gx::Vector<gx::String> Localization::GetAvailableLanguages() const
 {
-    std::vector<std::string> langs;
+    gx::Vector<gx::String> langs;
     langs.reserve(m_strings.size());
     for (const auto& [lang, _] : m_strings)
         langs.push_back(lang);
@@ -83,7 +83,7 @@ void Localization::Clear()
     m_strings.clear();
 }
 
-const std::string& Localization::LookupString(const std::string& lang, const std::string& key) const
+const gx::String& Localization::LookupString(const gx::String& lang, const gx::String& key) const
 {
     auto langIt = m_strings.find(lang);
     if (langIt == m_strings.end()) return s_emptyString;

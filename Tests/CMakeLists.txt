@@ -92,8 +92,8 @@ set(TEST_SOURCES
     # Phase 6: new test files
     test_Terrain.cpp
     test_Gizmo.cpp
-    # Phase 7 Wave C: Editor Panels + AssetDatabase
-    test_EditorPanels.cpp
+    # Phase 7 Wave C: AssetDatabase拡張テスト (EditorPanels分割)
+    test_AssetDatabaseExtended.cpp
     # Phase 7 Wave D: CutsceneDialogue, TilemapTMJ, SoundBank, BenchmarkRunner
     test_CutsceneDialogue.cpp
     test_TilemapTMJ.cpp
@@ -127,11 +127,7 @@ set(TEST_SOURCES
     test_VirtualTexture.cpp
     test_DynamicResolution.cpp
     test_ParallaxOcclusion.cpp
-    # Phase 8 Wave B: Editor features
-    test_MaterialEditor.cpp
-    test_ParticleEditor.cpp
-    test_TimelineEditor.cpp
-    test_AudioMixerUI.cpp
+    # Phase 8 Wave B: (Editor UI tests removed — UI wrappers deleted)
     # Phase 8 Wave C: FullBodyIK, AnimationLayer, CheckpointSystem, DialogueGraph
     test_FullBodyIK.cpp
     test_AnimationLayer.cpp
@@ -146,7 +142,6 @@ set(TEST_SOURCES
     # Phase 9: Editor features (PIE, ShaderGraph, SceneViewport, TerrainSculptor)
     test_PlayInEditor.cpp
     test_ShaderGraph.cpp
-    test_SceneViewport.cpp
     test_TerrainSculptor.cpp
     # Phase 10: MatchmakingLobby, VisualScript, CloudSave
     test_MatchmakingLobby.cpp
@@ -220,6 +215,29 @@ set(TEST_SOURCES
     test_ClusteredLighting.cpp
     # Phase 10 Wave 7: Rollback Netcode
     test_RollbackNetcode.cpp
+    # Container Library: EASTL-like高速コンテナ
+    test_ContainerInfra.cpp
+    test_ContainerVector.cpp
+    test_ContainerString.cpp
+    test_ContainerHashMap.cpp
+    test_ContainerTreeMap.cpp
+    test_ContainerList.cpp
+    test_ContainerAdapters.cpp
+    test_ContainerFixed.cpp
+    test_ContainerFlat.cpp
+    test_ContainerIntrusiveHash.cpp
+    test_ContainerAlgorithm.cpp
+    test_ContainerArray.cpp
+    test_ContainerBitset.cpp
+    test_ContainerDeque.cpp
+    test_ContainerRingBuffer.cpp
+    # RenderProfile: Unity Volume Profile 風レンダリング設定
+    test_RenderProfile.cpp
+    # Asset Pipeline: GUID, PPtr, BundleManager, AsyncLoadPipeline, AssetRemapper
+    test_AssetGUID.cpp
+    test_BundleManager.cpp
+    test_AsyncLoadPipeline.cpp
+    test_AssetRemapper.cpp
 )
 
 add_executable(GXLibTests ${TEST_SOURCES})

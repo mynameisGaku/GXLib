@@ -18,8 +18,8 @@ FileWatcher::~FileWatcher()
         CloseHandle(m_stopEvent);
 }
 
-void FileWatcher::Watch(const std::string& directory,
-                         std::function<void(const std::string& path)> onChange)
+void FileWatcher::Watch(const gx::String& directory,
+                         std::function<void(const gx::String& path)> onChange)
 {
     auto entry = std::make_unique<WatchEntry>();
     entry->directory = directory;
@@ -94,7 +94,7 @@ void FileWatcher::WatchLoop()
     while (m_running.load())
     {
         // 待機ハンドル配列を作る: 停止イベント + 各監視イベント
-        std::vector<HANDLE> handles;
+        gx::Vector<HANDLE> handles;
         handles.push_back(m_stopEvent);
         for (auto& entry : m_watches)
         {
@@ -134,12 +134,12 @@ void FileWatcher::WatchLoop()
                             int nameLen = WideCharToMultiByte(CP_UTF8, 0,
                                 info->FileName, info->FileNameLength / sizeof(WCHAR),
                                 nullptr, 0, nullptr, nullptr);
-                            std::string fileName(nameLen, '\0');
+                            gx::String fileName(nameLen, '\0');
                             WideCharToMultiByte(CP_UTF8, 0,
                                 info->FileName, info->FileNameLength / sizeof(WCHAR),
-                                fileName.data(), nameLen, nullptr, nullptr);
+                                fileName.DataMut(), nameLen, nullptr, nullptr);
 
-                            std::string fullPath = entry->directory + "/" + fileName;
+                            gx::String fullPath = entry->directory + "/" + fileName;
 
                             {
                                 std::lock_guard<std::mutex> lock(m_mutex);
@@ -178,7 +178,7 @@ void FileWatcher::WatchLoop()
 
 void FileWatcher::Update()
 {
-    std::vector<std::pair<std::string, std::function<void(const std::string&)>>> notifications;
+    gx::Vector<std::pair<gx::String, std::function<void(const gx::String&)>>> notifications;
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         notifications.swap(m_pendingNotifications);

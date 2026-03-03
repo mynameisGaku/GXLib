@@ -173,9 +173,9 @@ TEST(CutsceneSystemTest, PlaySound_CallbackFired)
     action.soundName = "explosion";
     cs.AddAction(action);
 
-    std::string playedSound;
+    gx::String playedSound;
     CutsceneCallbacks cb;
-    cb.onPlaySound = [&](const std::string& s) { playedSound = s; };
+    cb.onPlaySound = [&](const gx::String& s) { playedSound = s; };
     cs.SetCallbacks(cb);
     cs.Play();
     cs.Update(0.1f);
@@ -192,9 +192,9 @@ TEST(CutsceneSystemTest, ShowDialogue_CallbackFired)
     action.dialogueText = "Hello!";
     cs.AddAction(action);
 
-    std::string speaker, text;
+    gx::String speaker, text;
     CutsceneCallbacks cb;
-    cb.onShowDialogue = [&](const std::string& s, const std::string& t) {
+    cb.onShowDialogue = [&](const gx::String& s, const gx::String& t) {
         speaker = s;
         text = t;
     };
@@ -230,9 +230,9 @@ TEST(CutsceneSystemTest, MoveTo_InterpolatesProgress)
     cs.AddAction(action);
 
     float lastProgress = -1.0f;
-    XMFLOAT3 lastPos = {};
+    Vector3 lastPos = {};
     CutsceneCallbacks cb;
-    cb.onMoveTo = [&](const XMFLOAT3& p, float prog) {
+    cb.onMoveTo = [&](const Vector3& p, float prog) {
         lastPos = p;
         lastProgress = prog;
     };
@@ -285,9 +285,9 @@ TEST(CutsceneSystemTest, DelayedAction_StartsAtCorrectTime)
     action.soundName = "delayed";
     cs.AddAction(action);
 
-    std::string playedSound;
+    gx::String playedSound;
     CutsceneCallbacks cb;
-    cb.onPlaySound = [&](const std::string& s) { playedSound = s; };
+    cb.onPlaySound = [&](const gx::String& s) { playedSound = s; };
     cs.SetCallbacks(cb);
     cs.Play();
 
@@ -301,7 +301,7 @@ TEST(CutsceneSystemTest, DelayedAction_StartsAtCorrectTime)
 TEST(CutsceneSystemTest, MultipleActions_ExecuteInOrder)
 {
     CutsceneSystem cs;
-    std::vector<std::string> order;
+    gx::Vector<gx::String> order;
 
     CutsceneAction a1;
     a1.type = CutsceneActionType::Custom;
@@ -565,9 +565,9 @@ TEST(DialogueSystemTest, OnLineStarted_CallbackFired)
     seq.lines.push_back({ "Bob", "Hey!", 0.0f });
     ds.RegisterSequence(seq);
 
-    std::string cbSpeaker, cbText;
+    gx::String cbSpeaker, cbText;
     DialogueCallbacks cb;
-    cb.onLineStarted = [&](const std::string& s, const std::string& t) {
+    cb.onLineStarted = [&](const gx::String& s, const gx::String& t) {
         cbSpeaker = s;
         cbText = t;
     };
@@ -634,7 +634,7 @@ TEST(DialogueSystemTest, OnChoicesPresented_CallbackFired)
 
     bool choicesShown = false;
     DialogueCallbacks cb;
-    cb.onChoicesPresented = [&](const std::vector<DialogueChoice>&) { choicesShown = true; };
+    cb.onChoicesPresented = [&](const gx::Vector<DialogueChoice>&) { choicesShown = true; };
     ds.SetCallbacks(cb);
 
     ds.StartSequence("test");

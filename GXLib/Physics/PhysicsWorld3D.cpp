@@ -1,5 +1,6 @@
 #include "pch_common.h"
 #include "Physics/PhysicsWorld3D.h"
+#include "Math/MathConvert.h"
 #include "Core/Logger.h"
 
 // Jolt Physics ヘッダー（PIMPLのためここでのみインクルード）
@@ -177,8 +178,8 @@ struct PhysicsWorld3D::Impl {
     ObjectVsBroadPhaseFilter objectVsBPFilter;
     ObjectLayerPairFilter objectPairFilter;
     ContactListenerImpl contactListener;
-    std::vector<PhysicsShape*> ownedShapes;
-    std::vector<JPH::Ref<JPH::Constraint>> ownedConstraints; ///< コンストレイント管理
+    gx::Vector<PhysicsShape*> ownedShapes;
+    gx::Vector<JPH::Ref<JPH::Constraint>> ownedConstraints; ///< コンストレイント管理
     uint32_t nextConstraintID = 0;                             ///< コンストレイントID割り当て
     bool initialized = false;
 };
@@ -580,11 +581,9 @@ Matrix4x4 PhysicsWorld3D::GetWorldTransform(PhysicsBodyID id) const
         static_cast<float>(pos.GetZ())
     );
 
-    XMFLOAT4X4 result;
-    XMStoreFloat4x4(&result, XMMatrixMultiply(rotMat, transMat));
-    Matrix4x4 mat;
-    std::memcpy(&mat, &result, sizeof(Matrix4x4));
-    return mat;
+    Matrix4x4 result;
+    XMStoreFloat4x4(XM(&result), XMMatrixMultiply(rotMat, transMat));
+    return result;
 }
 
 bool PhysicsWorld3D::IsActive(PhysicsBodyID id) const
@@ -627,10 +626,10 @@ PhysicsWorld3D::RaycastResult PhysicsWorld3D::Raycast(const Vector3& origin, con
 
 // ----- スイープ / オーバーラップ -----
 
-std::vector<PhysicsWorld3D::SweepResult> PhysicsWorld3D::SphereCast(
+gx::Vector<PhysicsWorld3D::SweepResult> PhysicsWorld3D::SphereCast(
     const Vector3& origin, float radius, const Vector3& direction, float maxDistance)
 {
-    std::vector<SweepResult> results;
+    gx::Vector<SweepResult> results;
     if (!m_impl->initialized) return results;
 
     JPH::SphereShape sphere(radius);
@@ -671,11 +670,11 @@ std::vector<PhysicsWorld3D::SweepResult> PhysicsWorld3D::SphereCast(
     return results;
 }
 
-std::vector<PhysicsWorld3D::SweepResult> PhysicsWorld3D::BoxCast(
+gx::Vector<PhysicsWorld3D::SweepResult> PhysicsWorld3D::BoxCast(
     const Vector3& origin, const Vector3& halfExtents, const Quaternion& rotation,
     const Vector3& direction, float maxDistance)
 {
-    std::vector<SweepResult> results;
+    gx::Vector<SweepResult> results;
     if (!m_impl->initialized) return results;
 
     JPH::BoxShape box(ToJolt(halfExtents));
@@ -720,10 +719,10 @@ std::vector<PhysicsWorld3D::SweepResult> PhysicsWorld3D::BoxCast(
     return results;
 }
 
-std::vector<PhysicsWorld3D::OverlapResult> PhysicsWorld3D::OverlapSphere(
+gx::Vector<PhysicsWorld3D::OverlapResult> PhysicsWorld3D::OverlapSphere(
     const Vector3& center, float radius)
 {
-    std::vector<OverlapResult> results;
+    gx::Vector<OverlapResult> results;
     if (!m_impl->initialized) return results;
 
     JPH::SphereShape sphere(radius);
@@ -756,10 +755,10 @@ std::vector<PhysicsWorld3D::OverlapResult> PhysicsWorld3D::OverlapSphere(
     return results;
 }
 
-std::vector<PhysicsWorld3D::OverlapResult> PhysicsWorld3D::OverlapBox(
+gx::Vector<PhysicsWorld3D::OverlapResult> PhysicsWorld3D::OverlapBox(
     const Vector3& center, const Vector3& halfExtents, const Quaternion& rotation)
 {
-    std::vector<OverlapResult> results;
+    gx::Vector<OverlapResult> results;
     if (!m_impl->initialized) return results;
 
     JPH::BoxShape box(ToJolt(halfExtents));

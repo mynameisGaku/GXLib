@@ -15,13 +15,13 @@ using json = nlohmann::json;
 namespace gx
 {
 
-// --- ヘルパー: XMFLOAT3 → JSON ---
-static json PrefabFloat3ToJson(const XMFLOAT3& v)
+// --- ヘルパー: Vector3 → JSON ---
+static json PrefabFloat3ToJson(const Vector3& v)
 {
     return json::array({ v.x, v.y, v.z });
 }
 
-static XMFLOAT3 PrefabJsonToFloat3(const json& j)
+static Vector3 PrefabJsonToFloat3(const json& j)
 {
     return { j[0].get<float>(), j[1].get<float>(), j[2].get<float>() };
 }
@@ -30,7 +30,7 @@ static XMFLOAT3 PrefabJsonToFloat3(const json& j)
 static json SerializePrefabEntity(const Entity& entity)
 {
     json j;
-    j["name"] = entity.GetName();
+    j["name"] = entity.GetName().ToStdString();
     j["active"] = entity.IsActive();
 
     auto& transform = entity.GetTransform();
@@ -71,7 +71,7 @@ bool Prefab::CaptureFromEntity(const Entity& entity)
     try
     {
         json j = SerializePrefabEntity(entity);
-        m_json = j.dump(2);
+        m_json = gx::String(j.dump(2));
         return true;
     }
     catch (const std::exception& e)
@@ -81,9 +81,9 @@ bool Prefab::CaptureFromEntity(const Entity& entity)
     }
 }
 
-bool Prefab::LoadFromFile(const std::string& filePath)
+bool Prefab::LoadFromFile(const gx::String& filePath)
 {
-    std::ifstream file(filePath);
+    std::ifstream file(filePath.c_str());
     if (!file.is_open())
     {
         GX_LOG_ERROR("Prefab::LoadFromFile: Failed to open %s", filePath.c_str());
@@ -92,10 +92,10 @@ bool Prefab::LoadFromFile(const std::string& filePath)
 
     try
     {
-        std::string content((std::istreambuf_iterator<char>(file)),
-                             std::istreambuf_iterator<char>());
+        gx::String content(std::string((std::istreambuf_iterator<char>(file)),
+                                        std::istreambuf_iterator<char>()));
         // JSONの妥当性を検証
-        json::parse(content);
+        json::parse(content.ToStdString());
         m_json = std::move(content);
         return true;
     }
@@ -106,11 +106,11 @@ bool Prefab::LoadFromFile(const std::string& filePath)
     }
 }
 
-bool Prefab::SaveToFile(const std::string& filePath) const
+bool Prefab::SaveToFile(const gx::String& filePath) const
 {
     if (m_json.empty()) return false;
 
-    std::ofstream file(filePath);
+    std::ofstream file(filePath.c_str());
     if (!file.is_open())
     {
         GX_LOG_ERROR("Prefab::SaveToFile: Failed to open %s", filePath.c_str());
@@ -121,15 +121,15 @@ bool Prefab::SaveToFile(const std::string& filePath) const
     return true;
 }
 
-Entity* Prefab::Instantiate(Scene& scene, const std::string& name) const
+Entity* Prefab::Instantiate(Scene& scene, const gx::String& name) const
 {
     if (m_json.empty()) return nullptr;
 
     try
     {
-        json j = json::parse(m_json);
+        json j = json::parse(m_json.ToStdString());
 
-        std::string entityName = name.empty() ? j.value("name", "PrefabInstance") : name;
+        gx::String entityName = name.empty() ? gx::String(j.value("name", "PrefabInstance")) : name;
         Entity* entity = scene.CreateEntity(entityName);
         if (!entity) return nullptr;
 

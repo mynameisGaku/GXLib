@@ -5,6 +5,7 @@
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Graphics/Device/BarrierBatch.h"
+#include "Math/MathConvert.h"
 #include "Core/Logger.h"
 
 namespace gx
@@ -84,7 +85,7 @@ bool RTGI::Initialize(ID3D12Device5* device, uint32_t width, uint32_t height)
         return false;
 
     // 初期VP行列を単位行列に
-    XMStoreFloat4x4(&m_previousVP, XMMatrixIdentity());
+    XMStoreFloat4x4(XM(&m_previousVP), XMMatrixIdentity());
 
     GX_LOG_INFO("RTGI initialized (%dx%d, half-res dispatch %dx%d)", width, height, m_halfWidth, m_halfHeight);
     return true;
@@ -195,7 +196,7 @@ int RTGI::FindOrBuildBLAS(ID3D12GraphicsCommandList4* cmdList,
 }
 
 void RTGI::AddInstance(int blasIndex, const XMMATRIX& worldMatrix,
-                        const XMFLOAT3& albedo, float metallic, float roughness,
+                        const Vector3& albedo, float metallic, float roughness,
                         ID3D12Resource* albedoTex, uint32_t instanceFlags)
 {
     if (m_instanceData.size() >= k_MaxInstances)
@@ -301,17 +302,17 @@ void RTGI::CreateGeometrySRVs()
     GX_LOG_INFO("RTGI: Created geometry SRVs for %zu BLASes", m_blasGeometry.size());
 }
 
-void RTGI::SetLights(const LightData* lights, uint32_t count, const XMFLOAT3& ambient)
+void RTGI::SetLights(const LightData* lights, uint32_t count, const Vector3& ambient)
 {
-    m_lightConstants = {};
-    uint32_t n = (std::min)(count, LightConstants::k_MaxLights);
+    m_rtLightConstants = {};
+    uint32_t n = (std::min)(count, ShaderLightConstants::k_MaxLights);
     for (uint32_t i = 0; i < n; ++i)
-        m_lightConstants.lights[i] = lights[i];
-    m_lightConstants.numLights = n;
-    m_lightConstants.ambientColor = ambient;
+        m_rtLightConstants.lights[i] = lights[i];
+    m_rtLightConstants.numLights = n;
+    m_rtLightConstants.ambientColor = ambient;
 }
 
-void RTGI::SetSkyColors(const XMFLOAT3& top, const XMFLOAT3& bottom)
+void RTGI::SetSkyColors(const Vector3& top, const Vector3& bottom)
 {
     m_skyTopColor    = top;
     m_skyBottomColor = bottom;
@@ -453,7 +454,7 @@ void RTGI::Execute(ID3D12GraphicsCommandList4* cmdList4, uint32_t frameIndex,
     // テクスチャリソース遷移
     if (!m_textureResources.empty())
     {
-        std::vector<D3D12_RESOURCE_BARRIER> texBarriers(m_textureResources.size());
+        gx::Vector<D3D12_RESOURCE_BARRIER> texBarriers(m_textureResources.size());
         for (size_t i = 0; i < m_textureResources.size(); ++i)
         {
             texBarriers[i] = {};
@@ -517,16 +518,16 @@ void RTGI::Execute(ID3D12GraphicsCommandList4* cmdList4, uint32_t frameIndex,
     }
 
     // 定数バッファ更新
-    XMMATRIX viewMat = camera.GetViewMatrix();
-    XMMATRIX projMat = camera.GetProjectionMatrix();
+    XMMATRIX viewMat = ToXMMATRIX(camera.GetViewMatrix());
+    XMMATRIX projMat = ToXMMATRIX(camera.GetProjectionMatrix());
     XMMATRIX vpMat   = viewMat * projMat;
     XMMATRIX invVP   = XMMatrixInverse(nullptr, vpMat);
     XMMATRIX invProj = XMMatrixInverse(nullptr, projMat);
 
     RTGIConstants constants = {};
-    XMStoreFloat4x4(&constants.invViewProjection, XMMatrixTranspose(invVP));
-    XMStoreFloat4x4(&constants.view,              XMMatrixTranspose(viewMat));
-    XMStoreFloat4x4(&constants.invProjection,     XMMatrixTranspose(invProj));
+    XMStoreFloat4x4(XM(&constants.invViewProjection), XMMatrixTranspose(invVP));
+    XMStoreFloat4x4(XM(&constants.view),              XMMatrixTranspose(viewMat));
+    XMStoreFloat4x4(XM(&constants.invProjection),     XMMatrixTranspose(invProj));
     constants.cameraPosition = camera.GetPosition();
     constants.maxDistance     = m_maxDistance;
     constants.screenWidth    = static_cast<float>(m_width);
@@ -544,11 +545,11 @@ void RTGI::Execute(ID3D12GraphicsCommandList4* cmdList4, uint32_t frameIndex,
         m_cb.Unmap(frameIndex);
     }
 
-    // ライトCB
+    // ライトCB (ShaderLightConstants: 16ライト, HLSL cbuffer b2 と同一レイアウト)
     void* lp = m_lightCB.Map(frameIndex);
     if (lp)
     {
-        memcpy(lp, &m_lightConstants, sizeof(m_lightConstants));
+        memcpy(lp, &m_rtLightConstants, sizeof(m_rtLightConstants));
         m_lightCB.Unmap(frameIndex);
     }
 
@@ -559,7 +560,7 @@ void RTGI::Execute(ID3D12GraphicsCommandList4* cmdList4, uint32_t frameIndex,
         void* instData = m_instanceDataCB.Map(frameIndex);
         if (instData)
         {
-            auto* dst = static_cast<XMFLOAT4*>(instData);
+            auto* dst = static_cast<Vector4*>(instData);
             for (uint32_t i = 0; i < instanceCount; ++i)
                 dst[i] = m_instanceData[i].albedoMetallic;
             for (uint32_t i = 0; i < instanceCount; ++i)
@@ -596,7 +597,7 @@ void RTGI::Execute(ID3D12GraphicsCommandList4* cmdList4, uint32_t frameIndex,
     // テクスチャを戻す
     if (!m_textureResources.empty())
     {
-        std::vector<D3D12_RESOURCE_BARRIER> texBarriers(m_textureResources.size());
+        gx::Vector<D3D12_RESOURCE_BARRIER> texBarriers(m_textureResources.size());
         for (size_t i = 0; i < m_textureResources.size(); ++i)
         {
             texBarriers[i] = {};
@@ -663,8 +664,8 @@ void RTGI::Execute(ID3D12GraphicsCommandList4* cmdList4, uint32_t frameIndex,
 
         // テンポラル定数
         RTGITemporalConstants tc = {};
-        XMStoreFloat4x4(&tc.prevViewProjection, XMMatrixTranspose(XMLoadFloat4x4(&m_previousVP)));
-        XMStoreFloat4x4(&tc.invViewProjection,  XMMatrixTranspose(invVP));
+        XMStoreFloat4x4(XM(&tc.prevViewProjection), XMMatrixTranspose(XMLoadFloat4x4(XM(&m_previousVP))));
+        XMStoreFloat4x4(XM(&tc.invViewProjection),  XMMatrixTranspose(invVP));
         tc.alpha      = m_temporalAlpha;
         tc.frameCount = static_cast<float>(m_frameCount);
         tc.fullWidth  = static_cast<float>(m_width);
@@ -898,7 +899,7 @@ void RTGI::Execute(ID3D12GraphicsCommandList4* cmdList4, uint32_t frameIndex,
     }
 
     // VP行列を保存 (次フレームのテンポラル用)
-    XMStoreFloat4x4(&m_previousVP, vpMat);
+    XMStoreFloat4x4(XM(&m_previousVP), vpMat);
     m_frameCount++;
 }
 

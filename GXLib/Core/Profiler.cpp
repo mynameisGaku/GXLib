@@ -110,7 +110,7 @@ void Profiler::EndSection(const char* name)
     }
 }
 
-const std::vector<SectionResult>& Profiler::GetResults() const
+const gx::Vector<SectionResult>& Profiler::GetResults() const
 {
     return m_lastResults;
 }

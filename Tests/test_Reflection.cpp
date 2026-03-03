@@ -18,7 +18,7 @@ struct SimpleData
     bool active = true;
     int count = 42;
     float speed = 3.14f;
-    std::string label = "hello";
+    gx::String label = "hello";
     TestVec3 position;
 };
 
@@ -286,13 +286,13 @@ TEST(Reflection, JsonSerialize)
     data.label = "test";
     data.position = { 1.0f, 2.0f, 3.0f };
 
-    std::string json = gx::JsonSerializer::Serialize(*info, &data);
+    gx::String json = gx::JsonSerializer::Serialize(*info, &data);
 
     // 主要部分が含まれていることを確認
-    EXPECT_NE(json.find("\"_type\": \"SimpleData\""), std::string::npos);
-    EXPECT_NE(json.find("\"active\": false"), std::string::npos);
-    EXPECT_NE(json.find("\"count\": 7"), std::string::npos);
-    EXPECT_NE(json.find("\"label\": \"test\""), std::string::npos);
+    EXPECT_NE(json.find("\"_type\": \"SimpleData\""), gx::String::npos);
+    EXPECT_NE(json.find("\"active\": false"), gx::String::npos);
+    EXPECT_NE(json.find("\"count\": 7"), gx::String::npos);
+    EXPECT_NE(json.find("\"label\": \"test\""), gx::String::npos);
 }
 
 TEST(Reflection, JsonDeserialize)
@@ -300,7 +300,7 @@ TEST(Reflection, JsonDeserialize)
     const gx::TypeInfo* info = gx::TypeRegistry::Instance().FindType("SimpleData");
     ASSERT_NE(info, nullptr);
 
-    std::string json = R"({
+    gx::String json = R"({
         "_type": "SimpleData",
         "active": true,
         "count": 99,
@@ -333,7 +333,7 @@ TEST(Reflection, JsonRoundTrip)
     original.speed = 4.56f;
     original.label = "roundtrip";
 
-    std::string json = gx::JsonSerializer::Serialize(*info, &original);
+    gx::String json = gx::JsonSerializer::Serialize(*info, &original);
 
     SimpleData restored;
     restored.active = false;

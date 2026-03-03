@@ -135,7 +135,7 @@ void NetworkReplicator::ServerUpdate(float time, float dt)
     m_snapshotTimer -= snapshotInterval;
 
     // 現在のスナップショットをキャプチャ
-    std::vector<SnapshotEntry> currentSnapshot;
+    gx::Vector<SnapshotEntry> currentSnapshot;
     currentSnapshot.reserve(m_entities.size());
 
     for (const auto& reg : m_entities)
@@ -159,7 +159,7 @@ void NetworkReplicator::ServerUpdate(float time, float dt)
     }
 
     // デルタスナップショットをシリアライズ
-    std::vector<uint8_t> data;
+    gx::Vector<uint8_t> data;
     if (m_lastSnapshot.empty())
     {
         data = SerializeSnapshot(currentSnapshot);
@@ -263,15 +263,15 @@ void NetworkReplicator::InterpolateEntities(float time)
 // スナップショット シリアライズ / デシリアライズ
 // ---------------------------------------------------------------------------
 
-std::vector<uint8_t> NetworkReplicator::SerializeSnapshot(
-    const std::vector<SnapshotEntry>& entries) const
+gx::Vector<uint8_t> NetworkReplicator::SerializeSnapshot(
+    const gx::Vector<SnapshotEntry>& entries) const
 {
     // フォーマット: [entryCount(4)] + [entry * N]
     // entry: [networkId(4)][pos.x(4)][pos.y(4)][pos.z(4)]
     //        [rot.x(4)][rot.y(4)][rot.z(4)][rot.w(4)]
     //        [scale.x(4)][scale.y(4)][scale.z(4)]
     uint32_t entryCount = static_cast<uint32_t>(entries.size());
-    std::vector<uint8_t> data(4 + k_EntryBinarySize * entryCount);
+    gx::Vector<uint8_t> data(4 + k_EntryBinarySize * entryCount);
 
     uint8_t* ptr = data.data();
     std::memcpy(ptr, &entryCount, 4);
@@ -295,10 +295,10 @@ std::vector<uint8_t> NetworkReplicator::SerializeSnapshot(
     return data;
 }
 
-std::vector<SnapshotEntry> NetworkReplicator::DeserializeSnapshot(
-    const std::vector<uint8_t>& data) const
+gx::Vector<SnapshotEntry> NetworkReplicator::DeserializeSnapshot(
+    const gx::Vector<uint8_t>& data) const
 {
-    std::vector<SnapshotEntry> result;
+    gx::Vector<SnapshotEntry> result;
 
     if (data.size() < 4) return result;
 
@@ -334,9 +334,9 @@ std::vector<SnapshotEntry> NetworkReplicator::DeserializeSnapshot(
 // デルタスナップショット シリアライズ / 適用
 // ---------------------------------------------------------------------------
 
-std::vector<uint8_t> NetworkReplicator::SerializeDeltaSnapshot(
-    const std::vector<SnapshotEntry>& current,
-    const std::vector<SnapshotEntry>& previous) const
+gx::Vector<uint8_t> NetworkReplicator::SerializeDeltaSnapshot(
+    const gx::Vector<SnapshotEntry>& current,
+    const gx::Vector<SnapshotEntry>& previous) const
 {
     // フォーマット: [deltaCount(4)] + [delta entries]
     // delta entry: [networkId(4)][flags(1)][changed fields...]
@@ -350,7 +350,7 @@ std::vector<uint8_t> NetworkReplicator::SerializeDeltaSnapshot(
         Quaternion rotation;
         Vector3 scale;
     };
-    std::vector<DeltaEntry> deltas;
+    gx::Vector<DeltaEntry> deltas;
 
     for (const auto& cur : current)
     {
@@ -410,7 +410,7 @@ std::vector<uint8_t> NetworkReplicator::SerializeDeltaSnapshot(
         if (d.flags & k_DeltaFlagScale)    totalSize += 12;
     }
 
-    std::vector<uint8_t> data(totalSize);
+    gx::Vector<uint8_t> data(totalSize);
     uint8_t* ptr = data.data();
 
     uint32_t deltaCount = static_cast<uint32_t>(deltas.size());
@@ -445,12 +445,12 @@ std::vector<uint8_t> NetworkReplicator::SerializeDeltaSnapshot(
     return data;
 }
 
-std::vector<SnapshotEntry> NetworkReplicator::ApplyDeltaSnapshot(
-    const std::vector<SnapshotEntry>& base,
-    const std::vector<uint8_t>& delta) const
+gx::Vector<SnapshotEntry> NetworkReplicator::ApplyDeltaSnapshot(
+    const gx::Vector<SnapshotEntry>& base,
+    const gx::Vector<uint8_t>& delta) const
 {
     // ベースをコピー
-    std::vector<SnapshotEntry> result = base;
+    gx::Vector<SnapshotEntry> result = base;
 
     if (delta.size() < 4) return result;
 

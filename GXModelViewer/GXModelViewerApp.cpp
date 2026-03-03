@@ -11,6 +11,7 @@
 #include "Core/Logger.h"
 #include "Graphics/3D/Transform3D.h"
 #include "Math/Collision/Collision3D.h"
+#include "Math/MathConvert.h"
 
 #include "imgui.h"
 #include "imgui_impl_win32.h"
@@ -380,7 +381,7 @@ void GXModelViewerApp::BuildMainMenuBar()
                 if (src)
                 {
                     std::string newName = src->name + " (Copy)";
-                    XMFLOAT3 srcPos = src->transform.GetPosition();
+                    gx::Vector3 srcPos = src->transform.GetPosition();
                     gx::Transform3D srcTransform = src->transform;
                     gx::Material srcMat = src->materialOverride;
                     bool srcUseMat = src->useMaterialOverride;
@@ -565,13 +566,13 @@ void GXModelViewerApp::UpdateUI()
             ImGuizmo::SetRect(imageMin.x, imageMin.y, imageSize.x, imageSize.y);
 
             // Camera matrices → float[16]
-            XMFLOAT4X4 viewF, projF;
-            XMStoreFloat4x4(&viewF, m_camera.GetViewMatrix());
-            XMStoreFloat4x4(&projF, m_camera.GetProjectionMatrix());
+            gx::Matrix4x4 viewF, projF;
+            viewF = m_camera.GetViewMatrix();
+            projF = m_camera.GetProjectionMatrix();
 
             // Entity world matrix → float[16]
-            XMFLOAT4X4 worldF;
-            XMStoreFloat4x4(&worldF, gizmoEntity->transform.GetWorldMatrix());
+            gx::Matrix4x4 worldF;
+            worldF = gizmoEntity->transform.GetWorldMatrix();
 
             // Snap values
             float snapValues[3] = {};
@@ -839,9 +840,9 @@ void GXModelViewerApp::UpdateUI()
             SceneEntity* sel = m_sceneGraph.GetEntity(m_gizmoStartEntity);
             if (sel)
             {
-                XMFLOAT3 curPos = sel->transform.GetPosition();
-                XMFLOAT3 curRot = sel->transform.GetRotation();
-                XMFLOAT3 curScale = sel->transform.GetScale();
+                gx::Vector3 curPos = sel->transform.GetPosition();
+                gx::Vector3 curRot = sel->transform.GetRotation();
+                gx::Vector3 curScale = sel->transform.GetScale();
                 bool changed = (curPos.x != m_gizmoStartPos.x || curPos.y != m_gizmoStartPos.y || curPos.z != m_gizmoStartPos.z)
                             || (curRot.x != m_gizmoStartRot.x || curRot.y != m_gizmoStartRot.y || curRot.z != m_gizmoStartRot.z)
                             || (curScale.x != m_gizmoStartScale.x || curScale.y != m_gizmoStartScale.y || curScale.z != m_gizmoStartScale.z);
@@ -880,7 +881,7 @@ void GXModelViewerApp::UpdateUI()
             if (src)
             {
                 std::string newName = src->name + " (Copy)";
-                XMFLOAT3 srcPos = src->transform.GetPosition();
+                gx::Vector3 srcPos = src->transform.GetPosition();
                 gx::Transform3D srcTransform = src->transform;
                 gx::Material srcMat = src->materialOverride;
                 bool srcUseMat = src->useMaterialOverride;
@@ -925,7 +926,7 @@ void GXModelViewerApp::UpdateUI()
             SceneEntity* sel = m_sceneGraph.GetEntity(m_sceneGraph.selectedEntity);
             if (sel && sel->model)
             {
-                XMFLOAT3 aabbMin, aabbMax;
+                gx::Vector3 aabbMin, aabbMax;
                 if (ComputeEntityAABB(*sel, aabbMin, aabbMax))
                 {
                     m_orbitTarget = {
@@ -1356,8 +1357,8 @@ void GXModelViewerApp::HandleOrbitInput()
         float panSpeed = m_orbitDistance * 0.002f;
 
         // Compute camera right and up vectors for panning
-        XMFLOAT3 right = m_camera.GetRight();
-        XMFLOAT3 up    = m_camera.GetUp();
+        gx::Vector3 right = m_camera.GetRight();
+        gx::Vector3 up    = m_camera.GetUp();
 
         m_orbitTarget.x -= right.x * delta.x * panSpeed;
         m_orbitTarget.y -= right.y * delta.x * panSpeed;
@@ -1444,12 +1445,11 @@ void GXModelViewerApp::RenderFrame(float deltaTime)
 
     // Draw skybox into HDR RT (rotation-only view so sky stays at infinity)
     {
-        XMFLOAT4X4 viewF;
-        XMStoreFloat4x4(&viewF, m_camera.GetViewMatrix());
+        gx::Matrix4x4 viewF = m_camera.GetViewMatrix();
         viewF._41 = 0.0f; viewF._42 = 0.0f; viewF._43 = 0.0f;
-        XMMATRIX viewRotOnly = XMLoadFloat4x4(&viewF);
-        XMFLOAT4X4 vpMat;
-        XMStoreFloat4x4(&vpMat, XMMatrixTranspose(viewRotOnly * m_camera.GetProjectionMatrix()));
+        XMMATRIX viewRotOnly = XMLoadFloat4x4(XM(&viewF));
+        gx::Matrix4x4 vpMat;
+        XMStoreFloat4x4(XM(&vpMat), XMMatrixTranspose(viewRotOnly * ToXMMATRIX(m_camera.GetProjectionMatrix())));
         m_renderer3D.GetSkybox().Draw(cmdList, m_frameIndex, vpMat);
     }
 
@@ -1521,8 +1521,8 @@ void GXModelViewerApp::RenderFrame(float deltaTime)
         if (anyBoneVis)
         {
             auto& pb3d = m_renderer3D.GetPrimitiveBatch3D();
-            XMFLOAT4X4 vpMat;
-            XMStoreFloat4x4(&vpMat, XMMatrixTranspose(m_camera.GetViewMatrix() * m_camera.GetProjectionMatrix()));
+            gx::Matrix4x4 vpMat;
+            XMStoreFloat4x4(XM(&vpMat), XMMatrixTranspose(ToXMMATRIX(m_camera.GetViewMatrix()) * ToXMMATRIX(m_camera.GetProjectionMatrix())));
             pb3d.Begin(cmdList, m_frameIndex, vpMat);
             for (int ei = 0; ei < m_sceneGraph.GetEntityCount(); ++ei)
             {
@@ -1538,9 +1538,9 @@ void GXModelViewerApp::RenderFrame(float deltaTime)
     // オービットターゲット球描画 + AABB可視化
     {
         auto& pb3d = m_renderer3D.GetPrimitiveBatch3D();
-        XMFLOAT4X4 vpMat;
-        XMStoreFloat4x4(&vpMat, XMMatrixTranspose(
-            m_camera.GetViewMatrix() * m_camera.GetProjectionMatrix()));
+        gx::Matrix4x4 vpMat;
+        XMStoreFloat4x4(XM(&vpMat), XMMatrixTranspose(
+            ToXMMATRIX(m_camera.GetViewMatrix()) * ToXMMATRIX(m_camera.GetProjectionMatrix())));
         pb3d.Begin(cmdList, m_frameIndex, vpMat);
         pb3d.DrawWireSphere(m_orbitTarget, 0.05f, {1.0f, 1.0f, 1.0f, 0.4f}, 12);
 
@@ -1552,25 +1552,25 @@ void GXModelViewerApp::RenderFrame(float deltaTime)
                 SceneEntity* entity = m_sceneGraph.GetEntity(ei);
                 if (!entity || !entity->model || !entity->visible) continue;
 
-                XMFLOAT3 localMin, localMax;
+                gx::Vector3 localMin, localMax;
                 if (!ComputeEntityAABB(*entity, localMin, localMax)) continue;
 
                 // Transform 8 corners to world and draw OBB edges
-                XMMATRIX worldMat = entity->transform.GetWorldMatrix();
-                XMFLOAT3 corners[8];
+                XMMATRIX worldMat = ToXMMATRIX(entity->transform.GetWorldMatrix());
+                gx::Vector3 corners[8];
                 for (int c = 0; c < 8; ++c)
                 {
                     float cx = (c & 1) ? localMax.x : localMin.x;
                     float cy = (c & 2) ? localMax.y : localMin.y;
                     float cz = (c & 4) ? localMax.z : localMin.z;
                     XMVECTOR pt = XMVector3Transform(XMVectorSet(cx, cy, cz, 1.0f), worldMat);
-                    XMStoreFloat3(&corners[c], pt);
+                    XMStoreFloat3(XM(&corners[c]), pt);
                 }
 
                 bool isSelected = (ei == m_sceneGraph.selectedEntity);
-                XMFLOAT4 boxColor = isSelected
-                    ? XMFLOAT4{0.0f, 1.0f, 0.0f, 1.0f}
-                    : XMFLOAT4{1.0f, 1.0f, 0.0f, 0.6f};
+                gx::Vector4 boxColor = isSelected
+                    ? gx::Vector4{0.0f, 1.0f, 0.0f, 1.0f}
+                    : gx::Vector4{1.0f, 1.0f, 0.0f, 0.6f};
 
                 // 12 edges of a box: bottom 4, top 4, vertical 4
                 // corner index: bit0=X, bit1=Y, bit2=Z
@@ -1702,8 +1702,8 @@ int GXModelViewerApp::Run()
                     if (bi < static_cast<int>(gt.size()))
                     {
                         XMVECTOR posLocal = XMVectorSet(gt[bi]._41, gt[bi]._42, gt[bi]._43, 1.0f);
-                        XMVECTOR posWorld = XMVector3Transform(posLocal, sel->transform.GetWorldMatrix());
-                        XMStoreFloat3(&m_orbitTarget, posWorld);
+                        XMVECTOR posWorld = XMVector3Transform(posLocal, ToXMMATRIX(sel->transform.GetWorldMatrix()));
+                        XMStoreFloat3(XM(&m_orbitTarget), posWorld);
                         UpdateOrbitCamera();
                     }
                 }
@@ -1774,7 +1774,7 @@ void GXModelViewerApp::DrawSkeletonOverlay(const SceneEntity& entity)
     auto& pb3d = m_renderer3D.GetPrimitiveBatch3D();
 
     // Get entity world transform
-    XMMATRIX worldMatrix = entity.transform.GetWorldMatrix();
+    XMMATRIX worldMatrix = ToXMMATRIX(entity.transform.GetWorldMatrix());
 
     int selectedBone = m_sceneGraph.selectedBone;
 
@@ -1791,8 +1791,8 @@ void GXModelViewerApp::DrawSkeletonOverlay(const SceneEntity& entity)
 
         // Transform to world space
         XMVECTOR jointPosWorld = XMVector3Transform(jointPosLocal, worldMatrix);
-        XMFLOAT3 jPos;
-        XMStoreFloat3(&jPos, jointPosWorld);
+        gx::Vector3 jPos;
+        XMStoreFloat3(XM(&jPos), jointPosWorld);
 
         bool isSelected = (static_cast<int>(i) == selectedBone);
 
@@ -1802,20 +1802,20 @@ void GXModelViewerApp::DrawSkeletonOverlay(const SceneEntity& entity)
             pb3d.DrawWireSphere(jPos, 0.04f, { 0.0f, 1.0f, 1.0f, 1.0f }, 16);
 
             // Draw local axes (X=red, Y=green, Z=blue)
-            XMMATRIX jointWorld = XMLoadFloat4x4(&globalTransforms[i]) * worldMatrix;
+            XMMATRIX jointWorld = XMLoadFloat4x4(XM(&globalTransforms[i])) * worldMatrix;
             float axisLen = 0.1f;
             XMVECTOR origin = jointPosWorld;
             XMVECTOR xDir = XMVector3Normalize(jointWorld.r[0]);
             XMVECTOR yDir = XMVector3Normalize(jointWorld.r[1]);
             XMVECTOR zDir = XMVector3Normalize(jointWorld.r[2]);
 
-            XMFLOAT3 oPos;
-            XMStoreFloat3(&oPos, origin);
+            gx::Vector3 oPos;
+            XMStoreFloat3(XM(&oPos), origin);
 
-            XMFLOAT3 xEnd, yEnd, zEnd;
-            XMStoreFloat3(&xEnd, origin + xDir * axisLen);
-            XMStoreFloat3(&yEnd, origin + yDir * axisLen);
-            XMStoreFloat3(&zEnd, origin + zDir * axisLen);
+            gx::Vector3 xEnd, yEnd, zEnd;
+            XMStoreFloat3(XM(&xEnd), origin + xDir * axisLen);
+            XMStoreFloat3(XM(&yEnd), origin + yDir * axisLen);
+            XMStoreFloat3(XM(&zEnd), origin + zDir * axisLen);
 
             pb3d.DrawLine(oPos, xEnd, { 1.0f, 0.0f, 0.0f, 1.0f });
             pb3d.DrawLine(oPos, yEnd, { 0.0f, 1.0f, 0.0f, 1.0f });
@@ -1836,8 +1836,8 @@ void GXModelViewerApp::DrawSkeletonOverlay(const SceneEntity& entity)
                 globalTransforms[joints[i].parentIndex]._43,
                 1.0f);
             XMVECTOR parentPosWorld = XMVector3Transform(parentPosLocal, worldMatrix);
-            XMFLOAT3 pPos;
-            XMStoreFloat3(&pPos, parentPosWorld);
+            gx::Vector3 pPos;
+            XMStoreFloat3(XM(&pPos), parentPosWorld);
 
             pb3d.DrawLine(pPos, jPos, { 0.0f, 1.0f, 0.0f, 1.0f });
         }
@@ -1935,7 +1935,7 @@ void GXModelViewerApp::DrawViewportToolbar(ImVec2 imageMin)
 // Viewport Picking
 // ============================================================================
 
-bool GXModelViewerApp::ComputeEntityAABB(const SceneEntity& entity, XMFLOAT3& outMin, XMFLOAT3& outMax)
+bool GXModelViewerApp::ComputeEntityAABB(const SceneEntity& entity, gx::Vector3& outMin, gx::Vector3& outMax)
 {
     if (!entity.model) return false;
 
@@ -1957,24 +1957,24 @@ bool GXModelViewerApp::ComputeEntityAABB(const SceneEntity& entity, XMFLOAT3& ou
         if (!cpuData || cpuData->skinnedVertices.empty()) return false;
 
         // Compute bone matrices (globalTransform * inverseBindMatrix)
-        XMFLOAT4X4 boneMatrices[gx::BoneConstants::k_MaxBones];
+        gx::Matrix4x4 boneMatrices[gx::BoneConstants::k_MaxBones];
         entity.model->GetSkeleton()->ComputeBoneMatrices(gt.data(), boneMatrices);
 
         // CPU skinning: transform each vertex by its weighted bone matrices
         for (const auto& v : cpuData->skinnedVertices)
         {
-            XMVECTOR pos = XMLoadFloat3(&v.position);
+            XMVECTOR pos = XMLoadFloat3(XM(&v.position));
             XMVECTOR skinned = XMVectorZero();
             for (int i = 0; i < 4; ++i)
             {
                 float w = (&v.weights.x)[i];
                 if (w <= 0.0f) continue;
                 uint32_t bi = (&v.joints.x)[i];
-                XMMATRIX bone = XMLoadFloat4x4(&boneMatrices[bi]);
+                XMMATRIX bone = XMLoadFloat4x4(XM(&boneMatrices[bi]));
                 skinned += XMVector3Transform(pos, bone) * w;
             }
-            XMFLOAT3 sp;
-            XMStoreFloat3(&sp, skinned);
+            gx::Vector3 sp;
+            XMStoreFloat3(XM(&sp), skinned);
             updateAABB(sp.x, sp.y, sp.z);
         }
         return true;
@@ -2012,17 +2012,17 @@ void GXModelViewerApp::HandleViewportPicking()
     float ndcY = -(v * 2.0f - 1.0f); // flip Y
 
     // Unproject near and far points
-    XMMATRIX viewProj = m_camera.GetViewMatrix() * m_camera.GetProjectionMatrix();
+    XMMATRIX viewProj = ToXMMATRIX(m_camera.GetViewMatrix()) * ToXMMATRIX(m_camera.GetProjectionMatrix());
     XMVECTOR det;
     XMMATRIX vpInverse = XMMatrixInverse(&det, viewProj);
 
     XMVECTOR nearPt = XMVector3TransformCoord(XMVectorSet(ndcX, ndcY, 0.0f, 1.0f), vpInverse);
     XMVECTOR farPt  = XMVector3TransformCoord(XMVectorSet(ndcX, ndcY, 1.0f, 1.0f), vpInverse);
 
-    XMFLOAT3 rayOrigin, rayDir3;
-    XMStoreFloat3(&rayOrigin, nearPt);
+    gx::Vector3 rayOrigin, rayDir3;
+    XMStoreFloat3(XM(&rayOrigin), nearPt);
     XMVECTOR dir = XMVector3Normalize(farPt - nearPt);
-    XMStoreFloat3(&rayDir3, dir);
+    XMStoreFloat3(XM(&rayDir3), dir);
 
     gx::Ray ray(gx::Vector3(rayOrigin.x, rayOrigin.y, rayOrigin.z),
                 gx::Vector3(rayDir3.x, rayDir3.y, rayDir3.z));
@@ -2036,11 +2036,11 @@ void GXModelViewerApp::HandleViewportPicking()
         if (!entity || !entity->model || !entity->visible) continue;
 
         // Compute local AABB
-        XMFLOAT3 localMin, localMax;
+        gx::Vector3 localMin, localMax;
         if (!ComputeEntityAABB(*entity, localMin, localMax)) continue;
 
         // Transform ray into entity's local space (= OBB test without inflation)
-        XMMATRIX worldMat = entity->transform.GetWorldMatrix();
+        XMMATRIX worldMat = ToXMMATRIX(entity->transform.GetWorldMatrix());
         XMVECTOR det2;
         XMMATRIX invWorld = XMMatrixInverse(&det2, worldMat);
 
@@ -2049,9 +2049,9 @@ void GXModelViewerApp::HandleViewportPicking()
         XMVECTOR localFar    = XMVector3TransformCoord(farPt, invWorld);
         XMVECTOR localDir    = XMVector3Normalize(localFar - localOrigin);
 
-        XMFLOAT3 lo, ld;
-        XMStoreFloat3(&lo, localOrigin);
-        XMStoreFloat3(&ld, localDir);
+        gx::Vector3 lo, ld;
+        XMStoreFloat3(XM(&lo), localOrigin);
+        XMStoreFloat3(XM(&ld), localDir);
 
         gx::Ray localRay(gx::Vector3(lo.x, lo.y, lo.z),
                          gx::Vector3(ld.x, ld.y, ld.z));

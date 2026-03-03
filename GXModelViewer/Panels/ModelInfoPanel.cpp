@@ -72,8 +72,8 @@ void ModelInfoPanel::DrawContent(const SceneGraph& scene)
         ImGui::Text("Total:   %.1f KB", (vertexSize + indexSize) / 1024.0f);
 
         // AABB
-        XMFLOAT3 aabbMin = { 1e30f, 1e30f, 1e30f };
-        XMFLOAT3 aabbMax = { -1e30f, -1e30f, -1e30f };
+        gx::Vector3 aabbMin = { 1e30f, 1e30f, 1e30f };
+        gx::Vector3 aabbMax = { -1e30f, -1e30f, -1e30f };
 
         auto updateAABB = [&](float px, float py, float pz) {
             aabbMin.x = (std::min)(aabbMin.x, px);

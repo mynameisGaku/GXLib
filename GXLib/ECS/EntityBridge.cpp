@@ -27,7 +27,7 @@ EntityID EntityBridge::ImportEntity(World& world, const Entity& entity)
     // 位置
     {
         auto& pos = world.AddComponent<BridgePosition>(ecsId);
-        const XMFLOAT3& p = entity.GetTransform().GetPosition();
+        const Vector3& p = entity.GetTransform().GetPosition();
         pos.x = p.x;
         pos.y = p.y;
         pos.z = p.z;
@@ -36,7 +36,7 @@ EntityID EntityBridge::ImportEntity(World& world, const Entity& entity)
     // 回転（Transform3Dからのオイラー角）
     {
         auto& rot = world.AddComponent<BridgeRotation>(ecsId);
-        const XMFLOAT3& r = entity.GetTransform().GetRotation();
+        const Vector3& r = entity.GetTransform().GetRotation();
         rot.x = r.x;
         rot.y = r.y;
         rot.z = r.z;
@@ -45,7 +45,7 @@ EntityID EntityBridge::ImportEntity(World& world, const Entity& entity)
     // スケール
     {
         auto& scl = world.AddComponent<BridgeScale>(ecsId);
-        const XMFLOAT3& s = entity.GetTransform().GetScale();
+        const Vector3& s = entity.GetTransform().GetScale();
         scl.x = s.x;
         scl.y = s.y;
         scl.z = s.z;

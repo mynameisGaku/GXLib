@@ -27,16 +27,16 @@ TEST(ScenePersistencePhase5, FileFormatEnum)
 TEST(ScenePersistencePhase5, SerializeEmptySceneToString)
 {
     Scene scene("EmptyTest");
-    std::string text = ScenePersistence::SerializeToString(scene);
+    gx::String text = ScenePersistence::SerializeToString(scene);
 
     EXPECT_FALSE(text.empty());
-    EXPECT_NE(text.find("EmptyTest"), std::string::npos);
+    EXPECT_NE(text.find("EmptyTest"), gx::String::npos);
 }
 
 TEST(ScenePersistencePhase5, DeserializeEmptySceneFromString)
 {
     Scene scene("RoundTrip");
-    std::string text = ScenePersistence::SerializeToString(scene);
+    gx::String text = ScenePersistence::SerializeToString(scene);
 
     auto loaded = ScenePersistence::DeserializeFromString(text);
     ASSERT_NE(loaded, nullptr);
@@ -51,7 +51,7 @@ TEST(ScenePersistencePhase5, TextRoundTripSingleEntity)
     entity->GetTransform().SetPosition(1.0f, 2.0f, 3.0f);
     entity->GetTransform().SetScale(2.0f, 2.0f, 2.0f);
 
-    std::string text = ScenePersistence::SerializeToString(scene);
+    gx::String text = ScenePersistence::SerializeToString(scene);
     auto loaded = ScenePersistence::DeserializeFromString(text);
     ASSERT_NE(loaded, nullptr);
 
@@ -71,7 +71,7 @@ TEST(ScenePersistencePhase5, TextRoundTripMultipleEntities)
     scene.CreateEntity("Enemy");
     scene.CreateEntity("NPC");
 
-    std::string text = ScenePersistence::SerializeToString(scene);
+    gx::String text = ScenePersistence::SerializeToString(scene);
     auto loaded = ScenePersistence::DeserializeFromString(text);
     ASSERT_NE(loaded, nullptr);
 
@@ -88,7 +88,7 @@ TEST(ScenePersistencePhase5, TextRoundTripWithHierarchy)
     auto* child = scene.CreateEntity("Child");
     child->SetParent(parent);
 
-    std::string text = ScenePersistence::SerializeToString(scene);
+    gx::String text = ScenePersistence::SerializeToString(scene);
     auto loaded = ScenePersistence::DeserializeFromString(text);
     ASSERT_NE(loaded, nullptr);
 
@@ -105,7 +105,7 @@ TEST(ScenePersistencePhase5, TextRoundTripWithRotation)
     auto* entity = scene.CreateEntity("Rotated");
     entity->GetTransform().SetRotation(0.5f, 1.0f, 1.5f);
 
-    std::string text = ScenePersistence::SerializeToString(scene);
+    gx::String text = ScenePersistence::SerializeToString(scene);
     auto loaded = ScenePersistence::DeserializeFromString(text);
     ASSERT_NE(loaded, nullptr);
 
@@ -170,14 +170,14 @@ TEST(ScenePersistencePhase5, BinaryRoundTripWithEntities)
 
 TEST(ScenePersistencePhase5, BinaryDeserializeInvalid)
 {
-    std::vector<uint8_t> garbage = { 0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0x01, 0x02, 0x03 };
+    gx::Vector<uint8_t> garbage = { 0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0x01, 0x02, 0x03 };
     auto loaded = ScenePersistence::DeserializeFromBinary(garbage);
     EXPECT_EQ(loaded, nullptr);
 }
 
 TEST(ScenePersistencePhase5, BinaryDeserializeEmpty)
 {
-    std::vector<uint8_t> empty;
+    gx::Vector<uint8_t> empty;
     auto loaded = ScenePersistence::DeserializeFromBinary(empty);
     EXPECT_EQ(loaded, nullptr);
 }
@@ -250,7 +250,7 @@ TEST(ScenePersistencePhase5, TextRoundTripEntityActive)
     auto* e2 = scene.CreateEntity("Inactive");
     e2->SetActive(false);
 
-    std::string text = ScenePersistence::SerializeToString(scene);
+    gx::String text = ScenePersistence::SerializeToString(scene);
     auto loaded = ScenePersistence::DeserializeFromString(text);
     ASSERT_NE(loaded, nullptr);
 
@@ -274,7 +274,7 @@ TEST(ScenePersistencePhase5, TextRoundTripLargeScene)
             static_cast<float>(i * 3));
     }
 
-    std::string text = ScenePersistence::SerializeToString(scene);
+    gx::String text = ScenePersistence::SerializeToString(scene);
     auto loaded = ScenePersistence::DeserializeFromString(text);
     ASSERT_NE(loaded, nullptr);
 
@@ -293,7 +293,7 @@ TEST(ScenePersistencePhase5, TextRoundTripScale)
     auto* entity = scene.CreateEntity("Scaled");
     entity->GetTransform().SetScale(3.0f, 4.0f, 5.0f);
 
-    std::string text = ScenePersistence::SerializeToString(scene);
+    gx::String text = ScenePersistence::SerializeToString(scene);
     auto loaded = ScenePersistence::DeserializeFromString(text);
     ASSERT_NE(loaded, nullptr);
 
@@ -307,8 +307,8 @@ TEST(ScenePersistencePhase5, TextRoundTripScale)
 TEST(ScenePersistencePhase5, SerializeContainsSceneName)
 {
     Scene scene("NameCheckScene");
-    std::string text = ScenePersistence::SerializeToString(scene);
-    EXPECT_NE(text.find("NameCheckScene"), std::string::npos);
+    gx::String text = ScenePersistence::SerializeToString(scene);
+    EXPECT_NE(text.find("NameCheckScene"), gx::String::npos);
 }
 
 // ============================================================================

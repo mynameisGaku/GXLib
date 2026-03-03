@@ -88,10 +88,10 @@ TEST(GraphicsDeviceTest, MaterialDefaultValues)
 {
     Material mat;
     // Default albedo = white
-    EXPECT_NEAR(mat.constants.albedoFactor.x, 1.0f, kEps);
-    EXPECT_NEAR(mat.constants.albedoFactor.y, 1.0f, kEps);
-    EXPECT_NEAR(mat.constants.albedoFactor.z, 1.0f, kEps);
-    EXPECT_NEAR(mat.constants.albedoFactor.w, 1.0f, kEps);
+    EXPECT_NEAR(mat.constants.albedoFactor.r, 1.0f, kEps);
+    EXPECT_NEAR(mat.constants.albedoFactor.g, 1.0f, kEps);
+    EXPECT_NEAR(mat.constants.albedoFactor.b, 1.0f, kEps);
+    EXPECT_NEAR(mat.constants.albedoFactor.a, 1.0f, kEps);
     // Default metallic = 0, roughness = 0.5
     EXPECT_NEAR(mat.constants.metallicFactor, 0.0f, kEps);
     EXPECT_NEAR(mat.constants.roughnessFactor, 0.5f, kEps);
@@ -164,8 +164,8 @@ TEST(GraphicsDeviceTest, MaterialFlagsMultiple)
 TEST(GraphicsDeviceTest, MaterialConstantsDefaults)
 {
     MaterialConstants mc{};
-    // Zero-initialized (not the Material struct defaults)
-    EXPECT_NEAR(mc.albedoFactor.x, 0.0f, kEps);
+    // Color defaults to white (1, 1, 1, 1)
+    EXPECT_NEAR(mc.albedoFactor.r, 1.0f, kEps);
     EXPECT_NEAR(mc.metallicFactor, 0.0f, kEps);
     EXPECT_NEAR(mc.roughnessFactor, 0.0f, kEps);
     EXPECT_EQ(mc.flags, 0u);

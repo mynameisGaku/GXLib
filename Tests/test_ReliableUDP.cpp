@@ -141,8 +141,8 @@ TEST(ReplicatedProperty, InterpolateFloat)
 
 TEST(ReplicatedProperty, StringInterpolateSnaps)
 {
-    ReplicatedProperty<std::string> prop(std::string("hello"));
-    std::string result = prop.Interpolate(std::string("world"), 0.5f);
+    ReplicatedProperty<gx::String> prop(gx::String("hello"));
+    gx::String result = prop.Interpolate(gx::String("world"), 0.5f);
     EXPECT_EQ(result, "world");
 }
 
@@ -200,7 +200,7 @@ TEST(NetworkReplicator, DefaultRegisteredEntityCount)
 TEST(NetworkReplicator, SerializeDeserializeSnapshot)
 {
     NetworkReplicator rep;
-    std::vector<SnapshotEntry> entries;
+    gx::Vector<SnapshotEntry> entries;
     SnapshotEntry e;
     e.networkId = 1;
     e.position = Vector3{1.0f, 2.0f, 3.0f};

@@ -80,7 +80,7 @@ TEST(DecalDeferredTest, PrioritySorting)
     DecalData a; a.priority = 1;
     DecalData b; b.priority = 5;
     DecalData c; c.priority = 3;
-    std::vector<DecalData> decals = {a, b, c};
+    gx::Vector<DecalData> decals = {a, b, c};
     std::sort(decals.begin(), decals.end(),
               [](const DecalData& x, const DecalData& y) { return x.priority < y.priority; });
     EXPECT_LE(decals[0].priority, decals[1].priority);

@@ -11,7 +11,7 @@ namespace gx
 {
 
 bool SpriteSheet::LoadDivGraph(TextureManager& textureManager,
-                                const std::wstring& filePath,
+                                const gx::WString& filePath,
                                 int allNum, int xNum, int yNum,
                                 int xSize, int ySize,
                                 int* handleArray)

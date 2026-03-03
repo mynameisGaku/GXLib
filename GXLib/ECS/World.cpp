@@ -182,7 +182,7 @@ Archetype& World::FindOrCreateArchetype(ComponentMask mask)
     }
 
     // マスクからコンポーネント情報リストを構築
-    std::vector<std::pair<ComponentID, uint32_t>> infos;
+    gx::Vector<std::pair<ComponentID, uint32_t>> infos;
     for (ComponentID c = 0; c < k_MaxComponents; ++c)
     {
         if (mask & (1ULL << c))

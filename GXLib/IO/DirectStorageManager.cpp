@@ -70,7 +70,7 @@ bool DirectStorageManager::Initialize(void* d3d12Device)
 // ファイル管理
 // ---------------------------------------------------------------------------
 
-bool DirectStorageManager::OpenFile(const std::wstring& path)
+bool DirectStorageManager::OpenFile(const gx::WString& path)
 {
     if (m_openFiles.count(path) > 0)
         return true;
@@ -88,7 +88,7 @@ bool DirectStorageManager::OpenFile(const std::wstring& path)
     return true;
 }
 
-void DirectStorageManager::CloseFile(const std::wstring& path)
+void DirectStorageManager::CloseFile(const gx::WString& path)
 {
     m_openFiles.erase(path);
 }

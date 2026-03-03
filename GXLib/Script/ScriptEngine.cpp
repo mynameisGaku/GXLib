@@ -56,7 +56,7 @@ void ScriptEngine::SetContext(SpriteBatch* spriteBatch, TextureManager* texManag
     ScriptBindings::RegisterDrawing(m_impl->lua, spriteBatch, texManager);
 }
 
-bool ScriptEngine::ExecuteFile(const std::string& path)
+bool ScriptEngine::ExecuteFile(const gx::String& path)
 {
     if (!m_impl)
     {
@@ -64,7 +64,7 @@ bool ScriptEngine::ExecuteFile(const std::string& path)
         return false;
     }
 
-    auto result = m_impl->lua.safe_script_file(path, sol::script_pass_on_error);
+    auto result = m_impl->lua.safe_script_file(std::string(path.c_str()), sol::script_pass_on_error);
     if (!result.valid())
     {
         sol::error err = result;
@@ -75,7 +75,7 @@ bool ScriptEngine::ExecuteFile(const std::string& path)
     return true;
 }
 
-bool ScriptEngine::ExecuteString(const std::string& code)
+bool ScriptEngine::ExecuteString(const gx::String& code)
 {
     if (!m_impl)
     {
@@ -83,7 +83,7 @@ bool ScriptEngine::ExecuteString(const std::string& code)
         return false;
     }
 
-    auto result = m_impl->lua.safe_script(code, sol::script_pass_on_error);
+    auto result = m_impl->lua.safe_script(std::string(code.c_str()), sol::script_pass_on_error);
     if (!result.valid())
     {
         sol::error err = result;
@@ -94,11 +94,12 @@ bool ScriptEngine::ExecuteString(const std::string& code)
     return true;
 }
 
-bool ScriptEngine::CallFunction(const std::string& funcName)
+bool ScriptEngine::CallFunction(const gx::String& funcName)
 {
     if (!m_impl) return false;
 
-    sol::protected_function fn = m_impl->lua[funcName];
+    std::string sfn(funcName.c_str());
+    sol::protected_function fn = m_impl->lua[sfn];
     if (!fn.valid())
     {
         m_lastError = "Function not found: " + funcName;
@@ -116,11 +117,12 @@ bool ScriptEngine::CallFunction(const std::string& funcName)
     return true;
 }
 
-bool ScriptEngine::CallFunction(const std::string& funcName, float arg1)
+bool ScriptEngine::CallFunction(const gx::String& funcName, float arg1)
 {
     if (!m_impl) return false;
 
-    sol::protected_function fn = m_impl->lua[funcName];
+    std::string sfn(funcName.c_str());
+    sol::protected_function fn = m_impl->lua[sfn];
     if (!fn.valid())
     {
         m_lastError = "Function not found: " + funcName;
@@ -138,34 +140,34 @@ bool ScriptEngine::CallFunction(const std::string& funcName, float arg1)
     return true;
 }
 
-void ScriptEngine::SetGlobal(const std::string& name, float value)
+void ScriptEngine::SetGlobal(const gx::String& name, float value)
 {
-    if (m_impl) m_impl->lua[name] = value;
+    if (m_impl) m_impl->lua[std::string(name.c_str())] = value;
 }
 
-void ScriptEngine::SetGlobal(const std::string& name, int value)
+void ScriptEngine::SetGlobal(const gx::String& name, int value)
 {
-    if (m_impl) m_impl->lua[name] = value;
+    if (m_impl) m_impl->lua[std::string(name.c_str())] = value;
 }
 
-void ScriptEngine::SetGlobal(const std::string& name, const std::string& value)
+void ScriptEngine::SetGlobal(const gx::String& name, const gx::String& value)
 {
-    if (m_impl) m_impl->lua[name] = value;
+    if (m_impl) m_impl->lua[std::string(name.c_str())] = std::string(value.c_str());
 }
 
-float ScriptEngine::GetGlobalFloat(const std::string& name, float defaultValue) const
+float ScriptEngine::GetGlobalFloat(const gx::String& name, float defaultValue) const
 {
     if (!m_impl) return defaultValue;
-    sol::object obj = m_impl->lua[name];
+    sol::object obj = m_impl->lua[std::string(name.c_str())];
     if (obj.is<float>()) return obj.as<float>();
     if (obj.is<double>()) return static_cast<float>(obj.as<double>());
     return defaultValue;
 }
 
-int ScriptEngine::GetGlobalInt(const std::string& name, int defaultValue) const
+int ScriptEngine::GetGlobalInt(const gx::String& name, int defaultValue) const
 {
     if (!m_impl) return defaultValue;
-    sol::object obj = m_impl->lua[name];
+    sol::object obj = m_impl->lua[std::string(name.c_str())];
     if (obj.is<int>()) return obj.as<int>();
     return defaultValue;
 }
@@ -195,15 +197,15 @@ bool ScriptEngine::Initialize()
 }
 
 void ScriptEngine::SetContext(SpriteBatch*, TextureManager*, InputManager*) {}
-bool ScriptEngine::ExecuteFile(const std::string&) { return false; }
-bool ScriptEngine::ExecuteString(const std::string&) { return false; }
-bool ScriptEngine::CallFunction(const std::string&) { return false; }
-bool ScriptEngine::CallFunction(const std::string&, float) { return false; }
-void ScriptEngine::SetGlobal(const std::string&, float) {}
-void ScriptEngine::SetGlobal(const std::string&, int) {}
-void ScriptEngine::SetGlobal(const std::string&, const std::string&) {}
-float ScriptEngine::GetGlobalFloat(const std::string&, float d) const { return d; }
-int ScriptEngine::GetGlobalInt(const std::string&, int d) const { return d; }
+bool ScriptEngine::ExecuteFile(const gx::String&) { return false; }
+bool ScriptEngine::ExecuteString(const gx::String&) { return false; }
+bool ScriptEngine::CallFunction(const gx::String&) { return false; }
+bool ScriptEngine::CallFunction(const gx::String&, float) { return false; }
+void ScriptEngine::SetGlobal(const gx::String&, float) {}
+void ScriptEngine::SetGlobal(const gx::String&, int) {}
+void ScriptEngine::SetGlobal(const gx::String&, const gx::String&) {}
+float ScriptEngine::GetGlobalFloat(const gx::String&, float d) const { return d; }
+int ScriptEngine::GetGlobalInt(const gx::String&, int d) const { return d; }
 void ScriptEngine::Shutdown() {}
 
 } // namespace gx

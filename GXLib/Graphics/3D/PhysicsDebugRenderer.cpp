@@ -26,19 +26,14 @@ static Vector3 RotateByQuaternion(const Quaternion& q, const Vector3& v)
     );
 }
 
-static DirectX::XMFLOAT3 ToXMF3(const Vector3& v)
-{
-    return DirectX::XMFLOAT3{v.x, v.y, v.z};
-}
-
 // ============================================================================
 // メインレンダリング
 // ============================================================================
 
 void PhysicsDebugRenderer::Render(DebugDraw3D& debugDraw,
-                                   const std::vector<BodyDebugInfo>& bodies,
-                                   const std::vector<ContactDebugInfo>& contacts,
-                                   const std::vector<ConstraintDebugInfo>& constraints)
+                                   const gx::Vector<BodyDebugInfo>& bodies,
+                                   const gx::Vector<ContactDebugInfo>& contacts,
+                                   const gx::Vector<ConstraintDebugInfo>& constraints)
 {
     if (m_flags & PhysicsDebug_Colliders)
     {
@@ -62,7 +57,7 @@ void PhysicsDebugRenderer::Render(DebugDraw3D& debugDraw,
             if (speed > 0.01f)
             {
                 Vector3 end = body.position + body.linearVelocity;
-                debugDraw.DrawArrow(ToXMF3(body.position), ToXMF3(end),
+                debugDraw.DrawArrow((body.position), (end),
                                     m_velocityColor, 0.05f);
             }
         }
@@ -133,25 +128,25 @@ void PhysicsDebugRenderer::RenderBody(DebugDraw3D& debugDraw, const BodyDebugInf
 
         // 12本の辺を描画
         // 底面
-        debugDraw.DrawLine(ToXMF3(corners[0]), ToXMF3(corners[1]), color);
-        debugDraw.DrawLine(ToXMF3(corners[1]), ToXMF3(corners[2]), color);
-        debugDraw.DrawLine(ToXMF3(corners[2]), ToXMF3(corners[3]), color);
-        debugDraw.DrawLine(ToXMF3(corners[3]), ToXMF3(corners[0]), color);
+        debugDraw.DrawLine((corners[0]), (corners[1]), color);
+        debugDraw.DrawLine((corners[1]), (corners[2]), color);
+        debugDraw.DrawLine((corners[2]), (corners[3]), color);
+        debugDraw.DrawLine((corners[3]), (corners[0]), color);
         // 上面
-        debugDraw.DrawLine(ToXMF3(corners[4]), ToXMF3(corners[5]), color);
-        debugDraw.DrawLine(ToXMF3(corners[5]), ToXMF3(corners[6]), color);
-        debugDraw.DrawLine(ToXMF3(corners[6]), ToXMF3(corners[7]), color);
-        debugDraw.DrawLine(ToXMF3(corners[7]), ToXMF3(corners[4]), color);
+        debugDraw.DrawLine((corners[4]), (corners[5]), color);
+        debugDraw.DrawLine((corners[5]), (corners[6]), color);
+        debugDraw.DrawLine((corners[6]), (corners[7]), color);
+        debugDraw.DrawLine((corners[7]), (corners[4]), color);
         // 縦辺
-        debugDraw.DrawLine(ToXMF3(corners[0]), ToXMF3(corners[4]), color);
-        debugDraw.DrawLine(ToXMF3(corners[1]), ToXMF3(corners[5]), color);
-        debugDraw.DrawLine(ToXMF3(corners[2]), ToXMF3(corners[6]), color);
-        debugDraw.DrawLine(ToXMF3(corners[3]), ToXMF3(corners[7]), color);
+        debugDraw.DrawLine((corners[0]), (corners[4]), color);
+        debugDraw.DrawLine((corners[1]), (corners[5]), color);
+        debugDraw.DrawLine((corners[2]), (corners[6]), color);
+        debugDraw.DrawLine((corners[3]), (corners[7]), color);
         break;
     }
     case DebugShapeType::Sphere:
     {
-        debugDraw.DrawWireSphere(ToXMF3(body.position), body.shapeRadius, color, 16);
+        debugDraw.DrawWireSphere((body.position), body.shapeRadius, color, 16);
         break;
     }
     case DebugShapeType::Capsule:
@@ -164,7 +159,7 @@ void PhysicsDebugRenderer::RenderBody(DebugDraw3D& debugDraw, const BodyDebugInf
     case DebugShapeType::ConvexHull:
     {
         // メッシュ/凸包は AABB で代替描画
-        debugDraw.DrawWireBox(ToXMF3(body.position), ToXMF3(body.shapeExtents), color);
+        debugDraw.DrawWireBox((body.position), (body.shapeExtents), color);
         break;
     }
     }
@@ -198,7 +193,7 @@ void PhysicsDebugRenderer::DrawWireCapsule(DebugDraw3D& debugDraw,
         float cosA = std::cos(angle);
         float sinA = std::sin(angle);
         Vector3 offset = right * (cosA * radius) + fwd * (sinA * radius);
-        debugDraw.DrawLine(ToXMF3(topCenter + offset), ToXMF3(bottomCenter + offset), color);
+        debugDraw.DrawLine((topCenter + offset), (bottomCenter + offset), color);
     }
 
     // 上下の円
@@ -213,9 +208,9 @@ void PhysicsDebugRenderer::DrawWireCapsule(DebugDraw3D& debugDraw,
         Vector3 p1 = right * (c1 * radius) + fwd * (s1 * radius);
 
         // 上の円
-        debugDraw.DrawLine(ToXMF3(topCenter + p0), ToXMF3(topCenter + p1), color);
+        debugDraw.DrawLine((topCenter + p0), (topCenter + p1), color);
         // 下の円
-        debugDraw.DrawLine(ToXMF3(bottomCenter + p0), ToXMF3(bottomCenter + p1), color);
+        debugDraw.DrawLine((bottomCenter + p0), (bottomCenter + p1), color);
     }
 
     // 上下の半球弧（right-up面 と fwd-up面 の2つの大円弧）
@@ -228,35 +223,35 @@ void PhysicsDebugRenderer::DrawWireCapsule(DebugDraw3D& debugDraw,
         // 上半球 (right-up 面)
         Vector3 tp0 = topCenter + up * (std::sin(a0) * radius) + right * (std::cos(a0) * radius);
         Vector3 tp1 = topCenter + up * (std::sin(a1) * radius) + right * (std::cos(a1) * radius);
-        debugDraw.DrawLine(ToXMF3(tp0), ToXMF3(tp1), color);
+        debugDraw.DrawLine((tp0), (tp1), color);
         // 反対側
         Vector3 tp0n = topCenter + up * (std::sin(a0) * radius) - right * (std::cos(a0) * radius);
         Vector3 tp1n = topCenter + up * (std::sin(a1) * radius) - right * (std::cos(a1) * radius);
-        debugDraw.DrawLine(ToXMF3(tp0n), ToXMF3(tp1n), color);
+        debugDraw.DrawLine((tp0n), (tp1n), color);
 
         // 上半球 (fwd-up 面)
         Vector3 fp0 = topCenter + up * (std::sin(a0) * radius) + fwd * (std::cos(a0) * radius);
         Vector3 fp1 = topCenter + up * (std::sin(a1) * radius) + fwd * (std::cos(a1) * radius);
-        debugDraw.DrawLine(ToXMF3(fp0), ToXMF3(fp1), color);
+        debugDraw.DrawLine((fp0), (fp1), color);
         Vector3 fp0n = topCenter + up * (std::sin(a0) * radius) - fwd * (std::cos(a0) * radius);
         Vector3 fp1n = topCenter + up * (std::sin(a1) * radius) - fwd * (std::cos(a1) * radius);
-        debugDraw.DrawLine(ToXMF3(fp0n), ToXMF3(fp1n), color);
+        debugDraw.DrawLine((fp0n), (fp1n), color);
 
         // 下半球 (right-up 面)
         Vector3 bp0 = bottomCenter - up * (std::sin(a0) * radius) + right * (std::cos(a0) * radius);
         Vector3 bp1 = bottomCenter - up * (std::sin(a1) * radius) + right * (std::cos(a1) * radius);
-        debugDraw.DrawLine(ToXMF3(bp0), ToXMF3(bp1), color);
+        debugDraw.DrawLine((bp0), (bp1), color);
         Vector3 bp0n = bottomCenter - up * (std::sin(a0) * radius) - right * (std::cos(a0) * radius);
         Vector3 bp1n = bottomCenter - up * (std::sin(a1) * radius) - right * (std::cos(a1) * radius);
-        debugDraw.DrawLine(ToXMF3(bp0n), ToXMF3(bp1n), color);
+        debugDraw.DrawLine((bp0n), (bp1n), color);
 
         // 下半球 (fwd-up 面)
         Vector3 bfp0 = bottomCenter - up * (std::sin(a0) * radius) + fwd * (std::cos(a0) * radius);
         Vector3 bfp1 = bottomCenter - up * (std::sin(a1) * radius) + fwd * (std::cos(a1) * radius);
-        debugDraw.DrawLine(ToXMF3(bfp0), ToXMF3(bfp1), color);
+        debugDraw.DrawLine((bfp0), (bfp1), color);
         Vector3 bfp0n = bottomCenter - up * (std::sin(a0) * radius) - fwd * (std::cos(a0) * radius);
         Vector3 bfp1n = bottomCenter - up * (std::sin(a1) * radius) - fwd * (std::cos(a1) * radius);
-        debugDraw.DrawLine(ToXMF3(bfp0n), ToXMF3(bfp1n), color);
+        debugDraw.DrawLine((bfp0n), (bfp1n), color);
     }
 }
 
@@ -267,26 +262,26 @@ void PhysicsDebugRenderer::DrawWireCapsule(DebugDraw3D& debugDraw,
 void PhysicsDebugRenderer::RenderContact(DebugDraw3D& debugDraw, const ContactDebugInfo& contact)
 {
     // 接触点AからBへの線
-    debugDraw.DrawLine(ToXMF3(contact.pointA), ToXMF3(contact.pointB), m_contactColor);
+    debugDraw.DrawLine((contact.pointA), (contact.pointB), m_contactColor);
 
     // 接触法線を矢印で描画（pointA から法線方向に 0.3 単位）
     Vector3 normalEnd = contact.pointA + contact.normal * 0.3f;
-    debugDraw.DrawArrow(ToXMF3(contact.pointA), ToXMF3(normalEnd), m_contactColor, 0.03f);
+    debugDraw.DrawArrow((contact.pointA), (normalEnd), m_contactColor, 0.03f);
 
     // 接触点に小さな十字を描画
     constexpr float crossSize = 0.02f;
     Vector3 p = contact.pointA;
     debugDraw.DrawLine(
-        DirectX::XMFLOAT3{p.x - crossSize, p.y, p.z},
-        DirectX::XMFLOAT3{p.x + crossSize, p.y, p.z},
+        Vector3{p.x - crossSize, p.y, p.z},
+        Vector3{p.x + crossSize, p.y, p.z},
         m_contactColor);
     debugDraw.DrawLine(
-        DirectX::XMFLOAT3{p.x, p.y - crossSize, p.z},
-        DirectX::XMFLOAT3{p.x, p.y + crossSize, p.z},
+        Vector3{p.x, p.y - crossSize, p.z},
+        Vector3{p.x, p.y + crossSize, p.z},
         m_contactColor);
     debugDraw.DrawLine(
-        DirectX::XMFLOAT3{p.x, p.y, p.z - crossSize},
-        DirectX::XMFLOAT3{p.x, p.y, p.z + crossSize},
+        Vector3{p.x, p.y, p.z - crossSize},
+        Vector3{p.x, p.y, p.z + crossSize},
         m_contactColor);
 }
 
@@ -298,7 +293,7 @@ void PhysicsDebugRenderer::RenderConstraint(DebugDraw3D& debugDraw,
                                              const ConstraintDebugInfo& constraint)
 {
     // アンカーA から アンカーB への線を描画
-    debugDraw.DrawLine(ToXMF3(constraint.anchorA), ToXMF3(constraint.anchorB),
+    debugDraw.DrawLine((constraint.anchorA), (constraint.anchorB),
                        m_constraintColor);
 
     // 各アンカー点に小さなダイヤモンド（菱形）を描画
@@ -306,20 +301,20 @@ void PhysicsDebugRenderer::RenderConstraint(DebugDraw3D& debugDraw,
     auto drawDiamond = [&](const Vector3& p)
     {
         debugDraw.DrawLine(
-            DirectX::XMFLOAT3{p.x, p.y + size, p.z},
-            DirectX::XMFLOAT3{p.x + size, p.y, p.z},
+            Vector3{p.x, p.y + size, p.z},
+            Vector3{p.x + size, p.y, p.z},
             m_constraintColor);
         debugDraw.DrawLine(
-            DirectX::XMFLOAT3{p.x + size, p.y, p.z},
-            DirectX::XMFLOAT3{p.x, p.y - size, p.z},
+            Vector3{p.x + size, p.y, p.z},
+            Vector3{p.x, p.y - size, p.z},
             m_constraintColor);
         debugDraw.DrawLine(
-            DirectX::XMFLOAT3{p.x, p.y - size, p.z},
-            DirectX::XMFLOAT3{p.x - size, p.y, p.z},
+            Vector3{p.x, p.y - size, p.z},
+            Vector3{p.x - size, p.y, p.z},
             m_constraintColor);
         debugDraw.DrawLine(
-            DirectX::XMFLOAT3{p.x - size, p.y, p.z},
-            DirectX::XMFLOAT3{p.x, p.y + size, p.z},
+            Vector3{p.x - size, p.y, p.z},
+            Vector3{p.x, p.y + size, p.z},
             m_constraintColor);
     };
 

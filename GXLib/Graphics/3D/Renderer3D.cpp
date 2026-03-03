@@ -7,6 +7,7 @@
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Graphics/Device/BarrierBatch.h"
+#include "Math/MathConvert.h"
 #include "Core/Logger.h"
 
 namespace gx
@@ -19,8 +20,8 @@ namespace gx
 /// @brief オブジェクト定数バッファ（b0スロット）
 struct ObjectConstants
 {
-    XMFLOAT4X4 world;                  ///< ワールド変換行列
-    XMFLOAT4X4 worldInverseTranspose;  ///< ワールド逆転置行列（法線変換用）
+    Matrix4x4 world;                  ///< ワールド変換行列
+    Matrix4x4 worldInverseTranspose;  ///< ワールド逆転置行列（法線変換用）
 };
 
 /// @brief 1フレームあたりの最大オブジェクト数
@@ -29,30 +30,30 @@ static constexpr uint32_t k_MaxObjectsPerFrame = 512;
 /// @brief フレーム定数バッファ（b1スロット、1008B）
 struct FrameConstants
 {
-    XMFLOAT4X4 view;
-    XMFLOAT4X4 projection;
-    XMFLOAT4X4 viewProjection;
-    XMFLOAT3   cameraPosition;
-    float      time;
-    XMFLOAT4X4 lightVP[ShadowConstants::k_NumCascades];
-    float      cascadeSplits[ShadowConstants::k_NumCascades];
-    float      shadowMapSize;
-    uint32_t   shadowEnabled;
-    float      _fogPad[2];
-    XMFLOAT3   fogColor;
-    float      fogStart;
-    float      fogEnd;
-    float      fogDensity;
-    uint32_t   fogMode;
-    uint32_t   shadowDebugMode;
-    XMFLOAT4X4 spotLightVP;
-    float      spotShadowMapSize;
-    int32_t    spotShadowLightIndex;
-    float      _spotPad[2];
-    XMFLOAT4X4 pointLightVP[6];
-    float      pointShadowMapSize;
-    int32_t    pointShadowLightIndex;
-    float      _pointPad[2];
+    Matrix4x4 view;
+    Matrix4x4 projection;
+    Matrix4x4 viewProjection;
+    Vector3   cameraPosition;
+    float     time;
+    Matrix4x4 lightVP[ShadowConstants::k_NumCascades];
+    float     cascadeSplits[ShadowConstants::k_NumCascades];
+    float     shadowMapSize;
+    uint32_t  shadowEnabled;
+    float     _fogPad[2];
+    Vector3   fogColor;
+    float     fogStart;
+    float     fogEnd;
+    float     fogDensity;
+    uint32_t  fogMode;
+    uint32_t  shadowDebugMode;
+    Matrix4x4 spotLightVP;
+    float     spotShadowMapSize;
+    int32_t   spotShadowLightIndex;
+    float     _spotPad[2];
+    Matrix4x4 pointLightVP[6];
+    float     pointShadowMapSize;
+    int32_t   pointShadowLightIndex;
+    float     _pointPad[2];
 };
 
 static_assert(offsetof(FrameConstants, shadowEnabled) == 484, "shadowEnabled offset mismatch");
@@ -103,8 +104,8 @@ bool Renderer3D::Initialize(ID3D12Device* device, ID3D12CommandQueue* cmdQueue,
     if (!m_frameCB.Initialize(device, frameCBSize, frameCBSize))
         return false;
 
-    // LightConstants（ライト定数バッファ）
-    uint32_t lightCBSize = ((sizeof(LightConstants) + 255) / 256) * 256;
+    // LightConstants（ライト定数バッファ — HLSL cbuffer b2 は gLights[16] 固定）
+    uint32_t lightCBSize = ((sizeof(ShaderLightConstants) + 255) / 256) * 256;
     if (!m_lightCB.Initialize(device, lightCBSize, lightCBSize))
         return false;
 
@@ -235,7 +236,7 @@ bool Renderer3D::CreatePipelineState(ID3D12Device* device)
 {
     auto vsBlob = m_shaderCompiler.CompileFromFile(L"Shaders/PBR.hlsl", L"VSMain", L"vs_6_0");
     auto psBlob = m_shaderCompiler.CompileFromFile(L"Shaders/PBR.hlsl", L"PSMain", L"ps_6_0");
-    std::vector<std::pair<std::wstring, std::wstring>> skinnedDefines = { { L"SKINNED", L"1" } };
+    gx::Vector<std::pair<gx::WString, gx::WString>> skinnedDefines = { { L"SKINNED", L"1" } };
     auto vsSkinned = m_shaderCompiler.CompileFromFile(L"Shaders/PBR.hlsl", L"VSMain", L"vs_6_0", skinnedDefines);
     auto psSkinned = m_shaderCompiler.CompileFromFile(L"Shaders/PBR.hlsl", L"PSMain", L"ps_6_0", skinnedDefines);
     if (!vsBlob.valid || !psBlob.valid || !vsSkinned.valid || !psSkinned.valid)
@@ -365,7 +366,7 @@ bool Renderer3D::CreatePipelineState(ID3D12Device* device)
         .Build(device);
 
     // インスタンシング用PSO（INSTANCED定義付きでシェーダーをコンパイル）
-    std::vector<std::pair<std::wstring, std::wstring>> instancedDefines = { { L"INSTANCED", L"1" } };
+    gx::Vector<std::pair<gx::WString, gx::WString>> instancedDefines = { { L"INSTANCED", L"1" } };
     auto vsInstanced = m_shaderCompiler.CompileFromFile(L"Shaders/PBR.hlsl", L"VSMain", L"vs_6_0", instancedDefines);
     auto psInstanced = m_shaderCompiler.CompileFromFile(L"Shaders/PBR.hlsl", L"PSMain", L"ps_6_0", instancedDefines);
     if (vsInstanced.valid && psInstanced.valid)
@@ -384,7 +385,7 @@ bool Renderer3D::CreatePipelineState(ID3D12Device* device)
             .SetCullMode(D3D12_CULL_MODE_BACK)
             .Build(device);
 
-        std::vector<std::pair<std::wstring, std::wstring>> instancedSkinnedDefines = {
+        gx::Vector<std::pair<gx::WString, gx::WString>> instancedSkinnedDefines = {
             { L"INSTANCED", L"1" }, { L"SKINNED", L"1" }
         };
         auto vsSkinnedInst = m_shaderCompiler.CompileFromFile(L"Shaders/PBR.hlsl", L"VSMain", L"vs_6_0", instancedSkinnedDefines);
@@ -414,7 +415,7 @@ bool Renderer3D::CreatePipelineState(ID3D12Device* device)
 bool Renderer3D::CreateShadowPipelineState(ID3D12Device* device)
 {
     auto vsBlob = m_shaderCompiler.CompileFromFile(L"Shaders/ShadowDepth.hlsl", L"VSMain", L"vs_6_0");
-    std::vector<std::pair<std::wstring, std::wstring>> skinnedDefines = { { L"SKINNED", L"1" } };
+    gx::Vector<std::pair<gx::WString, gx::WString>> skinnedDefines = { { L"SKINNED", L"1" } };
     auto vsSkinned = m_shaderCompiler.CompileFromFile(L"Shaders/ShadowDepth.hlsl", L"VSMain", L"vs_6_0", skinnedDefines);
     if (!vsBlob.valid || !vsSkinned.valid)
     {
@@ -576,7 +577,7 @@ void Renderer3D::UpdateShadow(const Camera3D& camera)
     if (!m_shadowEnabled) return;
 
     // 最初のDirectionalライトをシャドウキャスターとして使用
-    XMFLOAT3 lightDir = { 0.3f, -1.0f, 0.5f };
+    Vector3 lightDir = { 0.3f, -1.0f, 0.5f };
     m_spotShadowLightIndex = -1;
     m_pointShadowLightIndex = -1;
 
@@ -593,8 +594,8 @@ void Renderer3D::UpdateShadow(const Camera3D& camera)
             const auto& light = m_currentLights.lights[i];
 
             // スポットライトVP行列計算
-            XMVECTOR spotPos = XMLoadFloat3(&light.position);
-            XMVECTOR spotDir = XMVector3Normalize(XMLoadFloat3(&light.direction));
+            XMVECTOR spotPos = XMLoadFloat3(XM(&light.position));
+            XMVECTOR spotDir = XMVector3Normalize(XMLoadFloat3(XM(&light.direction)));
             XMVECTOR up = XMVectorSet(0, 1, 0, 0);
             if (XMVectorGetX(XMVector3LengthSq(XMVector3Cross(spotDir, up))) < 0.001f)
                 up = XMVectorSet(0, 0, 1, 0);
@@ -604,7 +605,7 @@ void Renderer3D::UpdateShadow(const Camera3D& camera)
 
             XMMATRIX view = XMMatrixLookAtLH(spotPos, XMVectorAdd(spotPos, spotDir), up);
             XMMATRIX proj = XMMatrixPerspectiveFovLH(fov, 1.0f, 0.1f, light.range);
-            XMStoreFloat4x4(&m_spotLightVP, XMMatrixTranspose(view * proj));
+            XMStoreFloat4x4(XM(&m_spotLightVP), XMMatrixTranspose(view * proj));
         }
         else if (type == LightType::Point && m_pointShadowLightIndex < 0)
         {
@@ -675,12 +676,12 @@ void Renderer3D::BeginShadowPass(ID3D12GraphicsCommandList* cmdList, uint32_t fr
             const auto& sc = m_csm.GetShadowConstants();
             // CSMカスケード（スロット0-3）
             for (uint32_t i = 0; i < CascadedShadowMap::k_NumCascades; ++i)
-                memcpy(base + i * 256, &sc.lightVP[i], sizeof(XMFLOAT4X4));
+                memcpy(base + i * 256, &sc.lightVP[i], sizeof(Matrix4x4));
             // スポットシャドウ（スロット4）
-            memcpy(base + 4 * 256, &m_spotLightVP, sizeof(XMFLOAT4X4));
+            memcpy(base + 4 * 256, &m_spotLightVP, sizeof(Matrix4x4));
             // ポイントシャドウ各面（スロット5-10）
             for (uint32_t i = 0; i < PointShadowMap::k_NumFaces; ++i)
-                memcpy(base + (5 + i) * 256, &m_pointShadowMap.GetFaceVP(i), sizeof(XMFLOAT4X4));
+                memcpy(base + (5 + i) * 256, &m_pointShadowMap.GetFaceVP(i), sizeof(Matrix4x4));
             m_shadowPassCB.Unmap(frameIndex);
         }
 
@@ -867,10 +868,12 @@ void Renderer3D::Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
     if (cbData)
     {
         FrameConstants fc = {};
-        XMStoreFloat4x4(&fc.view, XMMatrixTranspose(camera.GetViewMatrix()));
-        XMStoreFloat4x4(&fc.projection, XMMatrixTranspose(camera.GetJitteredProjectionMatrix()));
-        XMMATRIX jitteredVP = camera.GetViewMatrix() * camera.GetJitteredProjectionMatrix();
-        XMStoreFloat4x4(&fc.viewProjection, XMMatrixTranspose(jitteredVP));
+        XMMATRIX xmView = ToXMMATRIX(camera.GetViewMatrix());
+        XMMATRIX xmJitteredProj = ToXMMATRIX(camera.GetJitteredProjectionMatrix());
+        XMMATRIX xmJitteredVP = xmView * xmJitteredProj;
+        XMStoreFloat4x4(XM(&fc.view), XMMatrixTranspose(xmView));
+        XMStoreFloat4x4(XM(&fc.projection), XMMatrixTranspose(xmJitteredProj));
+        XMStoreFloat4x4(XM(&fc.viewProjection), XMMatrixTranspose(xmJitteredVP));
         fc.cameraPosition = camera.GetPosition();
         fc.time = time;
 
@@ -929,11 +932,17 @@ void Renderer3D::Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
         m_frameCB.Unmap(frameIndex);
     }
 
-    // ライト定数バッファ
+    // ライト定数バッファ (HLSL cbuffer b2 = gLights[16] に合わせた ShaderLightConstants でアップロード)
     cbData = m_lightCB.Map(frameIndex);
     if (cbData)
     {
-        memcpy(cbData, &m_currentLights, sizeof(LightConstants));
+        ShaderLightConstants shaderLights = {};
+        uint32_t n = (std::min)(m_currentLights.numLights, ShaderLightConstants::k_MaxLights);
+        for (uint32_t i = 0; i < n; ++i)
+            shaderLights.lights[i] = m_currentLights.lights[i];
+        shaderLights.numLights = n;
+        shaderLights.ambientColor = m_currentLights.ambientColor;
+        memcpy(cbData, &shaderLights, sizeof(ShaderLightConstants));
         m_lightCB.Unmap(frameIndex);
     }
 
@@ -1031,8 +1040,7 @@ void Renderer3D::Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
     // boneCBをidentity行列で初期化（DrawModel()がスキンドPSOを使う場合のフォールバック）
     {
         BoneConstants identityBones{};
-        XMFLOAT4X4 identity;
-        XMStoreFloat4x4(&identity, XMMatrixIdentity());
+        Matrix4x4 identity = FromXMMATRIX(XMMatrixIdentity());
         for (uint32_t i = 0; i < BoneConstants::k_MaxBones; ++i)
             identityBones.boneMatrices[i] = identity;
 
@@ -1050,7 +1058,7 @@ void Renderer3D::Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
     SetMaterial(m_defaultMaterial);
 }
 
-void Renderer3D::SetLights(const LightData* lights, uint32_t count, const XMFLOAT3& ambient)
+void Renderer3D::SetLights(const LightData* lights, uint32_t count, const Vector3& ambient)
 {
     m_currentLights = {};
     uint32_t n = (std::min)(count, LightConstants::k_MaxLights);
@@ -1156,8 +1164,8 @@ void Renderer3D::DrawMesh(const GPUMesh& mesh, const Transform3D& transform)
     if (m_objectCBMapped)
     {
         ObjectConstants oc;
-        XMStoreFloat4x4(&oc.world, XMMatrixTranspose(transform.GetWorldMatrix()));
-        XMStoreFloat4x4(&oc.worldInverseTranspose, XMMatrixTranspose(transform.GetWorldInverseTranspose()));
+        XMStoreFloat4x4(XM(&oc.world), XMMatrixTranspose(ToXMMATRIX(transform.GetWorldMatrix())));
+        XMStoreFloat4x4(XM(&oc.worldInverseTranspose), XMMatrixTranspose(ToXMMATRIX(transform.GetWorldInverseTranspose())));
         memcpy(m_objectCBMapped + m_objectCBOffset, &oc, sizeof(ObjectConstants));
     }
     m_cmdList->SetGraphicsRootConstantBufferView(
@@ -1181,15 +1189,16 @@ void Renderer3D::DrawMesh(const GPUMesh& mesh, const Transform3D& transform)
     m_renderStats.triangleCount += mesh.indexCount / 3;
 }
 
-void Renderer3D::DrawMesh(const GPUMesh& mesh, const XMMATRIX& worldMatrix)
+void Renderer3D::DrawMesh(const GPUMesh& mesh, const Matrix4x4& worldMatrix)
 {
     BindPipeline(false, -1);
     if (m_objectCBMapped)
     {
+        XMMATRIX xmWorld = ToXMMATRIX(worldMatrix);
         ObjectConstants oc;
-        XMStoreFloat4x4(&oc.world, XMMatrixTranspose(worldMatrix));
-        XMMATRIX invTranspose = XMMatrixTranspose(XMMatrixInverse(nullptr, worldMatrix));
-        XMStoreFloat4x4(&oc.worldInverseTranspose, XMMatrixTranspose(invTranspose));
+        XMStoreFloat4x4(XM(&oc.world), XMMatrixTranspose(xmWorld));
+        XMMATRIX invTranspose = XMMatrixTranspose(XMMatrixInverse(nullptr, xmWorld));
+        XMStoreFloat4x4(XM(&oc.worldInverseTranspose), XMMatrixTranspose(invTranspose));
         memcpy(m_objectCBMapped + m_objectCBOffset, &oc, sizeof(ObjectConstants));
     }
     m_cmdList->SetGraphicsRootConstantBufferView(
@@ -1220,8 +1229,8 @@ void Renderer3D::DrawTerrain(const Terrain& terrain, const Transform3D& transfor
     if (m_objectCBMapped)
     {
         ObjectConstants oc;
-        XMStoreFloat4x4(&oc.world, XMMatrixTranspose(transform.GetWorldMatrix()));
-        XMStoreFloat4x4(&oc.worldInverseTranspose, XMMatrixTranspose(transform.GetWorldInverseTranspose()));
+        XMStoreFloat4x4(XM(&oc.world), XMMatrixTranspose(ToXMMATRIX(transform.GetWorldMatrix())));
+        XMStoreFloat4x4(XM(&oc.worldInverseTranspose), XMMatrixTranspose(ToXMMATRIX(transform.GetWorldInverseTranspose())));
         memcpy(m_objectCBMapped + m_objectCBOffset, &oc, sizeof(ObjectConstants));
     }
     m_cmdList->SetGraphicsRootConstantBufferView(
@@ -1244,8 +1253,8 @@ void Renderer3D::DrawModel(const Model& model, const Transform3D& transform)
     if (m_objectCBMapped)
     {
         ObjectConstants oc;
-        XMStoreFloat4x4(&oc.world, XMMatrixTranspose(transform.GetWorldMatrix()));
-        XMStoreFloat4x4(&oc.worldInverseTranspose, XMMatrixTranspose(transform.GetWorldInverseTranspose()));
+        XMStoreFloat4x4(XM(&oc.world), XMMatrixTranspose(ToXMMATRIX(transform.GetWorldMatrix())));
+        XMStoreFloat4x4(XM(&oc.worldInverseTranspose), XMMatrixTranspose(ToXMMATRIX(transform.GetWorldInverseTranspose())));
         memcpy(m_objectCBMapped + m_objectCBOffset, &oc, sizeof(ObjectConstants));
     }
     m_cmdList->SetGraphicsRootConstantBufferView(
@@ -1394,10 +1403,10 @@ void Renderer3D::End()
     m_cmdList = nullptr;
 }
 
-void Renderer3D::SetFog(FogMode mode, const XMFLOAT3& color, float start, float end, float density)
+void Renderer3D::SetFog(FogMode mode, const Vector3& color, float start, float end, float density)
 {
     m_fogConstants.fogMode    = static_cast<uint32_t>(mode);
-    m_fogConstants.fogColor   = color;
+    m_fogConstants.fogColor   = { color.x, color.y, color.z };
     m_fogConstants.fogStart   = start;
     m_fogConstants.fogEnd     = end;
     m_fogConstants.fogDensity = density;
@@ -1409,15 +1418,15 @@ void Renderer3D::SetWireframeMode(bool enabled)
 }
 
 void Renderer3D::DrawModel(const Model& model, const Transform3D& transform,
-                            const std::vector<bool>& submeshVisibility)
+                            const gx::Vector<bool>& submeshVisibility)
 {
     // オブジェクト定数バッファ更新（リングバッファ方式）
     uint32_t objectCBOffsetForThisModel = m_objectCBOffset;
     if (m_objectCBMapped)
     {
         ObjectConstants oc;
-        XMStoreFloat4x4(&oc.world, XMMatrixTranspose(transform.GetWorldMatrix()));
-        XMStoreFloat4x4(&oc.worldInverseTranspose, XMMatrixTranspose(transform.GetWorldInverseTranspose()));
+        XMStoreFloat4x4(XM(&oc.world), XMMatrixTranspose(ToXMMATRIX(transform.GetWorldMatrix())));
+        XMStoreFloat4x4(XM(&oc.worldInverseTranspose), XMMatrixTranspose(ToXMMATRIX(transform.GetWorldInverseTranspose())));
         memcpy(m_objectCBMapped + m_objectCBOffset, &oc, sizeof(ObjectConstants));
     }
     m_cmdList->SetGraphicsRootConstantBufferView(
@@ -1521,7 +1530,7 @@ void Renderer3D::DrawModel(const Model& model, const Transform3D& transform,
 
 void Renderer3D::DrawSkinnedModel(const Model& model, const Transform3D& transform,
                                     const Animator& animator,
-                                    const std::vector<bool>& submeshVisibility)
+                                    const gx::Vector<bool>& submeshVisibility)
 {
     void* cbData = m_boneCB.Map(m_frameIndex);
     if (cbData)
@@ -1574,8 +1583,9 @@ void Renderer3D::DrawModelInstanced(const Model& model, const Transform3D* trans
     if (m_objectCBMapped)
     {
         ObjectConstants oc;
-        XMStoreFloat4x4(&oc.world, XMMatrixTranspose(XMMatrixIdentity()));
-        XMStoreFloat4x4(&oc.worldInverseTranspose, XMMatrixTranspose(XMMatrixIdentity()));
+        XMMATRIX xmIdentity = XMMatrixIdentity();
+        XMStoreFloat4x4(XM(&oc.world), XMMatrixTranspose(xmIdentity));
+        XMStoreFloat4x4(XM(&oc.worldInverseTranspose), XMMatrixTranspose(xmIdentity));
         memcpy(m_objectCBMapped + m_objectCBOffset, &oc, sizeof(ObjectConstants));
     }
     m_cmdList->SetGraphicsRootConstantBufferView(

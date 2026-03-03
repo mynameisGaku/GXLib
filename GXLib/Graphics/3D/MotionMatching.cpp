@@ -37,16 +37,16 @@ void MotionDatabase::Build(const Skeleton& skeleton, const MotionMatchingConfig&
     float sampleInterval = 1.0f / (std::max)(config.sampleRate, 1.0f);
 
     // バインドポーズを取得（SampleTRSのベースとして使用）
-    std::vector<TransformTRS> basePose(jointCount);
+    gx::Vector<TransformTRS> basePose(jointCount);
     const auto& joints = skeleton.GetJoints();
     for (uint32_t j = 0; j < jointCount; ++j)
         basePose[j] = DecomposeTRS(joints[j].localTransform);
 
     // ローカル→グローバル変換用のバッファ
-    std::vector<TransformTRS> currentPose(jointCount);
-    std::vector<TransformTRS> futurePose(jointCount);
-    std::vector<XMFLOAT4X4>  localMats(jointCount);
-    std::vector<XMFLOAT4X4>  globalMats(jointCount);
+    gx::Vector<TransformTRS> currentPose(jointCount);
+    gx::Vector<TransformTRS> futurePose(jointCount);
+    gx::Vector<Matrix4x4>  localMats(jointCount);
+    gx::Vector<Matrix4x4>  globalMats(jointCount);
 
     for (size_t clipIdx = 0; clipIdx < m_clips.size(); ++clipIdx)
     {
@@ -78,7 +78,7 @@ void MotionDatabase::Build(const Skeleton& skeleton, const MotionMatchingConfig&
             float nextT = (std::min)(t + sampleInterval, duration);
             if (nextT > t)
             {
-                std::vector<TransformTRS> nextPose(jointCount);
+                gx::Vector<TransformTRS> nextPose(jointCount);
                 clip->SampleTRS(nextT, jointCount, nextPose.data(), basePose.data());
 
                 float dt = nextT - t;
@@ -123,14 +123,14 @@ void MotionDatabase::Build(const Skeleton& skeleton, const MotionMatchingConfig&
             // 足の速度（簡易: 次フレームとの位置差分の大きさ）
             if (nextT > t)
             {
-                std::vector<TransformTRS> nextPoseForFoot(jointCount);
+                gx::Vector<TransformTRS> nextPoseForFoot(jointCount);
                 clip->SampleTRS(nextT, jointCount, nextPoseForFoot.data(), basePose.data());
 
-                std::vector<XMFLOAT4X4> nextLocalMats(jointCount);
+                gx::Vector<Matrix4x4> nextLocalMats(jointCount);
                 for (uint32_t j = 0; j < jointCount; ++j)
                     nextLocalMats[j] = ComposeTRS(nextPoseForFoot[j]);
 
-                std::vector<XMFLOAT4X4> nextGlobalMats(jointCount);
+                gx::Vector<Matrix4x4> nextGlobalMats(jointCount);
                 skeleton.ComputeGlobalTransforms(nextLocalMats.data(), nextGlobalMats.data());
 
                 float dt = nextT - t;

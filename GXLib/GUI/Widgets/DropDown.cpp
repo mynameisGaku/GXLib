@@ -4,19 +4,19 @@
 
 namespace gx { namespace GUI {
 
-static std::wstring Utf8ToWide(const std::string& utf8)
+static gx::WString Utf8ToWide(const gx::String& utf8)
 {
     if (utf8.empty()) return L"";
     int wlen = MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(),
                                     static_cast<int>(utf8.size()), nullptr, 0);
     if (wlen <= 0) return L"";
-    std::wstring result(wlen, L'\0');
+    gx::WString result(wlen, L'\0');
     MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(),
                          static_cast<int>(utf8.size()), &result[0], wlen);
     return result;
 }
 
-void DropDown::SetItems(const std::vector<std::string>& items)
+void DropDown::SetItems(const gx::Vector<gx::String>& items)
 {
     m_items = items;
     m_wideItems.clear();

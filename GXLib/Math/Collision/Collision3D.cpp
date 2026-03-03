@@ -1,5 +1,6 @@
 #include "pch_common.h"
 #include "Math/Collision/Collision3D.h"
+#include "Math/MathConvert.h"
 
 namespace gx {
 
@@ -7,8 +8,8 @@ namespace gx {
 
 Frustum Frustum::FromViewProjection(const XMMATRIX& viewProj)
 {
-    XMFLOAT4X4 m;
-    XMStoreFloat4x4(&m, viewProj);
+    Matrix4x4 m;
+    XMStoreFloat4x4(XM(&m), viewProj);
 
     Frustum f;
     // 左面

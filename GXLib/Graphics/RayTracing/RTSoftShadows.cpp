@@ -10,6 +10,7 @@
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Graphics/Device/BarrierBatch.h"
+#include "Math/MathConvert.h"
 #include "Core/Logger.h"
 
 namespace gx
@@ -226,8 +227,8 @@ void RTSoftShadows::Shutdown()
 }
 
 void RTSoftShadows::Execute(ID3D12GraphicsCommandList4* cmdList4,
-                            const XMMATRIX& invViewProj, const XMFLOAT3& cameraPos,
-                            const XMFLOAT3& lightDir,
+                            const Matrix4x4& invViewProj, const Vector3& cameraPos,
+                            const Vector3& lightDir,
                             ID3D12Resource* depthSRV, ID3D12Resource* normalSRV,
                             uint32_t frameIndex)
 {
@@ -238,17 +239,17 @@ void RTSoftShadows::Execute(ID3D12GraphicsCommandList4* cmdList4,
     {
         struct RayCB
         {
-            XMFLOAT4X4 invViewProj;
-            XMFLOAT3   lightDir;
+            Matrix4x4  invViewProj;
+            Vector3    lightDir;
             float      lightRadius;
-            XMFLOAT3   cameraPos;
+            Vector3    cameraPos;
             int        numRays;
             float      screenSizeX, screenSizeY;
             float      maxDistance;
             uint32_t   frameCount;
         } cb = {};
 
-        XMStoreFloat4x4(&cb.invViewProj, invViewProj);
+        XMStoreFloat4x4(XM(&cb.invViewProj), ToXMMATRIX(invViewProj));
         cb.lightDir    = lightDir;
         cb.lightRadius = m_settings.lightRadius;
         cb.cameraPos   = cameraPos;

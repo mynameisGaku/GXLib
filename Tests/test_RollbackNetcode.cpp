@@ -57,7 +57,7 @@ protected:
             loadCallCount++;
         };
 
-        callbacks.advanceFrame = [this](const std::vector<PlayerInput>& inputs) {
+        callbacks.advanceFrame = [this](const gx::Vector<PlayerInput>& inputs) {
             for (const auto& inp : inputs)
             {
                 gameState.value += static_cast<int>(inp.buttons);

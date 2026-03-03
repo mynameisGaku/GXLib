@@ -138,7 +138,7 @@ DREDReport GPUDebugLayer::GetDREDReport(ID3D12Device* device)
     if (SUCCEEDED(hr) && breadcrumbsOutput.pHeadAutoBreadcrumbNode)
     {
         report.available = true;
-        std::string breadcrumbText;
+        gx::String breadcrumbText;
 
         const D3D12_AUTO_BREADCRUMB_NODE* node = breadcrumbsOutput.pHeadAutoBreadcrumbNode;
         while (node)
@@ -167,8 +167,8 @@ DREDReport GPUDebugLayer::GetDREDReport(ID3D12Device* device)
             if (node->pCommandHistory && node->BreadcrumbCount > 0)
             {
                 uint32_t lastCompleted = (node->pLastBreadcrumbValue) ? *node->pLastBreadcrumbValue : 0;
-                breadcrumbText += "  Breadcrumbs (last completed: " + std::to_string(lastCompleted)
-                               + " / " + std::to_string(node->BreadcrumbCount) + "):\n";
+                breadcrumbText += ("  Breadcrumbs (last completed: " + std::to_string(lastCompleted)
+                               + " / " + std::to_string(node->BreadcrumbCount) + "):\n").c_str();
 
                 for (uint32_t i = 0; i < node->BreadcrumbCount; ++i)
                 {
@@ -198,7 +198,7 @@ DREDReport GPUDebugLayer::GetDREDReport(ID3D12Device* device)
                     breadcrumbText += "    [";
                     breadcrumbText += marker;
                     breadcrumbText += "] ";
-                    breadcrumbText += std::to_string(i);
+                    breadcrumbText += std::to_string(i).c_str();
                     breadcrumbText += ": ";
                     breadcrumbText += opName;
                     breadcrumbText += "\n";
@@ -221,10 +221,10 @@ DREDReport GPUDebugLayer::GetDREDReport(ID3D12Device* device)
     if (SUCCEEDED(hr))
     {
         report.available = true;
-        std::string pageFaultText;
+        gx::String pageFaultText;
 
-        pageFaultText += "Page Fault VA: 0x" +
-            std::format("{:016X}", pageFaultOutput.PageFaultVA) + "\n";
+        pageFaultText += ("Page Fault VA: 0x" +
+            std::format("{:016X}", pageFaultOutput.PageFaultVA) + "\n").c_str();
 
         // アロケーションリストを走査して関連リソースを特定する
         const D3D12_DRED_ALLOCATION_NODE* allocNode = pageFaultOutput.pHeadExistingAllocationNode;
@@ -236,17 +236,17 @@ DREDReport GPUDebugLayer::GetDREDReport(ID3D12Device* device)
             {
                 if (allocNode->ObjectNameA)
                 {
-                    pageFaultText += "  [" + std::to_string(count) + "] ";
+                    pageFaultText += ("  [" + std::to_string(count) + "] ").c_str();
                     pageFaultText += allocNode->ObjectNameA;
                     pageFaultText += "\n";
                 }
                 else if (allocNode->ObjectNameW)
                 {
-                    pageFaultText += "  [" + std::to_string(count) + "] <wide name>\n";
+                    pageFaultText += ("  [" + std::to_string(count) + "] <wide name>\n").c_str();
                 }
                 else
                 {
-                    pageFaultText += "  [" + std::to_string(count) + "] <unnamed>\n";
+                    pageFaultText += ("  [" + std::to_string(count) + "] <unnamed>\n").c_str();
                 }
                 allocNode = allocNode->pNext;
                 count++;
@@ -262,17 +262,17 @@ DREDReport GPUDebugLayer::GetDREDReport(ID3D12Device* device)
             {
                 if (freedNode->ObjectNameA)
                 {
-                    pageFaultText += "  [" + std::to_string(count) + "] ";
+                    pageFaultText += ("  [" + std::to_string(count) + "] ").c_str();
                     pageFaultText += freedNode->ObjectNameA;
                     pageFaultText += "\n";
                 }
                 else if (freedNode->ObjectNameW)
                 {
-                    pageFaultText += "  [" + std::to_string(count) + "] <wide name>\n";
+                    pageFaultText += ("  [" + std::to_string(count) + "] <wide name>\n").c_str();
                 }
                 else
                 {
-                    pageFaultText += "  [" + std::to_string(count) + "] <unnamed>\n";
+                    pageFaultText += ("  [" + std::to_string(count) + "] <unnamed>\n").c_str();
                 }
                 freedNode = freedNode->pNext;
                 count++;
@@ -315,7 +315,7 @@ void GPUDebugLayer::ReportLiveObjects()
 // TranslateDeviceRemovedReason
 // ============================================================================
 
-std::string GPUDebugLayer::TranslateDeviceRemovedReason(HRESULT hr)
+gx::String GPUDebugLayer::TranslateDeviceRemovedReason(HRESULT hr)
 {
     switch (hr)
     {

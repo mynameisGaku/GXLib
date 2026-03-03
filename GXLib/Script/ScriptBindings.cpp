@@ -113,7 +113,7 @@ void RegisterDrawing(sol::state& lua, SpriteBatch* batch, TextureManager* texMan
 
     // テクスチャ読み込み
     lua["LoadTexture"] = [texManager](const std::string& path) -> int {
-        std::wstring wpath(path.begin(), path.end());
+        gx::WString wpath(std::wstring(path.begin(), path.end()));
         return texManager->LoadTexture(wpath);
     };
 

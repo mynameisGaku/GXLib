@@ -42,7 +42,7 @@ TEST(VirtualTextureTest, AnalyzeFeedbackNewPages)
     VirtualTexture vt;
     vt.Initialize(nullptr);
 
-    std::vector<VTPageId> pages = {
+    gx::Vector<VTPageId> pages = {
         { 0, 0, 0, 0 },
         { 0, 0, 1, 0 },
         { 0, 0, 0, 1 }
@@ -56,7 +56,7 @@ TEST(VirtualTextureTest, UpdateTileCacheLoadsPages)
     VirtualTexture vt;
     vt.Initialize(nullptr);
 
-    std::vector<VTPageId> pages = {
+    gx::Vector<VTPageId> pages = {
         { 0, 0, 0, 0 },
         { 0, 0, 1, 0 },
         { 0, 0, 0, 1 }
@@ -74,7 +74,7 @@ TEST(VirtualTextureTest, MaxTilesPerFrame)
     cfg.maxTilesPerFrame = 2;
     vt.Initialize(nullptr, cfg);
 
-    std::vector<VTPageId> pages;
+    gx::Vector<VTPageId> pages;
     for (uint32_t i = 0; i < 5; i++)
         pages.push_back({ 0, 0, i, 0 });
 
@@ -91,7 +91,7 @@ TEST(VirtualTextureTest, TileCacheLookup)
     vt.Initialize(nullptr);
 
     VTPageId page = { 1, 2, 3, 4 };
-    std::vector<VTPageId> pages = { page };
+    gx::Vector<VTPageId> pages = { page };
     vt.AnalyzeFeedback(pages, 1);
     vt.UpdateTileCache();
 
@@ -104,7 +104,7 @@ TEST(VirtualTextureTest, ClearCache)
     VirtualTexture vt;
     vt.Initialize(nullptr);
 
-    std::vector<VTPageId> pages = { { 0, 0, 0, 0 } };
+    gx::Vector<VTPageId> pages = { { 0, 0, 0, 0 } };
     vt.AnalyzeFeedback(pages, 1);
     vt.UpdateTileCache();
     EXPECT_EQ(vt.GetCachedTileCount(), 1u);

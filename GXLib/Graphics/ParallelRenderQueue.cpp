@@ -78,7 +78,7 @@ void ParallelRenderQueue::Execute(ID3D12CommandQueue* commandQueue)
     }
 
     // 使用済みの全コマンドリストを収集する
-    std::vector<ID3D12CommandList*> cmdLists;
+    gx::Vector<ID3D12CommandList*> cmdLists;
     for (auto& wd : m_workerData)
     {
         if (wd.used)

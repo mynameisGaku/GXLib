@@ -19,12 +19,12 @@ void GameConsole::RegisterCommand(const ConsoleCommand& cmd)
     m_commands[cmd.name] = cmd;
 }
 
-void GameConsole::UnregisterCommand(const std::string& name)
+void GameConsole::UnregisterCommand(const gx::String& name)
 {
     m_commands.erase(name);
 }
 
-bool GameConsole::HasCommand(const std::string& name) const
+bool GameConsole::HasCommand(const gx::String& name) const
 {
     return m_commands.find(name) != m_commands.end();
 }
@@ -34,9 +34,9 @@ size_t GameConsole::GetCommandCount() const
     return m_commands.size();
 }
 
-std::vector<std::string> GameConsole::GetCommandNames() const
+gx::Vector<gx::String> GameConsole::GetCommandNames() const
 {
-    std::vector<std::string> names;
+    gx::Vector<gx::String> names;
     names.reserve(m_commands.size());
     for (const auto& [key, cmd] : m_commands)
     {
@@ -50,7 +50,7 @@ std::vector<std::string> GameConsole::GetCommandNames() const
 // 実行
 // =============================================================================
 
-std::string GameConsole::Execute(const std::string& input)
+gx::String GameConsole::Execute(const gx::String& input)
 {
     if (!m_enabled)
     {
@@ -74,20 +74,20 @@ std::string GameConsole::Execute(const std::string& input)
     }
 
     // 最初のトークンがコマンド名
-    const std::string& cmdName = tokens[0];
-    std::vector<std::string> args(tokens.begin() + 1, tokens.end());
+    const gx::String& cmdName = tokens[0];
+    gx::Vector<gx::String> args(tokens.begin() + 1, tokens.end());
 
     // コマンド検索
     auto it = m_commands.find(cmdName);
     if (it == m_commands.end())
     {
-        std::string errorMsg = "Unknown command: " + cmdName;
+        gx::String errorMsg = "Unknown command: " + cmdName;
         AddHistoryEntry(ConsoleEntry::Error, errorMsg);
         return errorMsg;
     }
 
     // コマンド実行
-    std::string result;
+    gx::String result;
     try
     {
         if (it->second.handler)
@@ -97,7 +97,7 @@ std::string GameConsole::Execute(const std::string& input)
     }
     catch (const std::exception& e)
     {
-        result = std::string("Error: ") + e.what();
+        result = gx::String("Error: ") + e.what();
         AddHistoryEntry(ConsoleEntry::Error, result);
         return result;
     }
@@ -115,9 +115,9 @@ std::string GameConsole::Execute(const std::string& input)
 // 自動補完
 // =============================================================================
 
-std::vector<std::string> GameConsole::GetAutoComplete(const std::string& partial) const
+gx::Vector<gx::String> GameConsole::GetAutoComplete(const gx::String& partial) const
 {
-    std::vector<std::string> results;
+    gx::Vector<gx::String> results;
 
     if (partial.empty())
     {
@@ -148,7 +148,7 @@ std::vector<std::string> GameConsole::GetAutoComplete(const std::string& partial
 // 履歴
 // =============================================================================
 
-const std::vector<ConsoleEntry>& GameConsole::GetHistory() const
+const gx::Vector<ConsoleEntry>& GameConsole::GetHistory() const
 {
     return m_history;
 }
@@ -177,12 +177,12 @@ void GameConsole::ClearHistory()
 // CVar
 // =============================================================================
 
-void GameConsole::SetCVar(const std::string& name, const std::string& value)
+void GameConsole::SetCVar(const gx::String& name, const gx::String& value)
 {
     m_cvars[name] = value;
 }
 
-std::string GameConsole::GetCVar(const std::string& name, const std::string& defaultValue) const
+gx::String GameConsole::GetCVar(const gx::String& name, const gx::String& defaultValue) const
 {
     auto it = m_cvars.find(name);
     if (it != m_cvars.end())
@@ -192,7 +192,7 @@ std::string GameConsole::GetCVar(const std::string& name, const std::string& def
     return defaultValue;
 }
 
-bool GameConsole::HasCVar(const std::string& name) const
+bool GameConsole::HasCVar(const gx::String& name) const
 {
     return m_cvars.find(name) != m_cvars.end();
 }
@@ -209,9 +209,9 @@ void GameConsole::RegisterBuiltinCommands()
         cmd.name        = "help";
         cmd.description = "List all available commands";
         cmd.usage       = "help";
-        cmd.handler     = [this](const std::vector<std::string>& /*args*/) -> std::string
+        cmd.handler     = [this](const gx::Vector<gx::String>& /*args*/) -> gx::String
         {
-            std::string result = "Available commands:\n";
+            gx::String result = "Available commands:\n";
             auto names = GetCommandNames();
             for (const auto& name : names)
             {
@@ -237,9 +237,9 @@ void GameConsole::RegisterBuiltinCommands()
         cmd.name        = "echo";
         cmd.description = "Echo the given arguments";
         cmd.usage       = "echo <text...>";
-        cmd.handler     = [](const std::vector<std::string>& args) -> std::string
+        cmd.handler     = [](const gx::Vector<gx::String>& args) -> gx::String
         {
-            std::string result;
+            gx::String result;
             for (size_t i = 0; i < args.size(); ++i)
             {
                 if (i > 0) result += " ";
@@ -256,14 +256,14 @@ void GameConsole::RegisterBuiltinCommands()
         cmd.name        = "set";
         cmd.description = "Set a console variable";
         cmd.usage       = "set <name> <value>";
-        cmd.handler     = [this](const std::vector<std::string>& args) -> std::string
+        cmd.handler     = [this](const gx::Vector<gx::String>& args) -> gx::String
         {
             if (args.size() < 2)
             {
                 return "Usage: set <name> <value>";
             }
             // 2番目以降を全て値として結合
-            std::string value;
+            gx::String value;
             for (size_t i = 1; i < args.size(); ++i)
             {
                 if (i > 1) value += " ";
@@ -281,7 +281,7 @@ void GameConsole::RegisterBuiltinCommands()
         cmd.name        = "get";
         cmd.description = "Get a console variable value";
         cmd.usage       = "get <name>";
-        cmd.handler     = [this](const std::vector<std::string>& args) -> std::string
+        cmd.handler     = [this](const gx::Vector<gx::String>& args) -> gx::String
         {
             if (args.empty())
             {
@@ -302,7 +302,7 @@ void GameConsole::RegisterBuiltinCommands()
         cmd.name        = "clear";
         cmd.description = "Clear console history";
         cmd.usage       = "clear";
-        cmd.handler     = [this](const std::vector<std::string>& /*args*/) -> std::string
+        cmd.handler     = [this](const gx::Vector<gx::String>& /*args*/) -> gx::String
         {
             ClearHistory();
             return "";
@@ -329,10 +329,10 @@ bool GameConsole::IsEnabled() const
 // Private ヘルパー
 // =============================================================================
 
-std::vector<std::string> GameConsole::ParseArgs(const std::string& input) const
+gx::Vector<gx::String> GameConsole::ParseArgs(const gx::String& input) const
 {
-    std::vector<std::string> tokens;
-    std::string current;
+    gx::Vector<gx::String> tokens;
+    gx::String current;
     bool inQuote  = false;
     char quoteChar = '\0';
 
@@ -385,7 +385,7 @@ std::vector<std::string> GameConsole::ParseArgs(const std::string& input) const
     return tokens;
 }
 
-void GameConsole::AddHistoryEntry(ConsoleEntry::Type type, const std::string& text)
+void GameConsole::AddHistoryEntry(ConsoleEntry::Type type, const gx::String& text)
 {
     m_history.push_back({type, text});
 

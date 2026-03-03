@@ -30,7 +30,7 @@ bool VirtualTexture::Initialize(ID3D12Device* device, const VirtualTextureConfig
     return true;
 }
 
-void VirtualTexture::AnalyzeFeedback(const std::vector<VTPageId>& requestedPages, uint64_t frameIndex)
+void VirtualTexture::AnalyzeFeedback(const gx::Vector<VTPageId>& requestedPages, uint64_t frameIndex)
 {
     m_currentFrame = frameIndex;
 

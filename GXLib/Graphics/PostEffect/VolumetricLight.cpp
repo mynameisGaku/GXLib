@@ -5,6 +5,7 @@
 /// SSR/MotionBlur/Outlineと同じ 2-SRV 専用ヒープパターンを使用。
 #include "pch_graphics.h"
 #include "Graphics/PostEffect/VolumetricLight.h"
+#include "Math/MathConvert.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
@@ -113,26 +114,26 @@ void VolumetricLight::UpdateSRVHeap(RenderTarget& srcHDR, DepthBuffer& depth, ui
 
 void VolumetricLight::UpdateSunInfo(const Camera3D& camera)
 {
-    XMVECTOR sunDir = XMVector3Normalize(XMLoadFloat3(&m_lightDirection));
-    XMVECTOR camPos = XMLoadFloat3(&camera.GetPosition());
+    XMVECTOR sunDir = XMVector3Normalize(XMLoadFloat3(XM(&m_lightDirection)));
+    XMVECTOR camPos = XMLoadFloat3(XM(&camera.GetPosition()));
 
     // 太陽はカメラから光源方向の逆向きに十分遠い仮想位置として配置
-    XMVECTOR sunWorld = camPos - sunDir * 1000.0f;
+    XMVECTOR sunWorld = XMVectorSubtract(camPos, XMVectorScale(sunDir, 1000.0f));
 
-    XMMATRIX viewProj = camera.GetViewProjectionMatrix();
+    XMMATRIX viewProj = ToXMMATRIX(camera.GetViewProjectionMatrix());
     XMVECTOR sunClip = XMVector3TransformCoord(sunWorld, viewProj);
 
     // NDC→UV変換
-    XMFLOAT3 sunNDC = {0.0f, 0.0f, 0.0f};
-    XMStoreFloat3(&sunNDC, sunClip);
+    Vector3 sunNDC = {0.0f, 0.0f, 0.0f};
+    XMStoreFloat3(XM(&sunNDC), sunClip);
     float sunU = sunNDC.x * 0.5f + 0.5f;
     float sunV = -sunNDC.y * 0.5f + 0.5f;
 
     // ビュー空間Zで前方チェック
-    XMMATRIX viewMat = camera.GetViewMatrix();
+    XMMATRIX viewMat = ToXMMATRIX(camera.GetViewMatrix());
     XMVECTOR sunView = XMVector3TransformCoord(sunWorld, viewMat);
-    XMFLOAT3 sunViewF;
-    XMStoreFloat3(&sunViewF, sunView);
+    Vector3 sunViewF;
+    XMStoreFloat3(XM(&sunViewF), sunView);
 
     float sunVisible = 1.0f;
 

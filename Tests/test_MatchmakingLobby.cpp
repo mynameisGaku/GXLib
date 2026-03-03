@@ -291,13 +291,13 @@ TEST(MatchmakingLobbyTest, SearchTime) {
 
 TEST(MatchmakingLobbyTest, GenerateInviteCode) {
     MatchmakingLobby mm;
-    std::string code = mm.GenerateInviteCode();
+    gx::String code = mm.GenerateInviteCode();
     EXPECT_FALSE(code.empty());
 }
 
 TEST(MatchmakingLobbyTest, InviteCodeLength) {
     MatchmakingLobby mm;
-    std::string code = mm.GenerateInviteCode();
+    gx::String code = mm.GenerateInviteCode();
     EXPECT_EQ(code.size(), 6u);
 
     // 全文字が英数字であることを確認
@@ -314,8 +314,8 @@ TEST(MatchmakingLobbyTest, ChatMessage) {
     mm.SetLocalPlayer(info);
     mm.CreateLobby({});
 
-    std::string receivedPlayer, receivedMsg;
-    mm.OnChatMessage = [&](const std::string& player, const std::string& msg) {
+    gx::String receivedPlayer, receivedMsg;
+    mm.OnChatMessage = [&](const gx::String& player, const gx::String& msg) {
         receivedPlayer = player;
         receivedMsg = msg;
     };
@@ -363,7 +363,7 @@ TEST(MatchmakingLobbyTest, MatchFilter) {
 
 TEST(MatchmakingLobbyTest, StateTransitions) {
     MatchmakingLobby mm;
-    std::vector<MatchmakingState> states;
+    gx::Vector<MatchmakingState> states;
     mm.OnStateChanged = [&](MatchmakingState s) { states.push_back(s); };
 
     PlayerInfo info;

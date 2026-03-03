@@ -3,6 +3,7 @@
 #include "pch_graphics.h"
 #include "Editor/Gizmo.h"
 #include "Graphics/3D/PrimitiveBatch3D.h"
+#include "Math/Vector4.h"
 #include "Core/Logger.h"
 
 using namespace DirectX;
@@ -24,18 +25,18 @@ namespace
     constexpr float k_DimAlpha       = 0.6f;
 
     // 軸の色（RGBA）
-    const XMFLOAT4 k_Red   = { 1.0f, 0.2f, 0.2f, k_HighlightAlpha };
-    const XMFLOAT4 k_Green = { 0.2f, 1.0f, 0.2f, k_HighlightAlpha };
-    const XMFLOAT4 k_Blue  = { 0.3f, 0.3f, 1.0f, k_HighlightAlpha };
+    const Vector4 k_Red   = { 1.0f, 0.2f, 0.2f, k_HighlightAlpha };
+    const Vector4 k_Green = { 0.2f, 1.0f, 0.2f, k_HighlightAlpha };
+    const Vector4 k_Blue  = { 0.3f, 0.3f, 1.0f, k_HighlightAlpha };
 
-    const XMFLOAT4 k_RedDim   = { 1.0f, 0.2f, 0.2f, k_DimAlpha };
-    const XMFLOAT4 k_GreenDim = { 0.2f, 1.0f, 0.2f, k_DimAlpha };
-    const XMFLOAT4 k_BlueDim  = { 0.3f, 0.3f, 1.0f, k_DimAlpha };
+    const Vector4 k_RedDim   = { 1.0f, 0.2f, 0.2f, k_DimAlpha };
+    const Vector4 k_GreenDim = { 0.2f, 1.0f, 0.2f, k_DimAlpha };
+    const Vector4 k_BlueDim  = { 0.3f, 0.3f, 1.0f, k_DimAlpha };
 
-    const XMFLOAT4 k_Yellow = { 1.0f, 1.0f, 0.2f, 1.0f }; // アクティブ軸のハイライト色
+    const Vector4 k_Yellow = { 1.0f, 1.0f, 0.2f, 1.0f }; // アクティブ軸のハイライト色
 
     /// 指定軸の単位方向と色を返す
-    void GetAxisInfo(GizmoAxis axis, XMFLOAT3& outDir, XMFLOAT4& outColor, XMFLOAT4& outColorDim)
+    void GetAxisInfo(GizmoAxis axis, Vector3& outDir, Vector4& outColor, Vector4& outColorDim)
     {
         switch (axis)
         {
@@ -46,8 +47,8 @@ namespace
         }
     }
 
-    /// ヘルパー: XMFLOAT3 + XMFLOAT3 * スカラー
-    XMFLOAT3 OffsetPoint(const XMFLOAT3& origin, const XMFLOAT3& dir, float t)
+    /// ヘルパー: Vector3 + Vector3 * スカラー
+    Vector3 OffsetPoint(const Vector3& origin, const Vector3& dir, float t)
     {
         return { origin.x + dir.x * t, origin.y + dir.y * t, origin.z + dir.z * t };
     }
@@ -60,19 +61,19 @@ void Gizmo::Render(PrimitiveBatch3D& batch, const Transform3D& transform)
 {
     if (!m_enabled) return;
 
-    const XMFLOAT3 origin = transform.GetPosition();
+    const Vector3 origin = transform.GetPosition();
     const float len = k_AxisLength * m_scale;
 
     auto drawAxisLine = [&](GizmoAxis axis)
     {
-        XMFLOAT3 dir{};
-        XMFLOAT4 color{}, colorDim{};
+        Vector3 dir{};
+        Vector4 color{}, colorDim{};
         GetAxisInfo(axis, dir, color, colorDim);
 
         // 現在ドラッグ中の軸をハイライト
-        const XMFLOAT4& col = (m_dragging && m_dragAxis == axis) ? k_Yellow : color;
+        const Vector4& col = (m_dragging && m_dragAxis == axis) ? k_Yellow : color;
 
-        XMFLOAT3 endPt = OffsetPoint(origin, dir, len);
+        Vector3 endPt = OffsetPoint(origin, dir, len);
         batch.DrawLine(origin, endPt, col);
     };
 
@@ -83,19 +84,19 @@ void Gizmo::Render(PrimitiveBatch3D& batch, const Transform3D& transform)
         // 矢印付き軸線を描画
         for (auto ax : { GizmoAxis::X, GizmoAxis::Y, GizmoAxis::Z })
         {
-            XMFLOAT3 dir{};
-            XMFLOAT4 color{}, colorDim{};
+            Vector3 dir{};
+            Vector4 color{}, colorDim{};
             GetAxisInfo(ax, dir, color, colorDim);
-            const XMFLOAT4& col = (m_dragging && m_dragAxis == ax) ? k_Yellow : color;
+            const Vector4& col = (m_dragging && m_dragAxis == ax) ? k_Yellow : color;
 
-            XMFLOAT3 endPt = OffsetPoint(origin, dir, len);
+            Vector3 endPt = OffsetPoint(origin, dir, len);
             batch.DrawLine(origin, endPt, col);
 
             // 矢印の頭: 端点から分岐する2本の短い線
             const float headLen = k_ArrowHeadSize * m_scale;
 
             // 矢印の頭用に'dir'に垂直な2方向を計算
-            XMFLOAT3 perp1{}, perp2{};
+            Vector3 perp1{}, perp2{};
             if (std::abs(dir.y) < 0.99f)
             {
                 // cross(dir, up)
@@ -119,7 +120,7 @@ void Gizmo::Render(PrimitiveBatch3D& batch, const Transform3D& transform)
                 dir.x * perp1.y - dir.y * perp1.x
             };
 
-            XMFLOAT3 arrowBase = OffsetPoint(endPt, dir, -headLen);
+            Vector3 arrowBase = OffsetPoint(endPt, dir, -headLen);
             batch.DrawLine(endPt, OffsetPoint(arrowBase, perp1,  headLen * 0.5f), col);
             batch.DrawLine(endPt, OffsetPoint(arrowBase, perp1, -headLen * 0.5f), col);
             batch.DrawLine(endPt, OffsetPoint(arrowBase, perp2,  headLen * 0.5f), col);
@@ -133,13 +134,13 @@ void Gizmo::Render(PrimitiveBatch3D& batch, const Transform3D& transform)
         const float radius = len * 0.8f;
         for (auto ax : { GizmoAxis::X, GizmoAxis::Y, GizmoAxis::Z })
         {
-            XMFLOAT3 dir{};
-            XMFLOAT4 color{}, colorDim{};
+            Vector3 dir{};
+            Vector4 color{}, colorDim{};
             GetAxisInfo(ax, dir, color, colorDim);
-            const XMFLOAT4& col = (m_dragging && m_dragAxis == ax) ? k_Yellow : color;
+            const Vector4& col = (m_dragging && m_dragAxis == ax) ? k_Yellow : color;
 
             // 法線が'dir'の円を描画
-            XMFLOAT3 normal = dir;
+            Vector3 normal = dir;
             batch.DrawWireCircle(origin, normal, radius, col, k_CircleSegs);
         }
         break;
@@ -149,16 +150,16 @@ void Gizmo::Render(PrimitiveBatch3D& batch, const Transform3D& transform)
         // 先端にボックス付きの軸線を描画
         for (auto ax : { GizmoAxis::X, GizmoAxis::Y, GizmoAxis::Z })
         {
-            XMFLOAT3 dir{};
-            XMFLOAT4 color{}, colorDim{};
+            Vector3 dir{};
+            Vector4 color{}, colorDim{};
             GetAxisInfo(ax, dir, color, colorDim);
-            const XMFLOAT4& col = (m_dragging && m_dragAxis == ax) ? k_Yellow : color;
+            const Vector4& col = (m_dragging && m_dragAxis == ax) ? k_Yellow : color;
 
-            XMFLOAT3 endPt = OffsetPoint(origin, dir, len);
+            Vector3 endPt = OffsetPoint(origin, dir, len);
             batch.DrawLine(origin, endPt, col);
 
             // 先端のワイヤーフレームボックス
-            XMFLOAT3 boxExtents = { k_ScaleBoxSize * m_scale,
+            Vector3 boxExtents = { k_ScaleBoxSize * m_scale,
                                      k_ScaleBoxSize * m_scale,
                                      k_ScaleBoxSize * m_scale };
             batch.DrawWireBox(endPt, boxExtents, col);
@@ -171,13 +172,13 @@ void Gizmo::Render(PrimitiveBatch3D& batch, const Transform3D& transform)
 // ============================================================================
 // HitTest
 // ============================================================================
-GizmoAxis Gizmo::HitTest(const XMFLOAT3& rayOrigin,
-                           const XMFLOAT3& rayDir,
+GizmoAxis Gizmo::HitTest(const Vector3& rayOrigin,
+                           const Vector3& rayDir,
                            const Transform3D& transform) const
 {
     if (!m_enabled) return GizmoAxis::None;
 
-    const XMFLOAT3 center = transform.GetPosition();
+    const Vector3 center = transform.GetPosition();
     const float threshold = k_HitThreshold * m_scale;
 
     float bestDist = threshold;
@@ -185,8 +186,8 @@ GizmoAxis Gizmo::HitTest(const XMFLOAT3& rayOrigin,
 
     for (auto ax : { GizmoAxis::X, GizmoAxis::Y, GizmoAxis::Z })
     {
-        XMFLOAT3 dir{};
-        XMFLOAT4 color{}, colorDim{};
+        Vector3 dir{};
+        Vector4 color{}, colorDim{};
         GetAxisInfo(ax, dir, color, colorDim);
 
         float dist = RayAxisDistance(rayOrigin, rayDir, center, dir);
@@ -203,7 +204,7 @@ GizmoAxis Gizmo::HitTest(const XMFLOAT3& rayOrigin,
 // ============================================================================
 // BeginDrag / UpdateDrag / EndDrag
 // ============================================================================
-void Gizmo::BeginDrag(GizmoAxis axis, const XMFLOAT3& rayOrigin, const XMFLOAT3& rayDir)
+void Gizmo::BeginDrag(GizmoAxis axis, const Vector3& rayOrigin, const Vector3& rayDir)
 {
     if (axis == GizmoAxis::None) return;
 
@@ -215,16 +216,16 @@ void Gizmo::BeginDrag(GizmoAxis axis, const XMFLOAT3& rayOrigin, const XMFLOAT3&
     m_dragStartAxisT     = 0.0f;
 }
 
-void Gizmo::UpdateDrag(const XMFLOAT3& rayOrigin, const XMFLOAT3& rayDir,
+void Gizmo::UpdateDrag(const Vector3& rayOrigin, const Vector3& rayDir,
                          Transform3D& transform)
 {
     if (!m_dragging || m_dragAxis == GizmoAxis::None) return;
 
-    XMFLOAT3 axisDir{};
-    XMFLOAT4 color{}, colorDim{};
+    Vector3 axisDir{};
+    Vector4 color{}, colorDim{};
     GetAxisInfo(m_dragAxis, axisDir, color, colorDim);
 
-    const XMFLOAT3 axisOrigin = transform.GetPosition();
+    const Vector3 axisOrigin = transform.GetPosition();
 
     // レイを軸に投影してカーソルが現在指している位置を求める
     float t = ProjectOntoAxis(rayOrigin, rayDir, axisOrigin, axisDir);
@@ -244,7 +245,7 @@ void Gizmo::UpdateDrag(const XMFLOAT3& rayOrigin, const XMFLOAT3& rayDir,
     {
     case GizmoMode::Translate:
     {
-        XMFLOAT3 newPos = {
+        Vector3 newPos = {
             m_dragStartObjectPos.x + axisDir.x * delta,
             m_dragStartObjectPos.y + axisDir.y * delta,
             m_dragStartObjectPos.z + axisDir.z * delta
@@ -256,7 +257,7 @@ void Gizmo::UpdateDrag(const XMFLOAT3& rayOrigin, const XMFLOAT3& rayDir,
     {
         // デルタ距離を回転角度にマッピング
         float angle = delta * 2.0f; // sensitivity factor
-        XMFLOAT3 rot = transform.GetRotation();
+        Vector3 rot = transform.GetRotation();
         switch (m_dragAxis)
         {
         case GizmoAxis::X: rot.x = angle; break;
@@ -273,7 +274,7 @@ void Gizmo::UpdateDrag(const XMFLOAT3& rayOrigin, const XMFLOAT3& rayDir,
         float scaleFactor = 1.0f + delta / (k_AxisLength * m_scale);
         if (scaleFactor < 0.01f) scaleFactor = 0.01f; // 負/ゼロスケールを防止
 
-        XMFLOAT3 newScale = m_dragStartScale;
+        Vector3 newScale = m_dragStartScale;
         switch (m_dragAxis)
         {
         case GizmoAxis::X: newScale.x *= scaleFactor; break;
@@ -302,10 +303,10 @@ void Gizmo::EndDrag()
 // プライベートヘルパー
 // ============================================================================
 
-float Gizmo::RayAxisDistance(const XMFLOAT3& rayOrigin,
-                              const XMFLOAT3& rayDir,
-                              const XMFLOAT3& axisOrigin,
-                              const XMFLOAT3& axisDir) const
+float Gizmo::RayAxisDistance(const Vector3& rayOrigin,
+                              const Vector3& rayDir,
+                              const Vector3& axisOrigin,
+                              const Vector3& axisDir) const
 {
     // 2直線間の最短距離:
     //   Line1: P = rayOrigin + t * rayDir
@@ -319,7 +320,7 @@ float Gizmo::RayAxisDistance(const XMFLOAT3& rayOrigin,
     // e = dot(axisDir, w)
     // denom = a*c - b*b
 
-    XMFLOAT3 w = { rayOrigin.x - axisOrigin.x,
+    Vector3 w = { rayOrigin.x - axisOrigin.x,
                     rayOrigin.y - axisOrigin.y,
                     rayOrigin.z - axisOrigin.z };
 
@@ -352,8 +353,8 @@ float Gizmo::RayAxisDistance(const XMFLOAT3& rayOrigin,
     if (tc < 0.0f) tc = 0.0f;
 
     // 最近接点
-    XMFLOAT3 pOnAxis = OffsetPoint(axisOrigin, axisDir, sc);
-    XMFLOAT3 pOnRay  = OffsetPoint(rayOrigin, rayDir, tc);
+    Vector3 pOnAxis = OffsetPoint(axisOrigin, axisDir, sc);
+    Vector3 pOnRay  = OffsetPoint(rayOrigin, rayDir, tc);
 
     float dx = pOnAxis.x - pOnRay.x;
     float dy = pOnAxis.y - pOnRay.y;
@@ -362,10 +363,10 @@ float Gizmo::RayAxisDistance(const XMFLOAT3& rayOrigin,
     return std::sqrt(dx * dx + dy * dy + dz * dz);
 }
 
-XMFLOAT3 Gizmo::RayPlaneIntersect(const XMFLOAT3& rayOrigin,
-                                    const XMFLOAT3& rayDir,
-                                    const XMFLOAT3& planePoint,
-                                    const XMFLOAT3& planeNormal) const
+Vector3 Gizmo::RayPlaneIntersect(const Vector3& rayOrigin,
+                                    const Vector3& rayDir,
+                                    const Vector3& planePoint,
+                                    const Vector3& planeNormal) const
 {
     // t = dot(planePoint - rayOrigin, planeNormal) / dot(rayDir, planeNormal)
     float denom = rayDir.x * planeNormal.x + rayDir.y * planeNormal.y + rayDir.z * planeNormal.z;
@@ -375,7 +376,7 @@ XMFLOAT3 Gizmo::RayPlaneIntersect(const XMFLOAT3& rayOrigin,
         return rayOrigin;
     }
 
-    XMFLOAT3 diff = { planePoint.x - rayOrigin.x,
+    Vector3 diff = { planePoint.x - rayOrigin.x,
                        planePoint.y - rayOrigin.y,
                        planePoint.z - rayOrigin.z };
     float t = (diff.x * planeNormal.x + diff.y * planeNormal.y + diff.z * planeNormal.z) / denom;
@@ -383,24 +384,24 @@ XMFLOAT3 Gizmo::RayPlaneIntersect(const XMFLOAT3& rayOrigin,
     return OffsetPoint(rayOrigin, rayDir, t);
 }
 
-float Gizmo::ProjectOntoAxis(const XMFLOAT3& rayOrigin,
-                               const XMFLOAT3& rayDir,
-                               const XMFLOAT3& axisOrigin,
-                               const XMFLOAT3& axisDir) const
+float Gizmo::ProjectOntoAxis(const Vector3& rayOrigin,
+                               const Vector3& rayDir,
+                               const Vector3& axisOrigin,
+                               const Vector3& axisDir) const
 {
     // 軸方向を含み、ビューレイに最も垂直な平面を求める。
     // 法線が cross(axisDir, cross(rayDir, axisDir)) の平面を使用する。
     // これにより axisDirを含み、カメラレイに最も「正面」を向く平面が得られる。
 
     // cross(rayDir, axisDir)
-    XMFLOAT3 rxa = {
+    Vector3 rxa = {
         rayDir.y * axisDir.z - rayDir.z * axisDir.y,
         rayDir.z * axisDir.x - rayDir.x * axisDir.z,
         rayDir.x * axisDir.y - rayDir.y * axisDir.x
     };
 
     // planeNormal = cross(axisDir, rxa)
-    XMFLOAT3 planeN = {
+    Vector3 planeN = {
         axisDir.y * rxa.z - axisDir.z * rxa.y,
         axisDir.z * rxa.x - axisDir.x * rxa.z,
         axisDir.x * rxa.y - axisDir.y * rxa.x
@@ -415,10 +416,10 @@ float Gizmo::ProjectOntoAxis(const XMFLOAT3& rayOrigin,
     planeN.x /= lenN; planeN.y /= lenN; planeN.z /= lenN;
 
     // レイとこの平面の交点を求める
-    XMFLOAT3 hitPt = RayPlaneIntersect(rayOrigin, rayDir, axisOrigin, planeN);
+    Vector3 hitPt = RayPlaneIntersect(rayOrigin, rayDir, axisOrigin, planeN);
 
     // ヒットポイントを軸に投影する
-    XMFLOAT3 diff = { hitPt.x - axisOrigin.x,
+    Vector3 diff = { hitPt.x - axisOrigin.x,
                        hitPt.y - axisOrigin.y,
                        hitPt.z - axisOrigin.z };
     float t = diff.x * axisDir.x + diff.y * axisDir.y + diff.z * axisDir.z;

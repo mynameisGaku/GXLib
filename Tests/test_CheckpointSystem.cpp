@@ -134,7 +134,7 @@ TEST(CheckpointSystemTest, ClearAll)
 TEST(CheckpointSystemTest, Callback)
 {
     CheckpointSystem cs;
-    std::string lastCreated;
+    gx::String lastCreated;
     cs.SetOnCheckpointCreated([&](const CheckpointData& cp) {
         lastCreated = cp.name;
     });

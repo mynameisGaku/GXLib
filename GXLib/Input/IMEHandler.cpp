@@ -70,9 +70,9 @@ bool IMEHandler::ProcessMessage(UINT msg, WPARAM wParam, LPARAM lParam)
             const int byteLen = ImmGetCompositionStringW(himc, GCS_RESULTSTR, nullptr, 0);
             if (byteLen > 0)
             {
-                std::wstring result;
+                gx::WString result;
                 result.resize(byteLen / sizeof(wchar_t));
-                ImmGetCompositionStringW(himc, GCS_RESULTSTR, result.data(), byteLen);
+                ImmGetCompositionStringW(himc, GCS_RESULTSTR, result.DataMut(), byteLen);
                 m_committedText += result;
                 m_state = IMEState::Committed;
             }
@@ -163,7 +163,7 @@ void IMEHandler::UpdateCompositionString()
     if (byteLen > 0)
     {
         m_compositionString.resize(byteLen / sizeof(wchar_t));
-        ImmGetCompositionStringW(himc, GCS_COMPSTR, m_compositionString.data(), byteLen);
+        ImmGetCompositionStringW(himc, GCS_COMPSTR, m_compositionString.DataMut(), byteLen);
     }
     else
     {
@@ -188,7 +188,7 @@ void IMEHandler::UpdateCandidateList()
     const DWORD size = ImmGetCandidateListW(himc, 0, nullptr, 0);
     if (size > 0)
     {
-        std::vector<uint8_t> buf(size);
+        gx::Vector<uint8_t> buf(size);
         auto* list = reinterpret_cast<CANDIDATELIST*>(buf.data());
         ImmGetCandidateListW(himc, 0, list, size);
 

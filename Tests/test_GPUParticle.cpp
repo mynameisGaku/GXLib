@@ -272,7 +272,7 @@ TEST(GPUParticleConfig, CustomColors)
 
 TEST(GPUParticleEnums, AllEmitterShapesDistinct)
 {
-    std::set<int> values;
+    gx::Set<int> values;
     values.insert(static_cast<int>(EmitterShape::Point));
     values.insert(static_cast<int>(EmitterShape::Sphere));
     values.insert(static_cast<int>(EmitterShape::Box));
@@ -283,7 +283,7 @@ TEST(GPUParticleEnums, AllEmitterShapesDistinct)
 
 TEST(GPUParticleEnums, AllBlendModesDistinct)
 {
-    std::set<int> values;
+    gx::Set<int> values;
     values.insert(static_cast<int>(ParticleBlendMode::Alpha));
     values.insert(static_cast<int>(ParticleBlendMode::Additive));
     values.insert(static_cast<int>(ParticleBlendMode::Multiply));

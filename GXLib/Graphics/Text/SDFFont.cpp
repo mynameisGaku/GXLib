@@ -10,20 +10,20 @@ namespace gx
 {
 
 /// @brief BMFont形式テキスト行から key=value ペアのintを読み取るヘルパー
-static int ParseInt(const std::string& token)
+static int ParseInt(const gx::String& token)
 {
     auto pos = token.find('=');
-    if (pos == std::string::npos)
+    if (pos == gx::String::npos)
         return 0;
     return std::atoi(token.c_str() + pos + 1);
 }
 
 /// @brief BMFont形式テキスト行からトークンを分割するヘルパー
-static std::vector<std::string> Tokenize(const std::string& line)
+static gx::Vector<gx::String> Tokenize(const gx::String& line)
 {
-    std::vector<std::string> tokens;
+    gx::Vector<gx::String> tokens;
     std::istringstream iss(line);
-    std::string token;
+    gx::String token;
     while (iss >> token)
     {
         tokens.push_back(token);
@@ -32,7 +32,7 @@ static std::vector<std::string> Tokenize(const std::string& line)
 }
 
 /// @brief トークン列から指定キーの値を取得する
-static int FindTokenInt(const std::vector<std::string>& tokens, const std::string& key)
+static int FindTokenInt(const gx::Vector<gx::String>& tokens, const gx::String& key)
 {
     for (const auto& t : tokens)
     {
@@ -44,7 +44,7 @@ static int FindTokenInt(const std::vector<std::string>& tokens, const std::strin
     return 0;
 }
 
-bool SDFFont::LoadFromFnt(const std::string& fntPath, int textureHandle, int texWidth, int texHeight)
+bool SDFFont::LoadFromFnt(const gx::String& fntPath, int textureHandle, int texWidth, int texHeight)
 {
     std::ifstream file(fntPath);
     if (!file.is_open())
@@ -62,8 +62,8 @@ bool SDFFont::LoadFromFnt(const std::string& fntPath, int textureHandle, int tex
     float invW = 1.0f / static_cast<float>(m_texWidth);
     float invH = 1.0f / static_cast<float>(m_texHeight);
 
-    std::string line;
-    while (std::getline(file, line))
+    gx::String line;
+    while (gx::container::getline(file, line))
     {
         if (line.empty())
             continue;
@@ -72,7 +72,7 @@ bool SDFFont::LoadFromFnt(const std::string& fntPath, int textureHandle, int tex
         if (tokens.empty())
             continue;
 
-        const std::string& tag = tokens[0];
+        const gx::String& tag = tokens[0];
 
         if (tag == "info")
         {
@@ -126,7 +126,7 @@ bool SDFFont::LoadFromFnt(const std::string& fntPath, int textureHandle, int tex
     return !m_glyphs.empty();
 }
 
-float SDFFont::MeasureWidth(const std::wstring& text, float fontSize) const
+float SDFFont::MeasureWidth(const gx::WString& text, float fontSize) const
 {
     if (text.empty() || m_baseSize <= 0)
         return 0.0f;

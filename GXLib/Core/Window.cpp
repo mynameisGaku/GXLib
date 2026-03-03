@@ -103,7 +103,7 @@ void Window::AddMessageCallback(std::function<bool(HWND, UINT, WPARAM, LPARAM)> 
     m_messageCallbacks.push_back(std::move(callback));
 }
 
-void Window::SetTitle(const std::wstring& title)
+void Window::SetTitle(const gx::WString& title)
 {
     if (m_hwnd)
     {

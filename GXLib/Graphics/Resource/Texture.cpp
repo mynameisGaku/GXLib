@@ -14,13 +14,13 @@ namespace gx
 
 bool Texture::LoadFromFile(ID3D12Device* device,
                            ID3D12CommandQueue* cmdQueue,
-                           const std::wstring& filePath,
+                           const gx::WString& filePath,
                            DescriptorHeap* srvHeap,
                            uint32_t srvIndex)
 {
     // stb_imageはchar*パスのみ対応なのでwstring→UTF-8変換
     int pathLen = WideCharToMultiByte(CP_UTF8, 0, filePath.c_str(), -1, nullptr, 0, nullptr, nullptr);
-    std::string pathUtf8(pathLen - 1, '\0');
+    gx::String pathUtf8(pathLen - 1, '\0');
     WideCharToMultiByte(CP_UTF8, 0, filePath.c_str(), -1, pathUtf8.data(), pathLen, nullptr, nullptr);
 
     // 4チャンネルRGBAを強制して読み込み

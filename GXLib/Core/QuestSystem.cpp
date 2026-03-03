@@ -18,7 +18,7 @@ void QuestSystem::RegisterQuest(const QuestDef& def)
     m_defs[def.questId] = def;
 }
 
-const QuestDef* QuestSystem::GetQuestDef(const std::string& questId) const
+const QuestDef* QuestSystem::GetQuestDef(const gx::String& questId) const
 {
     auto it = m_defs.find(questId);
     if (it == m_defs.end()) return nullptr;
@@ -34,7 +34,7 @@ size_t QuestSystem::GetQuestDefCount() const
 // クエスト状態遷移
 // ============================================================================
 
-bool QuestSystem::StartQuest(const std::string& questId)
+bool QuestSystem::StartQuest(const gx::String& questId)
 {
     // 定義が存在するか
     const QuestDef* def = GetQuestDef(questId);
@@ -48,7 +48,7 @@ bool QuestSystem::StartQuest(const std::string& questId)
     if (!ArePrerequisitesMet(questId)) return false;
 
     // 進捗データを初期化（定義の目標をコピー、currentCount=0にリセット）
-    std::vector<QuestObjective> objectives = def->objectives;
+    gx::Vector<QuestObjective> objectives = def->objectives;
     for (auto& obj : objectives)
     {
         obj.currentCount = 0;
@@ -63,7 +63,7 @@ bool QuestSystem::StartQuest(const std::string& questId)
     return true;
 }
 
-bool QuestSystem::CompleteQuest(const std::string& questId)
+bool QuestSystem::CompleteQuest(const gx::String& questId)
 {
     auto it = m_states.find(questId);
     if (it == m_states.end()) return false;
@@ -76,7 +76,7 @@ bool QuestSystem::CompleteQuest(const std::string& questId)
     return true;
 }
 
-bool QuestSystem::FailQuest(const std::string& questId)
+bool QuestSystem::FailQuest(const gx::String& questId)
 {
     auto it = m_states.find(questId);
     if (it == m_states.end()) return false;
@@ -89,7 +89,7 @@ bool QuestSystem::FailQuest(const std::string& questId)
     return true;
 }
 
-QuestState QuestSystem::GetQuestState(const std::string& questId) const
+QuestState QuestSystem::GetQuestState(const gx::String& questId) const
 {
     auto it = m_states.find(questId);
     if (it == m_states.end()) return QuestState::Inactive;
@@ -100,8 +100,8 @@ QuestState QuestSystem::GetQuestState(const std::string& questId) const
 // 目標の進捗
 // ============================================================================
 
-bool QuestSystem::UpdateObjective(const std::string& questId,
-                                   const std::string& objectiveId,
+bool QuestSystem::UpdateObjective(const gx::String& questId,
+                                   const gx::String& objectiveId,
                                    int delta)
 {
     // アクティブなクエストのみ更新可能
@@ -129,23 +129,23 @@ bool QuestSystem::UpdateObjective(const std::string& questId,
     return true;
 }
 
-int QuestSystem::GetObjectiveProgress(const std::string& questId,
-                                       const std::string& objectiveId) const
+int QuestSystem::GetObjectiveProgress(const gx::String& questId,
+                                       const gx::String& objectiveId) const
 {
     const QuestObjective* obj = FindObjective(questId, objectiveId);
     if (!obj) return 0;
     return obj->currentCount;
 }
 
-bool QuestSystem::IsObjectiveComplete(const std::string& questId,
-                                       const std::string& objectiveId) const
+bool QuestSystem::IsObjectiveComplete(const gx::String& questId,
+                                       const gx::String& objectiveId) const
 {
     const QuestObjective* obj = FindObjective(questId, objectiveId);
     if (!obj) return false;
     return obj->IsComplete();
 }
 
-bool QuestSystem::AreAllObjectivesComplete(const std::string& questId) const
+bool QuestSystem::AreAllObjectivesComplete(const gx::String& questId) const
 {
     auto it = m_progress.find(questId);
     if (it == m_progress.end()) return false;
@@ -161,9 +161,9 @@ bool QuestSystem::AreAllObjectivesComplete(const std::string& questId) const
 // クエスト一覧
 // ============================================================================
 
-std::vector<std::string> QuestSystem::GetActiveQuests() const
+gx::Vector<gx::String> QuestSystem::GetActiveQuests() const
 {
-    std::vector<std::string> result;
+    gx::Vector<gx::String> result;
     for (const auto& [id, state] : m_states)
     {
         if (state == QuestState::Active)
@@ -174,9 +174,9 @@ std::vector<std::string> QuestSystem::GetActiveQuests() const
     return result;
 }
 
-std::vector<std::string> QuestSystem::GetCompletedQuests() const
+gx::Vector<gx::String> QuestSystem::GetCompletedQuests() const
 {
-    std::vector<std::string> result;
+    gx::Vector<gx::String> result;
     for (const auto& [id, state] : m_states)
     {
         if (state == QuestState::Completed)
@@ -187,7 +187,7 @@ std::vector<std::string> QuestSystem::GetCompletedQuests() const
     return result;
 }
 
-bool QuestSystem::ArePrerequisitesMet(const std::string& questId) const
+bool QuestSystem::ArePrerequisitesMet(const gx::String& questId) const
 {
     const QuestDef* def = GetQuestDef(questId);
     if (!def) return false;
@@ -213,7 +213,7 @@ void QuestSystem::Reset()
 // 内部ヘルパー
 // ============================================================================
 
-void QuestSystem::NotifyStateChanged(const std::string& questId,
+void QuestSystem::NotifyStateChanged(const gx::String& questId,
                                       QuestState oldState, QuestState newState)
 {
     if (OnStateChanged)
@@ -226,8 +226,8 @@ void QuestSystem::NotifyStateChanged(const std::string& questId,
     }
 }
 
-void QuestSystem::NotifyProgress(const std::string& questId,
-                                  const std::string& objectiveId,
+void QuestSystem::NotifyProgress(const gx::String& questId,
+                                  const gx::String& objectiveId,
                                   int oldCount, int newCount)
 {
     if (OnProgress)
@@ -241,8 +241,8 @@ void QuestSystem::NotifyProgress(const std::string& questId,
     }
 }
 
-QuestObjective* QuestSystem::FindObjective(const std::string& questId,
-                                            const std::string& objectiveId)
+QuestObjective* QuestSystem::FindObjective(const gx::String& questId,
+                                            const gx::String& objectiveId)
 {
     auto it = m_progress.find(questId);
     if (it == m_progress.end()) return nullptr;
@@ -254,8 +254,8 @@ QuestObjective* QuestSystem::FindObjective(const std::string& questId,
     return &(*objIt);
 }
 
-const QuestObjective* QuestSystem::FindObjective(const std::string& questId,
-                                                  const std::string& objectiveId) const
+const QuestObjective* QuestSystem::FindObjective(const gx::String& questId,
+                                                  const gx::String& objectiveId) const
 {
     auto it = m_progress.find(questId);
     if (it == m_progress.end()) return nullptr;

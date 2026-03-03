@@ -36,7 +36,7 @@ bool PluginSystem::RegisterPlugin(std::unique_ptr<IPlugin> plugin)
         return false;
     }
 
-    const std::string name = plugin->GetInfo().name;
+    const gx::String name = plugin->GetInfo().name;
 
     // 同名チェック
     for (const auto& entry : m_plugins)
@@ -63,7 +63,7 @@ bool PluginSystem::RegisterPlugin(std::unique_ptr<IPlugin> plugin)
     return true;
 }
 
-bool PluginSystem::UnregisterPlugin(const std::string& name)
+bool PluginSystem::UnregisterPlugin(const gx::String& name)
 {
     for (auto it = m_plugins.begin(); it != m_plugins.end(); ++it)
     {
@@ -89,7 +89,7 @@ bool PluginSystem::UnregisterPlugin(const std::string& name)
     return false;
 }
 
-IPlugin* PluginSystem::GetPlugin(const std::string& name) const
+IPlugin* PluginSystem::GetPlugin(const gx::String& name) const
 {
     for (const auto& entry : m_plugins)
     {
@@ -101,7 +101,7 @@ IPlugin* PluginSystem::GetPlugin(const std::string& name) const
     return nullptr;
 }
 
-bool PluginSystem::HasPlugin(const std::string& name) const
+bool PluginSystem::HasPlugin(const gx::String& name) const
 {
     return GetPlugin(name) != nullptr;
 }
@@ -129,12 +129,13 @@ void PluginSystem::InitializeAll()
 void PluginSystem::ShutdownAll()
 {
     // 逆順でシャットダウン（優先度の逆）
-    for (auto it = m_plugins.rbegin(); it != m_plugins.rend(); ++it)
+    for (size_t i = m_plugins.size(); i > 0; --i)
     {
-        if (it->plugin && it->initialized)
+        auto& entry = m_plugins[i - 1];
+        if (entry.plugin && entry.initialized)
         {
-            it->plugin->Shutdown();
-            it->initialized = false;
+            entry.plugin->Shutdown();
+            entry.initialized = false;
         }
     }
 }
@@ -154,9 +155,9 @@ void PluginSystem::UpdateAll(float deltaTime)
 // 情報取得
 // =============================================================================
 
-std::vector<PluginInfo> PluginSystem::GetLoadedPlugins() const
+gx::Vector<PluginInfo> PluginSystem::GetLoadedPlugins() const
 {
-    std::vector<PluginInfo> infos;
+    gx::Vector<PluginInfo> infos;
     infos.reserve(m_plugins.size());
     for (const auto& entry : m_plugins)
     {
@@ -182,7 +183,7 @@ bool PluginSystem::IsInitialized() const
 // 有効/無効
 // =============================================================================
 
-void PluginSystem::SetPluginEnabled(const std::string& name, bool enabled)
+void PluginSystem::SetPluginEnabled(const gx::String& name, bool enabled)
 {
     for (auto& entry : m_plugins)
     {
@@ -194,7 +195,7 @@ void PluginSystem::SetPluginEnabled(const std::string& name, bool enabled)
     }
 }
 
-bool PluginSystem::IsPluginEnabled(const std::string& name) const
+bool PluginSystem::IsPluginEnabled(const gx::String& name) const
 {
     for (const auto& entry : m_plugins)
     {

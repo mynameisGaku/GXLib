@@ -55,7 +55,7 @@ bool FontManager::Initialize(ID3D12Device* device, TextureManager* textureManage
     }
 
     // Direct2Dファクトリ作成（ラスタライズに使用）
-    hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, m_d2dFactory.GetAddressOf());
+    hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, m_d2dFactory.GetAddressOf());
     if (FAILED(hr))
     {
         GX_LOG_ERROR("D2D1CreateFactory failed: 0x%08X", static_cast<unsigned>(hr));
@@ -96,7 +96,7 @@ int FontManager::AllocateHandle()
     return handle;
 }
 
-int FontManager::CreateFont(const std::wstring& fontName, int fontSize, bool bold, bool italic)
+int FontManager::CreateFont(const gx::WString& fontName, int fontSize, bool bold, bool italic)
 {
     int handle = AllocateHandle();
     auto& entry = m_entries[handle];
@@ -477,6 +477,11 @@ float FontManager::GetCapOffset(int fontHandle) const
 
 void FontManager::Shutdown()
 {
+    for (auto& entry : m_entries)
+    {
+        if (entry.valid && entry.atlasTextureHandle >= 0 && m_textureManager)
+            m_textureManager->ReleaseTexture(entry.atlasTextureHandle);
+    }
     m_entries.clear();
     m_freeHandles.clear();
     m_wicFactory.Reset();

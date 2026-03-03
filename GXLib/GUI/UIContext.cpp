@@ -32,7 +32,7 @@ static Transform2D BuildLocalTransform(const Widget& widget, const Style& style)
 // ルートからwidgetまでのtransformを合成してワールド変換行列を得る
 static Transform2D BuildWorldTransform(const Widget* widget)
 {
-    std::vector<const Widget*> chain;
+    gx::Vector<const Widget*> chain;
     for (auto* w = widget; w; w = w->GetParent())
         chain.push_back(w);
     std::reverse(chain.begin(), chain.end());
@@ -47,7 +47,7 @@ static Transform2D BuildWorldTransform(const Widget* widget)
 }
 
 // スクリーン座標をウィジェットのローカル座標に変換する（ワールド変換の逆行列を適用）
-static XMFLOAT2 ComputeLocalPoint(const Widget* widget, float x, float y)
+static Vector2 ComputeLocalPoint(const Widget* widget, float x, float y)
 {
     if (!widget)
         return { x, y };
@@ -58,7 +58,7 @@ static XMFLOAT2 ComputeLocalPoint(const Widget* widget, float x, float y)
 
 // 座標(x,y)にあるウィジェットを再帰的に探す。子の上にあるものが優先（後方の子＝手前）
 static Widget* HitTestInternal(Widget* widget, float x, float y,
-                               const Transform2D& parent, XMFLOAT2* outLocal)
+                               const Transform2D& parent, Vector2* outLocal)
 {
     if (!widget->visible || !widget->enabled) return nullptr;
 
@@ -66,7 +66,7 @@ static Widget* HitTestInternal(Widget* widget, float x, float y,
     Transform2D local = BuildLocalTransform(*widget, style);
     Transform2D world = Multiply(parent, local);
     Transform2D inv = Inverse(world);
-    XMFLOAT2 localPt = TransformPoint(inv, x, y);
+    Vector2 localPt = TransformPoint(inv, x, y);
 
     bool clipChildren = (widget->computedStyle.overflow == OverflowMode::Hidden ||
                          widget->computedStyle.overflow == OverflowMode::Scroll);
@@ -118,7 +118,7 @@ void UIContext::SetStyleSheet(StyleSheet* sheet)
     m_styleSheet = sheet;
 }
 
-Widget* UIContext::FindById(const std::string& id)
+Widget* UIContext::FindById(const gx::String& id)
 {
     if (!m_root) return nullptr;
     return m_root->FindById(id);
@@ -182,7 +182,7 @@ void UIContext::ProcessInputEvents(InputManager& input)
     int wheelDelta = mouse.GetWheel();
 
     // ヒットテスト
-    XMFLOAT2 hitLocal = { mx, my };
+    Vector2 hitLocal = { mx, my };
     Widget* hitWidget = m_root
         ? HitTestInternal(m_root.get(), mx, my, Transform2D::Identity(), &hitLocal)
         : nullptr;
@@ -197,7 +197,7 @@ void UIContext::ProcessInputEvents(InputManager& input)
             leaveEvent.type = UIEventType::MouseLeave;
             leaveEvent.mouseX = mx;
             leaveEvent.mouseY = my;
-            XMFLOAT2 leaveLocal = ComputeLocalPoint(m_hoveredWidget, mx, my);
+            Vector2 leaveLocal = ComputeLocalPoint(m_hoveredWidget, mx, my);
             leaveEvent.localX = leaveLocal.x;
             leaveEvent.localY = leaveLocal.y;
             leaveEvent.target = m_hoveredWidget;
@@ -270,7 +270,7 @@ void UIContext::ProcessInputEvents(InputManager& input)
         {
             m_pressedWidget->pressed = false;
 
-            XMFLOAT2 pressedLocal = ComputeLocalPoint(m_pressedWidget, mx, my);
+            Vector2 pressedLocal = ComputeLocalPoint(m_pressedWidget, mx, my);
 
             UIEvent upEvent;
             upEvent.type = UIEventType::MouseUp;
@@ -410,7 +410,7 @@ void UIContext::DispatchEvent(UIEvent& event)
         case UIEventType::MouseLeave:
         case UIEventType::Click:
         {
-            XMFLOAT2 local = ComputeLocalPoint(w, event.mouseX, event.mouseY);
+            Vector2 local = ComputeLocalPoint(w, event.mouseX, event.mouseY);
             event.localX = local.x;
             event.localY = local.y;
             break;
@@ -421,7 +421,7 @@ void UIContext::DispatchEvent(UIEvent& event)
     };
 
     // 祖先パスを収集（ルート→ターゲットの順）
-    std::vector<Widget*> path;
+    gx::Vector<Widget*> path;
     CollectAncestors(event.target, path);
 
     // Phase 1: キャプチャ（ルート→ターゲット）
@@ -451,7 +451,7 @@ void UIContext::DispatchEvent(UIEvent& event)
     }
 }
 
-void UIContext::CollectAncestors(Widget* widget, std::vector<Widget*>& path)
+void UIContext::CollectAncestors(Widget* widget, gx::Vector<Widget*>& path)
 {
     // ルートからターゲットの直前の親までを収集
     Widget* p = widget->GetParent();
@@ -631,7 +631,7 @@ void UIContext::LayoutWidget(Widget* widget, float posX, float posY,
         float   flexGrow;
         bool    crossAuto;  // 交差軸が Auto か
     };
-    std::vector<ChildInfo> infos;
+    gx::Vector<ChildInfo> infos;
 
     for (auto& child : children)
     {

@@ -3,6 +3,7 @@
 
 #include "pch_graphics.h"
 #include "Graphics/3D/ProceduralMesh.h"
+#include "Math/MathConvert.h"
 #include <cmath>
 #include <algorithm>
 #include <map>
@@ -14,8 +15,8 @@ namespace gx
 // ProceduralMeshBuilder
 // ============================================================================
 
-uint32_t ProceduralMeshBuilder::AddVertex(const XMFLOAT3& position, const XMFLOAT3& normal,
-                                           const XMFLOAT2& texcoord, const XMFLOAT4& tangent)
+uint32_t ProceduralMeshBuilder::AddVertex(const Vector3& position, const Vector3& normal,
+                                           const Vector2& texcoord, const Vector4& tangent)
 {
     Vertex3D_PBR v;
     v.position = position;
@@ -55,10 +56,10 @@ void ProceduralMeshBuilder::ComputeNormals()
         auto& v1 = m_vertices[m_indices[i + 1]];
         auto& v2 = m_vertices[m_indices[i + 2]];
 
-        XMFLOAT3 e1 = {v1.position.x - v0.position.x, v1.position.y - v0.position.y, v1.position.z - v0.position.z};
-        XMFLOAT3 e2 = {v2.position.x - v0.position.x, v2.position.y - v0.position.y, v2.position.z - v0.position.z};
+        Vector3 e1 = {v1.position.x - v0.position.x, v1.position.y - v0.position.y, v1.position.z - v0.position.z};
+        Vector3 e2 = {v2.position.x - v0.position.x, v2.position.y - v0.position.y, v2.position.z - v0.position.z};
         // e2 x e1 for left-handed (DirectX) coordinate system
-        XMFLOAT3 n = {
+        Vector3 n = {
             e2.y * e1.z - e2.z * e1.y,
             e2.z * e1.x - e2.x * e1.z,
             e2.x * e1.y - e2.y * e1.x
@@ -81,8 +82,8 @@ void ProceduralMeshBuilder::ComputeNormals()
 
 void ProceduralMeshBuilder::ComputeTangents()
 {
-    std::vector<XMFLOAT3> tan1(m_vertices.size(), {0,0,0});
-    std::vector<XMFLOAT3> tan2(m_vertices.size(), {0,0,0});
+    gx::Vector<Vector3> tan1(m_vertices.size(), {0,0,0});
+    gx::Vector<Vector3> tan2(m_vertices.size(), {0,0,0});
 
     for (size_t i = 0; i + 2 < m_indices.size(); i += 3)
     {
@@ -97,12 +98,12 @@ void ProceduralMeshBuilder::ComputeTangents()
         float du2 = v2.texcoord.x - v0.texcoord.x, dv2 = v2.texcoord.y - v0.texcoord.y;
 
         float r = 1.0f / (du1 * dv2 - du2 * dv1 + 1e-10f);
-        XMFLOAT3 sdir = {
+        Vector3 sdir = {
             (dv2 * dx1 - dv1 * dx2) * r,
             (dv2 * dy1 - dv1 * dy2) * r,
             (dv2 * dz1 - dv1 * dz2) * r
         };
-        XMFLOAT3 tdir = {
+        Vector3 tdir = {
             (du1 * dx2 - du2 * dx1) * r,
             (du1 * dy2 - du2 * dy1) * r,
             (du1 * dz2 - du2 * dz1) * r
@@ -117,15 +118,15 @@ void ProceduralMeshBuilder::ComputeTangents()
 
     for (size_t i = 0; i < m_vertices.size(); ++i)
     {
-        XMVECTOR n = XMLoadFloat3(&m_vertices[i].normal);
-        XMVECTOR t = XMLoadFloat3(&tan1[i]);
+        XMVECTOR n = XMLoadFloat3(XM(&m_vertices[i].normal));
+        XMVECTOR t = XMLoadFloat3(XM(&tan1[i]));
         // Gram-Schmidt orthogonalize
-        XMVECTOR tangent = XMVector3Normalize(t - n * XMVector3Dot(n, t));
+        XMVECTOR tangent = XMVector3Normalize(XMVectorSubtract(t, XMVectorMultiply(n, XMVector3Dot(n, t))));
         // Handedness
-        XMVECTOR b = XMLoadFloat3(&tan2[i]);
+        XMVECTOR b = XMLoadFloat3(XM(&tan2[i]));
         float w = (XMVectorGetX(XMVector3Dot(XMVector3Cross(n, t), b)) < 0.0f) ? -1.0f : 1.0f;
-        XMFLOAT3 result;
-        XMStoreFloat3(&result, tangent);
+        Vector3 result;
+        XMStoreFloat3(XM(&result), tangent);
         m_vertices[i].tangent = {result.x, result.y, result.z, w};
     }
 }
@@ -316,8 +317,8 @@ MeshData MeshGenerator::CreateIcosphere(float radius, uint32_t subdivisions)
     // Subdivide
     for (uint32_t s = 0; s < subdivisions; ++s)
     {
-        std::vector<uint32_t> newIndices;
-        std::map<uint64_t, uint32_t> midpointCache;
+        gx::Vector<uint32_t> newIndices;
+        gx::Map<uint64_t, uint32_t> midpointCache;
 
         auto getMidpoint = [&](uint32_t a, uint32_t b) -> uint32_t {
             uint64_t key = (static_cast<uint64_t>(std::min(a,b)) << 32ULL) | std::max(a,b);

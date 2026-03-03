@@ -51,7 +51,7 @@ void UDPSocket::Close()
     }
 }
 
-int UDPSocket::SendTo(const std::string& host, uint16_t port, const void* data, int size)
+int UDPSocket::SendTo(const gx::String& host, uint16_t port, const void* data, int size)
 {
     if (m_socket == INVALID_SOCKET) return -1;
 
@@ -64,7 +64,7 @@ int UDPSocket::SendTo(const std::string& host, uint16_t port, const void* data, 
                   reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
 }
 
-int UDPSocket::ReceiveFrom(void* buffer, int bufferSize, std::string& outHost, uint16_t& outPort)
+int UDPSocket::ReceiveFrom(void* buffer, int bufferSize, gx::String& outHost, uint16_t& outPort)
 {
     if (m_socket == INVALID_SOCKET) return -1;
 

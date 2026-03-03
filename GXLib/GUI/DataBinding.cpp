@@ -9,7 +9,7 @@ namespace gx { namespace GUI {
 // DataContext
 // ============================================================================
 
-void DataContext::SetProperty(const std::string& name, const std::string& value)
+void DataContext::SetProperty(const gx::String& name, const gx::String& value)
 {
     auto it = m_properties.find(name);
     if (it == m_properties.end())
@@ -27,7 +27,7 @@ void DataContext::SetProperty(const std::string& name, const std::string& value)
         OnPropertyChanged(name, value);
 }
 
-std::string DataContext::GetProperty(const std::string& name) const
+gx::String DataContext::GetProperty(const gx::String& name) const
 {
     auto it = m_properties.find(name);
     if (it == m_properties.end())
@@ -35,12 +35,12 @@ std::string DataContext::GetProperty(const std::string& name) const
     return it->second.Get();
 }
 
-bool DataContext::HasProperty(const std::string& name) const
+bool DataContext::HasProperty(const gx::String& name) const
 {
     return m_properties.find(name) != m_properties.end();
 }
 
-bool DataContext::RemoveProperty(const std::string& name)
+bool DataContext::RemoveProperty(const gx::String& name)
 {
     return m_properties.erase(name) > 0;
 }
@@ -50,16 +50,16 @@ size_t DataContext::GetPropertyCount() const
     return m_properties.size();
 }
 
-std::vector<std::string> DataContext::GetPropertyNames() const
+gx::Vector<gx::String> DataContext::GetPropertyNames() const
 {
-    std::vector<std::string> names;
+    gx::Vector<gx::String> names;
     names.reserve(m_properties.size());
     for (const auto& [name, prop] : m_properties)
         names.push_back(name);
     return names;
 }
 
-DataProperty* DataContext::GetDataProperty(const std::string& name)
+DataProperty* DataContext::GetDataProperty(const gx::String& name)
 {
     auto it = m_properties.find(name);
     if (it == m_properties.end())
@@ -71,8 +71,8 @@ DataProperty* DataContext::GetDataProperty(const std::string& name)
 // DataBindingManager
 // ============================================================================
 
-uint32_t DataBindingManager::Bind(const std::string& sourceProperty, const std::string& targetId,
-                                   const std::string& targetProperty, BindingMode mode)
+uint32_t DataBindingManager::Bind(const gx::String& sourceProperty, const gx::String& targetId,
+                                   const gx::String& targetProperty, BindingMode mode)
 {
     Binding binding;
     binding.sourceProperty = sourceProperty;
@@ -86,8 +86,8 @@ uint32_t DataBindingManager::Bind(const std::string& sourceProperty, const std::
     return id;
 }
 
-uint32_t DataBindingManager::BindWithConverter(const std::string& sourceProperty, const std::string& targetId,
-                                                const std::string& targetProperty, const BindingConverter& converter,
+uint32_t DataBindingManager::BindWithConverter(const gx::String& sourceProperty, const gx::String& targetId,
+                                                const gx::String& targetProperty, const BindingConverter& converter,
                                                 BindingMode mode)
 {
     Binding binding;
@@ -108,7 +108,7 @@ bool DataBindingManager::Unbind(uint32_t bindingId)
     return m_bindings.erase(bindingId) > 0;
 }
 
-void DataBindingManager::UnbindAll(const std::string& targetId)
+void DataBindingManager::UnbindAll(const gx::String& targetId)
 {
     for (auto it = m_bindings.begin(); it != m_bindings.end(); )
     {
@@ -186,7 +186,7 @@ void DataBindingManager::UpdateBindings()
     m_dirtyProperties.clear();
 }
 
-void DataBindingManager::NotifyPropertyChanged(const std::string& propertyName)
+void DataBindingManager::NotifyPropertyChanged(const gx::String& propertyName)
 {
     // Add to dirty list (avoid duplicates)
     for (const auto& name : m_dirtyProperties)
@@ -197,9 +197,9 @@ void DataBindingManager::NotifyPropertyChanged(const std::string& propertyName)
     m_dirtyProperties.push_back(propertyName);
 }
 
-std::vector<uint32_t> DataBindingManager::GetBindingsForProperty(const std::string& propertyName) const
+gx::Vector<uint32_t> DataBindingManager::GetBindingsForProperty(const gx::String& propertyName) const
 {
-    std::vector<uint32_t> result;
+    gx::Vector<uint32_t> result;
     for (const auto& [id, binding] : m_bindings)
     {
         if (binding.sourceProperty == propertyName)
@@ -208,9 +208,9 @@ std::vector<uint32_t> DataBindingManager::GetBindingsForProperty(const std::stri
     return result;
 }
 
-std::vector<uint32_t> DataBindingManager::GetBindingsForTarget(const std::string& targetId) const
+gx::Vector<uint32_t> DataBindingManager::GetBindingsForTarget(const gx::String& targetId) const
 {
-    std::vector<uint32_t> result;
+    gx::Vector<uint32_t> result;
     for (const auto& [id, binding] : m_bindings)
     {
         if (binding.targetId == targetId)

@@ -74,7 +74,7 @@ void RegisterAudioExtended(sol::state& lua, AudioManager* audio)
 
     snd["loadSound"] = [audio](const std::string& path) -> int {
         // AudioManager API用にナロー文字列からワイド文字列へ変換
-        std::wstring wpath(path.begin(), path.end());
+        gx::WString wpath(std::wstring(path.begin(), path.end()));
         return audio->LoadSound(wpath);
     };
 
@@ -139,7 +139,7 @@ void RegisterGUI(sol::state& lua, GUI::UIContext* ctx)
     };
 
     gui["findById"] = [ctx](const std::string& id) -> bool {
-        return ctx->FindById(id) != nullptr;
+        return ctx->FindById(gx::String(id)) != nullptr;
     };
 }
 
@@ -148,17 +148,18 @@ void RegisterFileSystem(sol::state& lua)
     auto fs = lua.create_named_table("fs");
 
     fs["exists"] = [](const std::string& path) -> bool {
-        return FileSystem::Instance().Exists(path);
+        return FileSystem::Instance().Exists(gx::String(path));
     };
 
     fs["readFile"] = [](const std::string& path) -> std::string {
-        FileData data = FileSystem::Instance().ReadFile(path);
+        FileData data = FileSystem::Instance().ReadFile(gx::String(path));
         if (!data.IsValid()) return {};
-        return data.AsString();
+        gx::String result = data.AsString();
+        return std::string(result.c_str(), result.size());
     };
 
     fs["writeFile"] = [](const std::string& path, const std::string& content) -> bool {
-        return FileSystem::Instance().WriteFile(path, content.data(), content.size());
+        return FileSystem::Instance().WriteFile(gx::String(path), content.data(), content.size());
     };
 }
 

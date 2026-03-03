@@ -10,7 +10,7 @@ namespace gx
 // Float3Track
 // ============================================================================
 
-void Float3Track::AddKeyframe(float time, const XMFLOAT3& value)
+void Float3Track::AddKeyframe(float time, const Vector3& value)
 {
     m_keyframes.push_back({ time, value });
     std::sort(m_keyframes.begin(), m_keyframes.end(),
@@ -42,7 +42,7 @@ void Float3Track::Evaluate(float time)
         {
             float t = (time - m_keyframes[i].time) /
                       (m_keyframes[i + 1].time - m_keyframes[i].time);
-            XMFLOAT3 result = {
+            Vector3 result = {
                 m_keyframes[i].value.x + (m_keyframes[i + 1].value.x - m_keyframes[i].value.x) * t,
                 m_keyframes[i].value.y + (m_keyframes[i + 1].value.y - m_keyframes[i].value.y) * t,
                 m_keyframes[i].value.z + (m_keyframes[i + 1].value.z - m_keyframes[i].value.z) * t

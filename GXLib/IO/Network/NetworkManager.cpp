@@ -21,7 +21,7 @@ NetworkManager::~NetworkManager()
     else if (m_connected) Disconnect();
 }
 
-uint32_t NetworkManager::HashString(const std::string& s)
+uint32_t NetworkManager::HashString(const gx::String& s)
 {
     // FNV-1a ハッシュ
     uint32_t hash = 2166136261u;
@@ -64,7 +64,7 @@ void NetworkManager::StopServer()
     m_clients.clear();
 }
 
-bool NetworkManager::Connect(const std::string& host, uint16_t port)
+bool NetworkManager::Connect(const gx::String& host, uint16_t port)
 {
     if (m_isServer || m_connected) return false;
 
@@ -92,15 +92,15 @@ void NetworkManager::Disconnect()
     m_socket = std::make_unique<UDPSocket>();
 }
 
-void NetworkManager::Send(const std::vector<uint8_t>& data)
+void NetworkManager::Send(const gx::Vector<uint8_t>& data)
 {
     if (!m_connected) return;
     SendPacket(m_serverHost, m_serverPort, PacketType::Data,
                data.data(), static_cast<uint16_t>(data.size()));
 }
 
-void NetworkManager::SendReliable(const std::string& host, uint16_t port,
-                                   const std::vector<uint8_t>& data)
+void NetworkManager::SendReliable(const gx::String& host, uint16_t port,
+                                   const gx::Vector<uint8_t>& data)
 {
     m_reliableChannel.SendReliable(host, port,
                                     static_cast<uint16_t>(PacketType::Data),
@@ -108,7 +108,7 @@ void NetworkManager::SendReliable(const std::string& host, uint16_t port,
                                     static_cast<uint32_t>(data.size()));
 }
 
-void NetworkManager::Broadcast(const std::vector<uint8_t>& data)
+void NetworkManager::Broadcast(const gx::Vector<uint8_t>& data)
 {
     if (!m_isServer) return;
     for (const auto& client : m_clients)
@@ -118,7 +118,7 @@ void NetworkManager::Broadcast(const std::vector<uint8_t>& data)
     }
 }
 
-void NetworkManager::SendTo(ClientId client, const std::vector<uint8_t>& data)
+void NetworkManager::SendTo(ClientId client, const gx::Vector<uint8_t>& data)
 {
     if (!m_isServer) return;
     for (const auto& c : m_clients)
@@ -132,18 +132,18 @@ void NetworkManager::SendTo(ClientId client, const std::vector<uint8_t>& data)
     }
 }
 
-void NetworkManager::RegisterRPC(const std::string& name, RPCHandler handler)
+void NetworkManager::RegisterRPC(const gx::String& name, RPCHandler handler)
 {
     uint32_t hash = HashString(name);
     m_rpcHandlers[hash] = std::move(handler);
     m_rpcNameToHash[name] = hash;
 }
 
-void NetworkManager::CallRPC(const std::string& name, const std::vector<uint8_t>& args)
+void NetworkManager::CallRPC(const gx::String& name, const gx::Vector<uint8_t>& args)
 {
     uint32_t hash = HashString(name);
     // [4バイト RPC hash][payload]
-    std::vector<uint8_t> packet(4 + args.size());
+    gx::Vector<uint8_t> packet(4 + args.size());
     std::memcpy(packet.data(), &hash, 4);
     if (!args.empty())
         std::memcpy(packet.data() + 4, args.data(), args.size());
@@ -165,13 +165,13 @@ void NetworkManager::CallRPC(const std::string& name, const std::vector<uint8_t>
     }
 }
 
-void NetworkManager::CallRPCOn(ClientId target, const std::string& name,
-                                const std::vector<uint8_t>& args)
+void NetworkManager::CallRPCOn(ClientId target, const gx::String& name,
+                                const gx::Vector<uint8_t>& args)
 {
     if (!m_isServer) return;
 
     uint32_t hash = HashString(name);
-    std::vector<uint8_t> packet(4 + args.size());
+    gx::Vector<uint8_t> packet(4 + args.size());
     std::memcpy(packet.data(), &hash, 4);
     if (!args.empty())
         std::memcpy(packet.data() + 4, args.data(), args.size());
@@ -187,7 +187,7 @@ void NetworkManager::CallRPCOn(ClientId target, const std::string& name,
     }
 }
 
-void NetworkManager::SendPacket(const std::string& host, uint16_t port,
+void NetworkManager::SendPacket(const gx::String& host, uint16_t port,
                                  PacketType type, const void* data, uint16_t size)
 {
     PacketHeader header;
@@ -195,7 +195,7 @@ void NetworkManager::SendPacket(const std::string& host, uint16_t port,
     header.type = type;
     header.size = size;
 
-    std::vector<uint8_t> buffer(sizeof(PacketHeader) + size);
+    gx::Vector<uint8_t> buffer(sizeof(PacketHeader) + size);
     std::memcpy(buffer.data(), &header, sizeof(PacketHeader));
     if (data && size > 0)
         std::memcpy(buffer.data() + sizeof(PacketHeader), data, size);
@@ -208,7 +208,7 @@ void NetworkManager::Update()
     if (!m_socket) return;
 
     uint8_t buffer[4096];
-    std::string fromHost;
+    gx::String fromHost;
     uint16_t fromPort;
 
     while (true)
@@ -220,7 +220,7 @@ void NetworkManager::Update()
     }
 }
 
-void NetworkManager::ProcessPacket(const std::string& fromHost, uint16_t fromPort,
+void NetworkManager::ProcessPacket(const gx::String& fromHost, uint16_t fromPort,
                                     const uint8_t* data, int size)
 {
     if (size < static_cast<int>(sizeof(PacketHeader))) return;
@@ -300,7 +300,7 @@ void NetworkManager::ProcessPacket(const std::string& fromHost, uint16_t fromPor
         auto it = m_rpcHandlers.find(rpcHash);
         if (it != m_rpcHandlers.end())
         {
-            std::vector<uint8_t> args(payload + 4, payload + payloadSize);
+            gx::Vector<uint8_t> args(payload + 4, payload + payloadSize);
             it->second(senderId, args);
         }
         break;

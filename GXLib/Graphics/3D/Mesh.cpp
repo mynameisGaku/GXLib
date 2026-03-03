@@ -2,6 +2,7 @@
 /// @brief Meshの実装
 #include "pch_graphics.h"
 #include "Graphics/3D/Mesh.h"
+#include "Math/MathConvert.h"
 #include "Core/Logger.h"
 #include <unordered_map>
 
@@ -18,10 +19,10 @@ bool Mesh::CreateIndexBuffer(ID3D12Device* device, const void* data, uint32_t si
     return m_indexBuffer.CreateIndexBuffer(device, data, size, format);
 }
 
-bool Mesh::CreateSmoothNormalBuffer(ID3D12Device* device, const XMFLOAT3* data, uint32_t vertexCount)
+bool Mesh::CreateSmoothNormalBuffer(ID3D12Device* device, const Vector3* data, uint32_t vertexCount)
 {
-    uint32_t bufferSize = vertexCount * sizeof(XMFLOAT3);
-    m_hasSmoothNormals = m_smoothNormalBuffer.CreateVertexBuffer(device, data, bufferSize, sizeof(XMFLOAT3));
+    uint32_t bufferSize = vertexCount * sizeof(Vector3);
+    m_hasSmoothNormals = m_smoothNormalBuffer.CreateVertexBuffer(device, data, bufferSize, sizeof(Vector3));
     return m_hasSmoothNormals;
 }
 
@@ -48,12 +49,12 @@ struct PosKeyHash
     }
 };
 
-std::vector<XMFLOAT3> ComputeSmoothNormals(const XMFLOAT3* positions, const XMFLOAT3* normals, uint32_t vertexCount)
+gx::Vector<Vector3> ComputeSmoothNormals(const Vector3* positions, const Vector3* normals, uint32_t vertexCount)
 {
     constexpr float k_Precision = 10000.0f; // 0.0001
 
     // 位置でグループ化
-    std::unordered_map<PosKey, XMFLOAT3, PosKeyHash> normalAccum;
+    gx::HashMap<PosKey, Vector3, PosKeyHash> normalAccum;
     normalAccum.reserve(vertexCount);
 
     for (uint32_t i = 0; i < vertexCount; ++i)
@@ -79,17 +80,17 @@ std::vector<XMFLOAT3> ComputeSmoothNormals(const XMFLOAT3* positions, const XMFL
     // 正規化
     for (auto& [key, n] : normalAccum)
     {
-        XMVECTOR v = XMLoadFloat3(&n);
+        XMVECTOR v = XMLoadFloat3(XM(&n));
         float len = XMVectorGetX(XMVector3Length(v));
         if (len > 1e-6f)
         {
             v = XMVectorScale(v, 1.0f / len);
-            XMStoreFloat3(&n, v);
+            XMStoreFloat3(XM(&n), v);
         }
     }
 
     // 各頂点にスムース法線を割り当て
-    std::vector<XMFLOAT3> result(vertexCount);
+    gx::Vector<Vector3> result(vertexCount);
     for (uint32_t i = 0; i < vertexCount; ++i)
     {
         PosKey key;
@@ -101,7 +102,7 @@ std::vector<XMFLOAT3> ComputeSmoothNormals(const XMFLOAT3* positions, const XMFL
         if (it != normalAccum.end())
         {
             // ゼロベクトル安全チェック（退化時は元の法線にフォールバック）
-            XMVECTOR v = XMLoadFloat3(&it->second);
+            XMVECTOR v = XMLoadFloat3(XM(&it->second));
             float len = XMVectorGetX(XMVector3Length(v));
             if (len > 1e-6f)
                 result[i] = it->second;

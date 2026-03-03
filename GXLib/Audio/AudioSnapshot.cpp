@@ -21,7 +21,7 @@ void AudioSnapshotManager::RegisterSnapshot(const AudioSnapshotData& snapshot)
 // UnregisterSnapshot
 // ============================================================================
 
-void AudioSnapshotManager::UnregisterSnapshot(const std::string& name)
+void AudioSnapshotManager::UnregisterSnapshot(const gx::String& name)
 {
     m_snapshots.erase(name);
 
@@ -43,7 +43,7 @@ void AudioSnapshotManager::UnregisterSnapshot(const std::string& name)
 // GetSnapshot
 // ============================================================================
 
-const AudioSnapshotData* AudioSnapshotManager::GetSnapshot(const std::string& name) const
+const AudioSnapshotData* AudioSnapshotManager::GetSnapshot(const gx::String& name) const
 {
     auto it = m_snapshots.find(name);
     if (it != m_snapshots.end())
@@ -66,7 +66,7 @@ size_t AudioSnapshotManager::GetSnapshotCount() const
 // ApplySnapshot — 即座に適用
 // ============================================================================
 
-void AudioSnapshotManager::ApplySnapshot(const std::string& name)
+void AudioSnapshotManager::ApplySnapshot(const gx::String& name)
 {
     auto it = m_snapshots.find(name);
     if (it == m_snapshots.end())
@@ -86,7 +86,7 @@ void AudioSnapshotManager::ApplySnapshot(const std::string& name)
 // BlendToSnapshot — 時間をかけて遷移
 // ============================================================================
 
-void AudioSnapshotManager::BlendToSnapshot(const std::string& name, float transitionTime)
+void AudioSnapshotManager::BlendToSnapshot(const gx::String& name, float transitionTime)
 {
     auto it = m_snapshots.find(name);
     if (it == m_snapshots.end())
@@ -134,7 +134,7 @@ void AudioSnapshotManager::Update(float deltaTime)
 // GetCurrentSnapshotName
 // ============================================================================
 
-std::string AudioSnapshotManager::GetCurrentSnapshotName() const
+gx::String AudioSnapshotManager::GetCurrentSnapshotName() const
 {
     return m_currentName;
 }

@@ -106,22 +106,19 @@ endif()
 
 if (NOT GX_SDK_ONLY)
     enable_testing()
-    add_subdirectory(Game)
-    add_subdirectory(Sandbox)
     add_subdirectory(Tests)
     add_subdirectory(tools/gxconv)
     add_subdirectory(tools/gxpak)
     add_subdirectory(GXModelViewer)
 
     # スタートアッププロジェクト
-    set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT Game)
+    set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT GXLibTests)
 
     # ソリューションフォルダ整理
     set_target_properties(gxconv         PROPERTIES FOLDER "Tools")
     set_target_properties(gxloader       PROPERTIES FOLDER "Tools")
     set_target_properties(gxpak          PROPERTIES FOLDER "Tools")
     set_target_properties(GXModelViewer  PROPERTIES FOLDER "Tools")
-    set_target_properties(Sandbox        PROPERTIES FOLDER "Tools")
     set_target_properties(GXLibTests     PROPERTIES FOLDER "Tests")
     if (TARGET gtest)
         set_target_properties(gtest        PROPERTIES FOLDER "ThirdParty")

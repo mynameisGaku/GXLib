@@ -9,7 +9,7 @@ namespace gx
 
 /// 指定時刻を含むキーフレームペアのうち、先頭側のインデックスを返す（線形探索）
 template<typename T>
-static uint32_t FindKeyframeIndex(const std::vector<Keyframe<T>>& keys, float time)
+static uint32_t FindKeyframeIndex(const gx::Vector<Keyframe<T>>& keys, float time)
 {
     for (uint32_t i = 0; i + 1 < keys.size(); ++i)
     {
@@ -19,7 +19,7 @@ static uint32_t FindKeyframeIndex(const std::vector<Keyframe<T>>& keys, float ti
     return static_cast<uint32_t>(keys.size()) - 2;
 }
 
-XMFLOAT3 AnimationClip::InterpolateVec3(const std::vector<Keyframe<XMFLOAT3>>& keys, float time)
+Vector3 AnimationClip::InterpolateVec3(const gx::Vector<Keyframe<Vector3>>& keys, float time)
 {
     if (keys.empty())
         return { 0, 0, 0 };
@@ -32,14 +32,14 @@ XMFLOAT3 AnimationClip::InterpolateVec3(const std::vector<Keyframe<XMFLOAT3>>& k
     float t = (time - keys[i].time) / (keys[i + 1].time - keys[i].time);
     t = (std::max)(0.0f, (std::min)(t, 1.0f));
 
-    XMVECTOR a = XMLoadFloat3(&keys[i].value);
-    XMVECTOR b = XMLoadFloat3(&keys[i + 1].value);
-    XMFLOAT3 result;
-    XMStoreFloat3(&result, XMVectorLerp(a, b, t));
+    XMVECTOR a = XMLoadFloat3(XM(&keys[i].value));
+    XMVECTOR b = XMLoadFloat3(XM(&keys[i + 1].value));
+    Vector3 result;
+    XMStoreFloat3(XM(&result), XMVectorLerp(a, b, t));
     return result;
 }
 
-XMFLOAT4 AnimationClip::InterpolateQuat(const std::vector<Keyframe<XMFLOAT4>>& keys, float time)
+Quaternion AnimationClip::InterpolateQuat(const gx::Vector<Keyframe<Quaternion>>& keys, float time)
 {
     if (keys.empty())
         return { 0, 0, 0, 1 };
@@ -52,10 +52,10 @@ XMFLOAT4 AnimationClip::InterpolateQuat(const std::vector<Keyframe<XMFLOAT4>>& k
     float t = (time - keys[i].time) / (keys[i + 1].time - keys[i].time);
     t = (std::max)(0.0f, (std::min)(t, 1.0f));
 
-    XMVECTOR a = XMLoadFloat4(&keys[i].value);
-    XMVECTOR b = XMLoadFloat4(&keys[i + 1].value);
-    XMFLOAT4 result;
-    XMStoreFloat4(&result, XMQuaternionSlerp(a, b, t));
+    XMVECTOR a = XMLoadFloat4(XM(&keys[i].value));
+    XMVECTOR b = XMLoadFloat4(XM(&keys[i + 1].value));
+    Quaternion result;
+    XMStoreFloat4(XM(&result), XMQuaternionSlerp(a, b, t));
     return result;
 }
 
@@ -94,25 +94,25 @@ void AnimationClip::SampleTRS(float time, uint32_t jointCount, TransformTRS* out
     }
 }
 
-void AnimationClip::Sample(float time, uint32_t jointCount, XMFLOAT4X4* outLocalTransforms) const
+void AnimationClip::Sample(float time, uint32_t jointCount, Matrix4x4* outLocalTransforms) const
 {
     if (!outLocalTransforms) return;
 
-    std::vector<TransformTRS> pose(jointCount);
+    gx::Vector<TransformTRS> pose(jointCount);
     SampleTRS(time, jointCount, pose.data(), nullptr);
 
     for (uint32_t i = 0; i < jointCount; ++i)
     {
         XMMATRIX S = XMMatrixScaling(pose[i].scale.x, pose[i].scale.y, pose[i].scale.z);
-        XMMATRIX R = XMMatrixRotationQuaternion(XMLoadFloat4(&pose[i].rotation));
+        XMMATRIX R = XMMatrixRotationQuaternion(XMLoadFloat4(XM(&pose[i].rotation)));
         XMMATRIX T = XMMatrixTranslation(pose[i].translation.x, pose[i].translation.y, pose[i].translation.z);
         XMMATRIX local = S * R * T;
-        XMStoreFloat4x4(&outLocalTransforms[i], local);
+        XMStoreFloat4x4(XM(&outLocalTransforms[i]), local);
     }
 }
 
 void AnimationClip::CollectEvents(float prevTime, float curTime,
-                                   std::vector<const AnimationEvent*>& outEvents) const
+                                   gx::Vector<const AnimationEvent*>& outEvents) const
 {
     if (m_events.empty()) return;
 

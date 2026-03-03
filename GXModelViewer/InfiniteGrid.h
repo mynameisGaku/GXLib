@@ -36,9 +36,9 @@ private:
     /// @brief GPU定数バッファ構造体（256バイトアラインメント）
     struct alignas(256) GridCBData
     {
-        XMFLOAT4X4 viewProjectionInverse;
-        XMFLOAT4X4 viewProjection;
-        XMFLOAT3   cameraPos;
+        gx::Matrix4x4 viewProjectionInverse;
+        gx::Matrix4x4 viewProjection;
+        gx::Vector3   cameraPos;
         float      gridScale;
         float      fadeDistance;
         float      majorLineEvery;

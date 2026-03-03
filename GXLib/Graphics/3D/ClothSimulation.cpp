@@ -12,39 +12,39 @@ namespace gx
 {
 
 // -----------------------------------------------------------------------
-// ヘルパー: XMFLOAT3 演算
+// ヘルパー: Vector3 演算
 // -----------------------------------------------------------------------
 namespace
 {
 
-inline XMFLOAT3 Add(const XMFLOAT3& a, const XMFLOAT3& b)
+inline Vector3 Add(const Vector3& a, const Vector3& b)
 {
     return { a.x + b.x, a.y + b.y, a.z + b.z };
 }
 
-inline XMFLOAT3 Sub(const XMFLOAT3& a, const XMFLOAT3& b)
+inline Vector3 Sub(const Vector3& a, const Vector3& b)
 {
     return { a.x - b.x, a.y - b.y, a.z - b.z };
 }
 
-inline XMFLOAT3 Mul(const XMFLOAT3& v, float s)
+inline Vector3 Mul(const Vector3& v, float s)
 {
     return { v.x * s, v.y * s, v.z * s };
 }
 
-inline float Length(const XMFLOAT3& v)
+inline float Length(const Vector3& v)
 {
     return std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
 }
 
-inline XMFLOAT3 Normalize(const XMFLOAT3& v)
+inline Vector3 Normalize(const Vector3& v)
 {
     float len = Length(v);
     if (len < 1e-8f) return { 0.0f, 0.0f, 0.0f };
     return Mul(v, 1.0f / len);
 }
 
-inline float Distance(const XMFLOAT3& a, const XMFLOAT3& b)
+inline float Distance(const Vector3& a, const Vector3& b)
 {
     return Length(Sub(a, b));
 }
@@ -290,7 +290,7 @@ void ClothSimulation::VerletIntegrate(float dt)
         if (p.inverseMass <= 0.0f) continue; // Pinned — do not move
 
         // velocity = (position - prevPosition) * damping
-        XMFLOAT3 velocity = Mul(Sub(p.position, p.prevPosition), m_settings.damping);
+        Vector3 velocity = Mul(Sub(p.position, p.prevPosition), m_settings.damping);
 
         // prevPosition = position
         p.prevPosition = p.position;
@@ -308,13 +308,13 @@ void ClothSimulation::SolveConstraints()
         ClothParticle& pA = m_particles[c.particleA];
         ClothParticle& pB = m_particles[c.particleB];
 
-        XMFLOAT3 delta = Sub(pB.position, pA.position);
+        Vector3 delta = Sub(pB.position, pA.position);
         float currentLength = Length(delta);
 
         if (currentLength < 1e-8f) continue; // Degenerate — skip
 
         float diff = (currentLength - c.restLength) / currentLength;
-        XMFLOAT3 correction = Mul(delta, diff * c.stiffness);
+        Vector3 correction = Mul(delta, diff * c.stiffness);
 
         float totalInvMass = pA.inverseMass + pB.inverseMass;
         if (totalInvMass <= 0.0f) continue; // Both pinned
@@ -343,21 +343,21 @@ void ClothSimulation::HandleCollisions()
         {
             if (collider.shape == ClothColliderShape::Sphere)
             {
-                XMFLOAT3 delta = Sub(p.position, collider.position);
+                Vector3 delta = Sub(p.position, collider.position);
                 float dist = Length(delta);
 
                 if (dist < collider.radius && dist > 1e-8f)
                 {
                     // Push particle to sphere surface
-                    XMFLOAT3 normal = Normalize(delta);
+                    Vector3 normal = Normalize(delta);
                     p.position = Add(collider.position, Mul(normal, collider.radius));
                 }
             }
             else if (collider.shape == ClothColliderShape::Capsule)
             {
                 // Project particle onto capsule axis segment
-                XMFLOAT3 ab = Sub(collider.capsuleEnd, collider.position);
-                XMFLOAT3 ap = Sub(p.position, collider.position);
+                Vector3 ab = Sub(collider.capsuleEnd, collider.position);
+                Vector3 ap = Sub(p.position, collider.position);
                 float abLenSq = ab.x * ab.x + ab.y * ab.y + ab.z * ab.z;
 
                 float t = 0.0f;
@@ -367,14 +367,14 @@ void ClothSimulation::HandleCollisions()
                     t = std::clamp(t, 0.0f, 1.0f);
                 }
 
-                XMFLOAT3 closestOnAxis = Add(collider.position, Mul(ab, t));
-                XMFLOAT3 delta = Sub(p.position, closestOnAxis);
+                Vector3 closestOnAxis = Add(collider.position, Mul(ab, t));
+                Vector3 delta = Sub(p.position, closestOnAxis);
                 float dist = Length(delta);
 
                 float capsuleR = collider.capsuleRadius > 0.0f ? collider.capsuleRadius : collider.radius;
                 if (dist < capsuleR && dist > 1e-8f)
                 {
-                    XMFLOAT3 normal = Normalize(delta);
+                    Vector3 normal = Normalize(delta);
                     p.position = Add(closestOnAxis, Mul(normal, capsuleR));
                 }
             }

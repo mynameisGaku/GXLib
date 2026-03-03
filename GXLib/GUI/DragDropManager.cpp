@@ -10,7 +10,7 @@ namespace gx { namespace GUI {
 // ============================================================================
 // RegisterDragSource
 // ============================================================================
-void DragDropManager::RegisterDragSource(Widget* widget, const std::string& payloadType)
+void DragDropManager::RegisterDragSource(Widget* widget, const gx::String& payloadType)
 {
     if (!widget) return;
     m_sources[widget] = payloadType;

@@ -7,6 +7,7 @@
 #include "Graphics/3D/Mesh.h"
 #include "Graphics/3D/Skeleton.h"
 #include "Graphics/3D/AnimationClip.h"
+#include "Math/MathConvert.h"
 #include "Core/Logger.h"
 
 #include <model_loader.h>
@@ -21,23 +22,23 @@ static_assert(sizeof(gxfmt::VertexSkinned) == sizeof(gx::Vertex3D_Skinned),
 namespace gx
 {
 
-static std::wstring Utf8ToWide(const std::string& str)
+static gx::WString Utf8ToWide(const gx::String& str)
 {
     if (str.empty()) return L"";
     int size = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, nullptr, 0);
-    std::wstring result(size - 1, L'\0');
+    gx::WString result(size - 1, L'\0');
     MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, result.data(), size);
     return result;
 }
 
-static std::wstring GetDirectory(const std::wstring& filePath)
+static gx::WString GetDirectory(const gx::WString& filePath)
 {
     size_t pos = filePath.find_last_of(L"/\\");
-    if (pos == std::wstring::npos) return L".";
+    if (pos == gx::WString::npos) return L".";
     return filePath.substr(0, pos);
 }
 
-std::unique_ptr<Model> GxmdModelLoader::LoadFromGxmd(const std::wstring& filePath,
+std::unique_ptr<Model> GxmdModelLoader::LoadFromGxmd(const gx::WString& filePath,
                                                        ID3D12Device* device,
                                                        TextureManager& texManager,
                                                        MaterialManager& matManager)
@@ -47,7 +48,7 @@ std::unique_ptr<Model> GxmdModelLoader::LoadFromGxmd(const std::wstring& filePat
         return nullptr;
 
     auto model = std::make_unique<Model>();
-    std::wstring dir = GetDirectory(filePath);
+    gx::WString dir = GetDirectory(filePath);
 
     // --- Materials ---
     for (auto& srcMat : loaded->materials)
@@ -101,13 +102,13 @@ std::unique_ptr<Model> GxmdModelLoader::LoadFromGxmd(const std::wstring& filePat
         auto loadTex = [&](int slot) -> int {
             if (slot < 0 || slot >= 8 || srcMat.texturePaths[slot].empty())
                 return -1;
-            std::wstring texName = Utf8ToWide(srcMat.texturePaths[slot]);
+            gx::WString texName = Utf8ToWide(srcMat.texturePaths[slot]);
             // Strip directory from texture path (FBX stores absolute paths)
             size_t lastSlash = texName.find_last_of(L"/\\");
-            if (lastSlash != std::wstring::npos)
+            if (lastSlash != gx::WString::npos)
                 texName = texName.substr(lastSlash + 1);
             // Try: dir/textureName
-            std::wstring texPath = dir + L"/" + texName;
+            gx::WString texPath = dir + L"/" + texName;
             int h = texManager.LoadTexture(texPath);
             if (h >= 0) return h;
             // Try: dir/textures/textureName
@@ -256,7 +257,7 @@ std::unique_ptr<Model> GxmdModelLoader::LoadFromGxmd(const std::wstring& filePat
         {
             uint32_t vtxCount = isSkinned ? static_cast<uint32_t>(cpu->skinnedVertices.size())
                                            : static_cast<uint32_t>(cpu->staticVertices.size());
-            std::vector<XMFLOAT3> positions(vtxCount), normals(vtxCount);
+            gx::Vector<Vector3> positions(vtxCount), normals(vtxCount);
             if (isSkinned)
             {
                 for (uint32_t i = 0; i < vtxCount; ++i)
@@ -287,7 +288,7 @@ std::unique_ptr<Model> GxmdModelLoader::LoadFromGxmd(const std::wstring& filePat
             Joint j;
             j.name = srcJoint.name;
             j.parentIndex = srcJoint.parentIndex;
-            std::memcpy(&j.inverseBindMatrix, srcJoint.inverseBindMatrix, sizeof(XMFLOAT4X4));
+            std::memcpy(&j.inverseBindMatrix, srcJoint.inverseBindMatrix, sizeof(Matrix4x4));
 
             // Compose local transform from TRS
             XMMATRIX S = DirectX::XMMatrixScaling(
@@ -299,7 +300,7 @@ std::unique_ptr<Model> GxmdModelLoader::LoadFromGxmd(const std::wstring& filePat
             XMMATRIX T = DirectX::XMMatrixTranslation(
                 srcJoint.localTranslation[0], srcJoint.localTranslation[1],
                 srcJoint.localTranslation[2]);
-            DirectX::XMStoreFloat4x4(&j.localTransform, S * R * T);
+            DirectX::XMStoreFloat4x4(XM(&j.localTransform), S * R * T);
 
             skeleton->AddJoint(j);
         }
@@ -314,7 +315,7 @@ std::unique_ptr<Model> GxmdModelLoader::LoadFromGxmd(const std::wstring& filePat
         clip.SetDuration(srcAnim.duration);
 
         // GXMDではT/R/Sが別チャネルとして格納されるため、ジョイント単位にマージする
-        std::unordered_map<uint32_t, AnimationChannel> channelMap;
+        gx::HashMap<uint32_t, AnimationChannel> channelMap;
 
         for (auto& srcCh : srcAnim.channels)
         {
@@ -325,7 +326,7 @@ std::unique_ptr<Model> GxmdModelLoader::LoadFromGxmd(const std::wstring& filePat
             {
                 for (auto& k : srcCh.vecKeys)
                 {
-                    Keyframe<XMFLOAT3> kf;
+                    Keyframe<Vector3> kf;
                     kf.time = k.time;
                     kf.value = { k.value[0], k.value[1], k.value[2] };
                     ch.translationKeys.push_back(kf);
@@ -335,7 +336,7 @@ std::unique_ptr<Model> GxmdModelLoader::LoadFromGxmd(const std::wstring& filePat
             {
                 for (auto& k : srcCh.quatKeys)
                 {
-                    Keyframe<XMFLOAT4> kf;
+                    Keyframe<Quaternion> kf;
                     kf.time = k.time;
                     kf.value = { k.value[0], k.value[1], k.value[2], k.value[3] };
                     ch.rotationKeys.push_back(kf);
@@ -345,7 +346,7 @@ std::unique_ptr<Model> GxmdModelLoader::LoadFromGxmd(const std::wstring& filePat
             {
                 for (auto& k : srcCh.vecKeys)
                 {
-                    Keyframe<XMFLOAT3> kf;
+                    Keyframe<Vector3> kf;
                     kf.time = k.time;
                     kf.value = { k.value[0], k.value[1], k.value[2] };
                     ch.scaleKeys.push_back(kf);

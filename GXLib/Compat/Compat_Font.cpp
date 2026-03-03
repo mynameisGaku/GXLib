@@ -7,6 +7,8 @@
 
 using Ctx = gx_internal::CompatContext;
 
+namespace gx {
+
 // ============================================================================
 // デフォルトフォントでの描画
 // ============================================================================
@@ -34,7 +36,7 @@ int DrawFormatString(int x, int y, unsigned int color, const char* format, ...)
 int GetDrawStringWidth(const char* str, int strLen)
 {
     auto& ctx = Ctx::Instance();
-    std::wstring wstr = gx_internal::ToWString(str);
+    WString wstr = gx_internal::ToWString(str);
     if (strLen >= 0 && static_cast<size_t>(strLen) < wstr.size())
         wstr.resize(strLen);
     return ctx.textRenderer.GetStringWidth(ctx.defaultFontHandle, wstr);
@@ -82,7 +84,7 @@ int DrawFormatStringToHandle(int x, int y, unsigned int color, int fontHandle,
 int GetDrawStringWidthToHandle(const char* str, int strLen, int fontHandle)
 {
     auto& ctx = Ctx::Instance();
-    std::wstring wstr = gx_internal::ToWString(str);
+    WString wstr = gx_internal::ToWString(str);
     if (strLen >= 0 && static_cast<size_t>(strLen) < wstr.size())
         wstr.resize(strLen);
     return ctx.textRenderer.GetStringWidth(fontHandle, wstr);
@@ -110,3 +112,5 @@ int DrawStringToHandleF(float x, float y, const char* str, unsigned int color, i
         gx_internal::ToWString(str), color);
     return 0;
 }
+
+} // namespace gx

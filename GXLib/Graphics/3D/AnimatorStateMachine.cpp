@@ -1,6 +1,7 @@
 /// @file AnimatorStateMachine.cpp
 /// @brief アニメーションステートマシンの実装
 #include "pch_graphics.h"
+#include "Math/MathConvert.h"
 #include "Graphics/3D/AnimatorStateMachine.h"
 
 namespace gx
@@ -18,17 +19,17 @@ void AnimatorStateMachine::AddTransition(const AnimTransition& transition)
     m_transitions.push_back(transition);
 }
 
-void AnimatorStateMachine::SetTrigger(const std::string& name)
+void AnimatorStateMachine::SetTrigger(const gx::String& name)
 {
     m_triggers[name] = true;
 }
 
-void AnimatorStateMachine::SetFloat(const std::string& name, float value)
+void AnimatorStateMachine::SetFloat(const gx::String& name, float value)
 {
     m_floats[name] = value;
 }
 
-float AnimatorStateMachine::GetFloat(const std::string& name) const
+float AnimatorStateMachine::GetFloat(const gx::String& name) const
 {
     auto it = m_floats.find(name);
     return (it != m_floats.end()) ? it->second : 0.0f;
@@ -200,9 +201,9 @@ void AnimatorStateMachine::Update(float deltaTime, uint32_t jointCount,
             outPose[i].translation.y = m_poseA[i].translation.y + (m_poseB[i].translation.y - m_poseA[i].translation.y) * t;
             outPose[i].translation.z = m_poseA[i].translation.z + (m_poseB[i].translation.z - m_poseA[i].translation.z) * t;
 
-            XMVECTOR qa = XMLoadFloat4(&m_poseA[i].rotation);
-            XMVECTOR qb = XMLoadFloat4(&m_poseB[i].rotation);
-            XMStoreFloat4(&outPose[i].rotation, XMQuaternionSlerp(qa, qb, t));
+            XMVECTOR qa = XMLoadFloat4(XM(&m_poseA[i].rotation));
+            XMVECTOR qb = XMLoadFloat4(XM(&m_poseB[i].rotation));
+            XMStoreFloat4(XM(&outPose[i].rotation), XMQuaternionSlerp(qa, qb, t));
 
             outPose[i].scale.x = m_poseA[i].scale.x + (m_poseB[i].scale.x - m_poseA[i].scale.x) * t;
             outPose[i].scale.y = m_poseA[i].scale.y + (m_poseB[i].scale.y - m_poseA[i].scale.y) * t;

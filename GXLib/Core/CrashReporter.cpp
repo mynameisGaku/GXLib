@@ -44,7 +44,7 @@ void CrashReporter::Initialize(const CrashReporterConfig& config)
     // ダンプディレクトリ作成
     try
     {
-        std::filesystem::create_directories(m_config.crashDumpDir);
+        std::filesystem::create_directories(m_config.crashDumpDir.c_str());
     }
     catch (...)
     {
@@ -78,13 +78,13 @@ void CrashReporter::Shutdown()
 // カスタムデータ
 // ============================================================================
 
-void CrashReporter::SetCustomData(const std::string& key, const std::string& value)
+void CrashReporter::SetCustomData(const gx::String& key, const gx::String& value)
 {
     std::lock_guard<std::recursive_mutex> lock(m_mutex);
     m_customData[key] = value;
 }
 
-std::string CrashReporter::GetCustomData(const std::string& key) const
+gx::String CrashReporter::GetCustomData(const gx::String& key) const
 {
     std::lock_guard<std::recursive_mutex> lock(m_mutex);
     auto it = m_customData.find(key);
@@ -93,7 +93,7 @@ std::string CrashReporter::GetCustomData(const std::string& key) const
     return "";
 }
 
-void CrashReporter::RemoveCustomData(const std::string& key)
+void CrashReporter::RemoveCustomData(const gx::String& key)
 {
     std::lock_guard<std::recursive_mutex> lock(m_mutex);
     m_customData.erase(key);
@@ -103,15 +103,15 @@ void CrashReporter::RemoveCustomData(const std::string& key)
 // スタックトレース
 // ============================================================================
 
-std::vector<std::string> CrashReporter::CaptureStackTrace(uint32_t maxFrames) const
+gx::Vector<gx::String> CrashReporter::CaptureStackTrace(uint32_t maxFrames) const
 {
-    std::vector<std::string> frames;
+    gx::Vector<gx::String> frames;
 
     if (!m_config.enableStackTrace)
         return frames;
 
     // Windows APIを使用してスタックトレースを取得
-    std::vector<void*> stack(maxFrames);
+    gx::Vector<void*> stack(maxFrames);
     USHORT capturedFrames = CaptureStackBackTrace(1, static_cast<DWORD>(maxFrames),
                                                    stack.data(), nullptr);
 
@@ -152,7 +152,7 @@ std::vector<std::string> CrashReporter::CaptureStackTrace(uint32_t maxFrames) co
 // クラッシュレポート生成
 // ============================================================================
 
-CrashInfo CrashReporter::CreateCrashReport(const std::string& message)
+CrashInfo CrashReporter::CreateCrashReport(const gx::String& message)
 {
     std::lock_guard<std::recursive_mutex> lock(m_mutex);
 
@@ -180,7 +180,7 @@ CrashInfo CrashReporter::CreateCrashReport(const std::string& message)
     // ただしm_configはアクセス安全なので直接呼ぶ
     if (m_config.enableStackTrace)
     {
-        std::vector<void*> stack(32);
+        gx::Vector<void*> stack(32);
         USHORT capturedFrames = CaptureStackBackTrace(1, 32, stack.data(), nullptr);
 
         HANDLE process = GetCurrentProcess();
@@ -228,16 +228,16 @@ CrashInfo CrashReporter::CreateCrashReport(const std::string& message)
 // ダンプファイル保存 / 読み込み
 // ============================================================================
 
-bool CrashReporter::SaveCrashDump(const CrashInfo& crashInfo, const std::string& filePath)
+bool CrashReporter::SaveCrashDump(const CrashInfo& crashInfo, const gx::String& filePath)
 {
     try
     {
         // ディレクトリ作成
-        std::filesystem::path path(filePath);
+        std::filesystem::path path(filePath.c_str());
         if (path.has_parent_path())
             std::filesystem::create_directories(path.parent_path());
 
-        std::ofstream file(filePath);
+        std::ofstream file(filePath.c_str());
         if (!file.is_open())
             return false;
 
@@ -278,21 +278,21 @@ bool CrashReporter::SaveCrashDump(const CrashInfo& crashInfo, const std::string&
     }
 }
 
-CrashInfo CrashReporter::LoadCrashDump(const std::string& filePath) const
+CrashInfo CrashReporter::LoadCrashDump(const gx::String& filePath) const
 {
     CrashInfo info;
 
     try
     {
-        std::ifstream file(filePath);
+        std::ifstream file(filePath.c_str());
         if (!file.is_open())
             return info;
 
-        std::string line;
+        gx::String line;
         enum class Section { Header, StackTrace, LogTail, CustomData, None };
         Section currentSection = Section::Header;
 
-        while (std::getline(file, line))
+        while (gx::container::getline(file, line))
         {
             // セクションヘッダー検出
             if (line == "--- Stack Trace ---")
@@ -366,9 +366,9 @@ CrashInfo CrashReporter::LoadCrashDump(const std::string& filePath) const
             {
                 if (line.size() > 2 && line[0] == ' ' && line[1] == ' ')
                 {
-                    std::string content = line.substr(2);
+                    gx::String content = line.substr(2);
                     size_t eq = content.find('=');
-                    if (eq != std::string::npos)
+                    if (eq != gx::String::npos)
                     {
                         info.customData[content.substr(0, eq)] = content.substr(eq + 1);
                     }
@@ -392,23 +392,23 @@ CrashInfo CrashReporter::LoadCrashDump(const std::string& filePath) const
 // ダンプ管理
 // ============================================================================
 
-std::vector<std::string> CrashReporter::GetRecentCrashes(uint32_t maxCount) const
+gx::Vector<gx::String> CrashReporter::GetRecentCrashes(uint32_t maxCount) const
 {
     namespace fs = std::filesystem;
-    std::vector<std::string> files;
+    gx::Vector<gx::String> files;
 
     try
     {
-        if (!fs::exists(m_config.crashDumpDir))
+        if (!fs::exists(fs::path(m_config.crashDumpDir.c_str())))
             return files;
 
         // ダンプファイル一覧を取得
-        std::vector<std::pair<std::string, fs::file_time_type>> entries;
-        for (const auto& entry : fs::directory_iterator(m_config.crashDumpDir))
+        gx::Vector<std::pair<gx::String, fs::file_time_type>> entries;
+        for (const auto& entry : fs::directory_iterator(fs::path(m_config.crashDumpDir.c_str())))
         {
             if (entry.is_regular_file() && entry.path().extension() == ".txt")
             {
-                entries.emplace_back(entry.path().string(), entry.last_write_time());
+                entries.emplace_back(gx::String(entry.path().string().c_str()), entry.last_write_time());
             }
         }
 
@@ -434,16 +434,16 @@ void CrashReporter::PruneDumps()
 
     try
     {
-        if (!fs::exists(m_config.crashDumpDir))
+        if (!fs::exists(fs::path(m_config.crashDumpDir.c_str())))
             return;
 
         // ダンプファイル一覧を取得
-        std::vector<std::pair<std::string, fs::file_time_type>> entries;
-        for (const auto& entry : fs::directory_iterator(m_config.crashDumpDir))
+        gx::Vector<std::pair<gx::String, fs::file_time_type>> entries;
+        for (const auto& entry : fs::directory_iterator(fs::path(m_config.crashDumpDir.c_str())))
         {
             if (entry.is_regular_file() && entry.path().extension() == ".txt")
             {
-                entries.emplace_back(entry.path().string(), entry.last_write_time());
+                entries.emplace_back(gx::String(entry.path().string().c_str()), entry.last_write_time());
             }
         }
 
@@ -458,7 +458,7 @@ void CrashReporter::PruneDumps()
         uint32_t toDelete = static_cast<uint32_t>(entries.size()) - m_config.maxDumpFiles;
         for (uint32_t i = 0; i < toDelete; ++i)
         {
-            fs::remove(entries[i].first);
+            fs::remove(fs::path(entries[i].first.c_str()));
             GX_LOG_INFO("CrashReporter: Pruned old dump: %s", entries[i].first.c_str());
         }
     }
@@ -474,11 +474,11 @@ uint32_t CrashReporter::GetDumpCount() const
 
     try
     {
-        if (!fs::exists(m_config.crashDumpDir))
+        if (!fs::exists(fs::path(m_config.crashDumpDir.c_str())))
             return 0;
 
         uint32_t count = 0;
-        for (const auto& entry : fs::directory_iterator(m_config.crashDumpDir))
+        for (const auto& entry : fs::directory_iterator(fs::path(m_config.crashDumpDir.c_str())))
         {
             if (entry.is_regular_file() && entry.path().extension() == ".txt")
                 ++count;
@@ -495,7 +495,7 @@ uint32_t CrashReporter::GetDumpCount() const
 // レポートフォーマット
 // ============================================================================
 
-std::string CrashReporter::FormatCrashReport(const CrashInfo& crashInfo) const
+gx::String CrashReporter::FormatCrashReport(const CrashInfo& crashInfo) const
 {
     std::ostringstream oss;
 
@@ -599,7 +599,7 @@ LONG WINAPI CrashReporter::ExceptionFilter(EXCEPTION_POINTERS* exceptionInfo)
     GX_LOG_ERROR("CrashReporter: %s", msg.str().c_str());
 
     // ポップアップ表示
-    std::string popupMsg = "An unhandled exception occurred.\n\n" + msg.str()
+    gx::String popupMsg = "An unhandled exception occurred.\n\n" + msg.str()
                          + "\n\nA crash dump has been saved to:\n" + filename.str();
     MessageBoxA(reporter.m_hwnd, popupMsg.c_str(), "GXLib - Fatal Error",
                 MB_OK | MB_ICONERROR | MB_TOPMOST);
@@ -611,7 +611,7 @@ LONG WINAPI CrashReporter::ExceptionFilter(EXCEPTION_POINTERS* exceptionInfo)
 // ログバッファ
 // ============================================================================
 
-void CrashReporter::AddLogLine(const std::string& line)
+void CrashReporter::AddLogLine(const gx::String& line)
 {
     std::lock_guard<std::recursive_mutex> lock(m_mutex);
 
@@ -630,8 +630,8 @@ void CrashReporter::AddLogLine(const std::string& line)
 // 致命的エラー報告
 // ============================================================================
 
-void CrashReporter::ReportFatalError(ErrorCode code, const std::string& probableCause,
-                                     const std::string& message, HWND hwnd)
+void CrashReporter::ReportFatalError(ErrorCode code, const gx::String& probableCause,
+                                     const gx::String& message, HWND hwnd)
 {
     GX_LOG_ERROR("FATAL [%s] %s: %s — %s",
                  ErrorCodeToString(code).c_str(),

@@ -9,6 +9,7 @@
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Core/Logger.h"
+#include "Math/MathConvert.h"
 
 namespace gx
 {
@@ -16,8 +17,8 @@ namespace gx
 /// @brief 水面頂点レイアウト（位置 + UV）
 struct WaterVertex
 {
-    XMFLOAT3 position;
-    XMFLOAT2 uv;
+    Vector3 position;
+    Vector2 uv;
 };
 
 bool WaterRenderer::Initialize(ID3D12Device* device, uint32_t screenWidth, uint32_t screenHeight)
@@ -119,7 +120,7 @@ bool WaterRenderer::CreateGridMesh(ID3D12Device* device)
     m_indexCount    = static_cast<uint32_t>(quadCount * 6);
 
     // 頂点を生成
-    std::vector<WaterVertex> vertices(vertexCount);
+    gx::Vector<WaterVertex> vertices(vertexCount);
     float halfSize = m_planeSize * 0.5f;
 
     for (int z = 0; z <= res; ++z)
@@ -139,7 +140,7 @@ bool WaterRenderer::CreateGridMesh(ID3D12Device* device)
     }
 
     // インデックスを生成（クアッドあたり2三角形）
-    std::vector<uint32_t> indices(m_indexCount);
+    gx::Vector<uint32_t> indices(m_indexCount);
     uint32_t ii = 0;
     for (int z = 0; z < res; ++z)
     {
@@ -247,19 +248,19 @@ void WaterRenderer::Render(ID3D12GraphicsCommandList* cmdList, uint32_t frameInd
     }
 
     // 定数バッファを構築
-    XMMATRIX vpMat = camera.GetViewProjectionMatrix();
+    XMMATRIX vpMat = ToXMMATRIX(camera.GetViewProjectionMatrix());
 
     // ワールド行列: 水面高さに平行移動
     XMMATRIX worldMat = XMMatrixTranslation(0.0f, m_waterLevel, 0.0f);
 
     // 太陽方向を正規化
-    XMVECTOR sunDir = XMVector3Normalize(XMLoadFloat3(&m_sunDirection));
-    XMFLOAT3 sunDirF;
-    XMStoreFloat3(&sunDirF, sunDir);
+    XMVECTOR sunDir = XMVector3Normalize(XMLoadFloat3(XM(&m_sunDirection)));
+    Vector3 sunDirF;
+    XMStoreFloat3(XM(&sunDirF), sunDir);
 
     WaterConstants cb = {};
-    XMStoreFloat4x4(&cb.viewProjection, XMMatrixTranspose(vpMat));
-    XMStoreFloat4x4(&cb.world, XMMatrixTranspose(worldMat));
+    XMStoreFloat4x4(XM(&cb.viewProjection), XMMatrixTranspose(vpMat));
+    XMStoreFloat4x4(XM(&cb.world), XMMatrixTranspose(worldMat));
     cb.cameraPosition = camera.GetPosition();
     cb.time           = time;
     cb.sunDirection   = sunDirF;

@@ -2,6 +2,7 @@
 /// @brief インスタンシング描画用データバッファの実装
 #include "pch_graphics.h"
 #include "Graphics/3D/InstanceBuffer.h"
+#include "Math/MathConvert.h"
 #include "Core/Logger.h"
 
 namespace gx
@@ -36,12 +37,12 @@ void InstanceBuffer::AddInstance(const Transform3D& transform)
     }
 
     InstanceData data;
-    XMStoreFloat4x4(&data.world, XMMatrixTranspose(transform.GetWorldMatrix()));
-    XMStoreFloat4x4(&data.worldInvTranspose, XMMatrixTranspose(transform.GetWorldInverseTranspose()));
+    XMStoreFloat4x4(XM(&data.world), XMMatrixTranspose(ToXMMATRIX(transform.GetWorldMatrix())));
+    XMStoreFloat4x4(XM(&data.worldInvTranspose), XMMatrixTranspose(ToXMMATRIX(transform.GetWorldInverseTranspose())));
     m_instances.push_back(data);
 }
 
-void InstanceBuffer::AddInstance(const XMMATRIX& worldMatrix)
+void InstanceBuffer::AddInstance(const Matrix4x4& worldMatrix)
 {
     if (m_instances.size() >= m_maxInstances)
     {
@@ -50,9 +51,10 @@ void InstanceBuffer::AddInstance(const XMMATRIX& worldMatrix)
     }
 
     InstanceData data;
-    XMStoreFloat4x4(&data.world, XMMatrixTranspose(worldMatrix));
-    XMMATRIX invTranspose = XMMatrixTranspose(XMMatrixInverse(nullptr, worldMatrix));
-    XMStoreFloat4x4(&data.worldInvTranspose, XMMatrixTranspose(invTranspose));
+    XMMATRIX xmWorld = XMLoadFloat4x4(XM(&worldMatrix));
+    XMStoreFloat4x4(XM(&data.world), XMMatrixTranspose(xmWorld));
+    XMMATRIX invTranspose = XMMatrixTranspose(XMMatrixInverse(nullptr, xmWorld));
+    XMStoreFloat4x4(XM(&data.worldInvTranspose), XMMatrixTranspose(invTranspose));
     m_instances.push_back(data);
 }
 

@@ -6,7 +6,7 @@
 namespace gx
 {
 
-const std::string GameStateMachine::s_emptyName;
+const gx::String GameStateMachine::s_emptyName;
 
 uint32_t GameStateMachine::RegisterState(const GameState& state)
 {
@@ -15,7 +15,7 @@ uint32_t GameStateMachine::RegisterState(const GameState& state)
     return id;
 }
 
-uint32_t GameStateMachine::FindState(const std::string& name) const
+uint32_t GameStateMachine::FindState(const gx::String& name) const
 {
     for (uint32_t i = 0; i < static_cast<uint32_t>(m_states.size()); ++i)
     {
@@ -70,7 +70,7 @@ void GameStateMachine::Draw()
     if (m_states[top].onDraw) m_states[top].onDraw();
 }
 
-const std::string& GameStateMachine::GetCurrentStateName() const
+const gx::String& GameStateMachine::GetCurrentStateName() const
 {
     if (m_stack.empty()) return s_emptyName;
     return m_states[m_stack.back()].name;

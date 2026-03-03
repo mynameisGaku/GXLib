@@ -2,6 +2,7 @@
 /// @brief アニメーションプレイヤーの実装
 #include "pch_graphics.h"
 #include "Graphics/3D/AnimationPlayer.h"
+#include "Math/MathConvert.h"
 
 namespace gx
 {
@@ -79,9 +80,9 @@ void AnimationPlayer::Update(float deltaTime)
     for (uint32_t i = 0; i < jointCount; ++i)
     {
         XMMATRIX S = XMMatrixScaling(m_localPose[i].scale.x, m_localPose[i].scale.y, m_localPose[i].scale.z);
-        XMMATRIX R = XMMatrixRotationQuaternion(XMLoadFloat4(&m_localPose[i].rotation));
+        XMMATRIX R = XMMatrixRotationQuaternion(XMLoadFloat4(XM(&m_localPose[i].rotation)));
         XMMATRIX T = XMMatrixTranslation(m_localPose[i].translation.x, m_localPose[i].translation.y, m_localPose[i].translation.z);
-        XMStoreFloat4x4(&m_localTransforms[i], S * R * T);
+        XMStoreFloat4x4(XM(&m_localTransforms[i]), S * R * T);
     }
 
     // グローバル変換に変換

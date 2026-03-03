@@ -2,6 +2,7 @@
 /// @brief ヒューマノイドのマッピング／リターゲット実装
 #include "pch_graphics.h"
 #include "Graphics/3D/Humanoid.h"
+#include "Math/MathConvert.h"
 #include "ThirdParty/json.hpp"
 #include <filesystem>
 #include <fstream>
@@ -10,19 +11,19 @@
 namespace gx
 {
 
-static std::string ToLowerAscii(const std::string& s)
+static gx::String ToLowerAscii(const gx::String& s)
 {
-    std::string out;
+    gx::String out;
     out.reserve(s.size());
     for (char c : s)
         out.push_back(static_cast<char>(::tolower(static_cast<unsigned char>(c))));
     return out;
 }
 
-static std::string NormalizeBoneName(const std::string& name)
+static gx::String NormalizeBoneName(const gx::String& name)
 {
-    std::string lower = ToLowerAscii(name);
-    std::string out;
+    gx::String lower = ToLowerAscii(name);
+    gx::String out;
     out.reserve(lower.size());
     for (char c : lower)
     {
@@ -44,10 +45,10 @@ static std::string NormalizeBoneName(const std::string& name)
     return out;
 }
 
-static int FindJointByName(const Skeleton& skeleton, const std::vector<std::string>& candidates)
+static int FindJointByName(const Skeleton& skeleton, const gx::Vector<gx::String>& candidates)
 {
     const auto& joints = skeleton.GetJoints();
-    std::unordered_map<std::string, int> nameMap;
+    gx::HashMap<gx::String, int> nameMap;
     nameMap.reserve(joints.size());
     for (uint32_t i = 0; i < joints.size(); ++i)
     {
@@ -63,9 +64,9 @@ static int FindJointByName(const Skeleton& skeleton, const std::vector<std::stri
     return -1;
 }
 
-static int FindJointByNormalizedName(const Skeleton& skeleton, const std::string& name)
+static int FindJointByNormalizedName(const Skeleton& skeleton, const gx::String& name)
 {
-    std::string key = NormalizeBoneName(name);
+    gx::String key = NormalizeBoneName(name);
     const auto& joints = skeleton.GetJoints();
     for (uint32_t i = 0; i < joints.size(); ++i)
     {
@@ -75,7 +76,7 @@ static int FindJointByNormalizedName(const Skeleton& skeleton, const std::string
     return -1;
 }
 
-static std::vector<std::string> NamesFor(HumanoidBone bone)
+static gx::Vector<gx::String> NamesFor(HumanoidBone bone)
 {
     switch (bone)
     {
@@ -109,9 +110,9 @@ static std::vector<std::string> NamesFor(HumanoidBone bone)
     }
 }
 
-static bool MatchesBoneName(HumanoidBone bone, const std::string& key)
+static bool MatchesBoneName(HumanoidBone bone, const gx::String& key)
 {
-    std::string normKey = NormalizeBoneName(key);
+    gx::String normKey = NormalizeBoneName(key);
     for (const auto& candidate : NamesFor(bone))
     {
         if (NormalizeBoneName(candidate) == normKey)
@@ -132,11 +133,11 @@ HumanoidAvatar BuildHumanoidAvatarAuto(const Skeleton& skeleton)
 }
 
 HumanoidAvatar BuildHumanoidAvatarFromJson(const Skeleton& skeleton,
-                                           const std::wstring& jsonPath,
+                                           const gx::WString& jsonPath,
                                            bool fallbackAuto)
 {
     HumanoidAvatar avatar;
-    if (!jsonPath.empty() && std::filesystem::exists(jsonPath))
+    if (!jsonPath.empty() && std::filesystem::exists(std::filesystem::path(jsonPath.c_str())))
     {
         std::ifstream file{ std::filesystem::path(jsonPath) };
         if (file)
@@ -147,11 +148,11 @@ HumanoidAvatar BuildHumanoidAvatarFromJson(const Skeleton& skeleton,
             {
                 for (auto it = j.begin(); it != j.end(); ++it)
                 {
-                    std::string boneName = it.key();
+                    gx::String boneName = it.key();
                     if (!it.value().is_string())
                         continue;
 
-                    std::string jointName = it.value().get<std::string>();
+                    gx::String jointName = it.value().get<gx::String>();
                     for (uint32_t i = 0; i < static_cast<uint32_t>(HumanoidBone::Count); ++i)
                     {
                         HumanoidBone bone = static_cast<HumanoidBone>(i);
@@ -200,8 +201,8 @@ bool HumanoidRetargeter::Initialize(const Skeleton* sourceSkeleton, const Humano
 }
 
 void HumanoidRetargeter::BuildBindPose(const Skeleton* skel,
-                                       std::vector<TransformTRS>& outBindPose,
-                                       std::vector<float>& outBoneLength) const
+                                       gx::Vector<TransformTRS>& outBindPose,
+                                       gx::Vector<float>& outBoneLength) const
 {
     if (!skel) return;
 
@@ -210,8 +211,8 @@ void HumanoidRetargeter::BuildBindPose(const Skeleton* skel,
     outBindPose.resize(jointCount);
     outBoneLength.resize(jointCount, 1.0f);
 
-    std::vector<XMFLOAT4X4> local(jointCount);
-    std::vector<XMFLOAT4X4> global(jointCount);
+    gx::Vector<Matrix4x4> local(jointCount);
+    gx::Vector<Matrix4x4> global(jointCount);
     for (uint32_t i = 0; i < jointCount; ++i)
     {
         local[i] = joints[i].localTransform;
@@ -233,10 +234,10 @@ void HumanoidRetargeter::BuildBindPose(const Skeleton* skel,
 
         if (childIndex >= 0)
         {
-            XMFLOAT3 a = { global[i]._41, global[i]._42, global[i]._43 };
-            XMFLOAT3 b = { global[childIndex]._41, global[childIndex]._42, global[childIndex]._43 };
-            XMVECTOR va = XMLoadFloat3(&a);
-            XMVECTOR vb = XMLoadFloat3(&b);
+            Vector3 a = { global[i]._41, global[i]._42, global[i]._43 };
+            Vector3 b = { global[childIndex]._41, global[childIndex]._42, global[childIndex]._43 };
+            XMVECTOR va = XMLoadFloat3(XM(&a));
+            XMVECTOR vb = XMLoadFloat3(XM(&b));
             float len = XMVectorGetX(XMVector3Length(vb - va));
             outBoneLength[i] = (std::max)(len, 0.001f);
         }
@@ -265,15 +266,15 @@ void HumanoidRetargeter::RetargetLocalPose(const TransformTRS* sourcePose,
         const TransformTRS& dstBind = m_targetBindPose[dstIndex];
 
         // 回転の差分転写: delta = inv(srcBind) * srcAnim → dstBind * delta
-        XMVECTOR qBind = XMLoadFloat4(&srcBind.rotation);
-        XMVECTOR qAnim = XMLoadFloat4(&srcAnim.rotation);
+        XMVECTOR qBind = XMLoadFloat4(XM(&srcBind.rotation));
+        XMVECTOR qAnim = XMLoadFloat4(XM(&srcAnim.rotation));
         XMVECTOR qDelta = XMQuaternionMultiply(XMQuaternionInverse(qBind), qAnim);
-        XMVECTOR qDst = XMQuaternionMultiply(XMLoadFloat4(&dstBind.rotation), qDelta);
-        XMFLOAT4 dstRot;
-        XMStoreFloat4(&dstRot, XMQuaternionNormalize(qDst));
+        XMVECTOR qDst = XMQuaternionMultiply(XMLoadFloat4(XM(&dstBind.rotation)), qDelta);
+        Quaternion dstRot;
+        XMStoreFloat4(XM(&dstRot), XMQuaternionNormalize(qDst));
 
         // 位置の差分（ボーン長の比率でスケール補正し、体格差を吸収）
-        XMFLOAT3 deltaPos = {
+        Vector3 deltaPos = {
             srcAnim.translation.x - srcBind.translation.x,
             srcAnim.translation.y - srcBind.translation.y,
             srcAnim.translation.z - srcBind.translation.z
@@ -282,14 +283,14 @@ void HumanoidRetargeter::RetargetLocalPose(const TransformTRS* sourcePose,
         float dstLen = m_targetBoneLength[dstIndex];
         float scale = (srcLen > 0.0001f) ? (dstLen / srcLen) : 1.0f;
 
-        XMFLOAT3 dstPos = {
+        Vector3 dstPos = {
             dstBind.translation.x + deltaPos.x * scale,
             dstBind.translation.y + deltaPos.y * scale,
             dstBind.translation.z + deltaPos.z * scale
         };
 
         // スケールの差分
-        XMFLOAT3 dstScale = {
+        Vector3 dstScale = {
             dstBind.scale.x * (srcBind.scale.x != 0.0f ? (srcAnim.scale.x / srcBind.scale.x) : 1.0f),
             dstBind.scale.y * (srcBind.scale.y != 0.0f ? (srcAnim.scale.y / srcBind.scale.y) : 1.0f),
             dstBind.scale.z * (srcBind.scale.z != 0.0f ? (srcAnim.scale.z / srcBind.scale.z) : 1.0f)

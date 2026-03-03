@@ -15,7 +15,7 @@ namespace gx
 
 ActionState ActionMapping::s_emptyState = {};
 
-void ActionMapping::DefineAction(const std::string& name, const std::vector<InputBinding>& bindings)
+void ActionMapping::DefineAction(const gx::String& name, const gx::Vector<InputBinding>& bindings)
 {
     auto& def = m_actions[name];
     def.name = name;
@@ -24,7 +24,7 @@ void ActionMapping::DefineAction(const std::string& name, const std::vector<Inpu
     def.prevState = {};
 }
 
-void ActionMapping::RemoveAction(const std::string& name)
+void ActionMapping::RemoveAction(const gx::String& name)
 {
     m_actions.erase(name);
 }
@@ -128,34 +128,34 @@ bool ActionMapping::EvaluateBindingDigital(const InputBinding& binding,
     return false;
 }
 
-const ActionState& ActionMapping::GetAction(const std::string& name) const
+const ActionState& ActionMapping::GetAction(const gx::String& name) const
 {
     auto it = m_actions.find(name);
     if (it != m_actions.end()) return it->second.state;
     return s_emptyState;
 }
 
-bool ActionMapping::IsActionPressed(const std::string& name) const
+bool ActionMapping::IsActionPressed(const gx::String& name) const
 {
     return GetAction(name).pressed;
 }
 
-bool ActionMapping::IsActionTriggered(const std::string& name) const
+bool ActionMapping::IsActionTriggered(const gx::String& name) const
 {
     return GetAction(name).triggered;
 }
 
-bool ActionMapping::IsActionReleased(const std::string& name) const
+bool ActionMapping::IsActionReleased(const gx::String& name) const
 {
     return GetAction(name).released;
 }
 
-float ActionMapping::GetActionValue(const std::string& name) const
+float ActionMapping::GetActionValue(const gx::String& name) const
 {
     return GetAction(name).value;
 }
 
-bool ActionMapping::LoadFromFile(const std::string& path)
+bool ActionMapping::LoadFromFile(const gx::String& path)
 {
     std::ifstream file(path);
     if (!file.is_open())
@@ -173,11 +173,11 @@ bool ActionMapping::LoadFromFile(const std::string& path)
 
         for (auto& [actionName, bindingsJson] : root["actions"].items())
         {
-            std::vector<InputBinding> bindings;
+            gx::Vector<InputBinding> bindings;
             for (auto& bj : bindingsJson)
             {
                 InputBinding b;
-                std::string typeName = bj.value("type", "KeyboardKey");
+                gx::String typeName = bj.value("type", "KeyboardKey");
                 if (typeName == "KeyboardKey")       b.type = InputBindingType::KeyboardKey;
                 else if (typeName == "MouseButton")  b.type = InputBindingType::MouseButton;
                 else if (typeName == "GamepadButton") b.type = InputBindingType::GamepadButton;
@@ -205,7 +205,7 @@ bool ActionMapping::LoadFromFile(const std::string& path)
     }
 }
 
-bool ActionMapping::SaveToFile(const std::string& path) const
+bool ActionMapping::SaveToFile(const gx::String& path) const
 {
     nlohmann::json root;
     nlohmann::json actionsJson;

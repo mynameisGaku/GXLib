@@ -11,7 +11,7 @@ using namespace gx;
 // ヘルパー
 // ============================================================================
 
-static AudioSnapshotData MakeSnapshot(const std::string& name,
+static AudioSnapshotData MakeSnapshot(const gx::String& name,
                                        float masterVol = 1.0f,
                                        float transTime = 0.5f)
 {

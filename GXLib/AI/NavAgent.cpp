@@ -22,7 +22,7 @@ void NavAgent::Initialize(NavMesh* navMesh)
 // ============================================================================
 // SetDestination
 // ============================================================================
-void NavAgent::SetDestination(const XMFLOAT3& target)
+void NavAgent::SetDestination(const Vector3& target)
 {
     if (!m_navMesh || !m_navMesh->IsBuilt())
         return;
@@ -35,7 +35,7 @@ void NavAgent::SetDestination(const XMFLOAT3& target)
     if (!m_navMesh->FindPath(m_position, target, m_path))
     {
         // Path not found -- try to find nearest walkable to destination
-        XMFLOAT3 nearTarget;
+        Vector3 nearTarget;
         if (m_navMesh->FindNearestWalkable(target, nearTarget))
         {
             m_navMesh->FindPath(m_position, nearTarget, m_path);
@@ -78,7 +78,7 @@ void NavAgent::Update(float deltaTime)
     }
 
     // Current target waypoint
-    XMFLOAT3 target = m_path[m_currentPathIndex];
+    Vector3 target = m_path[m_currentPathIndex];
     target.y = m_position.y; // Move on XZ plane; height will be set from navmesh
 
     float dx = target.x - m_position.x;
@@ -150,7 +150,7 @@ void NavAgent::Update(float deltaTime)
     // Update Y from navmesh cell height
     if (m_navMesh && m_navMesh->IsBuilt() && m_currentPathIndex < static_cast<int>(m_path.size()))
     {
-        XMFLOAT3 wp = m_path[m_currentPathIndex];
+        Vector3 wp = m_path[m_currentPathIndex];
         m_position.y = wp.y + height;
     }
 }
@@ -158,7 +158,7 @@ void NavAgent::Update(float deltaTime)
 // ============================================================================
 // UpdateWithNeighbors (RVO obstacle avoidance)
 // ============================================================================
-void NavAgent::UpdateWithNeighbors(float deltaTime, const std::vector<NavAgent*>& neighbors)
+void NavAgent::UpdateWithNeighbors(float deltaTime, const gx::Vector<NavAgent*>& neighbors)
 {
     if (!enableAvoidance || neighbors.empty())
     {
@@ -167,7 +167,7 @@ void NavAgent::UpdateWithNeighbors(float deltaTime, const std::vector<NavAgent*>
     }
 
     // Store position before update
-    XMFLOAT3 prevPos = m_position;
+    Vector3 prevPos = m_position;
 
     // Normal path-following update
     Update(deltaTime);

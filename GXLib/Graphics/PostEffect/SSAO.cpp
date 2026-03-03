@@ -2,6 +2,7 @@
 /// @brief Screen Space Ambient Occlusion の実装
 #include "pch_graphics.h"
 #include "Graphics/PostEffect/SSAO.h"
+#include "Math/MathConvert.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
@@ -20,14 +21,14 @@ void SSAO::GenerateKernel()
     for (uint32_t i = 0; i < k_KernelSize; ++i)
     {
         // 半球上のランダム方向
-        XMFLOAT4 sample;
+        Vector4 sample;
         sample.x = distNeg(rng);
         sample.y = distNeg(rng);
         sample.z = dist01(rng); // 半球（法線方向のみ）
         sample.w = 0.0f;
 
         // 正規化
-        XMVECTOR v = XMLoadFloat4(&sample);
+        XMVECTOR v = XMLoadFloat4(XM(&sample));
         v = XMVector3Normalize(v);
 
         // ランダムな長さ（中心ほどサンプル密度を高くする二次分布）
@@ -36,7 +37,7 @@ void SSAO::GenerateKernel()
         scale = 0.1f + scale * scale * 0.9f; // lerp(0.1, 1.0, scale^2)
         v = XMVectorScale(v, scale);
 
-        XMStoreFloat4(&m_kernel[i], v);
+        XMStoreFloat4(XM(&m_kernel[i]), v);
     }
 }
 
@@ -189,13 +190,13 @@ void SSAO::Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
     sc.bottom = static_cast<LONG>(m_height);
 
     // 射影行列と逆射影行列
-    XMMATRIX proj = camera.GetProjectionMatrix();
+    XMMATRIX proj = ToXMMATRIX(camera.GetProjectionMatrix());
     XMMATRIX invProj = XMMatrixInverse(nullptr, proj);
 
     // SSAOConstants を構築
     SSAOConstants ssaoConst = {};
-    XMStoreFloat4x4(&ssaoConst.projection, XMMatrixTranspose(proj));
-    XMStoreFloat4x4(&ssaoConst.invProjection, XMMatrixTranspose(invProj));
+    XMStoreFloat4x4(XM(&ssaoConst.projection), XMMatrixTranspose(proj));
+    XMStoreFloat4x4(XM(&ssaoConst.invProjection), XMMatrixTranspose(invProj));
     memcpy(ssaoConst.samples, m_kernel, sizeof(m_kernel));
     ssaoConst.radius       = m_radius;
     ssaoConst.bias         = m_bias;

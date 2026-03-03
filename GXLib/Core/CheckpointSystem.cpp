@@ -14,7 +14,7 @@ CheckpointSystem::CheckpointSystem(uint32_t maxCheckpoints)
 {
 }
 
-uint32_t CheckpointSystem::CreateCheckpoint(const std::string& name, const std::string& location)
+uint32_t CheckpointSystem::CreateCheckpoint(const gx::String& name, const gx::String& location)
 {
     CheckpointData cp;
     cp.id = m_nextId++;
@@ -63,12 +63,12 @@ bool CheckpointSystem::RemoveCheckpoint(uint32_t id)
     return false;
 }
 
-std::vector<CheckpointData> CheckpointSystem::GetAllCheckpoints() const
+gx::Vector<CheckpointData> CheckpointSystem::GetAllCheckpoints() const
 {
     return m_checkpoints;
 }
 
-void CheckpointSystem::SetMetadata(uint32_t checkpointId, const std::string& key, const std::string& value)
+void CheckpointSystem::SetMetadata(uint32_t checkpointId, const gx::String& key, const gx::String& value)
 {
     for (auto& cp : m_checkpoints)
     {
@@ -80,7 +80,7 @@ void CheckpointSystem::SetMetadata(uint32_t checkpointId, const std::string& key
     }
 }
 
-std::string CheckpointSystem::GetMetadata(uint32_t checkpointId, const std::string& key) const
+gx::String CheckpointSystem::GetMetadata(uint32_t checkpointId, const gx::String& key) const
 {
     for (const auto& cp : m_checkpoints)
     {
@@ -95,7 +95,7 @@ std::string CheckpointSystem::GetMetadata(uint32_t checkpointId, const std::stri
     return "";
 }
 
-uint32_t CheckpointSystem::QuickSave(const std::string& location)
+uint32_t CheckpointSystem::QuickSave(const gx::String& location)
 {
     // Remove previous quick save if it exists
     if (m_quickSaveId != 0)
@@ -112,7 +112,7 @@ const CheckpointData* CheckpointSystem::QuickLoad() const
     return GetCheckpoint(m_quickSaveId);
 }
 
-void CheckpointSystem::NotifySceneChange(const std::string& sceneName)
+void CheckpointSystem::NotifySceneChange(const gx::String& sceneName)
 {
     if (m_autoOnSceneChange)
         CreateCheckpoint("Auto_" + sceneName, sceneName);

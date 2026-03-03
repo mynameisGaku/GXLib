@@ -32,7 +32,7 @@ uint32_t AtlasPacker::NextPowerOf2(uint32_t v)
     return v + 1;
 }
 
-AtlasResult AtlasPacker::Pack(const std::vector<AtlasInput>& inputs)
+AtlasResult AtlasPacker::Pack(const gx::Vector<AtlasInput>& inputs)
 {
     AtlasResult result;
     if (inputs.empty())
@@ -42,7 +42,7 @@ AtlasResult AtlasPacker::Pack(const std::vector<AtlasInput>& inputs)
     }
 
     // 面積の大きい順にソート
-    std::vector<size_t> order(inputs.size());
+    gx::Vector<size_t> order(inputs.size());
     std::iota(order.begin(), order.end(), 0);
     std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
         uint32_t areaA = inputs[a].width * inputs[a].height;
@@ -50,7 +50,7 @@ AtlasResult AtlasPacker::Pack(const std::vector<AtlasInput>& inputs)
         return areaA > areaB;
     });
 
-    std::vector<AtlasInput> sorted;
+    gx::Vector<AtlasInput> sorted;
     sorted.reserve(inputs.size());
     for (size_t i : order) sorted.push_back(inputs[i]);
 
@@ -72,7 +72,7 @@ AtlasResult AtlasPacker::Pack(const std::vector<AtlasInput>& inputs)
     // 徐々にサイズを拡大してパッキングを試行
     for (uint32_t size = startSize; size <= m_maxWidth && size <= m_maxHeight; size *= 2)
     {
-        std::vector<AtlasEntry> entries;
+        gx::Vector<AtlasEntry> entries;
         if (TryPack(sorted, size, size, entries))
         {
             result.atlasWidth  = size;
@@ -89,7 +89,7 @@ AtlasResult AtlasPacker::Pack(const std::vector<AtlasInput>& inputs)
         for (uint32_t h = startSize; h <= m_maxHeight; h *= 2)
         {
             if (w == h) continue; // 正方形は試行済み
-            std::vector<AtlasEntry> entries;
+            gx::Vector<AtlasEntry> entries;
             if (TryPack(sorted, w, h, entries))
             {
                 result.atlasWidth  = w;
@@ -105,10 +105,10 @@ AtlasResult AtlasPacker::Pack(const std::vector<AtlasInput>& inputs)
     return result;
 }
 
-bool AtlasPacker::TryPack(const std::vector<AtlasInput>& sorted, uint32_t atlasW, uint32_t atlasH,
-                           std::vector<AtlasEntry>& outEntries)
+bool AtlasPacker::TryPack(const gx::Vector<AtlasInput>& sorted, uint32_t atlasW, uint32_t atlasH,
+                           gx::Vector<AtlasEntry>& outEntries)
 {
-    std::vector<Rect> freeRects;
+    gx::Vector<Rect> freeRects;
     freeRects.push_back({ 0, 0, atlasW, atlasH });
     outEntries.clear();
     outEntries.reserve(sorted.size());
@@ -140,7 +140,7 @@ bool AtlasPacker::TryPack(const std::vector<AtlasInput>& sorted, uint32_t atlasW
     return true;
 }
 
-AtlasPacker::Rect AtlasPacker::FindBestBSSF(const std::vector<Rect>& freeRects,
+AtlasPacker::Rect AtlasPacker::FindBestBSSF(const gx::Vector<Rect>& freeRects,
                                              uint32_t w, uint32_t h, int& bestScore)
 {
     Rect bestRect = { 0, 0, 0, 0 };
@@ -167,9 +167,9 @@ AtlasPacker::Rect AtlasPacker::FindBestBSSF(const std::vector<Rect>& freeRects,
     return bestRect;
 }
 
-void AtlasPacker::SplitFreeRects(std::vector<Rect>& freeRects, const Rect& placed)
+void AtlasPacker::SplitFreeRects(gx::Vector<Rect>& freeRects, const Rect& placed)
 {
-    std::vector<Rect> newRects;
+    gx::Vector<Rect> newRects;
 
     for (size_t i = 0; i < freeRects.size(); )
     {
@@ -205,7 +205,7 @@ void AtlasPacker::SplitFreeRects(std::vector<Rect>& freeRects, const Rect& place
     freeRects.insert(freeRects.end(), newRects.begin(), newRects.end());
 }
 
-void AtlasPacker::PruneFreeRects(std::vector<Rect>& freeRects)
+void AtlasPacker::PruneFreeRects(gx::Vector<Rect>& freeRects)
 {
     for (size_t i = 0; i < freeRects.size(); )
     {

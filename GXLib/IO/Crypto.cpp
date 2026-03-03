@@ -9,12 +9,12 @@ namespace gx {
 
 // BCrypt API の流れ: アルゴリズムオープン → CBCモード設定 → 対称鍵生成 → 暗号化 → 後片付け
 // BCryptEncryptはIVの内容を破壊するため、2回呼ぶ前にIVをコピーし直す必要がある。
-std::vector<uint8_t> Crypto::Encrypt(const void* data, size_t size,
+gx::Vector<uint8_t> Crypto::Encrypt(const void* data, size_t size,
                                       const uint8_t key[32], const uint8_t iv[16])
 {
     BCRYPT_ALG_HANDLE hAlg = nullptr;
     BCRYPT_KEY_HANDLE hKey = nullptr;
-    std::vector<uint8_t> result;
+    gx::Vector<uint8_t> result;
 
     NTSTATUS status = BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_AES_ALGORITHM, nullptr, 0);
     if (!BCRYPT_SUCCESS(status))
@@ -75,12 +75,12 @@ std::vector<uint8_t> Crypto::Encrypt(const void* data, size_t size,
     return result;
 }
 
-std::vector<uint8_t> Crypto::Decrypt(const void* data, size_t size,
+gx::Vector<uint8_t> Crypto::Decrypt(const void* data, size_t size,
                                       const uint8_t key[32], const uint8_t iv[16])
 {
     BCRYPT_ALG_HANDLE hAlg = nullptr;
     BCRYPT_KEY_HANDLE hKey = nullptr;
-    std::vector<uint8_t> result;
+    gx::Vector<uint8_t> result;
 
     NTSTATUS status = BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_AES_ALGORITHM, nullptr, 0);
     if (!BCRYPT_SUCCESS(status))
@@ -141,9 +141,9 @@ std::vector<uint8_t> Crypto::Decrypt(const void* data, size_t size,
     return result;
 }
 
-std::array<uint8_t, 32> Crypto::SHA256(const void* data, size_t size)
+gx::Array<uint8_t, 32> Crypto::SHA256(const void* data, size_t size)
 {
-    std::array<uint8_t, 32> hash = {};
+    gx::Array<uint8_t, 32> hash = {};
     BCRYPT_ALG_HANDLE hAlg = nullptr;
     BCRYPT_HASH_HANDLE hHash = nullptr;
 

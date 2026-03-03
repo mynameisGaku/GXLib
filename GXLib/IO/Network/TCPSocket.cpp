@@ -36,7 +36,7 @@ TCPSocket::~TCPSocket()
     Close();
 }
 
-bool TCPSocket::Connect(const std::string& host, uint16_t port)
+bool TCPSocket::Connect(const gx::String& host, uint16_t port)
 {
     Close();
 
@@ -45,7 +45,7 @@ bool TCPSocket::Connect(const std::string& host, uint16_t port)
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_protocol = IPPROTO_TCP;
 
-    std::string portStr = std::to_string(port);
+    gx::String portStr = std::to_string(port);
     struct addrinfo* result = nullptr;
     int ret = getaddrinfo(host.c_str(), portStr.c_str(), &hints, &result);
     if (ret != 0)

@@ -18,7 +18,7 @@ using json = nlohmann::json;
 namespace gx
 {
 
-bool PostEffectSettings::Load(const std::string& filePath, PostEffectPipeline& pipeline)
+bool PostEffectSettings::Load(const gx::String& filePath, PostEffectPipeline& pipeline)
 {
     std::ifstream ifs(filePath);
     if (!ifs.is_open())
@@ -52,7 +52,7 @@ bool PostEffectSettings::Load(const std::string& filePath, PostEffectPipeline& p
         auto& tm = pe["tonemapping"];
         if (tm.contains("mode"))
         {
-            std::string mode = tm["mode"].get<std::string>();
+            gx::String mode = tm["mode"].get<gx::String>();
             if (mode == "Reinhard") pipeline.SetTonemapMode(TonemapMode::Reinhard);
             else if (mode == "ACES") pipeline.SetTonemapMode(TonemapMode::ACES);
             else if (mode == "Uncharted2") pipeline.SetTonemapMode(TonemapMode::Uncharted2);
@@ -196,7 +196,7 @@ bool PostEffectSettings::Load(const std::string& filePath, PostEffectPipeline& p
     return true;
 }
 
-bool PostEffectSettings::Save(const std::string& filePath, const PostEffectPipeline& pipeline)
+bool PostEffectSettings::Save(const gx::String& filePath, const PostEffectPipeline& pipeline)
 {
     json root;
     json pe;

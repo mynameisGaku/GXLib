@@ -12,6 +12,7 @@
 #include "Graphics/3D/AnimationClip.h"
 #include "Graphics/3D/Vertex3D.h"
 #include "Graphics/3D/Mesh.h"
+#include "Math/MathConvert.h"
 #include "Core/Logger.h"
 #include <filesystem>
 #include <unordered_map>
@@ -32,7 +33,7 @@ namespace
 // -----------------------------------------------------------------------------
 // 文字列ヘルパー
 // -----------------------------------------------------------------------------
-static std::wstring ToWString(const std::string& str)
+static gx::WString ToWString(const gx::String& str)
 {
     if (str.empty()) return L"";
     int size = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, str.c_str(), -1, nullptr, 0);
@@ -42,23 +43,23 @@ static std::wstring ToWString(const std::string& str)
         codepage = CP_ACP;
         size = MultiByteToWideChar(CP_ACP, 0, str.c_str(), -1, nullptr, 0);
     }
-    std::wstring result(size > 0 ? size - 1 : 0, L'\0');
+    gx::WString result(size > 0 ? size - 1 : 0, L'\0');
     if (size > 0)
         MultiByteToWideChar(codepage, 0, str.c_str(), -1, result.data(), size);
     return result;
 }
 
-static std::string ToUtf8(const std::wstring& wstr)
+static gx::String ToUtf8(const gx::WString& wstr)
 {
     if (wstr.empty()) return {};
     int size = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, nullptr, 0, nullptr, nullptr);
-    std::string out(size > 0 ? size - 1 : 0, '\0');
+    gx::String out(size > 0 ? size - 1 : 0, '\0');
     if (size > 0)
         WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, out.data(), size, nullptr, nullptr);
     return out;
 }
 
-static std::wstring GetBaseDir(const std::wstring& path)
+static gx::WString GetBaseDir(const gx::WString& path)
 {
     std::filesystem::path p(path);
     if (p.has_parent_path())
@@ -66,15 +67,15 @@ static std::wstring GetBaseDir(const std::wstring& path)
     return L".";
 }
 
-static std::wstring ToLower(const std::wstring& s)
+static gx::WString ToLower(const gx::WString& s)
 {
-    std::wstring out = s;
+    gx::WString out = s;
     std::transform(out.begin(), out.end(), out.begin(),
                    [](wchar_t c) { return static_cast<wchar_t>(towlower(c)); });
     return out;
 }
 
-static std::wstring GetExtensionLower(const std::wstring& path)
+static gx::WString GetExtensionLower(const gx::WString& path)
 {
     std::filesystem::path p(path);
     return ToLower(p.extension().wstring());
@@ -83,13 +84,13 @@ static std::wstring GetExtensionLower(const std::wstring& path)
 // -----------------------------------------------------------------------------
 // glTF用ヘルパー
 // -----------------------------------------------------------------------------
-static std::unordered_map<const cgltf_material*, int>
+static gx::HashMap<const cgltf_material*, int>
 LoadGltfMaterials(const cgltf_data* data,
-                  const std::wstring& baseDir,
+                  const gx::WString& baseDir,
                   TextureManager& texManager,
                   MaterialManager& matManager)
 {
-    std::unordered_map<const cgltf_material*, int> materialMap;
+    gx::HashMap<const cgltf_material*, int> materialMap;
 
     for (cgltf_size i = 0; i < data->materials_count; ++i)
     {
@@ -114,7 +115,7 @@ LoadGltfMaterials(const cgltf_data* data,
                 const char* uri = pbr.base_color_texture.texture->image->uri;
                 if (uri)
                 {
-                    std::wstring texPath = baseDir + L"/" + ToWString(uri);
+                    gx::WString texPath = baseDir + L"/" + ToWString(uri);
                     mat.albedoMapHandle = texManager.LoadTexture(texPath);
                     if (mat.albedoMapHandle >= 0)
                         mat.constants.flags |= MaterialFlags::HasAlbedoMap;
@@ -126,7 +127,7 @@ LoadGltfMaterials(const cgltf_data* data,
                 const char* uri = pbr.metallic_roughness_texture.texture->image->uri;
                 if (uri)
                 {
-                    std::wstring texPath = baseDir + L"/" + ToWString(uri);
+                    gx::WString texPath = baseDir + L"/" + ToWString(uri);
                     mat.metRoughMapHandle = texManager.LoadTexture(texPath);
                     if (mat.metRoughMapHandle >= 0)
                         mat.constants.flags |= MaterialFlags::HasMetRoughMap;
@@ -139,7 +140,7 @@ LoadGltfMaterials(const cgltf_data* data,
             const char* uri = gltfMat.normal_texture.texture->image->uri;
             if (uri)
             {
-                std::wstring texPath = baseDir + L"/" + ToWString(uri);
+                gx::WString texPath = baseDir + L"/" + ToWString(uri);
                 mat.normalMapHandle = texManager.LoadTexture(texPath);
                 if (mat.normalMapHandle >= 0)
                     mat.constants.flags |= MaterialFlags::HasNormalMap;
@@ -151,7 +152,7 @@ LoadGltfMaterials(const cgltf_data* data,
             const char* uri = gltfMat.occlusion_texture.texture->image->uri;
             if (uri)
             {
-                std::wstring texPath = baseDir + L"/" + ToWString(uri);
+                gx::WString texPath = baseDir + L"/" + ToWString(uri);
                 mat.aoMapHandle = texManager.LoadTexture(texPath);
                 if (mat.aoMapHandle >= 0)
                     mat.constants.flags |= MaterialFlags::HasAOMap;
@@ -163,7 +164,7 @@ LoadGltfMaterials(const cgltf_data* data,
             const char* uri = gltfMat.emissive_texture.texture->image->uri;
             if (uri)
             {
-                std::wstring texPath = baseDir + L"/" + ToWString(uri);
+                gx::WString texPath = baseDir + L"/" + ToWString(uri);
                 mat.emissiveMapHandle = texManager.LoadTexture(texPath);
                 if (mat.emissiveMapHandle >= 0)
                     mat.constants.flags |= MaterialFlags::HasEmissiveMap;
@@ -211,17 +212,17 @@ static std::unique_ptr<Skeleton> LoadGltfSkeleton(const cgltf_data* data)
             }
         }
 
-        XMStoreFloat4x4(&joint.inverseBindMatrix, XMMatrixIdentity());
+        XMStoreFloat4x4(XM(&joint.inverseBindMatrix), XMMatrixIdentity());
         if (skin.inverse_bind_matrices)
         {
             float values[16];
             cgltf_accessor_read_float(skin.inverse_bind_matrices, i, values, 16);
-            joint.inverseBindMatrix = *reinterpret_cast<XMFLOAT4X4*>(values);
+            joint.inverseBindMatrix = *reinterpret_cast<Matrix4x4*>(values);
         }
 
         if (node->has_matrix)
         {
-            joint.localTransform = *reinterpret_cast<const XMFLOAT4X4*>(node->matrix);
+            joint.localTransform = *reinterpret_cast<const Matrix4x4*>(node->matrix);
         }
         else
         {
@@ -238,7 +239,7 @@ static std::unique_ptr<Skeleton> LoadGltfSkeleton(const cgltf_data* data)
                 node->has_translation ? node->translation[1] : 0.0f,
                 node->has_translation ? node->translation[2] : 0.0f);
             XMMATRIX local = S * R * T;
-            XMStoreFloat4x4(&joint.localTransform, local);
+            XMStoreFloat4x4(XM(&joint.localTransform), local);
         }
 
         skeleton->AddJoint(joint);
@@ -261,7 +262,7 @@ static void LoadGltfAnimations(const cgltf_data* data, Model& model)
         clip.SetName(gltfAnim.name ? gltfAnim.name : "");
 
         float maxTime = 0.0f;
-        std::unordered_map<int, AnimationChannel> channelMap;
+        gx::HashMap<int, AnimationChannel> channelMap;
 
         for (cgltf_size ci = 0; ci < gltfAnim.channels_count; ++ci)
         {
@@ -286,7 +287,7 @@ static void LoadGltfAnimations(const cgltf_data* data, Model& model)
 
             const cgltf_animation_sampler& sampler = *gltfChannel.sampler;
 
-            std::vector<float> times(sampler.input->count);
+            gx::Vector<float> times(sampler.input->count);
             for (cgltf_size ti = 0; ti < sampler.input->count; ++ti)
             {
                 float t;
@@ -360,11 +361,11 @@ static bool GltfHasSkinningAttributes(const cgltf_data* data)
 
 static void LoadGltfPrimitives(const cgltf_data* data,
                                bool useSkinning,
-                               std::vector<Vertex3D_PBR>& staticVertices,
-                               std::vector<Vertex3D_Skinned>& skinnedVertices,
-                               std::vector<uint32_t>& indices,
-                               std::vector<SubMesh>& subMeshes,
-                               const std::unordered_map<const cgltf_material*, int>& materialMap)
+                               gx::Vector<Vertex3D_PBR>& staticVertices,
+                               gx::Vector<Vertex3D_Skinned>& skinnedVertices,
+                               gx::Vector<uint32_t>& indices,
+                               gx::Vector<SubMesh>& subMeshes,
+                               const gx::HashMap<const cgltf_material*, int>& materialMap)
 {
     for (cgltf_size mi = 0; mi < data->meshes_count; ++mi)
     {
@@ -420,23 +421,23 @@ static void LoadGltfPrimitives(const cgltf_data* data,
                 float values[4] = { 0, 0, 0, 1 };
 
                 cgltf_accessor_read_float(posAccessor, vi, values, 3);
-                XMFLOAT3 position = { values[0], values[1], values[2] };
+                Vector3 position = { values[0], values[1], values[2] };
 
-                XMFLOAT3 normal = { 0, 1, 0 };
+                Vector3 normal = { 0, 1, 0 };
                 if (normalAccessor)
                 {
                     cgltf_accessor_read_float(normalAccessor, vi, values, 3);
                     normal = { values[0], values[1], values[2] };
                 }
 
-                XMFLOAT2 uv = { 0, 0 };
+                Vector2 uv = { 0, 0 };
                 if (uvAccessor)
                 {
                     cgltf_accessor_read_float(uvAccessor, vi, values, 2);
                     uv = { values[0], values[1] };
                 }
 
-                XMFLOAT4 tangent = { 1, 0, 0, 1 };
+                Vector4 tangent = { 1, 0, 0, 1 };
                 if (tangentAccessor)
                 {
                     cgltf_accessor_read_float(tangentAccessor, vi, values, 4);
@@ -465,7 +466,7 @@ static void LoadGltfPrimitives(const cgltf_data* data,
                         }
                     }
                     v.joints = XMUINT4(joints[0], joints[1], joints[2], joints[3]);
-                    v.weights = XMFLOAT4(weights[0], weights[1], weights[2], weights[3]);
+                    v.weights = Vector4(weights[0], weights[1], weights[2], weights[3]);
                     skinnedVertices.push_back(v);
                 }
                 else
@@ -500,12 +501,12 @@ static void LoadGltfPrimitives(const cgltf_data* data,
     }
 }
 
-static std::unique_ptr<Model> LoadFromGLTF(const std::wstring& filePath,
+static std::unique_ptr<Model> LoadFromGLTF(const gx::WString& filePath,
                                            ID3D12Device* device,
                                            TextureManager& texManager,
                                            MaterialManager& matManager)
 {
-    std::string path = ToUtf8(filePath);
+    gx::String path = ToUtf8(filePath);
 
     cgltf_options options = {};
     cgltf_data* data = nullptr;
@@ -526,15 +527,15 @@ static std::unique_ptr<Model> LoadFromGLTF(const std::wstring& filePath,
 
     auto model = std::make_unique<Model>();
 
-    std::wstring baseDir = GetBaseDir(filePath);
+    gx::WString baseDir = GetBaseDir(filePath);
     auto materialMap = LoadGltfMaterials(data, baseDir, texManager, matManager);
 
     bool useSkinning = (data->skins_count > 0) && GltfHasSkinningAttributes(data);
 
-    std::vector<Vertex3D_PBR> staticVertices;
-    std::vector<Vertex3D_Skinned> skinnedVertices;
-    std::vector<uint32_t> indices;
-    std::vector<SubMesh> subMeshes;
+    gx::Vector<Vertex3D_PBR> staticVertices;
+    gx::Vector<Vertex3D_Skinned> skinnedVertices;
+    gx::Vector<uint32_t> indices;
+    gx::Vector<SubMesh> subMeshes;
     LoadGltfPrimitives(data, useSkinning, staticVertices, skinnedVertices, indices, subMeshes, materialMap);
 
     if (useSkinning && skinnedVertices.empty())
@@ -578,7 +579,7 @@ static std::unique_ptr<Model> LoadFromGLTF(const std::wstring& filePath,
     {
         uint32_t vtxCount = useSkinning ? static_cast<uint32_t>(skinnedVertices.size())
                                          : static_cast<uint32_t>(staticVertices.size());
-        std::vector<XMFLOAT3> positions(vtxCount), normals(vtxCount);
+        gx::Vector<Vector3> positions(vtxCount), normals(vtxCount);
         if (useSkinning)
         {
             for (uint32_t i = 0; i < vtxCount; ++i)
@@ -620,18 +621,18 @@ static std::unique_ptr<Model> LoadFromGLTF(const std::wstring& filePath,
 
 #if defined(FBXSDK_SHARED)
 
-static XMFLOAT4X4 ToXMFLOAT4X4(const FbxAMatrix& m)
+static Matrix4x4 ToMatrix4x4FromFbx(const FbxAMatrix& m)
 {
     // FbxAMatrix uses row-vector convention (same as DirectXMath) — no transpose needed
-    XMFLOAT4X4 out;
+    Matrix4x4 out;
     for (int r = 0; r < 4; ++r)
         for (int c = 0; c < 4; ++c)
             out.m[r][c] = static_cast<float>(m.Get(r, c));
     return out;
 }
 
-static std::wstring ResolveFbxTexturePath(FbxFileTexture* tex, const std::wstring& baseDir,
-                                          const std::wstring& fbxFilePath)
+static gx::WString ResolveFbxTexturePath(FbxFileTexture* tex, const gx::WString& baseDir,
+                                          const gx::WString& fbxFilePath)
 {
     if (!tex) return L"";
 
@@ -644,29 +645,29 @@ static std::wstring ResolveFbxTexturePath(FbxFileTexture* tex, const std::wstrin
     // 1. 絶対パスがあればまずチェック
     if (fileName && *fileName)
     {
-        std::wstring absPath = ToWString(fileName);
+        gx::WString absPath = ToWString(fileName);
         if (std::filesystem::exists(absPath))
             return absPath;
 
         // 2. 絶対パスが存在しない場合、ファイル名だけ抽出してFBXディレクトリで探す
         std::filesystem::path fn = std::filesystem::path(absPath).filename();
-        std::wstring localPath = (std::filesystem::path(baseDir) / fn).wstring();
+        gx::WString localPath = (std::filesystem::path(baseDir) / fn).wstring();
         if (std::filesystem::exists(localPath))
             return localPath;
 
         // 3. よくあるサブディレクトリも試す
         for (const wchar_t* sub : { L"textures", L"Textures", L"texture", L"tex" })
         {
-            std::wstring subPath = (std::filesystem::path(baseDir) / sub / fn).wstring();
+            gx::WString subPath = (std::filesystem::path(baseDir) / sub / fn).wstring();
             if (std::filesystem::exists(subPath))
                 return subPath;
         }
 
         // 3b. FBXファイル名ベースの .fbm サブディレクトリ
         {
-            std::wstring fbxStem = std::filesystem::path(fbxFilePath).stem().wstring();
-            std::wstring fbmDir = fbxStem + L".fbm";
-            std::wstring fbmPath = (std::filesystem::path(baseDir) / fbmDir / fn).wstring();
+            gx::WString fbxStem = std::filesystem::path(fbxFilePath).stem().wstring();
+            gx::WString fbmDir = fbxStem + L".fbm";
+            gx::WString fbmPath = (std::filesystem::path(baseDir) / fbmDir / fn).wstring();
             if (std::filesystem::exists(fbmPath))
                 return fbmPath;
         }
@@ -675,20 +676,20 @@ static std::wstring ResolveFbxTexturePath(FbxFileTexture* tex, const std::wstrin
     // 4. 相対パスを試す
     if (relName && *relName)
     {
-        std::wstring relPath = ToWString(relName);
+        gx::WString relPath = ToWString(relName);
         std::filesystem::path p(relPath);
-        std::wstring resolved = (std::filesystem::path(baseDir) / p).wstring();
+        gx::WString resolved = (std::filesystem::path(baseDir) / p).wstring();
         if (std::filesystem::exists(resolved))
             return resolved;
 
         // 相対パスのファイル名だけでも試す
-        std::wstring fnOnly = (std::filesystem::path(baseDir) / p.filename()).wstring();
+        gx::WString fnOnly = (std::filesystem::path(baseDir) / p.filename()).wstring();
         if (std::filesystem::exists(fnOnly))
             return fnOnly;
     }
 
     // 5. フォールバック: パスを結合して返す（stbi_loadに試行させる）
-    std::wstring path = ToWString(fileName && *fileName ? fileName : (relName ? relName : ""));
+    gx::WString path = ToWString(fileName && *fileName ? fileName : (relName ? relName : ""));
     if (path.empty()) return L"";
     std::filesystem::path p(path);
     if (p.is_absolute())
@@ -698,8 +699,8 @@ static std::wstring ResolveFbxTexturePath(FbxFileTexture* tex, const std::wstrin
 
 static int LoadFbxTextureFromProperty(FbxProperty prop,
                                       TextureManager& texManager,
-                                      const std::wstring& baseDir,
-                                      const std::wstring& fbxFilePath)
+                                      const gx::WString& baseDir,
+                                      const gx::WString& fbxFilePath)
 {
     if (!prop.IsValid())
         return -1;
@@ -711,7 +712,7 @@ static int LoadFbxTextureFromProperty(FbxProperty prop,
         if (!tex) continue;
         FbxFileTexture* fileTex = FbxCast<FbxFileTexture>(tex);
         if (!fileTex) continue;
-        std::wstring texPath = ResolveFbxTexturePath(fileTex, baseDir, fbxFilePath);
+        gx::WString texPath = ResolveFbxTexturePath(fileTex, baseDir, fbxFilePath);
         if (texPath.empty())
         {
             GX_LOG_WARN("ModelLoader: FBX texture not found: %s", fileTex->GetFileName());
@@ -731,8 +732,8 @@ static int LoadFbxTextureFromProperty(FbxProperty prop,
 /// @brief マテリアルの全プロパティからテクスチャを検索するフォールバック
 static int LoadFbxTextureFromAnyProperty(FbxSurfaceMaterial* mat,
                                          TextureManager& texManager,
-                                         const std::wstring& baseDir,
-                                         const std::wstring& fbxFilePath)
+                                         const gx::WString& baseDir,
+                                         const gx::WString& fbxFilePath)
 {
     if (!mat) return -1;
     FbxProperty prop = mat->GetFirstProperty();
@@ -752,14 +753,14 @@ static int LoadFbxTextureFromAnyProperty(FbxSurfaceMaterial* mat,
     return -1;
 }
 
-static std::unordered_map<FbxSurfaceMaterial*, int>
+static gx::HashMap<FbxSurfaceMaterial*, int>
 LoadFbxMaterials(FbxScene* scene,
                  TextureManager& texManager,
                  MaterialManager& matManager,
-                 const std::wstring& baseDir,
-                 const std::wstring& fbxFilePath)
+                 const gx::WString& baseDir,
+                 const gx::WString& fbxFilePath)
 {
-    std::unordered_map<FbxSurfaceMaterial*, int> materialMap;
+    gx::HashMap<FbxSurfaceMaterial*, int> materialMap;
     if (!scene) return materialMap;
 
     const int matCount = scene->GetMaterialCount();
@@ -857,8 +858,8 @@ LoadFbxMaterials(FbxScene* scene,
 }
 
 static void CollectFbxSkeletonNodes(FbxNode* node,
-                                    std::vector<FbxNode*>& joints,
-                                    std::unordered_map<FbxNode*, int>& jointMap)
+                                    gx::Vector<FbxNode*>& joints,
+                                    gx::HashMap<FbxNode*, int>& jointMap)
 {
     if (!node) return;
     FbxNodeAttribute* attr = node->GetNodeAttribute();
@@ -875,9 +876,9 @@ static void CollectFbxSkeletonNodes(FbxNode* node,
         CollectFbxSkeletonNodes(node->GetChild(i), joints, jointMap);
 }
 
-static std::unique_ptr<Skeleton> BuildFbxSkeleton(const std::vector<FbxNode*>& joints,
-                                                  const std::unordered_map<FbxNode*, int>& jointMap,
-                                                  const std::unordered_map<FbxNode*, XMFLOAT4X4>& invBindMap,
+static std::unique_ptr<Skeleton> BuildFbxSkeleton(const gx::Vector<FbxNode*>& joints,
+                                                  const gx::HashMap<FbxNode*, int>& jointMap,
+                                                  const gx::HashMap<FbxNode*, Matrix4x4>& invBindMap,
                                                   bool negateZ)
 {
     auto skeleton = std::make_unique<Skeleton>();
@@ -908,27 +909,27 @@ static std::unique_ptr<Skeleton> BuildFbxSkeleton(const std::vector<FbxNode*>& j
             ? node->EvaluateGlobalTransform(zeroTime)
             : node->EvaluateLocalTransform(zeroTime);
 
-        j.localTransform = ToXMFLOAT4X4(xform);
+        j.localTransform = ToMatrix4x4FromFbx(xform);
         // RH→LH変換: M * Scale(1,1,-1) 行列方式（コードベース全体がこの規約）
         if (parentIndex == -1 && negateZ)
         {
-            XMMATRIX m = XMLoadFloat4x4(&j.localTransform);
+            XMMATRIX m = XMLoadFloat4x4(XM(&j.localTransform));
             m = m * XMMatrixScaling(1.0f, 1.0f, -1.0f);
-            XMStoreFloat4x4(&j.localTransform, m);
+            XMStoreFloat4x4(XM(&j.localTransform), m);
         }
 
         auto itInv = invBindMap.find(node);
         if (itInv != invBindMap.end())
             j.inverseBindMatrix = itInv->second;
         else
-            XMStoreFloat4x4(&j.inverseBindMatrix, XMMatrixIdentity());
+            XMStoreFloat4x4(XM(&j.inverseBindMatrix), XMMatrixIdentity());
 
         skeleton->AddJoint(j);
     }
     return skeleton;
 }
 
-static void CollectAnimTimes(FbxAnimCurve* curve, std::vector<FbxTime>& out)
+static void CollectAnimTimes(FbxAnimCurve* curve, gx::Vector<FbxTime>& out)
 {
     if (!curve) return;
     const int keyCount = curve->KeyGetCount();
@@ -937,7 +938,7 @@ static void CollectAnimTimes(FbxAnimCurve* curve, std::vector<FbxTime>& out)
 }
 
 static void LoadFbxAnimations(FbxScene* scene,
-                              const std::unordered_map<FbxNode*, int>& jointMap,
+                              const gx::HashMap<FbxNode*, int>& jointMap,
                               Model& model,
                               bool negateZ)
 {
@@ -982,7 +983,7 @@ static void LoadFbxAnimations(FbxScene* scene,
                 }
             }
 
-            std::vector<FbxTime> times;
+            gx::Vector<FbxTime> times;
 
             CollectAnimTimes(node->LclTranslation.GetCurve(layer, FBXSDK_CURVENODE_COMPONENT_X), times);
             CollectAnimTimes(node->LclTranslation.GetCurve(layer, FBXSDK_CURVENODE_COMPONENT_Y), times);
@@ -1086,13 +1087,13 @@ static bool GetPolygonVertexTangent(FbxMesh* mesh, int polyIndex, int vertIndex,
 }
 
 static void BuildFbxSkinWeights(FbxMesh* mesh,
-                                const std::unordered_map<FbxNode*, int>& jointMap,
-                                std::vector<XMUINT4>& outJoints,
-                                std::vector<XMFLOAT4>& outWeights,
-                                std::unordered_map<FbxNode*, XMFLOAT4X4>& outInvBind)
+                                const gx::HashMap<FbxNode*, int>& jointMap,
+                                gx::Vector<XMUINT4>& outJoints,
+                                gx::Vector<Vector4>& outWeights,
+                                gx::HashMap<FbxNode*, Matrix4x4>& outInvBind)
 {
     const int cpCount = mesh->GetControlPointsCount();
-    std::vector<std::vector<std::pair<int, float>>> influences(cpCount);
+    gx::Vector<gx::Vector<std::pair<int, float>>> influences(cpCount);
 
     const int skinCount = mesh->GetDeformerCount(FbxDeformer::eSkin);
     for (int si = 0; si < skinCount; ++si)
@@ -1127,7 +1128,7 @@ static void BuildFbxSkinWeights(FbxMesh* mesh,
                 cluster->GetTransformMatrix(meshBind);
                 cluster->GetTransformLinkMatrix(linkBind);
                 FbxAMatrix invBind = linkBind.Inverse() * meshBind;
-                outInvBind[link] = ToXMFLOAT4X4(invBind);
+                outInvBind[link] = ToMatrix4x4FromFbx(invBind);
             }
         }
     }
@@ -1161,17 +1162,17 @@ static void BuildFbxSkinWeights(FbxMesh* mesh,
         }
 
         outJoints[i] = XMUINT4(joints[0], joints[1], joints[2], joints[3]);
-        outWeights[i] = XMFLOAT4(weights[0], weights[1], weights[2], weights[3]);
+        outWeights[i] = Vector4(weights[0], weights[1], weights[2], weights[3]);
     }
 }
 
-static std::unique_ptr<Model> LoadFromFBX(const std::wstring& filePath,
+static std::unique_ptr<Model> LoadFromFBX(const gx::WString& filePath,
                                           ID3D12Device* device,
                                           TextureManager& texManager,
                                           MaterialManager& matManager)
 {
-    std::string path = ToUtf8(filePath);
-    std::wstring baseDir = GetBaseDir(filePath);
+    gx::String path = ToUtf8(filePath);
+    gx::WString baseDir = GetBaseDir(filePath);
 
     FbxManager* manager = FbxManager::Create();
     if (!manager)
@@ -1217,7 +1218,7 @@ static std::unique_ptr<Model> LoadFromFBX(const std::wstring& filePath,
 
     // メッシュを収集
     struct MeshItem { FbxNode* node; FbxMesh* mesh; };
-    std::vector<MeshItem> meshItems;
+    gx::Vector<MeshItem> meshItems;
     std::function<void(FbxNode*)> collectMeshes = [&](FbxNode* node)
     {
         if (!node) return;
@@ -1245,8 +1246,8 @@ static std::unique_ptr<Model> LoadFromFBX(const std::wstring& filePath,
         }
     }
 
-    std::vector<FbxNode*> jointNodes;
-    std::unordered_map<FbxNode*, int> jointMap;
+    gx::Vector<FbxNode*> jointNodes;
+    gx::HashMap<FbxNode*, int> jointMap;
     if (modelSkinned)
     {
         CollectFbxSkeletonNodes(scene->GetRootNode(), jointNodes, jointMap);
@@ -1275,13 +1276,13 @@ static std::unique_ptr<Model> LoadFromFBX(const std::wstring& filePath,
         }
     }
 
-    std::unordered_map<FbxNode*, XMFLOAT4X4> invBindMap;
+    gx::HashMap<FbxNode*, Matrix4x4> invBindMap;
     if (modelSkinned)
     {
         for (const auto& item : meshItems)
         {
-            std::vector<XMUINT4> tmpJoints;
-            std::vector<XMFLOAT4> tmpWeights;
+            gx::Vector<XMUINT4> tmpJoints;
+            gx::Vector<Vector4> tmpWeights;
             BuildFbxSkinWeights(item.mesh, jointMap, tmpJoints, tmpWeights, invBindMap);
         }
     }
@@ -1294,12 +1295,12 @@ static std::unique_ptr<Model> LoadFromFBX(const std::wstring& filePath,
     if (modelSkinned)
         skeleton = BuildFbxSkeleton(jointNodes, jointMap, invBindMap, needAxisConversion);
 
-    std::vector<Vertex3D_PBR> staticVertices;
-    std::vector<Vertex3D_Skinned> skinnedVertices;
-    std::vector<uint32_t> indices;
-    std::vector<SubMesh> subMeshes;
+    gx::Vector<Vertex3D_PBR> staticVertices;
+    gx::Vector<Vertex3D_Skinned> skinnedVertices;
+    gx::Vector<uint32_t> indices;
+    gx::Vector<SubMesh> subMeshes;
 
-    std::unordered_map<int, std::vector<uint32_t>> submeshIndexMap;
+    gx::HashMap<int, gx::Vector<uint32_t>> submeshIndexMap;
 
     for (const auto& item : meshItems)
     {
@@ -1316,8 +1317,8 @@ static std::unique_ptr<Model> LoadFromFBX(const std::wstring& filePath,
         const int cpCount = mesh->GetControlPointsCount();
         const FbxVector4* controlPoints = mesh->GetControlPoints();
 
-        std::vector<XMUINT4> cpJoints;
-        std::vector<XMFLOAT4> cpWeights;
+        gx::Vector<XMUINT4> cpJoints;
+        gx::Vector<Vector4> cpWeights;
         if (modelSkinned && mesh->GetDeformerCount(FbxDeformer::eSkin) > 0)
         {
             BuildFbxSkinWeights(mesh, jointMap, cpJoints, cpWeights, invBindMap);
@@ -1325,7 +1326,7 @@ static std::unique_ptr<Model> LoadFromFBX(const std::wstring& filePath,
         else if (modelSkinned)
         {
             cpJoints.assign(cpCount, XMUINT4(0, 0, 0, 0));
-            cpWeights.assign(cpCount, XMFLOAT4(1, 0, 0, 0));
+            cpWeights.assign(cpCount, Vector4(1, 0, 0, 0));
         }
 
         // UV エレメントを GenerateTangentsData の前にキャッシュ
@@ -1340,7 +1341,7 @@ static std::unique_ptr<Model> LoadFromFBX(const std::wstring& filePath,
         }
 
         // UV データを事前にキャッシュ（per-polygon-vertex 配列）
-        std::vector<FbxVector2> cachedUVs;
+        gx::Vector<FbxVector2> cachedUVs;
         if (uvElement)
         {
             const int polyCount0 = mesh->GetPolygonCount();
@@ -1471,7 +1472,7 @@ static std::unique_ptr<Model> LoadFromFBX(const std::wstring& filePath,
                     else
                     {
                         vtx.joints = XMUINT4(0, 0, 0, 0);
-                        vtx.weights = XMFLOAT4(1, 0, 0, 0);
+                        vtx.weights = Vector4(1, 0, 0, 0);
                     }
                     skinnedVertices.push_back(vtx);
                 }
@@ -1539,7 +1540,7 @@ static std::unique_ptr<Model> LoadFromFBX(const std::wstring& filePath,
     }
 
     // インデックスバッファとサブメッシュを構築
-    std::vector<int> materialHandles;
+    gx::Vector<int> materialHandles;
     materialHandles.reserve(submeshIndexMap.size());
     for (const auto& kv : submeshIndexMap)
         materialHandles.push_back(kv.first);
@@ -1577,7 +1578,7 @@ static std::unique_ptr<Model> LoadFromFBX(const std::wstring& filePath,
     {
         uint32_t vtxCount = modelSkinned ? static_cast<uint32_t>(skinnedVertices.size())
                                           : static_cast<uint32_t>(staticVertices.size());
-        std::vector<XMFLOAT3> positions(vtxCount), normals(vtxCount);
+        gx::Vector<Vector3> positions(vtxCount), normals(vtxCount);
         if (modelSkinned)
         {
             for (uint32_t i = 0; i < vtxCount; ++i)
@@ -1621,12 +1622,12 @@ static std::unique_ptr<Model> LoadFromFBX(const std::wstring& filePath,
 // 公開API
 // -----------------------------------------------------------------------------
 
-std::unique_ptr<Model> ModelLoader::LoadFromFile(const std::wstring& filePath,
+std::unique_ptr<Model> ModelLoader::LoadFromFile(const gx::WString& filePath,
                                                  ID3D12Device* device,
                                                  TextureManager& texManager,
                                                  MaterialManager& matManager)
 {
-    std::wstring ext = GetExtensionLower(filePath);
+    gx::WString ext = GetExtensionLower(filePath);
 
     if (ext == L".gxmd" || ext == L".gxpak")
     {

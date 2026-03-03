@@ -5,6 +5,7 @@
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Graphics/Device/BarrierBatch.h"
+#include "Math/MathConvert.h"
 #include "Core/Logger.h"
 
 namespace gx
@@ -56,6 +57,19 @@ bool RTReflections::Initialize(ID3D12Device5* device, uint32_t width, uint32_t h
     //            [72..79]=per-frame SRV/UAV (Scene,Depth,Normal,Output × 2フレーム)
     if (!m_dispatchHeap.Initialize(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, k_DispatchHeapSize, true))
         return false;
+
+    // スロット0-7を null SRV で初期化（未使用だがベストプラクティス）
+    {
+        D3D12_SHADER_RESOURCE_VIEW_DESC nullDesc = {};
+        nullDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+        nullDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+        nullDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        nullDesc.Buffer.NumElements = 1;
+        nullDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
+        for (uint32_t s = 0; s < k_GeomSlotsBase; ++s)
+            device->CreateShaderResourceView(nullptr, &nullDesc,
+                m_dispatchHeap.GetCPUHandle(s));
+    }
 
     // 定数バッファ (256B for RTReflectionConstants)
     if (!m_cb.Initialize(device, 256, 256))
@@ -178,7 +192,7 @@ void RTReflections::BeginFrame()
 }
 
 void RTReflections::AddInstance(int blasIndex, const XMMATRIX& worldMatrix,
-                                 const XMFLOAT3& albedo, float metallic, float roughness,
+                                 const Vector3& albedo, float metallic, float roughness,
                                  ID3D12Resource* albedoTex, uint32_t instanceFlags)
 {
     if (m_instanceData.size() >= k_MaxInstances)
@@ -300,17 +314,17 @@ void RTReflections::CreateGeometrySRVs()
     GX_LOG_INFO("RTReflections: Created geometry SRVs for %zu BLASes", m_blasGeometry.size());
 }
 
-void RTReflections::SetLights(const LightData* lights, uint32_t count, const XMFLOAT3& ambient)
+void RTReflections::SetLights(const LightData* lights, uint32_t count, const Vector3& ambient)
 {
-    m_lightConstants = {};
-    uint32_t n = (std::min)(count, LightConstants::k_MaxLights);
+    m_rtLightConstants = {};
+    uint32_t n = (std::min)(count, ShaderLightConstants::k_MaxLights);
     for (uint32_t i = 0; i < n; ++i)
-        m_lightConstants.lights[i] = lights[i];
-    m_lightConstants.numLights = n;
-    m_lightConstants.ambientColor = ambient;
+        m_rtLightConstants.lights[i] = lights[i];
+    m_rtLightConstants.numLights = n;
+    m_rtLightConstants.ambientColor = ambient;
 }
 
-void RTReflections::SetSkyColors(const XMFLOAT3& top, const XMFLOAT3& bottom)
+void RTReflections::SetSkyColors(const Vector3& top, const Vector3& bottom)
 {
     m_skyTopColor    = top;
     m_skyBottomColor = bottom;
@@ -341,7 +355,7 @@ void RTReflections::Execute(ID3D12GraphicsCommandList4* cmdList4, uint32_t frame
     // テクスチャリソースを NON_PIXEL_SHADER_RESOURCE に遷移 (DXR はコンピュートパイプライン)
     if (!m_textureResources.empty())
     {
-        std::vector<D3D12_RESOURCE_BARRIER> texBarriers(m_textureResources.size());
+        gx::Vector<D3D12_RESOURCE_BARRIER> texBarriers(m_textureResources.size());
         for (size_t i = 0; i < m_textureResources.size(); ++i)
         {
             texBarriers[i] = {};
@@ -406,17 +420,17 @@ void RTReflections::Execute(ID3D12GraphicsCommandList4* cmdList4, uint32_t frame
     }
 
     // 定数バッファ更新
-    XMMATRIX viewMat = camera.GetViewMatrix();
-    XMMATRIX projMat = camera.GetProjectionMatrix();
+    XMMATRIX viewMat = ToXMMATRIX(camera.GetViewMatrix());
+    XMMATRIX projMat = ToXMMATRIX(camera.GetProjectionMatrix());
     XMMATRIX vpMat   = viewMat * projMat;
     XMMATRIX invVP   = XMMatrixInverse(nullptr, vpMat);
     XMMATRIX invProj = XMMatrixInverse(nullptr, projMat);
 
     RTReflectionConstants constants = {};
-    XMStoreFloat4x4(&constants.invViewProjection, XMMatrixTranspose(invVP));
-    XMStoreFloat4x4(&constants.view,              XMMatrixTranspose(viewMat));
-    XMStoreFloat4x4(&constants.invProjection,     XMMatrixTranspose(invProj));
-    XMFLOAT3 camPos = camera.GetPosition();
+    XMStoreFloat4x4(XM(&constants.invViewProjection), XMMatrixTranspose(invVP));
+    XMStoreFloat4x4(XM(&constants.view),              XMMatrixTranspose(viewMat));
+    XMStoreFloat4x4(XM(&constants.invProjection),     XMMatrixTranspose(invProj));
+    Vector3 camPos = camera.GetPosition();
     constants.cameraPosition = camPos;
     constants.maxDistance     = m_maxDistance;
     constants.screenWidth    = static_cast<float>(m_width);
@@ -424,6 +438,7 @@ void RTReflections::Execute(ID3D12GraphicsCommandList4* cmdList4, uint32_t frame
     constants.debugMode      = static_cast<float>(m_debugMode);
     constants.intensity      = m_intensity;
     constants.skyTopColor    = m_skyTopColor;
+    constants.shadowSamples  = m_shadowSamples;
     constants.skyBottomColor = m_skyBottomColor;
 
     void* p = m_cb.Map(frameIndex);
@@ -433,11 +448,11 @@ void RTReflections::Execute(ID3D12GraphicsCommandList4* cmdList4, uint32_t frame
         m_cb.Unmap(frameIndex);
     }
 
-    // ライト定数バッファアップロード
+    // ライト定数バッファアップロード (RT用16ライト構造体, 1040B ≤ 1280B CB)
     void* lp = m_lightCB.Map(frameIndex);
     if (lp)
     {
-        memcpy(lp, &m_lightConstants, sizeof(m_lightConstants));
+        memcpy(lp, &m_rtLightConstants, sizeof(m_rtLightConstants));
         m_lightCB.Unmap(frameIndex);
     }
 
@@ -449,7 +464,7 @@ void RTReflections::Execute(ID3D12GraphicsCommandList4* cmdList4, uint32_t frame
         void* instData = m_instanceDataCB.Map(frameIndex);
         if (instData)
         {
-            auto* dst = static_cast<XMFLOAT4*>(instData);
+            auto* dst = static_cast<Vector4*>(instData);
             // [0..511]: albedoMetallic
             for (uint32_t i = 0; i < instanceCount; ++i)
                 dst[i] = m_instanceData[i].albedoMetallic;
@@ -476,6 +491,21 @@ void RTReflections::Execute(ID3D12GraphicsCommandList4* cmdList4, uint32_t frame
     cmdList4->SetComputeRootDescriptorTable(6, m_dispatchHeap.GetGPUHandle(k_TextureSlotsBase)); // albedo textures (space2)
     cmdList4->SetComputeRootConstantBufferView(7, m_lightCB.GetGPUVirtualAddress(frameIndex)); // b2: LightConstants
 
+    // 初回ウォームアップ: 1×1 dispatch で GPU シェーダー JIT コンパイルをトリガー
+    if (m_firstExecution)
+    {
+        m_rtPipeline.DispatchRays(cmdList4, 1, 1);
+
+        // UAV barrier between warm-up and full dispatch
+        D3D12_RESOURCE_BARRIER warmupBarrier = {};
+        warmupBarrier.Type          = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+        warmupBarrier.UAV.pResource = m_reflectionUAV.Get();
+        cmdList->ResourceBarrier(1, &warmupBarrier);
+
+        m_firstExecution = false;
+        GX_LOG_INFO("RTReflections: warm-up dispatch completed");
+    }
+
     m_rtPipeline.DispatchRays(cmdList4, m_width, m_height);
 
     // UAVバリア
@@ -489,7 +519,7 @@ void RTReflections::Execute(ID3D12GraphicsCommandList4* cmdList4, uint32_t frame
     // テクスチャリソースを PIXEL_SHADER_RESOURCE に戻す
     if (!m_textureResources.empty())
     {
-        std::vector<D3D12_RESOURCE_BARRIER> texBarriers(m_textureResources.size());
+        gx::Vector<D3D12_RESOURCE_BARRIER> texBarriers(m_textureResources.size());
         for (size_t i = 0; i < m_textureResources.size(); ++i)
         {
             texBarriers[i] = {};
@@ -588,7 +618,7 @@ void RTReflections::Execute(ID3D12GraphicsCommandList4* cmdList4, uint32_t frame
     compConstants.screenWidth  = static_cast<float>(m_width);
     compConstants.screenHeight = static_cast<float>(m_height);
     compConstants.cameraPosition = camPos;
-    XMStoreFloat4x4(&compConstants.invViewProjection, XMMatrixTranspose(invVP));
+    XMStoreFloat4x4(XM(&compConstants.invViewProjection), XMMatrixTranspose(invVP));
 
     void* cp = m_compositeCB.Map(frameIndex);
     if (cp)

@@ -87,7 +87,7 @@ bool ClusteredLighting::Initialize(ID3D12Device* device)
 
     // Create constant buffer
     {
-        const uint32_t cbSize = (sizeof(XMFLOAT4X4) * 2 + 64 + 255) & ~255u;
+        const uint32_t cbSize = (sizeof(Matrix4x4) * 2 + 64 + 255) & ~255u;
 
         D3D12_RESOURCE_DESC desc = {};
         desc.Dimension          = D3D12_RESOURCE_DIMENSION_BUFFER;
@@ -147,7 +147,7 @@ void ClusteredLighting::Shutdown()
 void ClusteredLighting::AssignLights(
     ID3D12GraphicsCommandList* cmdList,
     const LightData* lights, uint32_t lightCount,
-    const XMFLOAT4X4& viewMatrix, const XMFLOAT4X4& projMatrix,
+    const Matrix4x4& viewMatrix, const Matrix4x4& projMatrix,
     float nearZ, float farZ,
     uint32_t screenWidth, uint32_t screenHeight,
     uint32_t frameIndex)
@@ -175,8 +175,8 @@ void ClusteredLighting::AssignLights(
     {
         struct ClusterCB
         {
-            XMFLOAT4X4 view;
-            XMFLOAT4X4 projection;
+            Matrix4x4 view;
+            Matrix4x4 projection;
             float       nearZ;
             float       farZ;
             uint32_t    numLights;

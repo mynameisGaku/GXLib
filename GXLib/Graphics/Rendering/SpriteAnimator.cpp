@@ -18,7 +18,7 @@ void SpriteAnimator::AddClip(const SpriteAnimClip& clip)
     m_clips[clip.name] = clip;
 }
 
-void SpriteAnimator::RemoveClip(const std::string& name)
+void SpriteAnimator::RemoveClip(const gx::String& name)
 {
     m_clips.erase(name);
 
@@ -40,7 +40,7 @@ void SpriteAnimator::RemoveClip(const std::string& name)
     }
 }
 
-const SpriteAnimClip* SpriteAnimator::GetClip(const std::string& name) const
+const SpriteAnimClip* SpriteAnimator::GetClip(const gx::String& name) const
 {
     auto it = m_clips.find(name);
     if (it != m_clips.end())
@@ -63,7 +63,7 @@ void SpriteAnimator::AddTransition(const SpriteAnimTransition& transition)
 // 再生制御
 // ============================================================================
 
-void SpriteAnimator::Play(const std::string& clipName)
+void SpriteAnimator::Play(const gx::String& clipName)
 {
     auto it = m_clips.find(clipName);
     if (it == m_clips.end())

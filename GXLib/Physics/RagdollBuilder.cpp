@@ -27,8 +27,8 @@ bool RagdollBuilder::Build(PhysicsWorld3D* world, RagdollPreset preset, const Ve
     return m_built;
 }
 
-bool RagdollBuilder::BuildCustom(PhysicsWorld3D* world, const std::vector<RagdollBone>& bones,
-                                  const std::vector<std::pair<int,int>>& connections, const Vector3& position)
+bool RagdollBuilder::BuildCustom(PhysicsWorld3D* world, const gx::Vector<RagdollBone>& bones,
+                                  const gx::Vector<std::pair<int,int>>& connections, const Vector3& position)
 {
     if (!world || m_built || bones.empty()) return false;
 
@@ -143,9 +143,9 @@ void RagdollBuilder::ApplyImpulse(PhysicsWorld3D* world, int boneIndex, const Ve
     world->ApplyImpulse(m_bones[boneIndex].bodyID, impulse);
 }
 
-std::vector<Matrix4x4> RagdollBuilder::GetBoneTransforms(PhysicsWorld3D* world) const
+gx::Vector<Matrix4x4> RagdollBuilder::GetBoneTransforms(PhysicsWorld3D* world) const
 {
-    std::vector<Matrix4x4> transforms;
+    gx::Vector<Matrix4x4> transforms;
     if (!world || !m_built) return transforms;
 
     transforms.reserve(m_bones.size());
@@ -206,7 +206,7 @@ void RagdollBuilder::BuildHumanoid(PhysicsWorld3D* world, const Vector3& positio
     m_bones.resize(numBones);
 
     // 各ボーンの絶対位置を計算してボディを作成
-    std::vector<Vector3> absolutePositions(numBones);
+    gx::Vector<Vector3> absolutePositions(numBones);
 
     for (int i = 0; i < numBones; ++i)
     {

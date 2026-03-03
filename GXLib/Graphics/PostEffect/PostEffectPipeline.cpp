@@ -104,6 +104,13 @@ bool PostEffectPipeline::Initialize(ID3D12Device* device, uint32_t width, uint32
         return false;
     }
 
+    // レンズフレア
+    if (!m_lensFlare.Initialize(device, width, height))
+    {
+        GX_LOG_ERROR("PostEffectPipeline: Failed to initialize LensFlare");
+        return false;
+    }
+
     // DoF (被写界深度)
     if (!m_dof.Initialize(device, width, height))
     {
@@ -160,7 +167,14 @@ bool PostEffectPipeline::Initialize(ID3D12Device* device, uint32_t width, uint32
         return false;
     }
 
-    GX_LOG_INFO("PostEffectPipeline initialized (%dx%d) with SSAO/SSR/VolumetricLight/Bloom/DoF/MotionBlur/Outline/TAA/FXAA/Vignette/ColorGrading", width, height);
+    // SSGI (GraphicsDevice が設定されている場合のみ初期化)
+    if (m_graphicsDevice)
+    {
+        if (!m_ssgi.Initialize(m_graphicsDevice, width, height))
+            GX_LOG_WARN("PostEffectPipeline: SSGI initialization failed (non-fatal)");
+    }
+
+    GX_LOG_INFO("PostEffectPipeline initialized (%dx%d) with SSAO/SSR/SSGI/VolumetricLight/Bloom/DoF/MotionBlur/Outline/TAA/FXAA/Vignette/ColorGrading", width, height);
     return true;
 }
 
@@ -377,12 +391,21 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
     // ========================================
     RenderTarget* currentHDR = &m_hdrRT;
 
-    // RTGI (GI加算合成, SSAOの前)
+    // RTGI / SSGI (GI加算合成, SSAOの前) — 排他: RTGI優先、非対応時SSGIフォールバック
+    bool rtgiUsed = false;
     if (m_rtGI && m_rtGI->IsEnabled() && m_cmdList4 && HasFlag(mask, PostFXFlag::RTGI))
     {
         RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
         m_rtGI->SetNormalRT(&m_normalRT);
         m_rtGI->Execute(m_cmdList4, m_frameIndex, *currentHDR, *dest, depthBuffer, camera, m_albedoRT);
+        currentHDR = dest;
+        rtgiUsed = true;
+    }
+    // SSGI フォールバック (RTGI 未使用時)
+    if (!rtgiUsed && m_ssgi.IsReady() && HasFlag(mask, PostFXFlag::SSGI))
+    {
+        RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
+        m_ssgi.Execute(m_cmdList, m_frameIndex, *currentHDR, *dest, depthBuffer, m_normalRT);
         currentHDR = dest;
     }
 
@@ -444,6 +467,15 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
     {
         RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
         m_bloom.Execute(m_cmdList, m_frameIndex, *currentHDR, *dest);
+        dest->TransitionTo(m_cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        currentHDR = dest;
+    }
+
+    // レンズフレア (HDR空間, Bloomの直後)
+    if (m_lensFlare.IsEnabled() && HasFlag(mask, PostFXFlag::LensFlare))
+    {
+        RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
+        m_lensFlare.Execute(m_cmdList, *currentHDR, *dest, m_frameIndex, camera);
         dest->TransitionTo(m_cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         currentHDR = dest;
     }
@@ -597,6 +629,7 @@ void PostEffectPipeline::OnResize(ID3D12Device* device, uint32_t width, uint32_t
     m_ssao.OnResize(device, width, height);
     m_contactShadows.OnResize(device, width, height);
     m_bloom.OnResize(device, width, height);
+    m_lensFlare.OnResize(device, width, height);
     m_dof.OnResize(device, width, height);
     m_motionBlur.OnResize(device, width, height);
     m_ssr.OnResize(device, width, height);
@@ -605,18 +638,19 @@ void PostEffectPipeline::OnResize(ID3D12Device* device, uint32_t width, uint32_t
     m_volumetricClouds.OnResize(device, width, height);
     m_taa.OnResize(device, width, height);
     m_autoExposure.OnResize(device, width, height);
+    m_ssgi.OnResize(device, width, height);
     if (m_rtReflections)
         m_rtReflections->OnResize(device, width, height);
     if (m_rtGI)
         m_rtGI->OnResize(device, width, height);
 }
 
-bool PostEffectPipeline::LoadSettings(const std::string& filePath)
+bool PostEffectPipeline::LoadSettings(const gx::String& filePath)
 {
     return PostEffectSettings::Load(filePath, *this);
 }
 
-bool PostEffectPipeline::SaveSettings(const std::string& filePath) const
+bool PostEffectPipeline::SaveSettings(const gx::String& filePath) const
 {
     return PostEffectSettings::Save(filePath, *this);
 }

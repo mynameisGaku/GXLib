@@ -62,7 +62,7 @@ static json SerializeMaterial(const gx::Material& mat)
     json j;
     const auto& c = mat.constants;
 
-    j["albedo"]    = {c.albedoFactor.x, c.albedoFactor.y, c.albedoFactor.z, c.albedoFactor.w};
+    j["albedo"]    = {c.albedoFactor.r, c.albedoFactor.g, c.albedoFactor.b, c.albedoFactor.a};
     j["metallic"]  = c.metallicFactor;
     j["roughness"] = c.roughnessFactor;
     j["ao"]        = c.aoStrength;
@@ -78,10 +78,10 @@ static void DeserializeMaterial(gx::Material& mat, const json& j)
 
     if (j.contains("albedo") && j["albedo"].is_array() && j["albedo"].size() == 4)
     {
-        c.albedoFactor.x = j["albedo"][0].get<float>();
-        c.albedoFactor.y = j["albedo"][1].get<float>();
-        c.albedoFactor.z = j["albedo"][2].get<float>();
-        c.albedoFactor.w = j["albedo"][3].get<float>();
+        c.albedoFactor.r = j["albedo"][0].get<float>();
+        c.albedoFactor.g = j["albedo"][1].get<float>();
+        c.albedoFactor.b = j["albedo"][2].get<float>();
+        c.albedoFactor.a = j["albedo"][3].get<float>();
     }
 
     if (j.contains("metallic"))

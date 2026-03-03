@@ -8,15 +8,17 @@
 
 using Ctx = gx_internal::CompatContext;
 
+namespace gx {
+
 int CreateParticle2D(int textureHandle, float x, float y, int count)
 {
     auto& ctx = Ctx::Instance();
 
-    gx::EmitterConfig2D config;
+    EmitterConfig2D config;
     config.textureHandle = textureHandle;
     config.burstCount = count;
     config.emissionRate = 0.0f;
-    config.blendMode = gx::BlendMode::Add;
+    config.blendMode = BlendMode::Add;
     config.maxParticles = static_cast<uint32_t>((std::max)(count, 100));
 
     int handle = ctx.particleSystem2D.AddEmitter(config);
@@ -44,3 +46,5 @@ int DrawParticles()
     ctx.particleSystem2D.Draw(ctx.spriteBatch);
     return 0;
 }
+
+} // namespace gx

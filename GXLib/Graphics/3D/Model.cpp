@@ -46,7 +46,7 @@ void Model::SetCPUData(MeshCPUData data)
     m_hasCpuData = true;
 }
 
-bool Model::ComputeAABB(XMFLOAT3& outMin, XMFLOAT3& outMax) const
+bool Model::ComputeAABB(Vector3& outMin, Vector3& outMax) const
 {
     if (!m_hasCpuData)
         return false;
@@ -87,7 +87,7 @@ bool Model::ComputeAABB(XMFLOAT3& outMin, XMFLOAT3& outMax) const
     return true;
 }
 
-int Model::FindAnimationIndex(const std::string& name) const
+int Model::FindAnimationIndex(const gx::String& name) const
 {
     for (uint32_t i = 0; i < m_animations.size(); ++i)
     {

@@ -135,14 +135,14 @@ void PropertyPanel::DrawTransformSection(SceneEntity& entity)
         return;
 
     // Position
-    XMFLOAT3 pos = entity.transform.GetPosition();
+    gx::Vector3 pos = entity.transform.GetPosition();
     if (ImGui::DragFloat3("Position", &pos.x, 0.05f))
     {
         entity.transform.SetPosition(pos);
     }
 
     // Rotation (display in degrees, store in radians)
-    XMFLOAT3 rot = entity.transform.GetRotation();
+    gx::Vector3 rot = entity.transform.GetRotation();
     float rotDeg[3] = { rot.x * k_RadToDeg, rot.y * k_RadToDeg, rot.z * k_RadToDeg };
     if (ImGui::DragFloat3("Rotation", rotDeg, 0.5f, -360.0f, 360.0f))
     {
@@ -150,7 +150,7 @@ void PropertyPanel::DrawTransformSection(SceneEntity& entity)
     }
 
     // Scale
-    XMFLOAT3 scl = entity.transform.GetScale();
+    gx::Vector3 scl = entity.transform.GetScale();
     if (ImGui::DragFloat3("Scale", &scl.x, 0.01f, 0.001f, 100.0f))
     {
         entity.transform.SetScale(scl);

@@ -5,6 +5,7 @@
 /// SSR/MotionBlurと同じ 2-SRV 専用ヒープパターンを使用。
 #include "pch_graphics.h"
 #include "Graphics/PostEffect/OutlineEffect.h"
+#include "Math/MathConvert.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
@@ -147,11 +148,11 @@ void OutlineEffect::Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameIn
     cmdList->SetDescriptorHeaps(1, heaps);
 
     // 定数バッファ更新
-    XMMATRIX proj = camera.GetProjectionMatrix();
+    XMMATRIX proj = ToXMMATRIX(camera.GetProjectionMatrix());
     XMMATRIX invProj = XMMatrixInverse(nullptr, proj);
 
     OutlineConstants constants = {};
-    XMStoreFloat4x4(&constants.invProjection, XMMatrixTranspose(invProj));
+    XMStoreFloat4x4(XM(&constants.invProjection), XMMatrixTranspose(invProj));
     constants.depthThreshold  = m_depthThreshold;
     constants.normalThreshold = m_normalThreshold;
     constants.intensity       = m_intensity;

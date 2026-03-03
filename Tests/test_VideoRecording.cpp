@@ -103,7 +103,7 @@ TEST(VideoRecordingTest, SetOnErrorCallback)
 {
     VideoRecorder recorder;
     bool errorCallbackCalled = false;
-    recorder.SetOnError([&](const std::string& msg) {
+    recorder.SetOnError([&](const gx::String& msg) {
         errorCallbackCalled = true;
     });
     // コールバックがクラッシュなしで設定できることを検証
@@ -209,7 +209,7 @@ TEST(VideoRecordingTest, WriteFrameWithoutInit)
 {
     VideoRecorder recorder;
     // 初期化前のWriteFrameはクラッシュしないこと
-    std::vector<uint8_t> dummyData(1920 * 1080 * 4, 0);
+    gx::Vector<uint8_t> dummyData(1920 * 1080 * 4, 0);
     bool result = recorder.WriteFrame(dummyData.data(), 1920, 1080);
     EXPECT_FALSE(result);
 }
@@ -219,9 +219,9 @@ TEST(VideoRecordingTest, MultipleSetOnError)
     VideoRecorder recorder;
     int callCount = 0;
 
-    recorder.SetOnError([&](const std::string& msg) { callCount++; });
+    recorder.SetOnError([&](const gx::String& msg) { callCount++; });
     // 再度設定しても問題ないこと
-    recorder.SetOnError([&](const std::string& msg) { callCount += 10; });
+    recorder.SetOnError([&](const gx::String& msg) { callCount += 10; });
 
     EXPECT_EQ(callCount, 0);
 }

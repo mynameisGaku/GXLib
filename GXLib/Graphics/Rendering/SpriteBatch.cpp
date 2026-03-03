@@ -64,7 +64,7 @@ bool SpriteBatch::CreateIndexBuffer(ID3D12Device* device)
 {
     // 全スプライト分の共有インデックスバッファを作成
     // 各スプライトは4頂点、6インデックス（2三角形）
-    std::vector<uint16_t> indices(k_MaxSprites * 6);
+    gx::Vector<uint16_t> indices(k_MaxSprites * 6);
     for (uint32_t i = 0; i < k_MaxSprites; ++i)
     {
         uint16_t base = static_cast<uint16_t>(i * 4);
@@ -188,11 +188,11 @@ void SpriteBatch::UpdateProjectionMatrix()
 {
     // 2D正射影行列: 左上原点、Y軸下向き
     // (0,0) が左上、(screenWidth, screenHeight) が右下
-    m_projectionMatrix = XMMatrixOrthographicOffCenterLH(
+    m_projectionMatrix = FromXMMATRIX(XMMatrixOrthographicOffCenterLH(
         0.0f, static_cast<float>(m_screenWidth),
         static_cast<float>(m_screenHeight), 0.0f,
         0.0f, 1.0f
-    );
+    ));
 }
 
 void SpriteBatch::Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex)
@@ -221,7 +221,7 @@ void SpriteBatch::Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex)
     void* cbData = m_constantBuffer.Map(frameIndex);
     if (cbData)
     {
-        XMMATRIX proj = m_useCustomProjection ? m_projectionMatrix
+        XMMATRIX proj = m_useCustomProjection ? ToXMMATRIX(m_projectionMatrix)
                                                : XMMatrixOrthographicOffCenterLH(
                                                      0.0f, static_cast<float>(m_screenWidth),
                                                      static_cast<float>(m_screenHeight), 0.0f,
@@ -382,7 +382,7 @@ void SpriteBatch::DrawRotaGraph(float cx, float cy, float extRate, float angle,
     float sinA = sinf(angle);
 
     // 2D回転: 中心(cx,cy)からの相対座標を角度angleだけ回転させる
-    auto rotate = [&](float rx, float ry) -> XMFLOAT2
+    auto rotate = [&](float rx, float ry) -> Vector2
     {
         return { cx + rx * cosA - ry * sinA,
                  cy + rx * sinA + ry * cosA };
@@ -536,7 +536,7 @@ void SpriteBatch::SetScreenSize(uint32_t width, uint32_t height)
         UpdateProjectionMatrix();
 }
 
-void SpriteBatch::SetProjectionMatrix(const XMMATRIX& matrix)
+void SpriteBatch::SetProjectionMatrix(const Matrix4x4& matrix)
 {
     m_projectionMatrix = matrix;
     m_useCustomProjection = true;

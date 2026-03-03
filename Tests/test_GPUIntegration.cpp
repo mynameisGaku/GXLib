@@ -282,7 +282,7 @@ TEST_F(GPUIntegrationTest, BufferUploadReadback)
 
     // Test data
     const UINT dataSize = 256;
-    std::vector<uint32_t> srcData(dataSize / sizeof(uint32_t));
+    gx::Vector<uint32_t> srcData(dataSize / sizeof(uint32_t));
     for (size_t i = 0; i < srcData.size(); ++i)
         srcData[i] = static_cast<uint32_t>(i * 42);
 

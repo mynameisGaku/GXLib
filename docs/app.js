@@ -607,7 +607,7 @@ function renderFileView(fp) {
         funcItems.forEach(function(it) {
             html += '<div class="func-item">';
             html += '<div class="func-sig">' + highlightSig(it.sig) + '</div>';
-            if (it.doc) html += '<div class="func-doc">' + glossifyText(esc(translateDoc(it.doc || ""))) + '</div>';
+            if (it.doc) html += renderMethodDoc(it.doc);
             html += '</div>';
         });
     }
@@ -684,7 +684,7 @@ function renderClassView(t) {
                 var quals = renderQuals(f.qual);
                 if (quals) html += '<div class="member-tags">' + quals + '</div>';
                 html += '<div class="member-sig">' + highlightSig(f.sig) + '</div>';
-                if (f.doc) html += '<div class="member-doc">' + glossifyText(esc(translateDoc(f.doc || ""))) + '</div>';
+                if (f.doc) html += renderMethodDoc(f.doc);
                 html += '</div>';
             });
         }
@@ -696,7 +696,7 @@ function renderClassView(t) {
                 var quals = renderQuals(m.qual);
                 if (quals) html += '<div class="member-tags">' + quals + '</div>';
                 html += '<div class="member-sig">' + highlightSig(m.sig) + '</div>';
-                if (m.doc) html += '<div class="member-doc">' + glossifyText(esc(translateDoc(m.doc || ""))) + '</div>';
+                if (m.doc) html += renderMethodDoc(m.doc);
                 html += '</div>';
             });
         }
@@ -1567,6 +1567,60 @@ var SIG_KEYWORDS = [
 
 // Build a single combined keyword regex (avoids iterating and double-replacing)
 var SIG_KW_RE = new RegExp("\\b(" + SIG_KEYWORDS.join("|") + ")\\b", "g");
+
+// ====================================================================
+// renderMethodDoc — parse doc string with \n@param / \n@return / \n@note
+// ====================================================================
+
+function renderMethodDoc(rawDoc) {
+    if (!rawDoc) return "";
+    // Split on the double-escaped \n separator (\\\\n in source = \\n in memory)
+    var parts = rawDoc.split("\\\\n");
+    var desc = "";
+    var params = [];
+    var returns = [];
+    var notes = [];
+
+    for (var i = 0; i < parts.length; i++) {
+        var p = parts[i];
+        var paramMatch = p.match(/^@param\s+(\S+)\s+(.*)/);
+        var returnMatch = p.match(/^@returns?\s+(.*)/);
+        var noteMatch = p.match(/^@note\s+(.*)/);
+        if (paramMatch) {
+            params.push({ name: paramMatch[1], desc: paramMatch[2] });
+        } else if (returnMatch) {
+            returns.push(returnMatch[1]);
+        } else if (noteMatch) {
+            notes.push(noteMatch[1]);
+        } else {
+            if (desc) desc += " ";
+            desc += p;
+        }
+    }
+
+    var html = "";
+    if (desc) {
+        html += '<div class="member-doc">' + glossifyText(esc(translateDoc(desc))) + '</div>';
+    }
+    if (params.length > 0) {
+        html += '<div class="param-section">';
+        for (var j = 0; j < params.length; j++) {
+            html += '<div class="param-row"><code>' + esc(params[j].name) + '</code> — ' + glossifyText(esc(translateDoc(params[j].desc))) + '</div>';
+        }
+        html += '</div>';
+    }
+    if (returns.length > 0) {
+        for (var k = 0; k < returns.length; k++) {
+            html += '<div class="return-doc">' + glossifyText(esc(translateDoc(returns[k]))) + '</div>';
+        }
+    }
+    if (notes.length > 0) {
+        for (var n = 0; n < notes.length; n++) {
+            html += '<div class="note-doc">' + glossifyText(esc(translateDoc(notes[n]))) + '</div>';
+        }
+    }
+    return html;
+}
 
 function highlightSig(sig) {
     if (!sig) return "";

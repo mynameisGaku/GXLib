@@ -10,10 +10,10 @@ using namespace gx;
 // ヘルパー: 単純な平面メッシュ（地面）
 // ============================================================================
 
-static void CreateGroundPlane(std::vector<Vector3>& positions,
-                               std::vector<Vector3>& normals,
-                               std::vector<Vector3>& uvs,
-                               std::vector<uint32_t>& indices)
+static void CreateGroundPlane(gx::Vector<Vector3>& positions,
+                               gx::Vector<Vector3>& normals,
+                               gx::Vector<Vector3>& uvs,
+                               gx::Vector<uint32_t>& indices)
 {
     positions = {
         {-5, 0, -5}, {5, 0, -5}, {5, 0, 5}, {-5, 0, 5}
@@ -83,8 +83,8 @@ TEST(LightmapBakerTest, ConfigResolutionClamp)
 TEST(LightmapBakerTest, AddMeshInstance)
 {
     LightmapBaker baker;
-    std::vector<Vector3> pos, norm, uv;
-    std::vector<uint32_t> idx;
+    gx::Vector<Vector3> pos, norm, uv;
+    gx::Vector<uint32_t> idx;
     CreateGroundPlane(pos, norm, uv, idx);
 
     baker.AddMeshInstance(0, pos, norm, uv, idx);
@@ -94,8 +94,8 @@ TEST(LightmapBakerTest, AddMeshInstance)
 TEST(LightmapBakerTest, AddMultipleMeshes)
 {
     LightmapBaker baker;
-    std::vector<Vector3> pos, norm, uv;
-    std::vector<uint32_t> idx;
+    gx::Vector<Vector3> pos, norm, uv;
+    gx::Vector<uint32_t> idx;
     CreateGroundPlane(pos, norm, uv, idx);
 
     baker.AddMeshInstance(0, pos, norm, uv, idx);
@@ -131,8 +131,8 @@ TEST(LightmapBakerTest, AddMultipleLights)
 TEST(LightmapBakerTest, ClearState)
 {
     LightmapBaker baker;
-    std::vector<Vector3> pos, norm, uv;
-    std::vector<uint32_t> idx;
+    gx::Vector<Vector3> pos, norm, uv;
+    gx::Vector<uint32_t> idx;
     CreateGroundPlane(pos, norm, uv, idx);
 
     baker.AddMeshInstance(0, pos, norm, uv, idx);
@@ -170,8 +170,8 @@ TEST(LightmapBakerTest, BakeDirectOnly)
     cfg.bounceCount = 1;
     baker.SetConfig(cfg);
 
-    std::vector<Vector3> pos, norm, uv;
-    std::vector<uint32_t> idx;
+    gx::Vector<Vector3> pos, norm, uv;
+    gx::Vector<uint32_t> idx;
     CreateGroundPlane(pos, norm, uv, idx);
 
     baker.AddMeshInstance(0, pos, norm, uv, idx);
@@ -210,8 +210,8 @@ TEST(LightmapBakerTest, BakeSingleLight)
     cfg.bounceCount = 1;
     baker.SetConfig(cfg);
 
-    std::vector<Vector3> pos, norm, uv;
-    std::vector<uint32_t> idx;
+    gx::Vector<Vector3> pos, norm, uv;
+    gx::Vector<uint32_t> idx;
     CreateGroundPlane(pos, norm, uv, idx);
 
     baker.AddMeshInstance(0, pos, norm, uv, idx);
@@ -244,8 +244,8 @@ TEST(LightmapBakerTest, BakeMultipleBounces)
     cfg.bounceCount = 3;
     baker.SetConfig(cfg);
 
-    std::vector<Vector3> pos, norm, uv;
-    std::vector<uint32_t> idx;
+    gx::Vector<Vector3> pos, norm, uv;
+    gx::Vector<uint32_t> idx;
     CreateGroundPlane(pos, norm, uv, idx);
 
     baker.AddMeshInstance(0, pos, norm, uv, idx);
@@ -282,8 +282,8 @@ TEST(LightmapBakerTest, PackAtlasSingleChart)
     cfg.bounceCount = 1;
     baker.SetConfig(cfg);
 
-    std::vector<Vector3> pos, norm, uv;
-    std::vector<uint32_t> idx;
+    gx::Vector<Vector3> pos, norm, uv;
+    gx::Vector<uint32_t> idx;
     CreateGroundPlane(pos, norm, uv, idx);
 
     baker.AddMeshInstance(0, pos, norm, uv, idx);
@@ -306,8 +306,8 @@ TEST(LightmapBakerTest, PackAtlasMultiple)
     cfg.bounceCount = 1;
     baker.SetConfig(cfg);
 
-    std::vector<Vector3> pos, norm, uv;
-    std::vector<uint32_t> idx;
+    gx::Vector<Vector3> pos, norm, uv;
+    gx::Vector<uint32_t> idx;
     CreateGroundPlane(pos, norm, uv, idx);
 
     baker.AddMeshInstance(0, pos, norm, uv, idx);
@@ -331,8 +331,8 @@ TEST(LightmapBakerTest, PackEfficiency)
     cfg.bounceCount = 1;
     baker.SetConfig(cfg);
 
-    std::vector<Vector3> pos, norm, uv;
-    std::vector<uint32_t> idx;
+    gx::Vector<Vector3> pos, norm, uv;
+    gx::Vector<uint32_t> idx;
     CreateGroundPlane(pos, norm, uv, idx);
 
     baker.AddMeshInstance(0, pos, norm, uv, idx);

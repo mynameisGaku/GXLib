@@ -140,10 +140,10 @@ TEST(BenchmarkRunnerTest, GenerateReport_ContainsNames)
     runner.Register("bench_b", []() {});
     runner.RunAll();
 
-    std::string report = runner.GenerateReport();
-    EXPECT_NE(report.find("bench_a"), std::string::npos);
-    EXPECT_NE(report.find("bench_b"), std::string::npos);
-    EXPECT_NE(report.find("Benchmark"), std::string::npos);
+    gx::String report = runner.GenerateReport();
+    EXPECT_NE(report.find("bench_a"), gx::String::npos);
+    EXPECT_NE(report.find("bench_b"), gx::String::npos);
+    EXPECT_NE(report.find("Benchmark"), gx::String::npos);
 }
 
 TEST(BenchmarkRunnerTest, Clear_RemovesAll)
@@ -167,7 +167,7 @@ TEST(BenchmarkRunnerTest, SaveAndLoadBaseline)
     });
     runner.RunAll();
 
-    std::string path = "test_baseline_temp.txt";
+    gx::String path = "test_baseline_temp.txt";
     ASSERT_TRUE(runner.SaveBaseline(path));
 
     BenchmarkRunner runner2;
@@ -184,7 +184,7 @@ TEST(BenchmarkRunnerTest, CompareWithBaseline_NoRegression)
     runner.RunAll();
 
     // ベースラインを保存
-    std::string path = "test_baseline_noreg.txt";
+    gx::String path = "test_baseline_noreg.txt";
     ASSERT_TRUE(runner.SaveBaseline(path));
 
     // ロードして比較（同じ結果なのでリグレッションしないはず）
@@ -198,7 +198,7 @@ TEST(BenchmarkRunnerTest, CompareWithBaseline_NoRegression)
 TEST(BenchmarkRunnerTest, CompareWithBaseline_DetectsRegression)
 {
     // 非常に高速な時間を持つ偽のベースラインを作成
-    std::string path = "test_baseline_reg.txt";
+    gx::String path = "test_baseline_reg.txt";
     {
         std::ofstream f(path);
         f << "slow_op 0.001\n"; // ベースラインは0.001usで不可能に速い
@@ -272,11 +272,11 @@ TEST(BenchmarkRunnerTest, GenerateReport_HasHeader)
     runner.Register("x", []() {});
     runner.RunAll();
 
-    std::string report = runner.GenerateReport();
-    EXPECT_NE(report.find("Avg"), std::string::npos);
-    EXPECT_NE(report.find("Min"), std::string::npos);
-    EXPECT_NE(report.find("Max"), std::string::npos);
-    EXPECT_NE(report.find("Median"), std::string::npos);
+    gx::String report = runner.GenerateReport();
+    EXPECT_NE(report.find("Avg"), gx::String::npos);
+    EXPECT_NE(report.find("Min"), gx::String::npos);
+    EXPECT_NE(report.find("Max"), gx::String::npos);
+    EXPECT_NE(report.find("Median"), gx::String::npos);
 }
 
 TEST(BenchmarkRunnerTest, RunAll_ClearsPreviousResults)

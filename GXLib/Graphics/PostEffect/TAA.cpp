@@ -5,6 +5,7 @@
 /// 専用SRVヒープで管理し、Halton(2,3)ジッターでサブピクセル蓄積を行う。
 #include "pch_graphics.h"
 #include "Graphics/PostEffect/TAA.h"
+#include "Math/MathConvert.h"
 #include "Graphics/Pipeline/RootSignature.h"
 #include "Graphics/Pipeline/PipelineState.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
@@ -29,7 +30,7 @@ float TAA::Halton(int index, int base)
     return r;
 }
 
-XMFLOAT2 TAA::GetCurrentJitter() const
+Vector2 TAA::GetCurrentJitter() const
 {
     if (!m_enabled || m_width == 0 || m_height == 0)
         return { 0.0f, 0.0f };
@@ -52,7 +53,7 @@ bool TAA::Initialize(ID3D12Device* device, uint32_t width, uint32_t height)
     m_width  = width;
     m_height = height;
 
-    XMStoreFloat4x4(&m_previousVP, XMMatrixIdentity());
+    XMStoreFloat4x4(XM(&m_previousVP), XMMatrixIdentity());
 
     // 履歴RT
     if (!m_historyRT.Create(device, width, height, DXGI_FORMAT_R16G16B16A16_FLOAT))
@@ -259,12 +260,12 @@ void TAA::Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
     cmdList->SetDescriptorHeaps(1, heaps);
 
     // 定数バッファ (非ジッターのVP行列を使用)
-    XMMATRIX viewProj = camera.GetViewProjectionMatrix(); // 非ジッター
+    XMMATRIX viewProj = ToXMMATRIX(camera.GetViewProjectionMatrix()); // 非ジッター
     XMMATRIX invVP = XMMatrixInverse(nullptr, viewProj);
 
     TAAConstants constants = {};
-    XMStoreFloat4x4(&constants.invViewProjection, XMMatrixTranspose(invVP));
-    XMStoreFloat4x4(&constants.previousViewProjection, XMMatrixTranspose(XMLoadFloat4x4(&m_previousVP)));
+    XMStoreFloat4x4(XM(&constants.invViewProjection), XMMatrixTranspose(invVP));
+    XMStoreFloat4x4(XM(&constants.previousViewProjection), XMMatrixTranspose(XMLoadFloat4x4(XM(&m_previousVP))));
     constants.jitterOffset = GetCurrentJitter();
     constants.blendFactor  = m_blendFactor;
     constants.screenWidth  = static_cast<float>(m_width);
@@ -340,7 +341,7 @@ void TAA::Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
 void TAA::UpdatePreviousVP(const Camera3D& camera)
 {
     // 非ジッターのVP行列を保存
-    XMStoreFloat4x4(&m_previousVP, camera.GetViewProjectionMatrix());
+    XMStoreFloat4x4(XM(&m_previousVP), ToXMMATRIX(camera.GetViewProjectionMatrix()));
     m_hasPreviousVP = true;
 }
 

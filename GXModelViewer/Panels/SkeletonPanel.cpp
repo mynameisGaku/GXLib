@@ -8,6 +8,7 @@
 #include "SkeletonPanel.h"
 #include <imgui.h>
 #include <cmath>
+#include "Math/MathConvert.h"
 #include "Graphics/3D/Skeleton.h"
 #include "Graphics/3D/Animator.h"
 #include "Graphics/3D/AnimationClip.h"
@@ -19,7 +20,7 @@
 static constexpr float k_RadToDeg = 180.0f / XM_PI;
 
 /// クォータニオンをZYX規約のオイラー角（度数法）に変換する（表示用）
-static void QuatToEuler(const XMFLOAT4& q, float& pitch, float& yaw, float& roll)
+static void QuatToEuler(const gx::Quaternion& q, float& pitch, float& yaw, float& roll)
 {
     // ZYX convention
     float sinr = 2.0f * (q.w * q.x + q.y * q.z);
@@ -116,10 +117,10 @@ void SkeletonPanel::DrawContent(SceneGraph& scene, const gx::Animator* animator)
                     gt[scene.selectedBone]._41,
                     gt[scene.selectedBone]._42,
                     gt[scene.selectedBone]._43, 1.0f);
-                XMMATRIX worldMat = entity->transform.GetWorldMatrix();
+                XMMATRIX worldMat = ToXMMATRIX(entity->transform.GetWorldMatrix());
                 XMVECTOR posWorld = XMVector3Transform(posLocal, worldMat);
-                XMFLOAT3 wp;
-                XMStoreFloat3(&wp, posWorld);
+                gx::Vector3 wp;
+                XMStoreFloat3(XM(&wp), posWorld);
 
                 ImGui::Separator();
                 ImGui::Text("World Position: (%.4f, %.4f, %.4f)", wp.x, wp.y, wp.z);
@@ -127,9 +128,9 @@ void SkeletonPanel::DrawContent(SceneGraph& scene, const gx::Animator* animator)
                 // World transform matrix
                 if (ImGui::CollapsingHeader("World Transform Matrix"))
                 {
-                    XMMATRIX jointWorld = XMLoadFloat4x4(&gt[scene.selectedBone]) * worldMat;
-                    XMFLOAT4X4 mat;
-                    XMStoreFloat4x4(&mat, jointWorld);
+                    XMMATRIX jointWorld = XMLoadFloat4x4(XM(&gt[scene.selectedBone])) * worldMat;
+                    gx::Matrix4x4 mat;
+                    XMStoreFloat4x4(XM(&mat), jointWorld);
                     for (int r = 0; r < 4; ++r)
                     {
                         ImGui::Text("  [%.3f, %.3f, %.3f, %.3f]",
@@ -148,10 +149,10 @@ void SkeletonPanel::DrawContent(SceneGraph& scene, const gx::Animator* animator)
                 if (ImGui::CollapsingHeader("Local Rotation Matrix"))
                 {
                     const auto& q = localPose[scene.selectedBone].rotation;
-                    XMVECTOR quat = XMLoadFloat4(&q);
+                    XMVECTOR quat = XMLoadFloat4(XM(&q));
                     XMMATRIX rotMat = XMMatrixRotationQuaternion(quat);
-                    XMFLOAT4X4 mat;
-                    XMStoreFloat4x4(&mat, rotMat);
+                    gx::Matrix4x4 mat;
+                    XMStoreFloat4x4(XM(&mat), rotMat);
                     for (int r = 0; r < 3; ++r)
                     {
                         ImGui::Text("  [%.4f, %.4f, %.4f]",

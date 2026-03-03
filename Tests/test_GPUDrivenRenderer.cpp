@@ -1,8 +1,10 @@
 /// @file test_GPUDrivenRenderer.cpp
 /// @brief GPU-Driven Renderer completion tests
 
+#include "pch.h"
 #include <gtest/gtest.h>
 #include "Graphics/3D/GPUDrivenRenderer.h"
+#include "Math/MathConvert.h"
 
 using namespace gx;
 
@@ -38,8 +40,8 @@ TEST(GPUDrivenRendererTest, UploadMeshletBoundsNullParams)
 TEST(GPUDrivenRendererTest, CullAndDrawNotReady)
 {
     GPUDrivenRenderer renderer;
-    XMFLOAT4X4 identity;
-    XMStoreFloat4x4(&identity, XMMatrixIdentity());
+    Matrix4x4 identity;
+    XMStoreFloat4x4(XM(&identity), XMMatrixIdentity());
     renderer.CullAndDraw(nullptr, identity, 10);
     EXPECT_EQ(renderer.GetVisibleCount(), 0u);
 }

@@ -32,30 +32,30 @@ static constexpr uint32_t k_BinaryVersion = 1;
 
 // --- バイナリ書き込みヘルパー ---
 
-static void WriteU32(std::vector<uint8_t>& buf, uint32_t value)
+static void WriteU32(gx::Vector<uint8_t>& buf, uint32_t value)
 {
     const uint8_t* p = reinterpret_cast<const uint8_t*>(&value);
     buf.insert(buf.end(), p, p + sizeof(uint32_t));
 }
 
-static void WriteU8(std::vector<uint8_t>& buf, uint8_t value)
+static void WriteU8(gx::Vector<uint8_t>& buf, uint8_t value)
 {
     buf.push_back(value);
 }
 
-static void WriteFloat(std::vector<uint8_t>& buf, float value)
+static void WriteFloat(gx::Vector<uint8_t>& buf, float value)
 {
     const uint8_t* p = reinterpret_cast<const uint8_t*>(&value);
     buf.insert(buf.end(), p, p + sizeof(float));
 }
 
-static void WriteString(std::vector<uint8_t>& buf, const std::string& str)
+static void WriteString(gx::Vector<uint8_t>& buf, const gx::String& str)
 {
     WriteU32(buf, static_cast<uint32_t>(str.size()));
     buf.insert(buf.end(), str.begin(), str.end());
 }
 
-static void WriteBytes(std::vector<uint8_t>& buf, const void* data, size_t size)
+static void WriteBytes(gx::Vector<uint8_t>& buf, const void* data, size_t size)
 {
     const uint8_t* p = reinterpret_cast<const uint8_t*>(data);
     buf.insert(buf.end(), p, p + size);
@@ -95,7 +95,7 @@ struct BinaryReader
         return true;
     }
 
-    bool ReadString(std::string& out)
+    bool ReadString(gx::String& out)
     {
         uint32_t len = 0;
         if (!ReadU32(len)) return false;
@@ -138,10 +138,10 @@ static const TagComponent* FindTagComponent(const Entity& entity)
 // ============================================================================
 
 /// @brief "key: value" 形式の行からキーと値を分離する
-static bool ParseKeyValue(const std::string& line, std::string& key, std::string& value)
+static bool ParseKeyValue(const gx::String& line, gx::String& key, gx::String& value)
 {
     auto pos = line.find(':');
-    if (pos == std::string::npos) return false;
+    if (pos == gx::String::npos) return false;
 
     key = line.substr(0, pos);
     // ':' の直後のスペースをスキップ
@@ -153,22 +153,22 @@ static bool ParseKeyValue(const std::string& line, std::string& key, std::string
 }
 
 /// @brief "key: v1 key2: v2 ..." 形式の行から複数のキー値ペアを抽出する
-static std::unordered_map<std::string, std::string> ParseMultiKeyValue(const std::string& line)
+static gx::HashMap<gx::String, gx::String> ParseMultiKeyValue(const gx::String& line)
 {
-    std::unordered_map<std::string, std::string> result;
-    std::istringstream iss(line);
+    gx::HashMap<gx::String, gx::String> result;
+    std::istringstream iss(line.ToStdString());
     std::string token;
 
     while (iss >> token)
     {
         // "key:" 形式をチェック
-        if (token.back() == ':')
+        if (!token.empty() && token.back() == ':')
         {
-            std::string key = token.substr(0, token.size() - 1);
-            std::string value;
-            if (iss >> value)
+            gx::String key(token.substr(0, token.size() - 1));
+            std::string valueStr;
+            if (iss >> valueStr)
             {
-                result[key] = value;
+                result[key] = gx::String(valueStr);
             }
         }
     }
@@ -179,7 +179,7 @@ static std::unordered_map<std::string, std::string> ParseMultiKeyValue(const std
 // SerializeToString (テキスト形式)
 // ============================================================================
 
-std::string ScenePersistence::SerializeToString(const Scene& scene)
+gx::String ScenePersistence::SerializeToString(const Scene& scene)
 {
     std::ostringstream ss;
 
@@ -231,23 +231,23 @@ std::string ScenePersistence::SerializeToString(const Scene& scene)
 // DeserializeFromString (テキスト形式)
 // ============================================================================
 
-std::unique_ptr<Scene> ScenePersistence::DeserializeFromString(const std::string& data)
+std::unique_ptr<Scene> ScenePersistence::DeserializeFromString(const gx::String& data)
 {
-    std::istringstream iss(data);
-    std::string line;
+    std::istringstream iss(data.ToStdString());
+    gx::String line;
 
     // --- ヘッダー検証 ---
-    if (!std::getline(iss, line)) return nullptr;
+    if (!gx::container::getline(iss, line)) return nullptr;
     // CR を除去（Windows 改行対応）
     if (!line.empty() && line.back() == '\r') line.pop_back();
     if (line != k_TextHeader) return nullptr;
 
     // --- シーン名 ---
-    std::string sceneName = "Untitled";
-    if (std::getline(iss, line))
+    gx::String sceneName = "Untitled";
+    if (gx::container::getline(iss, line))
     {
         if (!line.empty() && line.back() == '\r') line.pop_back();
-        std::string key, value;
+        gx::String key, value;
         if (ParseKeyValue(line, key, value) && key == "scene_name")
         {
             sceneName = value;
@@ -256,39 +256,39 @@ std::unique_ptr<Scene> ScenePersistence::DeserializeFromString(const std::string
 
     // --- エンティティ数 ---
     uint32_t entityCount = 0;
-    if (std::getline(iss, line))
+    if (gx::container::getline(iss, line))
     {
         if (!line.empty() && line.back() == '\r') line.pop_back();
-        std::string key, value;
+        gx::String key, value;
         if (ParseKeyValue(line, key, value) && key == "entity_count")
         {
-            entityCount = static_cast<uint32_t>(std::stoul(value));
+            entityCount = static_cast<uint32_t>(std::stoul(value.ToStdString()));
         }
     }
 
     auto scene = std::make_unique<Scene>(sceneName);
 
     // 旧ID → 新Entity* のマッピング（階層復元用）
-    std::unordered_map<uint32_t, Entity*> idMap;
+    gx::HashMap<uint32_t, Entity*> idMap;
     // 各エンティティの parent_id を記録
-    std::vector<std::pair<Entity*, uint32_t>> parentRelations;
+    gx::Vector<std::pair<Entity*, uint32_t>> parentRelations;
 
     // --- エンティティのパース ---
     // 各エンティティは "---" 区切りで始まる
     struct EntityData
     {
         uint32_t entityId = 0;
-        std::string name = "Entity";
+        gx::String name = "Entity";
         bool active = true;
         uint32_t parentId = 0;
         float px = 0, py = 0, pz = 0;
         float rx = 0, ry = 0, rz = 0;
         float sx = 1, sy = 1, sz = 1;
         bool hasTag = false;
-        std::string tag;
+        gx::String tag;
     };
 
-    std::vector<EntityData> entityDataList;
+    gx::Vector<EntityData> entityDataList;
     EntityData current;
     bool inEntity = false;
 
@@ -301,7 +301,7 @@ std::unique_ptr<Scene> ScenePersistence::DeserializeFromString(const std::string
         }
     };
 
-    while (std::getline(iss, line))
+    while (gx::container::getline(iss, line))
     {
         if (!line.empty() && line.back() == '\r') line.pop_back();
 
@@ -314,36 +314,36 @@ std::unique_ptr<Scene> ScenePersistence::DeserializeFromString(const std::string
 
         if (!inEntity) continue;
 
-        std::string key, value;
+        gx::String key, value;
         if (!ParseKeyValue(line, key, value))
         {
             // 複数キーバリュー行の可能性（px: 0 py: 1 pz: 0）
             auto kvMap = ParseMultiKeyValue(line);
             if (kvMap.count("px"))
             {
-                current.px = std::stof(kvMap["px"]);
-                current.py = std::stof(kvMap["py"]);
-                current.pz = std::stof(kvMap["pz"]);
+                current.px = std::stof(kvMap["px"].ToStdString());
+                current.py = std::stof(kvMap["py"].ToStdString());
+                current.pz = std::stof(kvMap["pz"].ToStdString());
             }
             else if (kvMap.count("rx"))
             {
-                current.rx = std::stof(kvMap["rx"]);
-                current.ry = std::stof(kvMap["ry"]);
-                current.rz = std::stof(kvMap["rz"]);
+                current.rx = std::stof(kvMap["rx"].ToStdString());
+                current.ry = std::stof(kvMap["ry"].ToStdString());
+                current.rz = std::stof(kvMap["rz"].ToStdString());
             }
             else if (kvMap.count("sx"))
             {
-                current.sx = std::stof(kvMap["sx"]);
-                current.sy = std::stof(kvMap["sy"]);
-                current.sz = std::stof(kvMap["sz"]);
+                current.sx = std::stof(kvMap["sx"].ToStdString());
+                current.sy = std::stof(kvMap["sy"].ToStdString());
+                current.sz = std::stof(kvMap["sz"].ToStdString());
             }
             continue;
         }
 
-        if (key == "entity_id") current.entityId = static_cast<uint32_t>(std::stoul(value));
+        if (key == "entity_id") current.entityId = static_cast<uint32_t>(std::stoul(value.ToStdString()));
         else if (key == "name") current.name = value;
         else if (key == "active") current.active = (value == "1" || value == "true");
-        else if (key == "parent_id") current.parentId = static_cast<uint32_t>(std::stoul(value));
+        else if (key == "parent_id") current.parentId = static_cast<uint32_t>(std::stoul(value.ToStdString()));
         else if (key == "tag") { current.hasTag = true; current.tag = value; }
         // 単一キーバリュー行の Transform もパース対象
         // "px: 0 py: 1 pz: 0" は ParseKeyValue で key="px" value="0 py: 1 pz: 0" になる
@@ -354,9 +354,9 @@ std::unique_ptr<Scene> ScenePersistence::DeserializeFromString(const std::string
             auto kvMap = ParseMultiKeyValue(key + ": " + value);
             if (kvMap.count("px"))
             {
-                current.px = std::stof(kvMap["px"]);
-                current.py = std::stof(kvMap.count("py") ? kvMap["py"] : "0");
-                current.pz = std::stof(kvMap.count("pz") ? kvMap["pz"] : "0");
+                current.px = std::stof(kvMap["px"].ToStdString());
+                current.py = std::stof(kvMap.count("py") ? kvMap["py"].ToStdString() : std::string("0"));
+                current.pz = std::stof(kvMap.count("pz") ? kvMap["pz"].ToStdString() : std::string("0"));
             }
         }
         else if (key == "rx")
@@ -364,9 +364,9 @@ std::unique_ptr<Scene> ScenePersistence::DeserializeFromString(const std::string
             auto kvMap = ParseMultiKeyValue(key + ": " + value);
             if (kvMap.count("rx"))
             {
-                current.rx = std::stof(kvMap["rx"]);
-                current.ry = std::stof(kvMap.count("ry") ? kvMap["ry"] : "0");
-                current.rz = std::stof(kvMap.count("rz") ? kvMap["rz"] : "0");
+                current.rx = std::stof(kvMap["rx"].ToStdString());
+                current.ry = std::stof(kvMap.count("ry") ? kvMap["ry"].ToStdString() : std::string("0"));
+                current.rz = std::stof(kvMap.count("rz") ? kvMap["rz"].ToStdString() : std::string("0"));
             }
         }
         else if (key == "sx")
@@ -374,9 +374,9 @@ std::unique_ptr<Scene> ScenePersistence::DeserializeFromString(const std::string
             auto kvMap = ParseMultiKeyValue(key + ": " + value);
             if (kvMap.count("sx"))
             {
-                current.sx = std::stof(kvMap["sx"]);
-                current.sy = std::stof(kvMap.count("sy") ? kvMap["sy"] : "1");
-                current.sz = std::stof(kvMap.count("sz") ? kvMap["sz"] : "1");
+                current.sx = std::stof(kvMap["sx"].ToStdString());
+                current.sy = std::stof(kvMap.count("sy") ? kvMap["sy"].ToStdString() : std::string("1"));
+                current.sz = std::stof(kvMap.count("sz") ? kvMap["sz"].ToStdString() : std::string("1"));
             }
         }
     }
@@ -427,9 +427,9 @@ std::unique_ptr<Scene> ScenePersistence::DeserializeFromString(const std::string
 // SerializeToBinary (バイナリ形式)
 // ============================================================================
 
-std::vector<uint8_t> ScenePersistence::SerializeToBinary(const Scene& scene)
+gx::Vector<uint8_t> ScenePersistence::SerializeToBinary(const Scene& scene)
 {
-    std::vector<uint8_t> buf;
+    gx::Vector<uint8_t> buf;
     buf.reserve(4096);
 
     // マジック（8 bytes）
@@ -504,7 +504,7 @@ std::vector<uint8_t> ScenePersistence::SerializeToBinary(const Scene& scene)
 // DeserializeFromBinary (バイナリ形式)
 // ============================================================================
 
-std::unique_ptr<Scene> ScenePersistence::DeserializeFromBinary(const std::vector<uint8_t>& data)
+std::unique_ptr<Scene> ScenePersistence::DeserializeFromBinary(const gx::Vector<uint8_t>& data)
 {
     BinaryReader reader{ data.data(), data.size(), 0 };
 
@@ -519,7 +519,7 @@ std::unique_ptr<Scene> ScenePersistence::DeserializeFromBinary(const std::vector
     if (version != k_BinaryVersion) return nullptr;
 
     // --- シーン名 ---
-    std::string sceneName;
+    gx::String sceneName;
     if (!reader.ReadString(sceneName)) return nullptr;
 
     // --- エンティティ数 ---
@@ -529,8 +529,8 @@ std::unique_ptr<Scene> ScenePersistence::DeserializeFromBinary(const std::vector
     auto scene = std::make_unique<Scene>(sceneName);
 
     // 旧ID → 新Entity* のマッピング
-    std::unordered_map<uint32_t, Entity*> idMap;
-    std::vector<std::pair<Entity*, uint32_t>> parentRelations;
+    gx::HashMap<uint32_t, Entity*> idMap;
+    gx::Vector<std::pair<Entity*, uint32_t>> parentRelations;
 
     // --- パス1: エンティティ読み取り＆作成 ---
     for (uint32_t i = 0; i < entityCount; ++i)
@@ -540,7 +540,7 @@ std::unique_ptr<Scene> ScenePersistence::DeserializeFromBinary(const std::vector
         if (!reader.ReadU32(entityId)) return nullptr;
 
         // name
-        std::string name;
+        gx::String name;
         if (!reader.ReadString(name)) return nullptr;
 
         // active
@@ -573,7 +573,7 @@ std::unique_ptr<Scene> ScenePersistence::DeserializeFromBinary(const std::vector
         uint8_t hasTag = 0;
         if (!reader.ReadU8(hasTag)) return nullptr;
 
-        std::string tag;
+        gx::String tag;
         if (hasTag)
         {
             if (!reader.ReadString(tag)) return nullptr;
@@ -616,13 +616,13 @@ std::unique_ptr<Scene> ScenePersistence::DeserializeFromBinary(const std::vector
 // SaveToFile / LoadFromFile
 // ============================================================================
 
-bool ScenePersistence::SaveToFile(const Scene& scene, const std::string& path, SceneFileFormat format)
+bool ScenePersistence::SaveToFile(const Scene& scene, const gx::String& path, SceneFileFormat format)
 {
     if (format == SceneFileFormat::Text)
     {
-        std::string text = SerializeToString(scene);
+        gx::String text = SerializeToString(scene);
 
-        std::ofstream file(path, std::ios::out);
+        std::ofstream file(path.c_str(), std::ios::out);
         if (!file.is_open()) return false;
 
         file << text;
@@ -632,7 +632,7 @@ bool ScenePersistence::SaveToFile(const Scene& scene, const std::string& path, S
     {
         auto bin = SerializeToBinary(scene);
 
-        std::ofstream file(path, std::ios::out | std::ios::binary);
+        std::ofstream file(path.c_str(), std::ios::out | std::ios::binary);
         if (!file.is_open()) return false;
 
         file.write(reinterpret_cast<const char*>(bin.data()), static_cast<std::streamsize>(bin.size()));
@@ -640,26 +640,26 @@ bool ScenePersistence::SaveToFile(const Scene& scene, const std::string& path, S
     }
 }
 
-std::unique_ptr<Scene> ScenePersistence::LoadFromFile(const std::string& path, SceneFileFormat format)
+std::unique_ptr<Scene> ScenePersistence::LoadFromFile(const gx::String& path, SceneFileFormat format)
 {
     if (format == SceneFileFormat::Text)
     {
-        std::ifstream file(path, std::ios::in);
+        std::ifstream file(path.c_str(), std::ios::in);
         if (!file.is_open()) return nullptr;
 
         std::ostringstream ss;
         ss << file.rdbuf();
-        return DeserializeFromString(ss.str());
+        return DeserializeFromString(gx::String(ss.str()));
     }
     else // Binary
     {
-        std::ifstream file(path, std::ios::in | std::ios::binary | std::ios::ate);
+        std::ifstream file(path.c_str(), std::ios::in | std::ios::binary | std::ios::ate);
         if (!file.is_open()) return nullptr;
 
         auto size = file.tellg();
         file.seekg(0, std::ios::beg);
 
-        std::vector<uint8_t> buf(static_cast<size_t>(size));
+        gx::Vector<uint8_t> buf(static_cast<size_t>(size));
         file.read(reinterpret_cast<char*>(buf.data()), size);
         if (!file.good()) return nullptr;
 

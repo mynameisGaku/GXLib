@@ -73,7 +73,7 @@ bool AudioMixer::Initialize(AudioDevice& device)
     return true;
 }
 
-AudioBus* AudioMixer::CreateBus(const std::string& name)
+AudioBus* AudioMixer::CreateBus(const gx::String& name)
 {
     // AudioBusの初期化にはXAudio2エンジンが必要なので、
     // マスターバスが初期化済みであることを前提とする。
@@ -85,7 +85,7 @@ AudioBus* AudioMixer::CreateBus(const std::string& name)
     return m_customBuses.back().get();
 }
 
-AudioBus* AudioMixer::GetBusByName(const std::string& name)
+AudioBus* AudioMixer::GetBusByName(const gx::String& name)
 {
     if (name == "Master") return &m_masterBus;
     if (name == "BGM")    return &m_bgmBus;

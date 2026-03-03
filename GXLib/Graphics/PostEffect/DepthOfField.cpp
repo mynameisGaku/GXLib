@@ -10,6 +10,7 @@
 /// 合成パスでは3テクスチャを使うため、専用の3スロットSRVヒープを使用
 /// (D3D12はSetDescriptorHeaps時に1つのCBV_SRV_UAVヒープしかバインドできない)
 #include "pch_graphics.h"
+#include "Math/MathConvert.h"
 #include "Graphics/PostEffect/DepthOfField.h"
 #include "Graphics/Pipeline/ShaderLibrary.h"
 #include "Graphics/Pipeline/RootSignature.h"
@@ -241,7 +242,7 @@ void DepthOfField::Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameInd
     scHalf.bottom = static_cast<LONG>(halfH);
 
     // 射影行列の逆行列
-    XMMATRIX proj = camera.GetProjectionMatrix();
+    XMMATRIX proj = ToXMMATRIX(camera.GetProjectionMatrix());
     XMMATRIX invProj = XMMatrixInverse(nullptr, proj);
 
     // ================================================================
@@ -264,7 +265,7 @@ void DepthOfField::Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameInd
     cmdList->SetDescriptorHeaps(1, depthHeaps);
 
     DoFCoCConstants cocConst = {};
-    XMStoreFloat4x4(&cocConst.invProjection, XMMatrixTranspose(invProj));
+    XMStoreFloat4x4(XM(&cocConst.invProjection), XMMatrixTranspose(invProj));
     cocConst.focalDistance = m_focalDistance;
     cocConst.focalRange    = m_focalRange;
     cocConst.cocScale      = m_bokehRadius;

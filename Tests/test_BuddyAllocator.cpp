@@ -49,7 +49,7 @@ TEST(BuddyAllocatorTest, BuddyMerge) {
 TEST(BuddyAllocatorTest, MultipleAllocations) {
     BuddyAllocator alloc;
     alloc.Initialize(1024, 16);
-    std::vector<size_t> offsets;
+    gx::Vector<size_t> offsets;
     // Allocate several blocks
     for (int i = 0; i < 8; i++) {
         size_t off = alloc.Allocate(16);
@@ -107,7 +107,7 @@ TEST(BuddyAllocatorTest, Reset) {
 TEST(BuddyAllocatorTest, StressTest) {
     BuddyAllocator alloc;
     alloc.Initialize(65536, 16);
-    std::vector<size_t> offsets;
+    gx::Vector<size_t> offsets;
 
     // Allocate many blocks
     for (int i = 0; i < 100; i++) {
@@ -117,8 +117,8 @@ TEST(BuddyAllocatorTest, StressTest) {
     }
 
     // Free all in reverse order
-    for (auto rit = offsets.rbegin(); rit != offsets.rend(); ++rit) {
-        alloc.Free(*rit);
+    for (size_t i = offsets.size(); i > 0; --i) {
+        alloc.Free(offsets[i - 1]);
     }
 
     EXPECT_EQ(alloc.GetAllocationCount(), 0u);

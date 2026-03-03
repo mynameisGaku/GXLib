@@ -11,8 +11,8 @@ class TransformChangeCommand : public ICommand
 {
 public:
     TransformChangeCommand(SceneGraph& scene, int entityIdx,
-                           const XMFLOAT3& oldPos, const XMFLOAT3& oldRot, const XMFLOAT3& oldScale,
-                           const XMFLOAT3& newPos, const XMFLOAT3& newRot, const XMFLOAT3& newScale)
+                           const gx::Vector3& oldPos, const gx::Vector3& oldRot, const gx::Vector3& oldScale,
+                           const gx::Vector3& newPos, const gx::Vector3& newRot, const gx::Vector3& newScale)
         : m_scene(scene), m_entityIdx(entityIdx)
         , m_oldPos(oldPos), m_oldRot(oldRot), m_oldScale(oldScale)
         , m_newPos(newPos), m_newRot(newRot), m_newScale(newScale)
@@ -41,8 +41,8 @@ public:
 private:
     SceneGraph& m_scene;        ///< 対象シーングラフ
     int m_entityIdx;             ///< 対象エンティティインデックス
-    XMFLOAT3 m_oldPos, m_oldRot, m_oldScale;  ///< 変更前のTransform（位置/回転/スケール）
-    XMFLOAT3 m_newPos, m_newRot, m_newScale;  ///< 変更後のTransform（位置/回転/スケール）
+    gx::Vector3 m_oldPos, m_oldRot, m_oldScale;  ///< 変更前のTransform（位置/回転/スケール）
+    gx::Vector3 m_newPos, m_newRot, m_newScale;  ///< 変更後のTransform（位置/回転/スケール）
 };
 
 /// @brief エンティティ追加コマンド（Execute で追加、Undo で削除）

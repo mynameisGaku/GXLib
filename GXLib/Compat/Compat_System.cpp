@@ -7,6 +7,8 @@
 
 using Ctx = gx_internal::CompatContext;
 
+namespace gx {
+
 int GX_Init()
 {
     return Ctx::Instance().Initialize() ? 0 : -1;
@@ -111,20 +113,30 @@ int SetBackgroundColor(int r, int g, int b)
 // ============================================================================
 // ポストエフェクト制御
 // ============================================================================
-void SetPostFXMask(gx::PostFXFlag mask)
+void SetPostFXMask(PostFXFlag mask)
 {
     Ctx::Instance().postFXMask = mask;
 }
 
 void SetPostFXEnabled(bool enabled)
 {
-    Ctx::Instance().postFXMask = enabled ? gx::PostFXFlag::All : gx::PostFXFlag::None;
+    Ctx::Instance().postFXMask = enabled ? PostFXFlag::All : PostFXFlag::None;
+}
+
+// ============================================================================
+// デバッグオーバーレイ
+// ============================================================================
+void ToggleDebugOverlay()
+{
+    Ctx::Instance().debugOverlay.Toggle();
 }
 
 // ============================================================================
 // 中級者向け — 描画パイプラインアクセス
 // ============================================================================
-gx::Renderer3D&         GetRenderer3D()     { return Ctx::Instance().renderer3D; }
-gx::Camera3D&           GetCamera3D()       { return Ctx::Instance().camera; }
-gx::PostEffectPipeline& GetPostEffects()    { return Ctx::Instance().postEffect; }
-gx::InputManager&       GetInputManager()   { return Ctx::Instance().inputManager; }
+Renderer3D&         GetRenderer3D()     { return Ctx::Instance().renderer3D; }
+Camera3D&           GetCamera3D()       { return Ctx::Instance().camera; }
+PostEffectPipeline& GetPostEffects()    { return Ctx::Instance().postEffect; }
+InputManager&       GetInputManager()   { return Ctx::Instance().inputManager; }
+
+} // namespace gx

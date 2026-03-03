@@ -18,11 +18,11 @@ bool SoftImage::Create(uint32_t width, uint32_t height)
     return true;
 }
 
-bool SoftImage::LoadFromFile(const std::wstring& filePath)
+bool SoftImage::LoadFromFile(const gx::WString& filePath)
 {
     // stb_imageはchar*パスのみ対応
     int pathLen = WideCharToMultiByte(CP_UTF8, 0, filePath.c_str(), -1, nullptr, 0, nullptr, nullptr);
-    std::string pathUtf8(pathLen - 1, '\0');
+    gx::String pathUtf8(pathLen - 1, '\0');
     WideCharToMultiByte(CP_UTF8, 0, filePath.c_str(), -1, pathUtf8.data(), pathLen, nullptr, nullptr);
 
     int width, height, channels;

@@ -5,17 +5,17 @@
 
 namespace gx {
 
-bool ArchiveFileProvider::Open(const std::string& archivePath, const std::string& password)
+bool ArchiveFileProvider::Open(const gx::String& archivePath, const gx::String& password)
 {
     return m_archive.Open(archivePath, password);
 }
 
-bool ArchiveFileProvider::Exists(const std::string& path) const
+bool ArchiveFileProvider::Exists(const gx::String& path) const
 {
     return m_archive.Contains(path);
 }
 
-FileData ArchiveFileProvider::Read(const std::string& path) const
+FileData ArchiveFileProvider::Read(const gx::String& path) const
 {
     return m_archive.Read(path);
 }

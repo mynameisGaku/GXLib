@@ -10,7 +10,7 @@
 namespace gx
 {
 
-void FullBodyIK::SetupChain(IKChainId id, const std::vector<int>& boneIndices)
+void FullBodyIK::SetupChain(IKChainId id, const gx::Vector<int>& boneIndices)
 {
     FullBodyIKChain chain;
     chain.id = id;
@@ -24,14 +24,14 @@ bool FullBodyIK::HasChain(IKChainId id) const
     return m_chains.find(id) != m_chains.end();
 }
 
-void FullBodyIK::SetTarget(IKChainId id, const DirectX::XMFLOAT3& target)
+void FullBodyIK::SetTarget(IKChainId id, const Vector3& target)
 {
     auto it = m_chains.find(id);
     if (it != m_chains.end())
         it->second.target = target;
 }
 
-DirectX::XMFLOAT3 FullBodyIK::GetTarget(IKChainId id) const
+Vector3 FullBodyIK::GetTarget(IKChainId id) const
 {
     auto it = m_chains.find(id);
     if (it != m_chains.end())
@@ -73,7 +73,7 @@ JointConstraint FullBodyIK::GetConstraint(IKChainId chainId, uint32_t jointIndex
     return {};
 }
 
-void FullBodyIK::SetLookAtTarget(const DirectX::XMFLOAT3& target)
+void FullBodyIK::SetLookAtTarget(const Vector3& target)
 {
     m_lookAtTarget = target;
     m_hasLookAt = true;
@@ -101,10 +101,10 @@ void FullBodyIK::Solve()
     }
 }
 
-std::vector<IKChainId> FullBodyIK::GetSolveOrder() const
+gx::Vector<IKChainId> FullBodyIK::GetSolveOrder() const
 {
     // Spine -> Legs -> Arms (anatomically correct solve order)
-    std::vector<IKChainId> order;
+    gx::Vector<IKChainId> order;
     if (m_chains.count(IKChainId::Spine))    order.push_back(IKChainId::Spine);
     if (m_chains.count(IKChainId::LeftLeg))  order.push_back(IKChainId::LeftLeg);
     if (m_chains.count(IKChainId::RightLeg)) order.push_back(IKChainId::RightLeg);

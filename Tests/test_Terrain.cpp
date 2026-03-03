@@ -65,7 +65,7 @@ TEST_F(TerrainTest, GetHeightMultiplePoints)
 TEST_F(TerrainTest, CreateFromHeightmap)
 {
     // Create a flat heightmap (all zeros)
-    std::vector<float> heights(9, 0.0f); // 3x3
+    gx::Vector<float> heights(9, 0.0f); // 3x3
     bool ok = terrain.CreateFromHeightmap(nullptr, heights.data(), 3, 3,
                                           30.0f, 30.0f, 10.0f);
     EXPECT_TRUE(ok);

@@ -7,6 +7,8 @@
 #include "Core/Logger.h"
 #include "Core/CrashReporter.h"
 #include "Audio/IAudioDevice.h"
+#include "Graphics/RenderProfile.h"
+#include "Graphics/QualitySettings.h"
 
 namespace gx_internal
 {
@@ -125,7 +127,8 @@ bool CompatContext::Initialize()
         return false;
     }
 
-    // PostEffectPipeline
+    // PostEffectPipeline (GraphicsDevice を先にセット)
+    postEffect.SetGraphicsDevice(&graphicsDevice);
     if (!postEffect.Initialize(device, screenWidth, screenHeight))
     {
         GX_LOG_ERROR("CompatContext: Failed to initialize PostEffectPipeline");
@@ -135,6 +138,22 @@ bool CompatContext::Initialize()
     // カメラ初期設定
     float aspect = static_cast<float>(screenWidth) / static_cast<float>(screenHeight);
     camera.SetPerspective(XM_PIDIV4, aspect, 0.1f, 1000.0f);
+
+    // 描画設定を適用
+    auto defaultProfile = gx::RenderProfile::CreateDefault();
+    defaultProfile.Apply(postEffect, &renderer3D);
+
+    // GPU能力に応じた品質自動調整
+    auto detectedLevel = gx::QualitySettings::AutoDetect(graphicsDevice);
+    qualitySettings.SetQualityLevel(detectedLevel);
+    qualitySettings.Apply(postEffect);
+    GX_LOG_INFO("CompatContext: Auto quality=%d, VRAM=%llu MB, RT=%s",
+                static_cast<int>(detectedLevel),
+                static_cast<unsigned long long>(graphicsDevice.GetDedicatedVRAM() / (1024 * 1024)),
+                graphicsDevice.SupportsRaytracing() ? "yes" : "no");
+
+    // ImGui 初期化（デバッグオーバーレイ用）
+    imguiManager.Initialize(device, commandQueue.GetQueue(), app.GetWindow());
 
     // ServiceLocator にサービスを登録
     // 各サブシステムの所有権は CompatContext が持つため、カスタムデリータで非所有参照を登録
@@ -155,6 +174,7 @@ void CompatContext::Shutdown()
 
     commandQueue.Flush();
 
+    imguiManager.Shutdown();
     audioManager.Shutdown();
     fontManager.Shutdown();
     app.Shutdown();
@@ -259,6 +279,9 @@ void CompatContext::BeginFrame()
     cmdList->RSSetScissorRects(1, &scissor);
 
     frameActive = true;
+
+    // ImGui フレーム開始（overlay 非表示時もゼロコスト）
+    imguiManager.BeginFrame();
 }
 
 // DxLibのScreenFlip相当。バッチのフラッシュ→バリア遷移→コマンド実行→Present。
@@ -266,7 +289,21 @@ void CompatContext::EndFrame()
 {
     if (!frameActive) return;
 
+    // デバッグオーバーレイ（ユーザー描画の上に最後に重ねる）
     FlushAll();
+    {
+        gx::DebugOverlayContext dctx{};
+        dctx.renderer3D   = &renderer3D;
+        dctx.postEffect   = &postEffect;
+        dctx.audioManager = &audioManager;
+        dctx.quality      = &qualitySettings;
+        dctx.deltaTime    = app.GetTimer().GetDeltaTime();
+        dctx.fps          = app.GetTimer().GetFPS();
+        dctx.screenWidth  = screenWidth;
+        dctx.screenHeight = screenHeight;
+        debugOverlay.Draw(dctx);
+    }
+    imguiManager.EndFrame(cmdList);
 
     // バックバッファをPresent状態に遷移
     D3D12_RESOURCE_BARRIER presentBarrier = {};

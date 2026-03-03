@@ -56,15 +56,15 @@ TEST(CloudSaveTest, SaveToCloud) {
     CloudSaveManager mgr;
     mgr.Connect();
 
-    std::vector<uint8_t> data = {1, 2, 3, 4, 5};
-    std::unordered_map<std::string, std::string> meta = {{"level", "5"}};
+    gx::Vector<uint8_t> data = {1, 2, 3, 4, 5};
+    gx::HashMap<gx::String, gx::String> meta = {{"level", "5"}};
     EXPECT_TRUE(mgr.SaveToCloud("slot1", data, meta));
     EXPECT_TRUE(mgr.HasCloudSave("slot1"));
 }
 
 TEST(CloudSaveTest, SaveToCloudDisconnected) {
     CloudSaveManager mgr;
-    std::vector<uint8_t> data = {1, 2, 3};
+    gx::Vector<uint8_t> data = {1, 2, 3};
     EXPECT_FALSE(mgr.SaveToCloud("slot1", data));
 }
 
@@ -72,7 +72,7 @@ TEST(CloudSaveTest, LoadFromCloud) {
     CloudSaveManager mgr;
     mgr.Connect();
 
-    std::vector<uint8_t> data = {10, 20, 30, 40};
+    gx::Vector<uint8_t> data = {10, 20, 30, 40};
     mgr.SaveToCloud("save1", data);
 
     auto slot = mgr.LoadFromCloud("save1");
@@ -96,7 +96,7 @@ TEST(CloudSaveTest, DeleteCloudSave) {
     CloudSaveManager mgr;
     mgr.Connect();
 
-    std::vector<uint8_t> data = {1};
+    gx::Vector<uint8_t> data = {1};
     mgr.SaveToCloud("todelete", data);
     EXPECT_TRUE(mgr.HasCloudSave("todelete"));
 
@@ -125,7 +125,7 @@ TEST(CloudSaveTest, GetCloudSlots) {
     EXPECT_EQ(slots.size(), 3u);
 
     // 全スロットが含まれることを確認
-    auto contains = [&](const std::string& name) {
+    auto contains = [&](const gx::String& name) {
         return std::find(slots.begin(), slots.end(), name) != slots.end();
     };
     EXPECT_TRUE(contains("alpha"));
@@ -137,7 +137,7 @@ TEST(CloudSaveTest, SlotInfo) {
     CloudSaveManager mgr;
     mgr.Connect();
 
-    std::unordered_map<std::string, std::string> meta = {{"chapter", "3"}};
+    gx::HashMap<gx::String, gx::String> meta = {{"chapter", "3"}};
     mgr.SaveToCloud("info_test", {1, 2, 3, 4, 5}, meta);
 
     auto info = mgr.GetSlotInfo("info_test");
@@ -263,7 +263,7 @@ TEST(CloudSaveTest, GetPlayerRank) {
     mgr.SubmitScore("ranked", 500, "Second");
     mgr.SubmitScore("ranked", 300, "Third");
 
-    uint64_t secondId = std::hash<std::string>{}("Second");
+    uint64_t secondId = std::hash<gx::String>{}("Second");
     auto entry = mgr.GetPlayerRank("ranked", secondId);
     EXPECT_EQ(entry.playerName, "Second");
     EXPECT_EQ(entry.rank, 1u); // Highest score = rank 1 (descending)
@@ -322,7 +322,7 @@ TEST(CloudSaveTest, GetAroundPlayer) {
     mgr.SubmitScore("around", 400, "P4");
     mgr.SubmitScore("around", 500, "P5");
 
-    uint64_t p3Id = std::hash<std::string>{}("P3");
+    uint64_t p3Id = std::hash<gx::String>{}("P3");
     auto around = mgr.GetAroundPlayer("around", p3Id, 3);
     ASSERT_GE(around.size(), 2u);
     // P3は300点でdescending順: P5(500), P4(400), P3(300), P2(200), P1(100)
@@ -346,7 +346,7 @@ TEST(CloudSaveTest, UpdateSync) {
 TEST(CloudSaveTest, OfflineQueue) {
     CloudSaveManager mgr;
     // 未接続でのセーブ失敗を確認
-    std::vector<uint8_t> data = {1, 2, 3};
+    gx::Vector<uint8_t> data = {1, 2, 3};
     EXPECT_FALSE(mgr.SaveToCloud("offline", data));
 
     // 接続後にセーブ成功
@@ -359,8 +359,8 @@ TEST(CloudSaveTest, SaveAndLoadRoundTrip) {
     mgr.Connect();
 
     // 保存
-    std::vector<uint8_t> originalData = {0xDE, 0xAD, 0xBE, 0xEF, 0x42};
-    std::unordered_map<std::string, std::string> meta = {
+    gx::Vector<uint8_t> originalData = {0xDE, 0xAD, 0xBE, 0xEF, 0x42};
+    gx::HashMap<gx::String, gx::String> meta = {
         {"game", "TestGame"},
         {"version", "1.0"}
     };

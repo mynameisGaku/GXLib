@@ -7,6 +7,7 @@
 #include <chrono>
 #include <cstring>
 #include <algorithm>
+#include <mutex>
 
 namespace gx
 {
@@ -18,10 +19,9 @@ namespace gx
 const uint32_t* SaveVersionManager::GetCRC32Table()
 {
     static uint32_t table[256] = {};
-    static bool initialized = false;
+    static std::once_flag s_crcOnce;
 
-    if (!initialized)
-    {
+    std::call_once(s_crcOnce, [&]() {
         for (uint32_t i = 0; i < 256; ++i)
         {
             uint32_t crc = i;
@@ -34,8 +34,7 @@ const uint32_t* SaveVersionManager::GetCRC32Table()
             }
             table[i] = crc;
         }
-        initialized = true;
-    }
+    });
 
     return table;
 }
@@ -58,7 +57,7 @@ uint32_t SaveVersionManager::ComputeChecksum(const uint8_t* data, size_t size)
     return crc ^ 0xFFFFFFFFu;
 }
 
-bool SaveVersionManager::VerifyChecksum(const SaveFormatHeader& header, const std::vector<uint8_t>& data) const
+bool SaveVersionManager::VerifyChecksum(const SaveFormatHeader& header, const gx::Vector<uint8_t>& data) const
 {
     // data はヘッダー後のペイロード
     if (data.empty())
@@ -72,8 +71,8 @@ bool SaveVersionManager::VerifyChecksum(const SaveFormatHeader& header, const st
 // マイグレーション登録
 // ============================================================================
 
-void SaveVersionManager::RegisterMigration(uint32_t from, uint32_t to, const std::string& description,
-                                            std::function<bool(std::vector<uint8_t>&)> fn)
+void SaveVersionManager::RegisterMigration(uint32_t from, uint32_t to, const gx::String& description,
+                                            std::function<bool(gx::Vector<uint8_t>&)> fn)
 {
     MigrationStep step;
     step.fromVersion  = from;
@@ -90,7 +89,7 @@ void SaveVersionManager::RegisterMigration(uint32_t from, uint32_t to, const std
 // ヘッダー書き込み / 読み取り
 // ============================================================================
 
-void SaveVersionManager::WriteHeader(std::vector<uint8_t>& data, uint32_t version, uint32_t flags)
+void SaveVersionManager::WriteHeader(gx::Vector<uint8_t>& data, uint32_t version, uint32_t flags)
 {
     if (version == 0)
         version = m_currentVersion;
@@ -117,13 +116,13 @@ void SaveVersionManager::WriteHeader(std::vector<uint8_t>& data, uint32_t versio
     header.dataSize     = static_cast<uint32_t>(data.size());
 
     // ヘッダーをデータの先頭にプリペンド
-    std::vector<uint8_t> headerBytes(k_HeaderSize);
+    gx::Vector<uint8_t> headerBytes(k_HeaderSize);
     std::memcpy(headerBytes.data(), &header, k_HeaderSize);
 
     data.insert(data.begin(), headerBytes.begin(), headerBytes.end());
 }
 
-bool SaveVersionManager::ReadHeader(const std::vector<uint8_t>& data, SaveFormatHeader& outHeader) const
+bool SaveVersionManager::ReadHeader(const gx::Vector<uint8_t>& data, SaveFormatHeader& outHeader) const
 {
     if (data.size() < k_HeaderSize)
         return false;
@@ -194,7 +193,7 @@ bool SaveVersionManager::CanMigrate(uint32_t fromVersion) const
     return true;
 }
 
-bool SaveVersionManager::Migrate(std::vector<uint8_t>& data)
+bool SaveVersionManager::Migrate(gx::Vector<uint8_t>& data)
 {
     // ヘッダー読み取り
     SaveFormatHeader header;
@@ -211,7 +210,7 @@ bool SaveVersionManager::Migrate(std::vector<uint8_t>& data)
         return true; // マイグレーション不要
 
     // ペイロード部分を抽出
-    std::vector<uint8_t> payload(data.begin() + k_HeaderSize, data.end());
+    gx::Vector<uint8_t> payload(data.begin() + k_HeaderSize, data.end());
 
     uint32_t currentVer = header.version;
 

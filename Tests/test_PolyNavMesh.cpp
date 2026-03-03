@@ -15,7 +15,7 @@ static constexpr float kEps = 1e-3f;
 // (0,0,1) -- (1,0,1)
 // 三角形0: (0,0,0),(1,0,0),(0,0,1)
 // 三角形1: (1,0,0),(1,0,1),(0,0,1)
-static void BuildSimpleQuad(std::vector<float>& verts, std::vector<uint32_t>& indices)
+static void BuildSimpleQuad(gx::Vector<float>& verts, gx::Vector<uint32_t>& indices)
 {
     verts = {
         0.0f, 0.0f, 0.0f,  // v0
@@ -30,7 +30,7 @@ static void BuildSimpleQuad(std::vector<float>& verts, std::vector<uint32_t>& in
 }
 
 // 10x10グリッドメッシュを構築するヘルパー
-static void BuildGrid(int gridSize, std::vector<float>& verts, std::vector<uint32_t>& indices)
+static void BuildGrid(int gridSize, gx::Vector<float>& verts, gx::Vector<uint32_t>& indices)
 {
     verts.clear();
     indices.clear();
@@ -70,8 +70,8 @@ static void BuildGrid(int gridSize, std::vector<float>& verts, std::vector<uint3
 
 TEST(PolyNavMeshTest, Build_SimpleQuad)
 {
-    std::vector<float> verts;
-    std::vector<uint32_t> indices;
+    gx::Vector<float> verts;
+    gx::Vector<uint32_t> indices;
     BuildSimpleQuad(verts, indices);
 
     PolyNavMesh mesh;
@@ -99,8 +99,8 @@ TEST(PolyNavMeshTest, Build_InvalidIndexCount)
 
 TEST(PolyNavMeshTest, Adjacency_SharedEdge)
 {
-    std::vector<float> verts;
-    std::vector<uint32_t> indices;
+    gx::Vector<float> verts;
+    gx::Vector<uint32_t> indices;
     BuildSimpleQuad(verts, indices);
 
     PolyNavMesh mesh;
@@ -146,8 +146,8 @@ TEST(PolyNavMeshTest, Adjacency_NoNeighborForSingleTriangle)
 
 TEST(PolyNavMeshTest, PointInMesh_InsideReturnsTrue)
 {
-    std::vector<float> verts;
-    std::vector<uint32_t> indices;
+    gx::Vector<float> verts;
+    gx::Vector<uint32_t> indices;
     BuildSimpleQuad(verts, indices);
 
     PolyNavMesh mesh;
@@ -159,8 +159,8 @@ TEST(PolyNavMeshTest, PointInMesh_InsideReturnsTrue)
 
 TEST(PolyNavMeshTest, PointInMesh_OutsideReturnsFalse)
 {
-    std::vector<float> verts;
-    std::vector<uint32_t> indices;
+    gx::Vector<float> verts;
+    gx::Vector<uint32_t> indices;
     BuildSimpleQuad(verts, indices);
 
     PolyNavMesh mesh;
@@ -180,8 +180,8 @@ TEST(PolyNavMeshTest, PointInMesh_EmptyMesh)
 
 TEST(PolyNavMeshTest, FindNearest_InsideReturnsCorrectPoly)
 {
-    std::vector<float> verts;
-    std::vector<uint32_t> indices;
+    gx::Vector<float> verts;
+    gx::Vector<uint32_t> indices;
     BuildSimpleQuad(verts, indices);
 
     PolyNavMesh mesh;
@@ -194,8 +194,8 @@ TEST(PolyNavMeshTest, FindNearest_InsideReturnsCorrectPoly)
 
 TEST(PolyNavMeshTest, FindNearest_OutsideReturnsClosest)
 {
-    std::vector<float> verts;
-    std::vector<uint32_t> indices;
+    gx::Vector<float> verts;
+    gx::Vector<uint32_t> indices;
     BuildSimpleQuad(verts, indices);
 
     PolyNavMesh mesh;
@@ -215,8 +215,8 @@ TEST(PolyNavMeshTest, FindNearest_EmptyMesh)
 
 TEST(PolyNavMeshTest, FindPath_SameTriangle)
 {
-    std::vector<float> verts;
-    std::vector<uint32_t> indices;
+    gx::Vector<float> verts;
+    gx::Vector<uint32_t> indices;
     BuildSimpleQuad(verts, indices);
 
     PolyNavMesh mesh;
@@ -228,8 +228,8 @@ TEST(PolyNavMeshTest, FindPath_SameTriangle)
 
 TEST(PolyNavMeshTest, FindPath_AcrossTriangles)
 {
-    std::vector<float> verts;
-    std::vector<uint32_t> indices;
+    gx::Vector<float> verts;
+    gx::Vector<uint32_t> indices;
     BuildSimpleQuad(verts, indices);
 
     PolyNavMesh mesh;
@@ -254,8 +254,8 @@ TEST(PolyNavMeshTest, FindPath_EmptyMesh)
 
 TEST(PolyNavMeshTest, FindPath_GridMesh)
 {
-    std::vector<float> verts;
-    std::vector<uint32_t> indices;
+    gx::Vector<float> verts;
+    gx::Vector<uint32_t> indices;
     BuildGrid(5, verts, indices);
 
     PolyNavMesh mesh;
@@ -270,8 +270,8 @@ TEST(PolyNavMeshTest, FindPath_GridMesh)
 
 TEST(PolyNavMeshTest, FunnelSmoothing_PathNotLongerThanCentroid)
 {
-    std::vector<float> verts;
-    std::vector<uint32_t> indices;
+    gx::Vector<float> verts;
+    gx::Vector<uint32_t> indices;
     BuildGrid(5, verts, indices);
 
     PolyNavMesh mesh;
@@ -377,8 +377,8 @@ TEST(PolyNavMeshTest, GetTriangle_InvalidIndex)
 
 TEST(PolyNavMeshTest, LargeGrid_PathfindingSucceeds)
 {
-    std::vector<float> verts;
-    std::vector<uint32_t> indices;
+    gx::Vector<float> verts;
+    gx::Vector<uint32_t> indices;
     BuildGrid(10, verts, indices);
 
     PolyNavMesh mesh;
@@ -393,8 +393,8 @@ TEST(PolyNavMeshTest, LargeGrid_PathfindingSucceeds)
 
 TEST(PolyNavMeshTest, LargeGrid_PointInMesh)
 {
-    std::vector<float> verts;
-    std::vector<uint32_t> indices;
+    gx::Vector<float> verts;
+    gx::Vector<uint32_t> indices;
     BuildGrid(10, verts, indices);
 
     PolyNavMesh mesh;
@@ -409,8 +409,8 @@ TEST(PolyNavMeshTest, LargeGrid_PointInMesh)
 
 TEST(PolyNavMeshTest, Clear_ResetsState)
 {
-    std::vector<float> verts;
-    std::vector<uint32_t> indices;
+    gx::Vector<float> verts;
+    gx::Vector<uint32_t> indices;
     BuildSimpleQuad(verts, indices);
 
     PolyNavMesh mesh;
@@ -424,8 +424,8 @@ TEST(PolyNavMeshTest, Clear_ResetsState)
 
 TEST(PolyNavMeshTest, Clear_FindPathReturnsEmpty)
 {
-    std::vector<float> verts;
-    std::vector<uint32_t> indices;
+    gx::Vector<float> verts;
+    gx::Vector<uint32_t> indices;
     BuildSimpleQuad(verts, indices);
 
     PolyNavMesh mesh;
@@ -440,8 +440,8 @@ TEST(PolyNavMeshTest, Clear_FindPathReturnsEmpty)
 
 TEST(PolyNavMeshTest, Rebuild_AfterClear)
 {
-    std::vector<float> verts;
-    std::vector<uint32_t> indices;
+    gx::Vector<float> verts;
+    gx::Vector<uint32_t> indices;
     BuildSimpleQuad(verts, indices);
 
     PolyNavMesh mesh;

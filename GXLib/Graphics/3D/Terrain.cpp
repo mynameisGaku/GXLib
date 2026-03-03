@@ -3,6 +3,7 @@
 
 #include "pch_graphics.h"
 #include "Graphics/3D/Terrain.h"
+#include "Math/MathConvert.h"
 #include "Core/Logger.h"
 #include <cmath>
 
@@ -86,7 +87,7 @@ bool Terrain::CreateProcedural(ID3D12Device* device, float width, float depth,
     }
 
     // 頂点生成
-    std::vector<Vertex3D_PBR> vertices(vertexCount);
+    gx::Vector<Vertex3D_PBR> vertices(vertexCount);
     for (uint32_t z = 0; z <= zSegments; ++z)
     {
         for (uint32_t x = 0; x <= xSegments; ++x)
@@ -133,21 +134,21 @@ bool Terrain::CreateProcedural(ID3D12Device* device, float width, float depth,
                     0.0f
                 )
             );
-            XMStoreFloat3(&vertices[idx].normal, normal);
+            XMStoreFloat3(XM(&vertices[idx].normal), normal);
 
             // タンジェント更新（法線に直交するようにX方向ベースで補正）
             XMVECTOR tangent = XMVector3Normalize(
                 XMVector3Cross(XMVectorSet(0, 0, 1, 0), normal)
             );
-            XMFLOAT3 t;
-            XMStoreFloat3(&t, tangent);
+            Vector3 t;
+            XMStoreFloat3(XM(&t), tangent);
             vertices[idx].tangent = { t.x, t.y, t.z, 1.0f };
         }
     }
 
     // インデックス生成
     uint32_t indexCount = xSegments * zSegments * 6;
-    std::vector<uint32_t> indices(indexCount);
+    gx::Vector<uint32_t> indices(indexCount);
     uint32_t ii = 0;
     for (uint32_t z = 0; z < zSegments; ++z)
     {
@@ -195,7 +196,7 @@ bool Terrain::CreateFromHeightmap(ID3D12Device* device,
         m_heights[i] = heightmapData[i] * maxHeight;
 
     // 頂点生成
-    std::vector<Vertex3D_PBR> vertices(vertexCount);
+    gx::Vector<Vertex3D_PBR> vertices(vertexCount);
     for (uint32_t z = 0; z < hmHeight; ++z)
     {
         for (uint32_t x = 0; x < hmWidth; ++x)
@@ -230,20 +231,20 @@ bool Terrain::CreateFromHeightmap(ID3D12Device* device,
             XMVECTOR normal = XMVector3Normalize(
                 XMVectorSet((hL - hR) / (2.0f * stepX), 1.0f, (hD - hU) / (2.0f * stepZ), 0.0f)
             );
-            XMStoreFloat3(&vertices[idx].normal, normal);
+            XMStoreFloat3(XM(&vertices[idx].normal), normal);
 
             XMVECTOR tangent = XMVector3Normalize(
                 XMVector3Cross(XMVectorSet(0, 0, 1, 0), normal)
             );
-            XMFLOAT3 t;
-            XMStoreFloat3(&t, tangent);
+            Vector3 t;
+            XMStoreFloat3(XM(&t), tangent);
             vertices[idx].tangent = { t.x, t.y, t.z, 1.0f };
         }
     }
 
     // インデックス生成
     uint32_t indexCount = xSegments * zSegments * 6;
-    std::vector<uint32_t> indices(indexCount);
+    gx::Vector<uint32_t> indices(indexCount);
     uint32_t ii = 0;
     for (uint32_t z = 0; z < zSegments; ++z)
     {
@@ -270,8 +271,8 @@ bool Terrain::CreateFromHeightmap(ID3D12Device* device,
     return true;
 }
 
-void Terrain::BuildMesh(ID3D12Device* device, const std::vector<Vertex3D_PBR>& vertices,
-                          const std::vector<uint32_t>& indices)
+void Terrain::BuildMesh(ID3D12Device* device, const gx::Vector<Vertex3D_PBR>& vertices,
+                          const gx::Vector<uint32_t>& indices)
 {
     m_indexCount = static_cast<uint32_t>(indices.size());
 

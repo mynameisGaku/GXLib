@@ -45,7 +45,7 @@ PhysicsMaterialLibrary& PhysicsMaterialLibrary::Instance()
     return instance;
 }
 
-uint32_t PhysicsMaterialLibrary::Register(const std::string& name, const PhysicsMaterialParams& params)
+uint32_t PhysicsMaterialLibrary::Register(const gx::String& name, const PhysicsMaterialParams& params)
 {
     auto it = m_nameIndex.find(name);
     if (it != m_nameIndex.end())
@@ -61,7 +61,7 @@ uint32_t PhysicsMaterialLibrary::Register(const std::string& name, const Physics
     return id;
 }
 
-const PhysicsMaterialParams* PhysicsMaterialLibrary::Find(const std::string& name) const
+const PhysicsMaterialParams* PhysicsMaterialLibrary::Find(const gx::String& name) const
 {
     auto it = m_nameIndex.find(name);
     if (it == m_nameIndex.end()) return nullptr;

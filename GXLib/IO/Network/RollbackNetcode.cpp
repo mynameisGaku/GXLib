@@ -154,7 +154,7 @@ void RollbackNetcode::AdvanceFrame()
     m_lastRollbackCount = 0;
 
     // 1. 全プレイヤーの入力を収集（確定または予測）
-    std::vector<PlayerInput> frameInputs(m_settings.maxPlayers);
+    gx::Vector<PlayerInput> frameInputs(m_settings.maxPlayers);
     for (int p = 0; p < m_settings.maxPlayers; ++p)
     {
         const PlayerInput* confirmed = GetInputForFrame(p, m_currentFrame);
@@ -286,7 +286,7 @@ void RollbackNetcode::PerformRollback(int toFrame)
     for (int f = toFrame; f < savedCurrentFrame; ++f)
     {
         // 全プレイヤーの入力を収集
-        std::vector<PlayerInput> frameInputs(m_settings.maxPlayers);
+        gx::Vector<PlayerInput> frameInputs(m_settings.maxPlayers);
         for (int p = 0; p < m_settings.maxPlayers; ++p)
         {
             const PlayerInput* confirmed = GetInputForFrame(p, f);

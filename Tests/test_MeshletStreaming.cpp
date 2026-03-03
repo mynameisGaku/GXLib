@@ -8,7 +8,7 @@
 using namespace gx;
 
 // ヘルパー: テスト用メッシュデータ作成
-static StreamableMesh MakeTestMesh(const std::string& path, uint32_t meshletCount, int lodCount)
+static StreamableMesh MakeTestMesh(const gx::String& path, uint32_t meshletCount, int lodCount)
 {
     StreamableMesh mesh;
     mesh.assetPath = path;

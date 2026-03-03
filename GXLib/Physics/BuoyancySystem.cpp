@@ -11,7 +11,7 @@ namespace gx {
 // AddBody
 // ============================================================================
 void BuoyancySystem::AddBody(uint32_t id, float mass, float volume,
-                             const std::vector<Vector3>& samplePoints)
+                             const gx::Vector<Vector3>& samplePoints)
 {
     // 既存IDは上書き
     int idx = FindBodyIndex(id);

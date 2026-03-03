@@ -891,6 +891,39 @@ code, pre, .mono {
     padding-left: 2px;
 }
 
+.param-section {
+    margin-top: 6px;
+    padding-left: 12px;
+    border-left: 2px solid var(--cyan-dim);
+}
+.param-row {
+    font-size: 0.76rem;
+    color: var(--text-secondary);
+    padding: 2px 0;
+}
+.param-row code {
+    color: var(--cyan);
+    font-weight: 600;
+}
+.return-doc {
+    font-size: 0.76rem;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+.return-doc::before {
+    content: "\2192  ";
+    color: var(--cyan-dim);
+}
+.note-doc {
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+    font-style: italic;
+}
+.note-doc::before {
+    content: "\26a0  ";
+}
+
 /* Syntax coloring in signatures */
 .sig-kw   { color: var(--purple); }    /* keywords: virtual, static, const, void, bool, etc. */
 .sig-type { color: var(--cyan); }      /* type names */

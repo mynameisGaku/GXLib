@@ -272,7 +272,7 @@ TEST(FrameRingBuffer, PushFrame)
 {
     FrameRingBuffer buf;
     buf.Initialize(1.0f, 2, 2, 10);
-    std::vector<uint8_t> frame(2 * 2 * 4, 128);
+    gx::Vector<uint8_t> frame(2 * 2 * 4, 128);
     buf.PushFrame(frame.data(), static_cast<uint32_t>(frame.size()));
     EXPECT_EQ(buf.GetFrameCount(), 1u);
 }
@@ -282,7 +282,7 @@ TEST(FrameRingBuffer, BufferedSeconds)
     FrameRingBuffer buf;
     buf.Initialize(1.0f, 2, 2, 10);
     EXPECT_FLOAT_EQ(buf.GetBufferedSeconds(), 0.0f);
-    std::vector<uint8_t> frame(2 * 2 * 4, 128);
+    gx::Vector<uint8_t> frame(2 * 2 * 4, 128);
     for (int i = 0; i < 5; ++i)
         buf.PushFrame(frame.data(), static_cast<uint32_t>(frame.size()));
     EXPECT_FLOAT_EQ(buf.GetBufferedSeconds(), 0.5f);
@@ -292,7 +292,7 @@ TEST(FrameRingBuffer, ClearResetsFrameCount)
 {
     FrameRingBuffer buf;
     buf.Initialize(1.0f, 2, 2, 10);
-    std::vector<uint8_t> frame(2 * 2 * 4, 128);
+    gx::Vector<uint8_t> frame(2 * 2 * 4, 128);
     buf.PushFrame(frame.data(), static_cast<uint32_t>(frame.size()));
     EXPECT_EQ(buf.GetFrameCount(), 1u);
     buf.Clear();

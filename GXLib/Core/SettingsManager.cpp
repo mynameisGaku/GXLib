@@ -14,54 +14,54 @@ SettingsManager& SettingsManager::Instance()
     return instance;
 }
 
-void SettingsManager::SetInt(const std::string& section, const std::string& key, int value)
+void SettingsManager::SetInt(const gx::String& section, const gx::String& key, int value)
 {
     SetValue(section, key, std::to_string(value));
 }
 
-void SettingsManager::SetFloat(const std::string& section, const std::string& key, float value)
+void SettingsManager::SetFloat(const gx::String& section, const gx::String& key, float value)
 {
     SetValue(section, key, std::to_string(value));
 }
 
-void SettingsManager::SetString(const std::string& section, const std::string& key, const std::string& value)
+void SettingsManager::SetString(const gx::String& section, const gx::String& key, const gx::String& value)
 {
     SetValue(section, key, value);
 }
 
-void SettingsManager::SetBool(const std::string& section, const std::string& key, bool value)
+void SettingsManager::SetBool(const gx::String& section, const gx::String& key, bool value)
 {
     SetValue(section, key, value ? "true" : "false");
 }
 
-int SettingsManager::GetInt(const std::string& section, const std::string& key, int defaultValue) const
+int SettingsManager::GetInt(const gx::String& section, const gx::String& key, int defaultValue) const
 {
     auto v = GetValue(section, key);
     if (v.empty()) return defaultValue;
     try { return std::stoi(v); } catch (...) { return defaultValue; }
 }
 
-float SettingsManager::GetFloat(const std::string& section, const std::string& key, float defaultValue) const
+float SettingsManager::GetFloat(const gx::String& section, const gx::String& key, float defaultValue) const
 {
     auto v = GetValue(section, key);
     if (v.empty()) return defaultValue;
     try { return std::stof(v); } catch (...) { return defaultValue; }
 }
 
-std::string SettingsManager::GetString(const std::string& section, const std::string& key, const std::string& defaultValue) const
+gx::String SettingsManager::GetString(const gx::String& section, const gx::String& key, const gx::String& defaultValue) const
 {
     auto v = GetValue(section, key);
     return v.empty() ? defaultValue : v;
 }
 
-bool SettingsManager::GetBool(const std::string& section, const std::string& key, bool defaultValue) const
+bool SettingsManager::GetBool(const gx::String& section, const gx::String& key, bool defaultValue) const
 {
     auto v = GetValue(section, key);
     if (v.empty()) return defaultValue;
     return v == "true" || v == "1";
 }
 
-bool SettingsManager::SaveToFile(const std::string& filePath)
+bool SettingsManager::SaveToFile(const gx::String& filePath)
 {
     try
     {
@@ -82,8 +82,8 @@ bool SettingsManager::SaveToFile(const std::string& filePath)
                 if (!firstKey) file << ",\n";
                 firstKey = false;
                 // 値のクォートをエスケープ
-                std::string escaped = value;
-                for (size_t pos = 0; (pos = escaped.find('"', pos)) != std::string::npos; pos += 2)
+                gx::String escaped = value;
+                for (size_t pos = 0; (pos = escaped.find('"', pos)) != gx::String::npos; pos += 2)
                     escaped.insert(pos, "\\");
                 file << "    \"" << key << "\": \"" << escaped << "\"";
             }
@@ -99,7 +99,7 @@ bool SettingsManager::SaveToFile(const std::string& filePath)
     }
 }
 
-bool SettingsManager::LoadFromFile(const std::string& filePath)
+bool SettingsManager::LoadFromFile(const gx::String& filePath)
 {
     try
     {
@@ -107,21 +107,21 @@ bool SettingsManager::LoadFromFile(const std::string& filePath)
         if (!file.is_open()) return false;
 
         m_data.clear();
-        std::string content((std::istreambuf_iterator<char>(file)),
-                             std::istreambuf_iterator<char>());
+        gx::String content(std::string((std::istreambuf_iterator<char>(file)),
+                                        std::istreambuf_iterator<char>()));
 
         // 独自JSONフォーマットのシンプルなパーサー
-        std::string currentSection;
+        gx::String currentSection;
         size_t pos = 0;
         while (pos < content.size())
         {
             // 次のクォート文字列を検索
             size_t qStart = content.find('"', pos);
-            if (qStart == std::string::npos) break;
+            if (qStart == gx::String::npos) break;
             size_t qEnd = content.find('"', qStart + 1);
-            if (qEnd == std::string::npos) break;
+            if (qEnd == gx::String::npos) break;
 
-            std::string token = content.substr(qStart + 1, qEnd - qStart - 1);
+            gx::String token = content.substr(qStart + 1, qEnd - qStart - 1);
             pos = qEnd + 1;
 
             // 空白をスキップ
@@ -146,11 +146,11 @@ bool SettingsManager::LoadFromFile(const std::string& filePath)
                     // キー値ペアの場合
                     size_t vStart = pos + 1;
                     size_t vEnd = content.find('"', vStart);
-                    if (vEnd != std::string::npos)
+                    if (vEnd != gx::String::npos)
                     {
-                        std::string value = content.substr(vStart, vEnd - vStart);
+                        gx::String value = content.substr(vStart, vEnd - vStart);
                         // クォートのアンエスケープ
-                        for (size_t p = 0; (p = value.find("\\\"", p)) != std::string::npos; p += 1)
+                        for (size_t p = 0; (p = value.find("\\\"", p)) != gx::String::npos; p += 1)
                             value.erase(p, 1);
                         m_data[currentSection][token] = value;
                         pos = vEnd + 1;
@@ -172,7 +172,7 @@ void SettingsManager::Clear()
     m_data.clear();
 }
 
-std::string SettingsManager::GetValue(const std::string& section, const std::string& key) const
+gx::String SettingsManager::GetValue(const gx::String& section, const gx::String& key) const
 {
     auto sit = m_data.find(section);
     if (sit == m_data.end()) return "";
@@ -181,7 +181,7 @@ std::string SettingsManager::GetValue(const std::string& section, const std::str
     return kit->second;
 }
 
-void SettingsManager::SetValue(const std::string& section, const std::string& key, const std::string& value)
+void SettingsManager::SetValue(const gx::String& section, const gx::String& key, const gx::String& value)
 {
     m_data[section][key] = value;
 }

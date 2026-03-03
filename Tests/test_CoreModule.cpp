@@ -35,7 +35,7 @@ TEST(CoreModuleTest, StringSplit)
     EXPECT_EQ(parts[2], "c");
 
     // Split with string delimiter
-    auto parts2 = StringUtils::Split("one::two::three", std::string("::"));
+    auto parts2 = StringUtils::Split("one::two::three", gx::String("::"));
     ASSERT_EQ(parts2.size(), 3u);
     EXPECT_EQ(parts2[0], "one");
     EXPECT_EQ(parts2[1], "two");
@@ -212,9 +212,9 @@ protected:
     }
     void TearDown() override
     {
-        std::filesystem::remove_all(m_saveDir);
+        std::filesystem::remove_all(std::filesystem::path(m_saveDir.c_str()));
     }
-    std::string m_saveDir;
+    gx::String m_saveDir;
 };
 
 TEST_F(CoreModuleSaveTest, SaveSystemSetGetInt)
@@ -266,7 +266,7 @@ TEST_F(CoreModuleSaveTest, SaveSystemRemoveKey)
 namespace
 {
     struct CoreTestEvent { int code = 0; };
-    struct CoreOtherEvent { std::string message; };
+    struct CoreOtherEvent { gx::String message; };
 }
 
 class CoreModuleEventBusTest : public ::testing::Test

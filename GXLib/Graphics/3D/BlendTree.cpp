@@ -1,6 +1,7 @@
 /// @file BlendTree.cpp
 /// @brief ブレンドツリーの実装
 #include "pch_graphics.h"
+#include "Math/MathConvert.h"
 #include "Graphics/3D/BlendTree.h"
 
 namespace gx
@@ -36,9 +37,9 @@ void BlendTree::BlendPoses(const TransformTRS* a, const TransformTRS* b,
         out[i].translation.y = a[i].translation.y + (b[i].translation.y - a[i].translation.y) * t;
         out[i].translation.z = a[i].translation.z + (b[i].translation.z - a[i].translation.z) * t;
 
-        XMVECTOR qa = XMLoadFloat4(&a[i].rotation);
-        XMVECTOR qb = XMLoadFloat4(&b[i].rotation);
-        XMStoreFloat4(&out[i].rotation, XMQuaternionSlerp(qa, qb, t));
+        XMVECTOR qa = XMLoadFloat4(XM(&a[i].rotation));
+        XMVECTOR qb = XMLoadFloat4(XM(&b[i].rotation));
+        XMStoreFloat4(XM(&out[i].rotation), XMQuaternionSlerp(qa, qb, t));
 
         out[i].scale.x = a[i].scale.x + (b[i].scale.x - a[i].scale.x) * t;
         out[i].scale.y = a[i].scale.y + (b[i].scale.y - a[i].scale.y) * t;
@@ -83,7 +84,7 @@ void BlendTree::Evaluate1D(float time, uint32_t jointCount,
                              TransformTRS* outPose) const
 {
     // ノードをthreshold昇順でソートし、パラメータ値が収まる区間を探す
-    std::vector<uint32_t> sorted(m_nodes.size());
+    gx::Vector<uint32_t> sorted(m_nodes.size());
     for (uint32_t i = 0; i < static_cast<uint32_t>(m_nodes.size()); ++i)
         sorted[i] = i;
     std::sort(sorted.begin(), sorted.end(), [this](uint32_t a, uint32_t b)
@@ -143,7 +144,7 @@ void BlendTree::Evaluate2D(float time, uint32_t jointCount,
 
     // 各ノードの距離を計算
     struct DistEntry { uint32_t index; float dist; };
-    std::vector<DistEntry> entries(m_nodes.size());
+    gx::Vector<DistEntry> entries(m_nodes.size());
     for (uint32_t i = 0; i < static_cast<uint32_t>(m_nodes.size()); ++i)
     {
         float dx = m_nodes[i].position[0] - m_param2D[0];
@@ -278,9 +279,9 @@ void BlendTree::Evaluate2D(float time, uint32_t jointCount,
         outPose[i].translation.z = m_tempA[i].translation.z * w0 + m_tempB[i].translation.z * w1 + m_tempC[i].translation.z * w2;
 
         // Rotation: 段階的slerp (A→B by w1/(w0+w1)), then (AB→C by w2)
-        XMVECTOR qA = XMLoadFloat4(&m_tempA[i].rotation);
-        XMVECTOR qB = XMLoadFloat4(&m_tempB[i].rotation);
-        XMVECTOR qC = XMLoadFloat4(&m_tempC[i].rotation);
+        XMVECTOR qA = XMLoadFloat4(XM(&m_tempA[i].rotation));
+        XMVECTOR qB = XMLoadFloat4(XM(&m_tempB[i].rotation));
+        XMVECTOR qC = XMLoadFloat4(XM(&m_tempC[i].rotation));
 
         float ab = w0 + w1;
         XMVECTOR qAB;
@@ -290,7 +291,7 @@ void BlendTree::Evaluate2D(float time, uint32_t jointCount,
             qAB = qA;
 
         XMVECTOR qFinal = XMQuaternionSlerp(qAB, qC, w2);
-        XMStoreFloat4(&outPose[i].rotation, XMQuaternionNormalize(qFinal));
+        XMStoreFloat4(XM(&outPose[i].rotation), XMQuaternionNormalize(qFinal));
 
         // Scale: 加重平均
         outPose[i].scale.x = m_tempA[i].scale.x * w0 + m_tempB[i].scale.x * w1 + m_tempC[i].scale.x * w2;

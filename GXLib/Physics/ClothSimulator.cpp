@@ -259,7 +259,7 @@ void ClothSimulator::RecalculateNormals()
     }
 }
 
-void ClothSimulator::AddSphereCollider(const XMFLOAT3& center, float radius)
+void ClothSimulator::AddSphereCollider(const Vector3& center, float radius)
 {
     m_colliders.push_back({ center, radius });
 }
@@ -281,7 +281,7 @@ void ClothSimulator::UnpinVertex(uint32_t index)
         m_pinned[index] = false;
 }
 
-void ClothSimulator::ApplyForce(const XMFLOAT3& force)
+void ClothSimulator::ApplyForce(const Vector3& force)
 {
     m_externalForce.x += force.x;
     m_externalForce.y += force.y;

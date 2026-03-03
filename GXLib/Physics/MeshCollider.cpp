@@ -2,6 +2,7 @@
 /// @brief メッシュコライダーヘルパーの実装
 #include "pch_common.h"
 #include "Physics/MeshCollider.h"
+#include "Math/MathConvert.h"
 #include "Graphics/3D/Model.h"
 #include "Graphics/3D/Animator.h"
 #include "Graphics/3D/AnimationPlayer.h"
@@ -38,13 +39,13 @@ struct QuantKeyHash
     }
 };
 
-static void DeduplicateVertices(std::vector<Vector3>& vertices, float weld)
+static void DeduplicateVertices(gx::Vector<Vector3>& vertices, float weld)
 {
     if (vertices.empty() || weld <= 0.0f)
         return;
 
-    std::unordered_map<QuantKey, uint32_t, QuantKeyHash> map;
-    std::vector<Vector3> unique;
+    gx::HashMap<QuantKey, uint32_t, QuantKeyHash> map;
+    gx::Vector<Vector3> unique;
     unique.reserve(vertices.size());
 
     const float inv = 1.0f / weld;
@@ -66,14 +67,14 @@ static void DeduplicateVertices(std::vector<Vector3>& vertices, float weld)
     vertices.swap(unique);
 }
 
-static void ReducePoints(std::vector<Vector3>& vertices, uint32_t maxPoints)
+static void ReducePoints(gx::Vector<Vector3>& vertices, uint32_t maxPoints)
 {
     if (maxPoints == 0 || maxPoints > 256)
         maxPoints = 256;
     if (vertices.size() <= maxPoints)
         return;
 
-    std::vector<Vector3> reduced;
+    gx::Vector<Vector3> reduced;
     reduced.reserve(maxPoints);
 
     size_t step = vertices.size() / maxPoints;
@@ -86,8 +87,8 @@ static void ReducePoints(std::vector<Vector3>& vertices, uint32_t maxPoints)
 }
 
 static bool CollectModelVertices(const Model& model,
-                                 std::vector<Vector3>& outVertices,
-                                 std::vector<uint32_t>& outIndices)
+                                 gx::Vector<Vector3>& outVertices,
+                                 gx::Vector<uint32_t>& outIndices)
 {
     const MeshCPUData* cpu = model.GetCPUData();
     if (!cpu)
@@ -124,8 +125,8 @@ static bool CollectModelVertices(const Model& model,
 }
 
 static bool BuildBoneMatrices(const Model& model,
-                              const std::vector<XMFLOAT4X4>& globalTransforms,
-                              std::vector<XMMATRIX>& outBones)
+                              const gx::Vector<Matrix4x4>& globalTransforms,
+                              gx::Vector<XMMATRIX>& outBones)
 {
     const Skeleton* skeleton = model.GetSkeleton();
     if (!skeleton)
@@ -135,12 +136,12 @@ static bool BuildBoneMatrices(const Model& model,
     if (jointCount == 0)
         return false;
 
-    std::vector<XMFLOAT4X4> globals = globalTransforms;
+    gx::Vector<Matrix4x4> globals = globalTransforms;
     if (globals.size() != jointCount)
     {
         globals.resize(jointCount);
         const auto& joints = skeleton->GetJoints();
-        std::vector<XMFLOAT4X4> locals(jointCount);
+        gx::Vector<Matrix4x4> locals(jointCount);
         for (uint32_t i = 0; i < jointCount; ++i)
             locals[i] = joints[i].localTransform;
         skeleton->ComputeGlobalTransforms(locals.data(), globals.data());
@@ -150,23 +151,23 @@ static bool BuildBoneMatrices(const Model& model,
     const auto& joints = skeleton->GetJoints();
     for (uint32_t i = 0; i < jointCount; ++i)
     {
-        XMMATRIX invBind = XMLoadFloat4x4(&joints[i].inverseBindMatrix);
-        XMMATRIX global  = XMLoadFloat4x4(&globals[i]);
+        XMMATRIX invBind = XMLoadFloat4x4(XM(&joints[i].inverseBindMatrix));
+        XMMATRIX global  = XMLoadFloat4x4(XM(&globals[i]));
         outBones[i] = invBind * global;
     }
     return true;
 }
 
 static bool BakeSkinnedVertices(const Model& model,
-                                const std::vector<XMFLOAT4X4>& globalTransforms,
-                                std::vector<Vector3>& outVertices,
-                                std::vector<uint32_t>& outIndices)
+                                const gx::Vector<Matrix4x4>& globalTransforms,
+                                gx::Vector<Vector3>& outVertices,
+                                gx::Vector<uint32_t>& outIndices)
 {
     const MeshCPUData* cpu = model.GetCPUData();
     if (!cpu || cpu->skinnedVertices.empty())
         return false;
 
-    std::vector<XMMATRIX> bones;
+    gx::Vector<XMMATRIX> bones;
     if (!BuildBoneMatrices(model, globalTransforms, bones))
         return false;
 
@@ -192,8 +193,8 @@ static bool BakeSkinnedVertices(const Model& model,
             skinned = XMVectorAdd(skinned, XMVectorScale(p, weights[k]));
         }
 
-        XMFLOAT3 out;
-        XMStoreFloat3(&out, skinned);
+        Vector3 out;
+        XMStoreFloat3(XM(&out), skinned);
         outVertices[i] = { out.x, out.y, out.z };
     }
 
@@ -207,8 +208,8 @@ static bool BakeSkinnedVertices(const Model& model,
 }
 
 static PhysicsShape* CreateShapeFromData(PhysicsWorld3D& world,
-                                         std::vector<Vector3> vertices,
-                                         const std::vector<uint32_t>& indices,
+                                         gx::Vector<Vector3> vertices,
+                                         const gx::Vector<uint32_t>& indices,
                                          const MeshColliderDesc& desc)
 {
     if (vertices.empty())
@@ -237,8 +238,8 @@ static PhysicsShape* CreateShapeFromData(PhysicsWorld3D& world,
 
 bool MeshCollider::BuildFromModel(PhysicsWorld3D& world, const Model& model, const MeshColliderDesc& desc)
 {
-    std::vector<Vector3> vertices;
-    std::vector<uint32_t> indices;
+    gx::Vector<Vector3> vertices;
+    gx::Vector<uint32_t> indices;
     if (!CollectModelVertices(model, vertices, indices))
         return false;
 
@@ -259,8 +260,8 @@ bool MeshCollider::BuildFromModel(PhysicsWorld3D& world, const Model& model, con
 bool MeshCollider::BuildFromSkinnedModel(PhysicsWorld3D& world, const Model& model,
                                          const Animator& animator, const MeshColliderDesc& desc)
 {
-    std::vector<Vector3> vertices;
-    std::vector<uint32_t> indices;
+    gx::Vector<Vector3> vertices;
+    gx::Vector<uint32_t> indices;
     if (!BakeSkinnedVertices(model, animator.GetGlobalTransforms(), vertices, indices))
         return false;
 
@@ -281,8 +282,8 @@ bool MeshCollider::BuildFromSkinnedModel(PhysicsWorld3D& world, const Model& mod
 bool MeshCollider::BuildFromSkinnedModel(PhysicsWorld3D& world, const Model& model,
                                          const AnimationPlayer& player, const MeshColliderDesc& desc)
 {
-    std::vector<Vector3> vertices;
-    std::vector<uint32_t> indices;
+    gx::Vector<Vector3> vertices;
+    gx::Vector<uint32_t> indices;
     if (!BakeSkinnedVertices(model, player.GetGlobalTransforms(), vertices, indices))
         return false;
 
@@ -304,8 +305,8 @@ bool MeshCollider::UpdateFromSkinnedModel(PhysicsWorld3D& world, PhysicsBodyID b
                                           const Model& model, const Animator& animator,
                                           const MeshColliderDesc& desc, bool activate)
 {
-    std::vector<Vector3> vertices;
-    std::vector<uint32_t> indices;
+    gx::Vector<Vector3> vertices;
+    gx::Vector<uint32_t> indices;
     if (!BakeSkinnedVertices(model, animator.GetGlobalTransforms(), vertices, indices))
         return false;
 
@@ -333,8 +334,8 @@ bool MeshCollider::UpdateFromSkinnedModel(PhysicsWorld3D& world, PhysicsBodyID b
                                           const Model& model, const AnimationPlayer& player,
                                           const MeshColliderDesc& desc, bool activate)
 {
-    std::vector<Vector3> vertices;
-    std::vector<uint32_t> indices;
+    gx::Vector<Vector3> vertices;
+    gx::Vector<uint32_t> indices;
     if (!BakeSkinnedVertices(model, player.GetGlobalTransforms(), vertices, indices))
         return false;
 

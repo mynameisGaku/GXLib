@@ -4,6 +4,7 @@
 #include "pch.h"
 #include <gtest/gtest.h>
 #include "Graphics/3D/Transform3D.h"
+#include "Math/MathConvert.h"
 
 using namespace gx;
 
@@ -34,10 +35,10 @@ TEST(Transform3DTest, SetPosition_Float3)
     EXPECT_NEAR(p.z, 3.0f, 1e-5f);
 }
 
-TEST(Transform3DTest, SetPosition_XMFLOAT3)
+TEST(Transform3DTest, SetPosition_Vector3)
 {
     Transform3D t;
-    t.SetPosition(XMFLOAT3{4.0f, 5.0f, 6.0f});
+    t.SetPosition(Vector3{4.0f, 5.0f, 6.0f});
     const auto& p = t.GetPosition();
     EXPECT_NEAR(p.x, 4.0f, 1e-5f);
     EXPECT_NEAR(p.y, 5.0f, 1e-5f);
@@ -77,8 +78,8 @@ TEST(Transform3DTest, SetScale_NonUniform)
 TEST(Transform3DTest, WorldMatrix_IdentityTransform)
 {
     Transform3D t;
-    XMFLOAT4X4 mat;
-    XMStoreFloat4x4(&mat, t.GetWorldMatrix());
+    Matrix4x4 mat;
+    mat = t.GetWorldMatrix();
     EXPECT_NEAR(mat._11, 1.0f, 1e-5f);
     EXPECT_NEAR(mat._22, 1.0f, 1e-5f);
     EXPECT_NEAR(mat._33, 1.0f, 1e-5f);
@@ -92,8 +93,8 @@ TEST(Transform3DTest, WorldMatrix_TranslationOnly)
 {
     Transform3D t;
     t.SetPosition(5.0f, 0.0f, 0.0f);
-    XMFLOAT4X4 mat;
-    XMStoreFloat4x4(&mat, t.GetWorldMatrix());
+    Matrix4x4 mat;
+    mat = t.GetWorldMatrix();
     EXPECT_NEAR(mat._41, 5.0f, 1e-5f);
     EXPECT_NEAR(mat._42, 0.0f, 1e-5f);
     EXPECT_NEAR(mat._43, 0.0f, 1e-5f);
@@ -103,8 +104,8 @@ TEST(Transform3DTest, WorldMatrix_ScaleOnly)
 {
     Transform3D t;
     t.SetScale(2.0f);
-    XMFLOAT4X4 mat;
-    XMStoreFloat4x4(&mat, t.GetWorldMatrix());
+    Matrix4x4 mat;
+    mat = t.GetWorldMatrix();
     EXPECT_NEAR(mat._11, 2.0f, 1e-5f);
     EXPECT_NEAR(mat._22, 2.0f, 1e-5f);
     EXPECT_NEAR(mat._33, 2.0f, 1e-5f);
@@ -115,8 +116,7 @@ TEST(Transform3DTest, WorldInverseTranspose_Exists)
     Transform3D t;
     t.SetPosition(1.0f, 2.0f, 3.0f);
     t.SetScale(2.0f, 1.0f, 0.5f);
-    XMFLOAT4X4 mat;
-    XMStoreFloat4x4(&mat, t.GetWorldInverseTranspose());
+    Matrix4x4 mat = t.GetWorldInverseTranspose();
     // NaN値がないことを確認
     EXPECT_FALSE(std::isnan(mat._11));
     EXPECT_FALSE(std::isnan(mat._22));

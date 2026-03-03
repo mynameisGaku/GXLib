@@ -8,13 +8,13 @@ namespace gx { namespace GUI {
 // wstring → string（UTF-8変換）
 // ============================================================================
 
-static std::string WstringToUtf8(const std::wstring& ws)
+static gx::String WstringToUtf8(const gx::WString& ws)
 {
     if (ws.empty()) return "";
     int len = WideCharToMultiByte(CP_UTF8, 0, ws.c_str(),
                                    static_cast<int>(ws.size()), nullptr, 0, nullptr, nullptr);
     if (len <= 0) return "";
-    std::string result(len, '\0');
+    gx::String result(len, '\0');
     WideCharToMultiByte(CP_UTF8, 0, ws.c_str(),
                          static_cast<int>(ws.size()), &result[0], len, nullptr, nullptr);
     return result;
@@ -43,7 +43,7 @@ float TextInput::GetIntrinsicHeight() const
 // テキスト設定
 // ============================================================================
 
-void TextInput::SetText(const std::wstring& text)
+void TextInput::SetText(const gx::WString& text)
 {
     m_text = text;
     m_cursorPos = static_cast<int>(text.size());
@@ -55,10 +55,10 @@ void TextInput::SetText(const std::wstring& text)
 // 表示用テキスト（パスワードモード）
 // ============================================================================
 
-std::wstring TextInput::GetDisplayText() const
+gx::WString TextInput::GetDisplayText() const
 {
     if (m_passwordMode)
-        return std::wstring(m_text.size(), L'*');
+        return gx::WString(m_text.size(), L'*');
     return m_text;
 }
 
@@ -100,7 +100,7 @@ void TextInput::DeleteSelection()
         onValueChanged(WstringToUtf8(m_text));
 }
 
-void TextInput::InsertText(const std::wstring& str)
+void TextInput::InsertText(const gx::WString& str)
 {
     if (str.empty()) return;
 
@@ -112,7 +112,7 @@ void TextInput::InsertText(const std::wstring& str)
     {
         int remaining = m_maxLength - static_cast<int>(m_text.size());
         if (remaining <= 0) return;
-        std::wstring toInsert = str.substr(0, remaining);
+        gx::WString toInsert = str.substr(0, remaining);
         m_text.insert(m_cursorPos, toInsert);
         m_cursorPos += static_cast<int>(toInsert.size());
     }
@@ -140,7 +140,7 @@ void TextInput::CopyToClipboard()
     s = std::clamp(s, 0, static_cast<int>(m_text.size()));
     e = std::clamp(e, 0, static_cast<int>(m_text.size()));
     if (s >= e) return;
-    std::wstring selected = m_text.substr(s, e - s);
+    gx::WString selected = m_text.substr(s, e - s);
 
     if (!OpenClipboard(nullptr)) return;
     EmptyClipboard();
@@ -168,11 +168,11 @@ void TextInput::PasteFromClipboard()
         wchar_t* pData = static_cast<wchar_t*>(GlobalLock(hData));
         if (pData)
         {
-            std::wstring pasteText = pData;
+            gx::WString pasteText = pData;
             GlobalUnlock(hData);
 
             // 改行を除去
-            std::wstring filtered;
+            gx::WString filtered;
             filtered.reserve(pasteText.size());
             for (wchar_t ch : pasteText)
             {
@@ -200,7 +200,7 @@ int TextInput::HitTestCursor(float localX) const
 {
     if (!m_renderer || m_fontHandle < 0) return 0;
 
-    std::wstring display = GetDisplayText();
+    gx::WString display = GetDisplayText();
     if (display.empty()) return 0;
 
     float padLeft = computedStyle.padding.left;
@@ -226,7 +226,7 @@ float TextInput::GetCursorX() const
 {
     if (!m_renderer || m_fontHandle < 0 || m_cursorPos == 0) return 0.0f;
 
-    std::wstring display = GetDisplayText();
+    gx::WString display = GetDisplayText();
     return static_cast<float>(m_renderer->GetTextWidth(m_fontHandle,
         display.substr(0, m_cursorPos)));
 }
@@ -269,7 +269,7 @@ bool TextInput::OnEvent(const UIEvent& event)
         // 制御文字は無視
         if (event.charCode < 0x20) return false;
 
-        std::wstring ch(1, event.charCode);
+        gx::WString ch(1, event.charCode);
         InsertText(ch);
         EnsureCursorVisible();
         m_blinkTimer = 0.0f;
@@ -545,7 +545,7 @@ void TextInput::RenderSelf(UIRenderer& renderer)
     }
     else
     {
-        std::wstring display = GetDisplayText();
+        gx::WString display = GetDisplayText();
 
         // 選択ハイライト
         if (HasSelection() && m_fontHandle >= 0)

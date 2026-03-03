@@ -34,14 +34,14 @@ protected:
         // テストディレクトリ削除
         try
         {
-            std::filesystem::remove_all(m_testDir);
+            std::filesystem::remove_all(std::filesystem::path(m_testDir.c_str()));
         }
         catch (...)
         {
         }
     }
 
-    std::string m_testDir;
+    gx::String m_testDir;
 };
 
 // ============================================================================
@@ -151,7 +151,7 @@ TEST_F(CrashReporterTest, CaptureStackTrace)
     // 各フレームが "frame_" で始まるか確認
     for (const auto& frame : trace)
     {
-        EXPECT_TRUE(frame.find("frame_") != std::string::npos);
+        EXPECT_TRUE(frame.find("frame_") != gx::String::npos);
     }
 }
 
@@ -217,14 +217,14 @@ TEST_F(CrashReporterTest, FormatCrashReport)
     info.logTail = {"[INFO] Test log line"};
     info.customData["key"] = "value";
 
-    std::string formatted = reporter.FormatCrashReport(info);
+    gx::String formatted = reporter.FormatCrashReport(info);
 
-    EXPECT_TRUE(formatted.find("Test format") != std::string::npos);
-    EXPECT_TRUE(formatted.find("1234567890") != std::string::npos);
-    EXPECT_TRUE(formatted.find("TestFunc") != std::string::npos);
-    EXPECT_TRUE(formatted.find("Test log line") != std::string::npos);
-    EXPECT_TRUE(formatted.find("key") != std::string::npos);
-    EXPECT_TRUE(formatted.find("value") != std::string::npos);
+    EXPECT_TRUE(formatted.find("Test format") != gx::String::npos);
+    EXPECT_TRUE(formatted.find("1234567890") != gx::String::npos);
+    EXPECT_TRUE(formatted.find("TestFunc") != gx::String::npos);
+    EXPECT_TRUE(formatted.find("Test log line") != gx::String::npos);
+    EXPECT_TRUE(formatted.find("key") != gx::String::npos);
+    EXPECT_TRUE(formatted.find("value") != gx::String::npos);
 }
 
 // ============================================================================
@@ -248,7 +248,7 @@ TEST_F(CrashReporterTest, SaveAndLoadDump)
     original.customData["k1"] = "v1";
     original.customData["k2"] = "v2";
 
-    std::string dumpPath = m_testDir + "/test_dump.txt";
+    gx::String dumpPath = m_testDir + "/test_dump.txt";
     EXPECT_TRUE(reporter.SaveCrashDump(original, dumpPath));
 
     CrashInfo loaded = reporter.LoadCrashDump(dumpPath);
@@ -279,7 +279,7 @@ TEST_F(CrashReporterTest, PruneDumps)
     {
         CrashInfo info;
         info.message = "Crash " + std::to_string(i);
-        std::string path = m_testDir + "/crash_" + std::to_string(i) + ".txt";
+        gx::String path = m_testDir + "/crash_" + std::to_string(i) + ".txt";
         reporter.SaveCrashDump(info, path);
     }
 
@@ -353,7 +353,7 @@ TEST_F(CrashReporterTest, MaxDumpFilesLimit)
     {
         CrashInfo info;
         info.message = "Crash " + std::to_string(i);
-        std::string path = m_testDir + "/dump_" + std::to_string(i) + ".txt";
+        gx::String path = m_testDir + "/dump_" + std::to_string(i) + ".txt";
         reporter.SaveCrashDump(info, path);
     }
 
@@ -400,11 +400,11 @@ TEST_F(CrashReporterTest, CrashInfoWithErrorCode)
     info.errorCode = ErrorCode::GraphicsShaderCompileFailed;
     info.probableCause = "HLSL syntax error in PBR.hlsl";
 
-    std::string formatted = reporter.FormatCrashReport(info);
+    gx::String formatted = reporter.FormatCrashReport(info);
 
-    EXPECT_TRUE(formatted.find("0x00020005") != std::string::npos);
-    EXPECT_TRUE(formatted.find("Graphics") != std::string::npos);
-    EXPECT_TRUE(formatted.find("HLSL syntax error") != std::string::npos);
+    EXPECT_TRUE(formatted.find("0x00020005") != gx::String::npos);
+    EXPECT_TRUE(formatted.find("Graphics") != gx::String::npos);
+    EXPECT_TRUE(formatted.find("HLSL syntax error") != gx::String::npos);
 }
 
 TEST_F(CrashReporterTest, SaveLoadDumpWithErrorCode)
@@ -421,7 +421,7 @@ TEST_F(CrashReporterTest, SaveLoadDumpWithErrorCode)
     original.probableCause = "Driver crash or TDR timeout";
     original.threadId = 42;
 
-    std::string dumpPath = m_testDir + "/errorcode_dump.txt";
+    gx::String dumpPath = m_testDir + "/errorcode_dump.txt";
     EXPECT_TRUE(reporter.SaveCrashDump(original, dumpPath));
 
     CrashInfo loaded = reporter.LoadCrashDump(dumpPath);
@@ -445,7 +445,7 @@ TEST_F(CrashReporterTest, SaveLoadDumpBackwardCompat)
     original.message = "Legacy crash";
     // errorCode と probableCause はデフォルト（None / empty）
 
-    std::string dumpPath = m_testDir + "/compat_dump.txt";
+    gx::String dumpPath = m_testDir + "/compat_dump.txt";
     EXPECT_TRUE(reporter.SaveCrashDump(original, dumpPath));
 
     CrashInfo loaded = reporter.LoadCrashDump(dumpPath);
@@ -500,7 +500,7 @@ TEST_F(CrashReporterTest, LoggerFeedsCrashReporter)
     bool found = false;
     for (const auto& line : info.logTail)
     {
-        if (line.find("CrashReporter feed test line") != std::string::npos)
+        if (line.find("CrashReporter feed test line") != gx::String::npos)
         {
             found = true;
             break;

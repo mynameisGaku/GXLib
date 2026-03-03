@@ -67,7 +67,7 @@ bool BoneMask::IsActive() const
 // AnimationLayerStack
 // =============================================================================
 
-uint32_t AnimationLayerStack::AddLayer(const std::string& name, AnimLayerBlendMode mode)
+uint32_t AnimationLayerStack::AddLayer(const gx::String& name, AnimLayerBlendMode mode)
 {
     AnimationLayer layer;
     layer.name = name;
@@ -98,7 +98,7 @@ const AnimationLayer* AnimationLayerStack::GetLayer(uint32_t index) const
     return nullptr;
 }
 
-int AnimationLayerStack::FindLayer(const std::string& name) const
+int AnimationLayerStack::FindLayer(const gx::String& name) const
 {
     for (uint32_t i = 0; i < static_cast<uint32_t>(m_layers.size()); ++i)
     {
@@ -121,7 +121,7 @@ void AnimationLayerStack::SetLayerEnabled(uint32_t index, bool enabled)
 }
 
 void AnimationLayerStack::Evaluate(BonePose* basePose,
-                                   const std::vector<std::vector<BonePose>>& layerPoses,
+                                   const gx::Vector<gx::Vector<BonePose>>& layerPoses,
                                    uint32_t boneCount) const
 {
     if (!basePose) return;
@@ -169,8 +169,8 @@ void AnimationLayerStack::Evaluate(BonePose* basePose,
                 base.scale.z = invT * base.scale.z + t * layerPose.scale.z;
 
                 // Quaternion slerp approximation using nlerp
-                DirectX::XMVECTOR q0 = DirectX::XMLoadFloat4(&base.rotation);
-                DirectX::XMVECTOR q1 = DirectX::XMLoadFloat4(&layerPose.rotation);
+                XMVECTOR q0 = XMLoadFloat4(XM(&base.rotation));
+                XMVECTOR q1 = XMLoadFloat4(XM(&layerPose.rotation));
 
                 // Ensure shortest path
                 float dot = base.rotation.x * layerPose.rotation.x +
@@ -178,11 +178,11 @@ void AnimationLayerStack::Evaluate(BonePose* basePose,
                             base.rotation.z * layerPose.rotation.z +
                             base.rotation.w * layerPose.rotation.w;
                 if (dot < 0.0f)
-                    q1 = DirectX::XMVectorNegate(q1);
+                    q1 = XMVectorNegate(q1);
 
-                DirectX::XMVECTOR result = DirectX::XMVectorLerp(q0, q1, t);
-                result = DirectX::XMVector4Normalize(result);
-                DirectX::XMStoreFloat4(&base.rotation, result);
+                XMVECTOR result = XMVectorLerp(q0, q1, t);
+                result = XMVector4Normalize(result);
+                XMStoreFloat4(XM(&base.rotation), result);
             }
             else // Additive
             {
@@ -197,13 +197,13 @@ void AnimationLayerStack::Evaluate(BonePose* basePose,
                 base.scale.z += (layerPose.scale.z - 1.0f) * effectiveWeight;
 
                 // Additive quaternion: multiply base by (slerp(identity, layerQ, weight))
-                DirectX::XMVECTOR identity = DirectX::XMQuaternionIdentity();
-                DirectX::XMVECTOR layerQ = DirectX::XMLoadFloat4(&layerPose.rotation);
-                DirectX::XMVECTOR additiveQ = DirectX::XMQuaternionSlerp(identity, layerQ, effectiveWeight);
-                DirectX::XMVECTOR baseQ = DirectX::XMLoadFloat4(&base.rotation);
-                DirectX::XMVECTOR result = DirectX::XMQuaternionMultiply(baseQ, additiveQ);
-                result = DirectX::XMQuaternionNormalize(result);
-                DirectX::XMStoreFloat4(&base.rotation, result);
+                XMVECTOR identity = XMQuaternionIdentity();
+                XMVECTOR layerQ = XMLoadFloat4(XM(&layerPose.rotation));
+                XMVECTOR additiveQ = XMQuaternionSlerp(identity, layerQ, effectiveWeight);
+                XMVECTOR baseQ = XMLoadFloat4(XM(&base.rotation));
+                XMVECTOR result = XMQuaternionMultiply(baseQ, additiveQ);
+                result = XMQuaternionNormalize(result);
+                XMStoreFloat4(XM(&base.rotation), result);
             }
         }
     }

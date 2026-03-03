@@ -56,7 +56,7 @@ void Widget::RemoveChild(Widget* child)
     }
 }
 
-Widget* Widget::FindById(const std::string& searchId)
+Widget* Widget::FindById(const gx::String& searchId)
 {
     if (id == searchId) return this;
     for (auto& child : m_children)

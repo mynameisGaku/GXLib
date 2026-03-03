@@ -2,11 +2,12 @@
 /// @brief ライト作成ヘルパーの実装
 #include "pch_graphics.h"
 #include "Graphics/3D/Light.h"
+#include "Math/MathConvert.h"
 
 namespace gx
 {
 
-LightData Light::CreateDirectional(const XMFLOAT3& direction, const XMFLOAT3& color, float intensity)
+LightData Light::CreateDirectional(const Vector3& direction, const Vector3& color, float intensity)
 {
     LightData light = {};
     light.type      = static_cast<uint32_t>(LightType::Directional);
@@ -14,13 +15,13 @@ LightData Light::CreateDirectional(const XMFLOAT3& direction, const XMFLOAT3& co
     light.intensity = intensity;
 
     // 方向を正規化
-    XMVECTOR dir = XMVector3Normalize(XMLoadFloat3(&direction));
-    XMStoreFloat3(&light.direction, dir);
+    XMVECTOR dir = XMVector3Normalize(XMLoadFloat3(XM(&direction)));
+    XMStoreFloat3(XM(&light.direction), dir);
 
     return light;
 }
 
-LightData Light::CreatePoint(const XMFLOAT3& position, float range, const XMFLOAT3& color, float intensity)
+LightData Light::CreatePoint(const Vector3& position, float range, const Vector3& color, float intensity)
 {
     LightData light = {};
     light.type      = static_cast<uint32_t>(LightType::Point);
@@ -32,9 +33,9 @@ LightData Light::CreatePoint(const XMFLOAT3& position, float range, const XMFLOA
     return light;
 }
 
-LightData Light::CreateSpot(const XMFLOAT3& position, const XMFLOAT3& direction,
+LightData Light::CreateSpot(const Vector3& position, const Vector3& direction,
                               float range, float spotAngleDeg,
-                              const XMFLOAT3& color, float intensity)
+                              const Vector3& color, float intensity)
 {
     LightData light = {};
     light.type      = static_cast<uint32_t>(LightType::Spot);
@@ -45,8 +46,8 @@ LightData Light::CreateSpot(const XMFLOAT3& position, const XMFLOAT3& direction,
     // 半角をcos値に変換して格納（シェーダー側でdot比較するため）
     light.spotAngle = cosf(XMConvertToRadians(spotAngleDeg * 0.5f));
 
-    XMVECTOR dir = XMVector3Normalize(XMLoadFloat3(&direction));
-    XMStoreFloat3(&light.direction, dir);
+    XMVECTOR dir = XMVector3Normalize(XMLoadFloat3(XM(&direction)));
+    XMStoreFloat3(XM(&light.direction), dir);
 
     return light;
 }

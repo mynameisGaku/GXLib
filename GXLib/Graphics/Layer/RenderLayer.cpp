@@ -7,7 +7,7 @@
 namespace gx
 {
 
-bool RenderLayer::Create(ID3D12Device* device, const std::string& name,
+bool RenderLayer::Create(ID3D12Device* device, const gx::String& name,
                           int32_t zOrder, uint32_t width, uint32_t height)
 {
     m_name    = name;
