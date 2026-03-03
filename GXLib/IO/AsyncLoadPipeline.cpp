@@ -22,11 +22,30 @@ AsyncLoadPipeline::~AsyncLoadPipeline()
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_running.store(false);
+        // ワーカーが空キュー待ちでブロックしないよう、残存タスクをキャンセル
+        for (auto& [id, task] : m_tasks)
+        {
+            task->cancelled.store(true);
+        }
     }
     m_ioCv.notify_all();
     m_parseCv.notify_all();
 
     if (m_ioThread.joinable()) m_ioThread.join();
+
+    // IOスレッド終了後、パースキューに残ったタスクをドレインして
+    // パーススレッドが空キュー+!running で正常終了できるようにする
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        for (auto& task : m_parseQueue)
+        {
+            task->status = PipelineLoadStatus::Cancelled;
+            m_integrateQueue.push_back(task);
+        }
+        m_parseQueue.clear();
+    }
+    m_parseCv.notify_all();
+
     if (m_parseThread.joinable()) m_parseThread.join();
 }
 
@@ -107,19 +126,21 @@ BatchHandle AsyncLoadPipeline::SubmitBatch(const gx::Vector<gx::String>& paths,
     if (paths.empty())
         return handle;
 
-    BatchInfo batch;
+    // バッチ情報とタスクを全てロック内で作成し、その後一括でIOキューへ投入する。
+    // これにより、ワーカースレッドがタスク完了時にバッチ情報を参照できないレースを防ぐ。
+    gx::Vector<std::shared_ptr<LoadTask>> tasksToEnqueue;
+
     {
         std::lock_guard<std::mutex> lock(m_mutex);
+
+        BatchInfo batch;
         batch.id = m_nextBatchId++;
         handle.id = batch.id;
         batch.onAllComplete = std::move(onAllComplete);
-    }
 
-    for (const auto& path : paths)
-    {
-        auto task = std::make_shared<LoadTask>();
+        for (const auto& path : paths)
         {
-            std::lock_guard<std::mutex> lock(m_mutex);
+            auto task = std::make_shared<LoadTask>();
             task->id = m_nextTaskId++;
             task->path = path;
             task->parseFunc = parseFunc;
@@ -128,13 +149,16 @@ BatchHandle AsyncLoadPipeline::SubmitBatch(const gx::Vector<gx::String>& paths,
             task->batchId = batch.id;
             m_tasks[task->id] = task;
             batch.taskIds.push_back(task->id);
+            tasksToEnqueue.push_back(task);
         }
-        EnqueueForIO(task);
+
+        m_batches[batch.id] = std::move(batch);
     }
 
+    // ロック解放後にIOキューへ投入
+    for (auto& task : tasksToEnqueue)
     {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        m_batches[batch.id] = std::move(batch);
+        EnqueueForIO(task);
     }
 
     return handle;
@@ -193,6 +217,8 @@ void AsyncLoadPipeline::IOWorkerLoop()
         {
             std::lock_guard<std::mutex> lock(m_mutex);
             task->status = PipelineLoadStatus::Cancelled;
+            // バッチ完了/依存解放のためintegrateキューに入れる
+            m_integrateQueue.push_back(task);
             continue;
         }
 
@@ -211,6 +237,7 @@ void AsyncLoadPipeline::IOWorkerLoop()
         // Parseキューへ
         {
             std::lock_guard<std::mutex> lock(m_mutex);
+            task->status = PipelineLoadStatus::Parsing;
             m_parseQueue.push_back(std::move(task));
         }
         m_parseCv.notify_one();
@@ -233,21 +260,24 @@ void AsyncLoadPipeline::ParseWorkerLoop()
                 return !m_running.load() || !m_parseQueue.empty();
             });
 
-            if (!m_running.load() && m_parseQueue.empty())
-                return;
-
             if (m_parseQueue.empty())
+            {
+                if (!m_running.load())
+                    return;
                 continue;
+            }
 
             task = std::move(m_parseQueue.front());
             m_parseQueue.erase(m_parseQueue.begin());
-            task->status = PipelineLoadStatus::Parsing;
+            // statusは既にIOWorkerでParsing設定済み
         }
 
         if (task->cancelled.load())
         {
             std::lock_guard<std::mutex> lock(m_mutex);
             task->status = PipelineLoadStatus::Cancelled;
+            // バッチ完了/依存解放のためintegrateキューに入れる
+            m_integrateQueue.push_back(task);
             continue;
         }
 
@@ -296,7 +326,26 @@ void AsyncLoadPipeline::Update()
         if (task->cancelled.load())
         {
             std::lock_guard<std::mutex> lock(m_mutex);
-            task->status = PipelineLoadStatus::Cancelled;
+            if (task->status != PipelineLoadStatus::Cancelled)
+                task->status = PipelineLoadStatus::Cancelled;
+
+            // キャンセルでもバッチ完了/依存解放を処理する
+            if (task->batchId != 0)
+            {
+                auto batchIt = m_batches.find(task->batchId);
+                if (batchIt != m_batches.end())
+                {
+                    batchIt->second.completedCount++;
+                    if (!batchIt->second.fired &&
+                        batchIt->second.completedCount >= batchIt->second.taskIds.size())
+                    {
+                        batchIt->second.fired = true;
+                        if (batchIt->second.onAllComplete)
+                            batchIt->second.onAllComplete();
+                    }
+                }
+            }
+            CheckPendingDependencies();
             continue;
         }
 

@@ -3,6 +3,8 @@
 
 #include "pch_graphics.h"
 #include "Graphics/3D/ClusteredLighting.h"
+#include "Graphics/Pipeline/RootSignature.h"
+#include "Core/Logger.h"
 
 namespace gx
 {
@@ -85,7 +87,7 @@ bool ClusteredLighting::Initialize(ID3D12Device* device)
         if (FAILED(hr)) return false;
     }
 
-    // Create constant buffer
+    // Create constant buffer (256-byte aligned)
     {
         const uint32_t cbSize = (sizeof(Matrix4x4) * 2 + 64 + 255) & ~255u;
 
@@ -108,10 +110,15 @@ bool ClusteredLighting::Initialize(ID3D12Device* device)
         if (FAILED(hr)) return false;
     }
 
-    // Create descriptor heap for SRV/UAV
+    // Create descriptor heap for SRV/UAV/CBV (4 slots, shader-visible)
+    // Layout:
+    //   Slot 0: LightData SRV (StructuredBuffer<LightData>, t0)
+    //   Slot 1: ClusterInfo UAV (RWStructuredBuffer<ClusterInfo>, u0)
+    //   Slot 2: LightIndices UAV (RWStructuredBuffer<uint>, u1)
+    //   Slot 3: ClusterCB CBV (b0)
     {
         D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
-        heapDesc.NumDescriptors = 4; // lightData SRV, clusterInfo UAV, lightIndices UAV, CB CBV
+        heapDesc.NumDescriptors = 4;
         heapDesc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
         heapDesc.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
@@ -119,8 +126,117 @@ bool ClusteredLighting::Initialize(ID3D12Device* device)
         if (FAILED(hr)) return false;
     }
 
-    // TODO: Create root signature and compile CS PSO from ClusteredLightAssign.hlsl
-    // For now, the system is initialized but dispatch requires PSO setup
+    // Create descriptor views
+    {
+        const uint32_t descriptorSize = device->GetDescriptorHandleIncrementSize(
+            D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = m_descriptorHeap->GetCPUDescriptorHandleForHeapStart();
+
+        // Slot 0: LightData SRV (StructuredBuffer<LightData>)
+        {
+            D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+            srvDesc.Format                  = DXGI_FORMAT_UNKNOWN;
+            srvDesc.ViewDimension           = D3D12_SRV_DIMENSION_BUFFER;
+            srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+            srvDesc.Buffer.FirstElement     = 0;
+            srvDesc.Buffer.NumElements      = LightConstants::k_MaxLights;
+            srvDesc.Buffer.StructureByteStride = sizeof(LightData);
+
+            device->CreateShaderResourceView(m_lightDataBuffer.Get(), &srvDesc, cpuHandle);
+        }
+
+        // Slot 1: ClusterInfo UAV (RWStructuredBuffer<ClusterInfo>)
+        cpuHandle.ptr += descriptorSize;
+        {
+            D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+            uavDesc.Format                = DXGI_FORMAT_UNKNOWN;
+            uavDesc.ViewDimension         = D3D12_UAV_DIMENSION_BUFFER;
+            uavDesc.Buffer.FirstElement   = 0;
+            uavDesc.Buffer.NumElements    = totalClusters;
+            uavDesc.Buffer.StructureByteStride = sizeof(ClusterInfo);
+
+            device->CreateUnorderedAccessView(m_clusterInfoBuffer.Get(), nullptr, &uavDesc, cpuHandle);
+        }
+
+        // Slot 2: LightIndices UAV (RWStructuredBuffer<uint>)
+        cpuHandle.ptr += descriptorSize;
+        {
+            D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+            uavDesc.Format                = DXGI_FORMAT_UNKNOWN;
+            uavDesc.ViewDimension         = D3D12_UAV_DIMENSION_BUFFER;
+            uavDesc.Buffer.FirstElement   = 0;
+            uavDesc.Buffer.NumElements    = totalClusters * k_MaxLightsPerCluster;
+            uavDesc.Buffer.StructureByteStride = sizeof(uint32_t);
+
+            device->CreateUnorderedAccessView(m_lightIndexBuffer.Get(), nullptr, &uavDesc, cpuHandle);
+        }
+
+        // Slot 3: ClusterCB CBV
+        cpuHandle.ptr += descriptorSize;
+        {
+            const uint32_t cbSize = (sizeof(Matrix4x4) * 2 + 64 + 255) & ~255u;
+
+            D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+            cbvDesc.BufferLocation = m_constantBuffer->GetGPUVirtualAddress();
+            cbvDesc.SizeInBytes    = cbSize;
+
+            device->CreateConstantBufferView(&cbvDesc, cpuHandle);
+        }
+    }
+
+    // Create root signature
+    // [0] CBV (b0) - constant buffer (root CBV for direct GPU VA binding)
+    // [1] SRV descriptor table (t0) - light data
+    // [2] UAV descriptor table (u0, u1) - cluster info + light indices
+    m_rootSignature = RootSignatureBuilder()
+        .SetFlags(D3D12_ROOT_SIGNATURE_FLAG_NONE)
+        .AddCBV(0)
+        .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1)
+        .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2)
+        .Build(device);
+
+    if (!m_rootSignature)
+    {
+        GX_LOG_WARN("ClusteredLighting: Failed to create root signature");
+        m_initialized = true;
+        return true;
+    }
+
+    // Compile compute shader
+    Shader shaderCompiler;
+    if (!shaderCompiler.Initialize())
+    {
+        GX_LOG_WARN("ClusteredLighting: DXC compiler initialization failed -- PSO not created");
+        m_initialized = true;
+        return true;
+    }
+
+    ShaderBlob csBlob = shaderCompiler.CompileFromFile(
+        L"Shaders/ClusteredLightAssign.hlsl", L"CSMain", L"cs_6_0");
+
+    if (!csBlob.valid)
+    {
+        GX_LOG_WARN("ClusteredLighting: CS compile failed: %s", shaderCompiler.GetLastError().c_str());
+        m_initialized = true;
+        return true;
+    }
+
+    // Create compute pipeline state
+    D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc = {};
+    psoDesc.pRootSignature = m_rootSignature.Get();
+    psoDesc.CS             = csBlob.GetBytecode();
+
+    HRESULT hr = device->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&m_assignPSO));
+    if (FAILED(hr))
+    {
+        GX_LOG_WARN("ClusteredLighting: Failed to create compute PSO (0x%08X)", hr);
+        m_rootSignature.Reset();
+        m_initialized = true;
+        return true;
+    }
+
+    GX_LOG_INFO("ClusteredLighting: Initialized with %ux%ux%u clusters, PSO ready",
+                m_settings.clusterCountX, m_settings.clusterCountY, m_settings.clusterCountZ);
 
     m_initialized = true;
     return true;
@@ -221,9 +337,21 @@ void ClusteredLighting::AssignLights(
         ID3D12DescriptorHeap* heaps[] = { m_descriptorHeap.Get() };
         cmdList->SetDescriptorHeaps(1, heaps);
 
-        // Set root parameters
-        D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = m_descriptorHeap->GetGPUDescriptorHandleForHeapStart();
-        cmdList->SetComputeRootDescriptorTable(0, gpuHandle);
+        const uint32_t descriptorSize = m_device->GetDescriptorHandleIncrementSize(
+            D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        D3D12_GPU_DESCRIPTOR_HANDLE gpuBase = m_descriptorHeap->GetGPUDescriptorHandleForHeapStart();
+
+        // Root param [0]: CBV (b0) - constant buffer via root CBV (GPU virtual address)
+        cmdList->SetComputeRootConstantBufferView(0, m_constantBuffer->GetGPUVirtualAddress());
+
+        // Root param [1]: SRV descriptor table (t0) - light data at slot 0
+        D3D12_GPU_DESCRIPTOR_HANDLE srvHandle = gpuBase;
+        cmdList->SetComputeRootDescriptorTable(1, srvHandle);
+
+        // Root param [2]: UAV descriptor table (u0, u1) - cluster info + light indices at slots 1-2
+        D3D12_GPU_DESCRIPTOR_HANDLE uavHandle = gpuBase;
+        uavHandle.ptr += descriptorSize; // slot 1: clusterInfo UAV
+        cmdList->SetComputeRootDescriptorTable(2, uavHandle);
 
         // Dispatch: one thread group per cluster
         cmdList->Dispatch(

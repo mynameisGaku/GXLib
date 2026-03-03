@@ -1,11 +1,17 @@
 /// @file MotionMatching.cpp
 /// @brief モーションマッチングシステムの実装
+///
+/// KD-Tree 高速化:
+///   Build() でポーズ特徴量を事前計算した後、17 次元の KD-Tree を構築する。
+///   FindBestMatch() は KD-Tree が構築済みなら O(log n) 近傍探索を使い、
+///   未構築時は従来の O(n) 線形探索にフォールバックする。
 #include "pch_graphics.h"
 #include "Graphics/3D/MotionMatching.h"
 #include "Graphics/3D/AnimationClip.h"
 #include "Graphics/3D/Animator.h"
 #include "Graphics/3D/Skeleton.h"
 #include "Math/MathUtil.h"
+#include <algorithm>
 
 namespace gx
 {
@@ -28,6 +34,9 @@ size_t MotionDatabase::GetClipCount() const
 void MotionDatabase::Build(const Skeleton& skeleton, const MotionMatchingConfig& config)
 {
     m_poses.clear();
+    m_kdNodes.clear();
+    m_kdRoot  = -1;
+    m_kdBuilt = false;
 
     const uint32_t jointCount = skeleton.GetJointCount();
     if (jointCount == 0)
@@ -159,7 +168,17 @@ void MotionDatabase::Build(const Skeleton& skeleton, const MotionMatchingConfig&
             m_poses.push_back(pose);
         }
     }
+
+    // KD-Tree を構築する
+    if (!m_poses.empty())
+    {
+        BuildKDTree();
+    }
 }
+
+// ===========================================================================
+// Cost function
+// ===========================================================================
 
 float MotionDatabase::ComputeCost(const MotionFeature& a, const MotionFeature& b,
                                     const MotionMatchingConfig& config)
@@ -200,10 +219,40 @@ float MotionDatabase::ComputeCost(const MotionFeature& a, const MotionFeature& b
     return cost;
 }
 
+// ===========================================================================
+// FindBestMatch — KD-Tree or linear fallback
+// ===========================================================================
+
 MotionPose MotionDatabase::FindBestMatch(const MotionFeature& query,
                                            const MotionMatchingConfig& config,
                                            float& outCost) const
 {
+    if (m_poses.empty())
+    {
+        outCost = FLT_MAX;
+        return MotionPose{};
+    }
+
+    // ----- KD-Tree accelerated path -----
+    if (m_kdBuilt && m_kdRoot >= 0)
+    {
+        float queryFlat[k_FeatureDims];
+        FlattenFeature(query, queryFlat);
+
+        int   bestIdx  = -1;
+        float bestDist = FLT_MAX;
+        KDSearch(m_kdRoot, queryFlat, bestIdx, bestDist);
+
+        if (bestIdx >= 0 && bestIdx < static_cast<int>(m_poses.size()))
+        {
+            // Recompute the full weighted cost using ComputeCost for accuracy,
+            // since the KD-Tree search uses unweighted L2 distance.
+            outCost = ComputeCost(query, m_poses[bestIdx].feature, config);
+            return m_poses[bestIdx];
+        }
+    }
+
+    // ----- Linear fallback -----
     MotionPose bestPose;
     float bestCost = FLT_MAX;
 
@@ -220,6 +269,197 @@ MotionPose MotionDatabase::FindBestMatch(const MotionFeature& query,
     outCost = bestCost;
     return bestPose;
 }
+
+// ===========================================================================
+// KD-Tree construction
+// ===========================================================================
+
+void MotionDatabase::FlattenFeature(const MotionFeature& f, float out[k_FeatureDims])
+{
+    // 0-2:   velocity
+    out[0]  = f.velocity.x;
+    out[1]  = f.velocity.y;
+    out[2]  = f.velocity.z;
+    // 3-5:   futurePosition
+    out[3]  = f.futurePosition.x;
+    out[4]  = f.futurePosition.y;
+    out[5]  = f.futurePosition.z;
+    // 6-8:   facingDirection
+    out[6]  = f.facingDirection.x;
+    out[7]  = f.facingDirection.y;
+    out[8]  = f.facingDirection.z;
+    // 9-11:  leftFootPosition
+    out[9]  = f.leftFootPosition.x;
+    out[10] = f.leftFootPosition.y;
+    out[11] = f.leftFootPosition.z;
+    // 12-14: rightFootPosition
+    out[12] = f.rightFootPosition.x;
+    out[13] = f.rightFootPosition.y;
+    out[14] = f.rightFootPosition.z;
+    // 15:    leftFootVelocity
+    out[15] = f.leftFootVelocity;
+    // 16:    rightFootVelocity
+    out[16] = f.rightFootVelocity;
+}
+
+float MotionDatabase::FeatureValue(int poseIndex, int axis) const
+{
+    const MotionFeature& f = m_poses[poseIndex].feature;
+    switch (axis)
+    {
+    case 0:  return f.velocity.x;
+    case 1:  return f.velocity.y;
+    case 2:  return f.velocity.z;
+    case 3:  return f.futurePosition.x;
+    case 4:  return f.futurePosition.y;
+    case 5:  return f.futurePosition.z;
+    case 6:  return f.facingDirection.x;
+    case 7:  return f.facingDirection.y;
+    case 8:  return f.facingDirection.z;
+    case 9:  return f.leftFootPosition.x;
+    case 10: return f.leftFootPosition.y;
+    case 11: return f.leftFootPosition.z;
+    case 12: return f.rightFootPosition.x;
+    case 13: return f.rightFootPosition.y;
+    case 14: return f.rightFootPosition.z;
+    case 15: return f.leftFootVelocity;
+    case 16: return f.rightFootVelocity;
+    default: return 0.0f;
+    }
+}
+
+void MotionDatabase::BuildKDTree()
+{
+    const int n = static_cast<int>(m_poses.size());
+    if (n == 0)
+        return;
+
+    m_kdNodes.clear();
+    // Reserve a reasonable upper bound (2*n - 1 nodes for a balanced tree)
+    m_kdNodes.reserve(static_cast<size_t>(n) * 2);
+
+    gx::Vector<int> indices(n);
+    for (int i = 0; i < n; ++i)
+        indices[i] = i;
+
+    m_kdRoot  = BuildKDTreeRecursive(indices, 0, n, 0);
+    m_kdBuilt = true;
+}
+
+int MotionDatabase::BuildKDTreeRecursive(gx::Vector<int>& indices, int begin, int end, int depth)
+{
+    int count = end - begin;
+    if (count <= 0)
+        return -1;
+
+    int nodeIdx = static_cast<int>(m_kdNodes.size());
+    m_kdNodes.push_back(KDNode{});
+
+    // Leaf node: single element
+    if (count == 1)
+    {
+        m_kdNodes[nodeIdx].poseIndex  = indices[begin];
+        m_kdNodes[nodeIdx].splitAxis  = 0;
+        m_kdNodes[nodeIdx].splitValue = 0.0f;
+        m_kdNodes[nodeIdx].left       = -1;
+        m_kdNodes[nodeIdx].right      = -1;
+        return nodeIdx;
+    }
+
+    // Choose split axis by cycling through dimensions
+    int axis = depth % k_FeatureDims;
+
+    // Sort the range by feature value on the chosen axis
+    // Use std::nth_element for O(n) median selection
+    int mid = begin + count / 2;
+    std::nth_element(
+        indices.begin() + begin,
+        indices.begin() + mid,
+        indices.begin() + end,
+        [this, axis](int a, int b)
+        {
+            return FeatureValue(a, axis) < FeatureValue(b, axis);
+        });
+
+    float splitVal = FeatureValue(indices[mid], axis);
+
+    // Store the median pose in this node (for nearest-neighbor backtracking)
+    m_kdNodes[nodeIdx].poseIndex  = indices[mid];
+    m_kdNodes[nodeIdx].splitAxis  = axis;
+    m_kdNodes[nodeIdx].splitValue = splitVal;
+
+    // Recurse left: [begin, mid)
+    m_kdNodes[nodeIdx].left  = BuildKDTreeRecursive(indices, begin, mid, depth + 1);
+
+    // Recurse right: [mid+1, end)
+    m_kdNodes[nodeIdx].right = BuildKDTreeRecursive(indices, mid + 1, end, depth + 1);
+
+    return nodeIdx;
+}
+
+// ===========================================================================
+// KD-Tree search
+// ===========================================================================
+
+float MotionDatabase::FeatureDistSq(const float a[k_FeatureDims], const float b[k_FeatureDims])
+{
+    float sum = 0.0f;
+    for (int i = 0; i < k_FeatureDims; ++i)
+    {
+        float d = a[i] - b[i];
+        sum += d * d;
+    }
+    return sum;
+}
+
+void MotionDatabase::KDSearch(int nodeIdx, const float query[k_FeatureDims],
+                               int& bestIdx, float& bestDist) const
+{
+    if (nodeIdx < 0 || nodeIdx >= static_cast<int>(m_kdNodes.size()))
+        return;
+
+    const KDNode& node = m_kdNodes[nodeIdx];
+
+    // Compute distance from this node's pose to the query
+    if (node.poseIndex >= 0)
+    {
+        float nodeFeature[k_FeatureDims];
+        FlattenFeature(m_poses[node.poseIndex].feature, nodeFeature);
+
+        float dist = FeatureDistSq(query, nodeFeature);
+        if (dist < bestDist)
+        {
+            bestDist = dist;
+            bestIdx  = node.poseIndex;
+        }
+    }
+
+    // Leaf check: no children
+    if (node.left < 0 && node.right < 0)
+        return;
+
+    int axis = node.splitAxis;
+    float diff = query[axis] - node.splitValue;
+
+    // Determine which side of the split plane to search first
+    int nearChild  = (diff <= 0.0f) ? node.left  : node.right;
+    int farChild   = (diff <= 0.0f) ? node.right : node.left;
+
+    // Search the near subtree first
+    KDSearch(nearChild, query, bestIdx, bestDist);
+
+    // Check if the far subtree could contain a closer point.
+    // The split plane distance squared must be less than current best.
+    float planeDist = diff * diff;
+    if (planeDist < bestDist)
+    {
+        KDSearch(farChild, query, bestIdx, bestDist);
+    }
+}
+
+// ===========================================================================
+// Pose queries
+// ===========================================================================
 
 size_t MotionDatabase::GetTotalPoseCount() const
 {

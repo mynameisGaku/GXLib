@@ -92,6 +92,12 @@ Texture2D<float>  g_SDepth  : register(t1);
 Texture2D<float4> g_SNormal : register(t2);
 
 /// @brief A-Trous空間フィルタPS — 深度・法線・色差をエッジ保持重みとしてデノイズ
+///
+/// 標準的なA-Trous waveletカーネル [1/16, 1/4, 3/8, 1/4, 1/16] を使用。
+/// 5x5カーネルの2D重みは1D重みの外積で得られる: w2D(dx,dy) = w1D(dx) * w1D(dy)。
+/// stepWidthは反復ごとに2倍に拡大され (1, 2, 4, 8, 16...)、
+/// 少ない反復回数で広い空間範囲のノイズを除去する ("a trous" = "with holes")。
+/// エッジ保持: 深度差・法線角度・色差の3つの重みで幾何的エッジでの過度な平滑化を防ぐ。
 float4 SpatialPS(FullscreenVSOutput input) : SV_Target
 {
     float2 uv = input.uv;
@@ -104,7 +110,9 @@ float4 SpatialPS(FullscreenVSOutput input) : SV_Target
     if (cDepth >= 0.999)
         return float4(cColor, 1.0);
 
-    static const float kernel[3] = { 1.0, 2.0/3.0, 1.0/6.0 };
+    // A-Trous wavelet 1Dカーネル: [1/16, 1/4, 3/8, 1/4, 1/16]
+    // インデックス0=center(3/8), 1=adjacent(1/4), 2=corner(1/16)
+    static const float kernel[3] = { 3.0 / 8.0, 1.0 / 4.0, 1.0 / 16.0 };
 
     float3 weightedSum = float3(0, 0, 0);
     float wSum = 0.0;
@@ -113,24 +121,33 @@ float4 SpatialPS(FullscreenVSOutput input) : SV_Target
     [unroll] for (int dx = -2; dx <= 2; dx++)
     {
         float2 sUV = uv + float2(dx, dy) * texel * stepWidth;
+
+        // UV範囲外クランプ (境界アーティファクト防止)
+        sUV = saturate(sUV);
+
         float3 sColor = g_Input.SampleLevel(g_PointClamp, sUV, 0).rgb;
         float  sDepth = g_SDepth.SampleLevel(g_PointClamp, sUV, 0);
         float3 sNormal = normalize(g_SNormal.SampleLevel(g_LinearClamp, sUV, 0).rgb * 2.0 - 1.0);
 
-        // 深度重み
-        float wD = exp(-abs(sDepth - cDepth) / max(sigmaDepth, 0.001));
+        // 深度エッジストッピング — 深度差が大きいほど重みが減衰
+        float depthDiff = abs(sDepth - cDepth);
+        float wD = exp(-depthDiff / max(sigmaDepth, 1e-6));
 
-        // 法線重み
-        float wN = pow(max(dot(sNormal, cNormal), 0.0), sigmaNormal);
+        // 法線エッジストッピング — 法線の角度差が大きいほど重みが減衰
+        float normalDot = max(dot(sNormal, cNormal), 0.0);
+        float wN = pow(normalDot, sigmaNormal);
 
-        // 色差重み
-        float3 diff = sColor - cColor;
-        float wC = exp(-dot(diff, diff) / max(sigmaColor, 0.001));
+        // 色差エッジストッピング — 色が大きく異なるピクセルの寄与を抑制
+        float3 colorDiff = sColor - cColor;
+        float wC = exp(-dot(colorDiff, colorDiff) / max(sigmaColor, 1e-6));
 
-        float w = kernel[abs(dx)] * kernel[abs(dy)] * wD * wN * wC;
+        // 2Dカーネル重み = 1D(|dx|) * 1D(|dy|) * エッジストッピング重み
+        float spatialW = kernel[abs(dx)] * kernel[abs(dy)];
+        float w = spatialW * wD * wN * wC;
+
         weightedSum += sColor * w;
         wSum += w;
     }
 
-    return float4(weightedSum / max(wSum, 0.001), 1.0);
+    return float4(weightedSum / max(wSum, 1e-6), 1.0);
 }

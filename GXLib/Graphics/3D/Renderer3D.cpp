@@ -228,6 +228,16 @@ bool Renderer3D::Initialize(ID3D12Device* device, ID3D12CommandQueue* cmdQueue,
                                m_skybox.GetSunDirection(), m_skybox.GetSunIntensity());
     }
 
+    // GPU Compute Skinning の初期化
+    if (!m_computeSkinning.Initialize(device))
+    {
+        GX_LOG_WARN("Renderer3D: ComputeSkinning initialization failed (VS skinning fallback)");
+    }
+    else if (m_computeSkinning.IsReady())
+    {
+        InitializeComputeSkinningResources(device);
+    }
+
     GX_LOG_INFO("Renderer3D initialized (%dx%d) with CSM shadows + IBL", screenWidth, screenHeight);
     return true;
 }
@@ -1353,10 +1363,23 @@ void Renderer3D::DrawModel(const Model& model, const Transform3D& transform)
 void Renderer3D::DrawSkinnedModel(const Model& model, const Transform3D& transform,
                                     const AnimationPlayer& animPlayer)
 {
+    const auto& bc = animPlayer.GetBoneConstants();
+
+    // GPU Compute Skinning パス: コンピュートシェーダーでスキニング実行後、
+    // 非スキニングPSOで描画する（頂点シェーダーのボーン変換をバイパス）
+    if (IsComputeSkinningReady() && !m_inShadowPass)
+    {
+        DispatchComputeSkinning(model, bc.boneMatrices, BoneConstants::k_MaxBones);
+        // 静的メッシュ用PSOで描画（スキニング済み頂点は既にPBRレイアウト）
+        DrawModel(model, transform);
+        return;
+    }
+
+    // VS Skinning フォールバック
     void* cbData = m_boneCB.Map(m_frameIndex);
     if (cbData)
     {
-        memcpy(cbData, &animPlayer.GetBoneConstants(), sizeof(BoneConstants));
+        memcpy(cbData, &bc, sizeof(BoneConstants));
         m_boneCB.Unmap(m_frameIndex);
     }
     uint32_t boneRootIndex = m_inShadowPass ? 2 : 4;
@@ -1368,10 +1391,21 @@ void Renderer3D::DrawSkinnedModel(const Model& model, const Transform3D& transfo
 void Renderer3D::DrawSkinnedModel(const Model& model, const Transform3D& transform,
                                     const Animator& animator)
 {
+    const auto& bc = animator.GetBoneConstants();
+
+    // GPU Compute Skinning パス
+    if (IsComputeSkinningReady() && !m_inShadowPass)
+    {
+        DispatchComputeSkinning(model, bc.boneMatrices, BoneConstants::k_MaxBones);
+        DrawModel(model, transform);
+        return;
+    }
+
+    // VS Skinning フォールバック
     void* cbData = m_boneCB.Map(m_frameIndex);
     if (cbData)
     {
-        memcpy(cbData, &animator.GetBoneConstants(), sizeof(BoneConstants));
+        memcpy(cbData, &bc, sizeof(BoneConstants));
         m_boneCB.Unmap(m_frameIndex);
     }
     uint32_t boneRootIndex = m_inShadowPass ? 2 : 4;
@@ -1532,10 +1566,21 @@ void Renderer3D::DrawSkinnedModel(const Model& model, const Transform3D& transfo
                                     const Animator& animator,
                                     const gx::Vector<bool>& submeshVisibility)
 {
+    const auto& bc = animator.GetBoneConstants();
+
+    // GPU Compute Skinning パス
+    if (IsComputeSkinningReady() && !m_inShadowPass)
+    {
+        DispatchComputeSkinning(model, bc.boneMatrices, BoneConstants::k_MaxBones);
+        DrawModel(model, transform, submeshVisibility);
+        return;
+    }
+
+    // VS Skinning フォールバック
     void* cbData = m_boneCB.Map(m_frameIndex);
     if (cbData)
     {
-        memcpy(cbData, &animator.GetBoneConstants(), sizeof(BoneConstants));
+        memcpy(cbData, &bc, sizeof(BoneConstants));
         m_boneCB.Unmap(m_frameIndex);
     }
     uint32_t boneRootIndex = m_inShadowPass ? 2 : 4;
@@ -1660,6 +1705,193 @@ void Renderer3D::OnResize(uint32_t width, uint32_t height)
     m_screenHeight = height;
     if (m_device)
         m_depthBuffer.CreateWithOwnSRV(m_device, width, height);
+}
+
+// ============================================================================
+// GPU Compute Skinning 統合
+// ============================================================================
+
+void Renderer3D::SetComputeSkinningEnabled(bool enabled)
+{
+    m_computeSkinning.SetEnabled(enabled);
+    if (enabled && !m_computeSkinning.IsReady())
+    {
+        GX_LOG_WARN("Renderer3D: ComputeSkinning not ready, VS skinning will be used");
+    }
+}
+
+bool Renderer3D::InitializeComputeSkinningResources(ID3D12Device* device)
+{
+    // SRV/UAV ヒープ (3スロット: inputVertexSRV, boneMatrixSRV, outputVertexUAV)
+    if (!m_computeSkinningHeap.Initialize(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 3, true))
+    {
+        GX_LOG_ERROR("Renderer3D: Failed to create ComputeSkinning descriptor heap");
+        return false;
+    }
+
+    GX_LOG_INFO("Renderer3D: ComputeSkinning resources initialized");
+    return true;
+}
+
+void Renderer3D::DispatchComputeSkinning(const Model& model, const void* boneData, uint32_t boneCount)
+{
+    if (!m_computeSkinning.IsReady() || !m_computeSkinning.IsEnabled() || !m_cmdList || !m_device)
+        return;
+
+    const auto& mesh = model.GetMesh();
+    if (!mesh.IsSkinned())
+        return;
+
+    auto* vertexResource = mesh.GetVertexBuffer().GetResource();
+    if (!vertexResource)
+        return;
+
+    // 頂点数を計算 (VBV サイズ / ストライド)
+    const auto& vbv = mesh.GetVertexBuffer().GetVertexBufferView();
+    if (vbv.StrideInBytes == 0)
+        return;
+    uint32_t vertexCount = vbv.SizeInBytes / vbv.StrideInBytes;
+
+    // 出力バッファの作成/リサイズ（Vertex3D_PBR レイアウト: 48B/頂点）
+    uint32_t outputStride = sizeof(Vertex3D_PBR);
+    uint32_t outputSize = vertexCount * outputStride;
+    if (!m_skinnedOutputBuffer || m_skinnedOutputVertexCount < vertexCount)
+    {
+        m_skinnedOutputBuffer.Reset();
+
+        D3D12_HEAP_PROPERTIES heapProps = {};
+        heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
+
+        D3D12_RESOURCE_DESC desc = {};
+        desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+        desc.Width = outputSize;
+        desc.Height = 1;
+        desc.DepthOrArraySize = 1;
+        desc.MipLevels = 1;
+        desc.Format = DXGI_FORMAT_UNKNOWN;
+        desc.SampleDesc.Count = 1;
+        desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+        desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+        HRESULT hr = m_device->CreateCommittedResource(
+            &heapProps, D3D12_HEAP_FLAG_NONE, &desc,
+            D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr,
+            IID_PPV_ARGS(&m_skinnedOutputBuffer));
+        if (FAILED(hr))
+        {
+            GX_LOG_ERROR("Renderer3D: Failed to create skinned output buffer");
+            return;
+        }
+        m_skinnedOutputVertexCount = vertexCount;
+    }
+
+    // ボーン行列バッファの作成/リサイズ
+    if (!m_boneMatrixBuffer || m_boneMatrixBufferCapacity < boneCount)
+    {
+        m_boneMatrixBuffer.Reset();
+
+        D3D12_HEAP_PROPERTIES heapProps = {};
+        heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+
+        D3D12_RESOURCE_DESC desc = {};
+        desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+        desc.Width = boneCount * sizeof(Matrix4x4);
+        desc.Height = 1;
+        desc.DepthOrArraySize = 1;
+        desc.MipLevels = 1;
+        desc.Format = DXGI_FORMAT_UNKNOWN;
+        desc.SampleDesc.Count = 1;
+        desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+        HRESULT hr = m_device->CreateCommittedResource(
+            &heapProps, D3D12_HEAP_FLAG_NONE, &desc,
+            D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
+            IID_PPV_ARGS(&m_boneMatrixBuffer));
+        if (FAILED(hr))
+        {
+            GX_LOG_ERROR("Renderer3D: Failed to create bone matrix buffer");
+            return;
+        }
+        m_boneMatrixBufferCapacity = boneCount;
+    }
+
+    // ボーン行列をアップロード
+    void* mapped = nullptr;
+    D3D12_RANGE readRange = { 0, 0 };
+    if (SUCCEEDED(m_boneMatrixBuffer->Map(0, &readRange, &mapped)))
+    {
+        memcpy(mapped, boneData, boneCount * sizeof(Matrix4x4));
+        m_boneMatrixBuffer->Unmap(0, nullptr);
+    }
+
+    // ディスクリプタ作成
+    // [0] InputVertices SRV (StructuredBuffer<SkinnedVertex>)
+    {
+        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        srvDesc.Buffer.FirstElement = 0;
+        srvDesc.Buffer.NumElements = vertexCount;
+        srvDesc.Buffer.StructureByteStride = vbv.StrideInBytes; // sizeof(Vertex3D_Skinned)
+        m_device->CreateShaderResourceView(vertexResource, &srvDesc,
+                                            m_computeSkinningHeap.GetCPUHandle(0));
+    }
+
+    // [1] BoneMatrices SRV (StructuredBuffer<float4x4>)
+    {
+        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        srvDesc.Buffer.FirstElement = 0;
+        srvDesc.Buffer.NumElements = boneCount;
+        srvDesc.Buffer.StructureByteStride = sizeof(Matrix4x4);
+        m_device->CreateShaderResourceView(m_boneMatrixBuffer.Get(), &srvDesc,
+                                            m_computeSkinningHeap.GetCPUHandle(1));
+    }
+
+    // [2] OutputVertices UAV (RWStructuredBuffer<OutputVertex>)
+    {
+        D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+        uavDesc.Format = DXGI_FORMAT_UNKNOWN;
+        uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+        uavDesc.Buffer.FirstElement = 0;
+        uavDesc.Buffer.NumElements = vertexCount;
+        uavDesc.Buffer.StructureByteStride = outputStride;
+        m_device->CreateUnorderedAccessView(m_skinnedOutputBuffer.Get(), nullptr, &uavDesc,
+                                             m_computeSkinningHeap.GetCPUHandle(2));
+    }
+
+    // ヒープをセット
+    ID3D12DescriptorHeap* heaps[] = { m_computeSkinningHeap.GetHeap() };
+    m_cmdList->SetDescriptorHeaps(1, heaps);
+
+    // コンピュートスキニングをディスパッチ
+    m_computeSkinning.Dispatch(
+        m_cmdList,
+        m_computeSkinningHeap.GetGPUHandle(0),
+        m_computeSkinningHeap.GetGPUHandle(1),
+        m_computeSkinningHeap.GetGPUHandle(2),
+        vertexCount, 4);
+
+    // UAVバリア（コンピュート完了を待つ）
+    D3D12_RESOURCE_BARRIER barrier = {};
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+    barrier.UAV.pResource = m_skinnedOutputBuffer.Get();
+    m_cmdList->ResourceBarrier(1, &barrier);
+
+    // スキニング済み出力バッファをVBとしてバインド
+    D3D12_VERTEX_BUFFER_VIEW outVBV = {};
+    outVBV.BufferLocation = m_skinnedOutputBuffer->GetGPUVirtualAddress();
+    outVBV.SizeInBytes = outputSize;
+    outVBV.StrideInBytes = outputStride;
+    m_cmdList->IASetVertexBuffers(0, 1, &outVBV);
+    m_lastBoundVB = m_skinnedOutputBuffer.Get();
+
+    // テクスチャヒープを戻す（描画パイプラインが必要とするため）
+    ID3D12DescriptorHeap* texHeaps[] = { m_textureManager.GetSRVHeap().GetHeap() };
+    m_cmdList->SetDescriptorHeaps(1, texHeaps);
 }
 
 } // namespace gx

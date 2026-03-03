@@ -46,6 +46,18 @@ struct OrbitConfig
     float damping = 5.0f;        ///< 補間の減衰率
 };
 
+/// @brief スプラインカメラレール設定
+struct SplineRailParams
+{
+    gx::Vector<Vector3> controlPoints;   ///< 制御点
+    gx::Vector<Vector3> lookAtPoints;    ///< 各区間の注視点（空の場合はパス方向を向く）
+    float speed       = 1.0f;             ///< 移動速度（ワールド単位/秒）
+    float tension     = 0.5f;             ///< スプラインテンション (0=直線的, 1=強いカーブ)
+    bool  loop        = false;            ///< ループするか
+    bool  easeInOut   = true;             ///< イーズイン・アウト
+    float easeDuration = 0.5f;            ///< イーズ区間長（秒）
+};
+
 /// @brief カメラコントローラー
 class CameraController
 {
@@ -84,6 +96,24 @@ public:
     /// @brief レール上の現在の補間位置を取得
     Vector3 GetRailPosition() const;
     Vector3 GetRailLookTarget() const;
+
+    // === スプラインカメラレール ===
+    /// @brief スプラインレールを開始する
+    /// @param params スプラインレール設定
+    void StartSplineRail(const SplineRailParams& params);
+    /// @brief スプラインレールを停止する
+    void StopSplineRail();
+    /// @brief スプラインレールがアクティブか判定する
+    bool IsSplineRailActive() const { return m_splineActive; }
+    /// @brief スプラインレールの進行度を取得する (0.0~1.0)
+    float GetSplineProgress() const;
+    /// @brief スプラインレールの移動速度を設定する
+    /// @param speed 移動速度（ワールド単位/秒）
+    void SetSplineSpeed(float speed);
+    /// @brief スプラインレール上の現在位置を取得する
+    Vector3 GetSplinePosition() const;
+    /// @brief スプラインレール上の現在の注視点を取得する
+    Vector3 GetSplineLookTarget() const;
 
     // === オービットカメラ ===
     /// @brief オービットモードを設定
@@ -126,6 +156,24 @@ private:
     bool m_railActive = false;                    ///< レール移動中フラグ
     bool m_railLoop = false;                      ///< ループ再生フラグ
     float m_railSpeed = 1.0f;                     ///< レール移動速度
+
+    // スプラインレール
+    SplineRailParams m_splineParams;              ///< スプラインレール設定
+    float m_splineT = 0.0f;                       ///< 現在の走行距離（ワールド単位）
+    float m_splineTotalLength = 0.0f;              ///< スプラインの総アーク長
+    bool m_splineActive = false;                   ///< スプラインレール移動中フラグ
+    float m_splineElapsed = 0.0f;                  ///< スプラインレール経過時間（秒）
+    gx::Vector<float> m_segmentLengths;            ///< 各セグメントのアーク長
+
+    void UpdateSplineRail(float dt);
+    Vector3 EvaluateSpline(float t) const;
+    Vector3 EvaluateSplineTangent(float t) const;
+    float ComputeSegmentLength(int segIdx) const;
+    void ComputeArcLengths();
+    float EaseInOut(float t) const;
+    Vector3 TensionCatmullRom(const Vector3& p0, const Vector3& p1,
+                               const Vector3& p2, const Vector3& p3,
+                               float t, float tension) const;
 
     // オービット
     OrbitConfig m_orbitConfig;                     ///< オービット設定

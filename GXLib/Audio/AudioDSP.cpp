@@ -339,4 +339,215 @@ void AudioDSP::ApplyCompressor(float* buffer, uint32_t sampleCount, uint32_t cha
     }
 }
 
+// ============================================================
+// ConvolutionReverb — Initialize
+// ============================================================
+void ConvolutionReverb::Initialize(const float* impulseResponse, int irLength, int sampleRate)
+{
+    if (!impulseResponse || irLength <= 0 || sampleRate <= 0)
+        return;
+
+    m_sampleRate = sampleRate;
+    m_irLength = irLength;
+
+    // IRをコピー（正規化はしない — 呼び出し元が適切なレベルのIRを渡す）
+    m_ir.resize(irLength);
+    std::memcpy(m_ir.data(), impulseResponse, irLength * sizeof(float));
+
+    // 入力サンプル履歴バッファ（IR長分の過去サンプルを保持）
+    m_inputHistory.resize(irLength, 0.0f);
+
+    // プリディレイバッファの初期化
+    m_preDelaySamples = static_cast<int>(m_preDelayMs * 0.001f * static_cast<float>(sampleRate));
+    if (m_preDelaySamples > 0)
+    {
+        m_preDelayBuffer.resize(m_preDelaySamples, 0.0f);
+        m_preDelayWritePos = 0;
+    }
+}
+
+// ============================================================
+// ConvolutionReverb — Process
+// ============================================================
+void ConvolutionReverb::Process(float* buffer, int numSamples)
+{
+    if (!buffer || numSamples <= 0 || m_ir.empty())
+        return;
+
+    // モノラル処理 — ステレオの場合はL/Rの平均を取る形ではなく
+    // 各チャンネルに同じ処理を適用するためそのまま ProcessDirect を呼ぶ
+    ProcessDirect(buffer, numSamples);
+}
+
+// ============================================================
+// ConvolutionReverb — ProcessDirect (時間領域直接畳み込み)
+// ============================================================
+void ConvolutionReverb::ProcessDirect(float* buffer, int numSamples)
+{
+    // プリディレイの更新
+    int preDelaySamplesNeeded = static_cast<int>(m_preDelayMs * 0.001f * static_cast<float>(m_sampleRate));
+    if (preDelaySamplesNeeded != m_preDelaySamples && preDelaySamplesNeeded > 0)
+    {
+        m_preDelaySamples = preDelaySamplesNeeded;
+        m_preDelayBuffer.resize(m_preDelaySamples, 0.0f);
+        m_preDelayWritePos = m_preDelayWritePos % m_preDelaySamples;
+    }
+
+    const float wet = m_wet;
+    const float dry = 1.0f - wet;
+    const int irLen = m_irLength;
+    const float* ir = m_ir.data();
+
+    for (int n = 0; n < numSamples; ++n)
+    {
+        const float inputSample = buffer[n];
+
+        // 入力サンプルを履歴の先頭に格納（循環バッファとしてシフト）
+        // 新しいサンプルを末尾に追加し、古いサンプルを先頭からシフトする方式ではなく
+        // 効率のため reverse index を使用
+        // inputHistory[0] = 最新、inputHistory[irLen-1] = 最古
+        std::memmove(m_inputHistory.data() + 1, m_inputHistory.data(),
+                     (irLen - 1) * sizeof(float));
+        m_inputHistory[0] = inputSample;
+
+        // 畳み込み: y[n] = sum_{k=0}^{irLen-1} h[k] * x[n-k]
+        float convOut = 0.0f;
+        for (int k = 0; k < irLen; ++k)
+        {
+            convOut += ir[k] * m_inputHistory[k];
+        }
+
+        // プリディレイ適用
+        float delayedOut = convOut;
+        if (m_preDelaySamples > 0 && !m_preDelayBuffer.empty())
+        {
+            // 読み出し位置
+            int readPos = m_preDelayWritePos - m_preDelaySamples;
+            if (readPos < 0) readPos += m_preDelaySamples;
+
+            delayedOut = m_preDelayBuffer[readPos];
+            m_preDelayBuffer[m_preDelayWritePos] = convOut;
+            m_preDelayWritePos = (m_preDelayWritePos + 1) % m_preDelaySamples;
+        }
+
+        // Dry/Wet ミックス
+        buffer[n] = inputSample * dry + delayedOut * wet;
+    }
+}
+
+// ============================================================
+// ConvolutionReverb — Reset
+// ============================================================
+void ConvolutionReverb::Reset()
+{
+    if (!m_inputHistory.empty())
+        std::fill(m_inputHistory.begin(), m_inputHistory.end(), 0.0f);
+    if (!m_preDelayBuffer.empty())
+        std::fill(m_preDelayBuffer.begin(), m_preDelayBuffer.end(), 0.0f);
+    m_preDelayWritePos = 0;
+}
+
+// ============================================================
+// ConvolutionReverb — GenerateRoomIR (静的ファクトリ)
+// ============================================================
+gx::Vector<float> ConvolutionReverb::GenerateRoomIR(float roomSizeMeters,
+                                                      float dampingFactor,
+                                                      int sampleRate)
+{
+    if (roomSizeMeters <= 0.0f || sampleRate <= 0)
+        return {};
+
+    // 減衰係数をクランプ
+    dampingFactor = std::clamp(dampingFactor, 0.0f, 1.0f);
+
+    // 残響時間の推定: RT60 ≈ 0.161 * V / A (Sabine式の簡易版)
+    // ここでは roomSize から残響長さを線形にマッピング
+    // 小部屋(2m) → 0.2秒、大ホール(50m) → 2.5秒
+    float rt60Seconds = 0.1f + roomSizeMeters * 0.05f;
+    rt60Seconds *= (1.0f - dampingFactor * 0.8f);  // ダンピングで短縮
+
+    int irLengthSamples = static_cast<int>(rt60Seconds * static_cast<float>(sampleRate));
+    // 最大4096サンプル（直接畳み込みの性能制限）
+    irLengthSamples = (std::min)(irLengthSamples, 4096);
+    irLengthSamples = (std::max)(irLengthSamples, 64);
+
+    gx::Vector<float> ir(irLengthSamples, 0.0f);
+
+    // ---- 直接音（最初のサンプル）----
+    ir[0] = 1.0f;
+
+    // ---- 初期反射 (Early Reflections) ----
+    // 部屋のサイズに基づく反射遅延時間
+    // 音速 ≈ 343 m/s、壁面反射の往復距離 = 2 * roomSize
+    float speedOfSound = 343.0f;
+    float reflectionDelay = 2.0f * roomSizeMeters / speedOfSound; // 秒
+    int reflectionDelaySamples = static_cast<int>(reflectionDelay * static_cast<float>(sampleRate));
+
+    // 6面の壁からの初期反射（左右上下前後）
+    float reflectionCoeffs[] = { 0.6f, 0.5f, 0.45f, 0.4f, 0.35f, 0.3f };
+    float reflectionDelayMultipliers[] = { 1.0f, 1.2f, 1.5f, 1.8f, 2.1f, 2.5f };
+
+    for (int r = 0; r < 6; ++r)
+    {
+        int delaySamp = static_cast<int>(reflectionDelaySamples * reflectionDelayMultipliers[r]);
+        if (delaySamp < irLengthSamples && delaySamp > 0)
+        {
+            // ダンピングの影響で反射係数を減衰
+            float coeff = reflectionCoeffs[r] * (1.0f - dampingFactor * 0.5f);
+            ir[delaySamp] += coeff;
+        }
+    }
+
+    // ---- 拡散残響 (Diffuse Tail) ----
+    // 指数減衰するノイズで残響テイルを構築
+    // RT60 = -60dB到達時間 → 減衰率 = exp(-6.908 / (RT60 * sampleRate))
+    float decayRate = 0.0f;
+    if (rt60Seconds > 0.0f)
+        decayRate = std::exp(-6.908f / (rt60Seconds * static_cast<float>(sampleRate)));
+
+    // 残響テイルの開始位置（初期反射の後）
+    int tailStart = (std::max)(1, static_cast<int>(reflectionDelaySamples * 3.0f));
+    if (tailStart >= irLengthSamples)
+        tailStart = irLengthSamples / 4;
+
+    // 疑似乱数生成（決定的にするため固定シード）
+    uint32_t seed = 0x12345678u;
+    auto nextRandom = [&seed]() -> float {
+        seed = seed * 1664525u + 1013904223u;
+        return (static_cast<float>(seed) / static_cast<float>(0xFFFFFFFFu)) * 2.0f - 1.0f;
+    };
+
+    for (int i = tailStart; i < irLengthSamples; ++i)
+    {
+        // 指数減衰エンベロープ
+        float envelope = std::pow(decayRate, static_cast<float>(i));
+
+        // ノイズ密度を制御（低密度で開始、徐々に密に）
+        float density = static_cast<float>(i - tailStart) / static_cast<float>(irLengthSamples - tailStart);
+        density = (std::min)(density * 2.0f, 1.0f);
+
+        // ダンピングの影響（高域を減衰させる簡易版 — 隣接サンプル平均）
+        float noise = nextRandom() * density;
+        float dampedNoise = noise * (1.0f - dampingFactor * 0.6f);
+
+        ir[i] += dampedNoise * envelope * 0.15f;
+    }
+
+    // IR全体を正規化（ピーク値を1.0に）
+    float peak = 0.0f;
+    for (int i = 0; i < irLengthSamples; ++i)
+    {
+        float absVal = std::fabs(ir[i]);
+        if (absVal > peak) peak = absVal;
+    }
+    if (peak > 0.0f)
+    {
+        float invPeak = 1.0f / peak;
+        for (int i = 0; i < irLengthSamples; ++i)
+            ir[i] *= invPeak;
+    }
+
+    return ir;
+}
+
 } // namespace gx

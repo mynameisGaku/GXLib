@@ -13,6 +13,7 @@
 #include "Graphics/Pipeline/MeshPipeline.h"
 #include "Graphics/Pipeline/Shader.h"
 #include "Graphics/Resource/Buffer.h"
+#include "Graphics/Device/DescriptorHeap.h"
 #include "Math/Vector3.h"
 #include "Math/Matrix4x4.h"
 
@@ -102,7 +103,7 @@ private:
     uint32_t        m_meshletCount = 0;                  ///< メッシュレット数
 
     // 間接描画メンバー
-    ComPtr<ID3D12Resource> m_indirectArgBuffer;        ///< 間接描画引数バッファ
+    ComPtr<ID3D12Resource> m_indirectArgBuffer;        ///< 間接描画引数バッファ (DEFAULT + UAV)
     ComPtr<ID3D12CommandSignature> m_commandSignature; ///< コマンドシグネチャ
     ComPtr<ID3D12PipelineState> m_cullPSO;             ///< カリング用ComputePSO
     ComPtr<ID3D12RootSignature> m_cullRootSignature;   ///< カリング用ルートシグネチャ
@@ -110,6 +111,13 @@ private:
     uint32_t m_boundsCount = 0;                        ///< バウンディング球数
     uint32_t m_visibleCount = 0;                       ///< 可視オブジェクト数
     bool m_indirectReady = false;                      ///< 間接描画パイプライン準備済みフラグ
+
+    Shader m_cullShader;                                ///< カリングシェーダーコンパイラ
+    ComPtr<ID3D12Resource> m_counterBuffer;             ///< カウンターバッファ (visible count, DEFAULT + UAV)
+    ComPtr<ID3D12Resource> m_counterReadback;           ///< カウンター読み戻しバッファ (READBACK)
+    Buffer m_counterUpload;                             ///< カウンタークリア用アップロードバッファ
+    DescriptorHeap m_cullDescHeap;                      ///< カリング用ディスクリプタヒープ (SRV/UAV)
+    uint32_t m_maxIndirectObjects = 0;                  ///< 間接描画最大オブジェクト数
 
     Shader m_shader;                                      ///< シェーダコンパイラ
     ComPtr<ID3D12RootSignature> m_rootSignature;          ///< ルートシグネチャ

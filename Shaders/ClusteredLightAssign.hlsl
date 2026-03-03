@@ -1,5 +1,9 @@
 /// @file ClusteredLightAssign.hlsl
 /// @brief クラスタライト割当 -- AABB-球テストで各クラスタのライトリストを構築
+///
+/// 各スレッドグループが1つのクラスタ（フロクセル）を担当し、全ライトとの
+/// 交差判定を行ってマッチするライトインデックスをリストに書き込む。
+/// 深度スライスは対数分割（exponential depth slicing）を使用。
 
 struct LightData
 {
@@ -33,33 +37,60 @@ cbuffer ClusterCB : register(b0)
     uint     gClusterCountX;
     uint     gClusterCountY;
     uint     gClusterCountZ;
-    float2   gScreenSize;
+    float    gScreenWidth;
+    float    gScreenHeight;
     uint     gMaxLightsPerCluster;
     float    _pad;
 };
 
+/// @brief スクリーンUVと深度からビュー空間座標を復元する
+/// @param uv   スクリーン空間UV [0,1]
+/// @param z    ビュー空間深度 (正値)
+/// @return ビュー空間座標
+float3 ScreenToView(float2 uv, float z)
+{
+    // UV → NDC: x = uv.x * 2 - 1, y = 1 - uv.y * 2 (Y反転)
+    float2 ndc = float2(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0);
+
+    // Projection行列からtanHalfFovとアスペクトを抽出
+    // Projection._11 = 1/(aspect*tan(fov/2)), Projection._22 = 1/tan(fov/2)
+    float tanHalfFovY = 1.0 / gProjection._22;
+    float tanHalfFovX = 1.0 / gProjection._11;
+
+    return float3(ndc.x * tanHalfFovX * z,
+                  ndc.y * tanHalfFovY * z,
+                  z);
+}
+
 /// @brief クラスタのAABBをビュー空間で計算する
+/// @param clusterIdx クラスタ3D座標
+/// @param aabbMin    出力: AABB最小点
+/// @param aabbMax    出力: AABB最大点
 void GetClusterAABB(uint3 clusterIdx, out float3 aabbMin, out float3 aabbMax)
 {
-    float clusterSizeX = gScreenSize.x / float(gClusterCountX);
-    float clusterSizeY = gScreenSize.y / float(gClusterCountY);
+    // スクリーン空間UV [0,1]
+    float2 uv0 = float2(clusterIdx.xy) / float2(gClusterCountX, gClusterCountY);
+    float2 uv1 = float2(clusterIdx.xy + uint2(1, 1)) / float2(gClusterCountX, gClusterCountY);
 
-    // Screen-space bounds
-    float2 minScreen = float2(clusterIdx.x, clusterIdx.y) * float2(clusterSizeX, clusterSizeY);
-    float2 maxScreen = minScreen + float2(clusterSizeX, clusterSizeY);
+    // 対数深度スライス: depth = near * (far/near)^(z/numZ)
+    float depthRatio = gFarZ / gNearZ;
+    float nearSlice = gNearZ * pow(depthRatio, float(clusterIdx.z) / float(gClusterCountZ));
+    float farSlice  = gNearZ * pow(depthRatio, float(clusterIdx.z + 1) / float(gClusterCountZ));
 
-    // Depth slice (exponential distribution)
-    float nearSlice = gNearZ * pow(gFarZ / gNearZ, float(clusterIdx.z) / float(gClusterCountZ));
-    float farSlice  = gNearZ * pow(gFarZ / gNearZ, float(clusterIdx.z + 1) / float(gClusterCountZ));
+    // 4つの角をビュー空間に変換し、near/farスライスの両方で評価
+    float3 p0 = ScreenToView(float2(uv0.x, uv0.y), nearSlice);
+    float3 p1 = ScreenToView(float2(uv1.x, uv0.y), nearSlice);
+    float3 p2 = ScreenToView(float2(uv0.x, uv1.y), nearSlice);
+    float3 p3 = ScreenToView(float2(uv1.x, uv1.y), nearSlice);
 
-    // Convert screen to NDC
-    float2 ndcMin = minScreen / gScreenSize * 2.0 - 1.0;
-    float2 ndcMax = maxScreen / gScreenSize * 2.0 - 1.0;
-    ndcMin.y = -ndcMin.y;
-    ndcMax.y = -ndcMax.y;
+    float3 p4 = ScreenToView(float2(uv0.x, uv0.y), farSlice);
+    float3 p5 = ScreenToView(float2(uv1.x, uv0.y), farSlice);
+    float3 p6 = ScreenToView(float2(uv0.x, uv1.y), farSlice);
+    float3 p7 = ScreenToView(float2(uv1.x, uv1.y), farSlice);
 
-    aabbMin = float3(min(ndcMin, ndcMax) * farSlice, nearSlice);
-    aabbMax = float3(max(ndcMin, ndcMax) * farSlice, farSlice);
+    // 8頂点からAABBを構成
+    aabbMin = min(min(min(p0, p1), min(p2, p3)), min(min(p4, p5), min(p6, p7)));
+    aabbMax = max(max(max(p0, p1), max(p2, p3)), max(max(p4, p5), max(p6, p7)));
 }
 
 /// @brief 球とAABBの交差判定

@@ -193,7 +193,8 @@ file(GLOB_RECURSE EDITOR_SOURCES "Editor/*.cpp" "Editor/*.h")
 add_library(GXLib_Editor STATIC ${EDITOR_SOURCES})
 gxlib_setup_module(GXLib_Editor pch_graphics.h)
 set_target_properties(GXLib_Editor PROPERTIES FOLDER "Engine")
-target_link_libraries(GXLib_Editor PUBLIC GXLib_Graphics GXLib_Scene)
+target_link_libraries(GXLib_Editor PUBLIC GXLib_Graphics GXLib_Scene GXLib_Core)
+target_include_directories(GXLib_Editor PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/imgui)
 
 # =============================================================================
 # GXLib_Script — ScriptEngine, ScriptBindings [optional: GX_ENABLE_LUA]

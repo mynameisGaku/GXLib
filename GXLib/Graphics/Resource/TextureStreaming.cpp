@@ -94,6 +94,12 @@ bool TextureStreamingManager::Initialize(ID3D12Device* device, uint64_t budgetBy
 void TextureStreamingManager::Shutdown()
 {
     m_stagingBuffer.Reset();
+    m_feedbackMap.Reset();
+    m_feedbackReadback.Reset();
+    m_feedbackData.clear();
+    m_feedbackInitialized = false;
+    m_feedbackReadbackReady = false;
+    m_feedbackConfig = {};
     m_textures.clear();
     m_device = nullptr;
     m_initialized = false;
@@ -448,6 +454,256 @@ StreamingStats TextureStreamingManager::GetStats() const
     stats.loadedMips = loadedMips;
 
     return stats;
+}
+
+// ============================================================================
+// GPU Sampler Feedback — フィードバックマップ初期化
+// ============================================================================
+
+bool TextureStreamingManager::InitializeFeedback(ID3D12Device* device,
+                                                  uint32_t screenWidth,
+                                                  uint32_t screenHeight)
+{
+    if (m_feedbackInitialized)
+        return false;
+
+    // フィードバックマップサイズ: 画面解像度の 1/16
+    uint32_t fbWidth  = (screenWidth  + 15) / 16;
+    uint32_t fbHeight = (screenHeight + 15) / 16;
+
+    if (fbWidth == 0) fbWidth = 1;
+    if (fbHeight == 0) fbHeight = 1;
+
+    m_feedbackConfig.feedbackWidth  = fbWidth;
+    m_feedbackConfig.feedbackHeight = fbHeight;
+
+    // device が nullptr の場合は CPU-only モード（テスト用途）
+    if (!device)
+    {
+        m_feedbackConfig.enabled = true;
+        m_feedbackInitialized = true;
+        m_feedbackData.resize(static_cast<size_t>(fbWidth) * fbHeight, 0xFF);
+        GX_LOG_INFO("TextureStreaming: feedback initialized (CPU-only, %ux%u)", fbWidth, fbHeight);
+        return true;
+    }
+
+    // R8_UINT テクスチャ (UAV) — シェーダが最小アクセスmipレベルを書き込む
+    D3D12_RESOURCE_DESC texDesc = {};
+    texDesc.Dimension          = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    texDesc.Width              = fbWidth;
+    texDesc.Height             = fbHeight;
+    texDesc.DepthOrArraySize   = 1;
+    texDesc.MipLevels          = 1;
+    texDesc.Format             = DXGI_FORMAT_R8_UINT;
+    texDesc.SampleDesc.Count   = 1;
+    texDesc.SampleDesc.Quality = 0;
+    texDesc.Layout             = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    texDesc.Flags              = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+    D3D12_HEAP_PROPERTIES defaultHeap = {};
+    defaultHeap.Type = D3D12_HEAP_TYPE_DEFAULT;
+
+    HRESULT hr = device->CreateCommittedResource(
+        &defaultHeap, D3D12_HEAP_FLAG_NONE, &texDesc,
+        D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr,
+        IID_PPV_ARGS(&m_feedbackMap));
+
+    if (FAILED(hr))
+    {
+        GX_LOG_WARN("TextureStreaming: Failed to create feedback map (0x%08X)", hr);
+        return false;
+    }
+    m_feedbackMap->SetName(L"TextureStreaming_FeedbackMap");
+
+    // Readback バッファ — フィードバックマップと同サイズのバッファ
+    // R8_UINT: 1 byte per texel, ただし D3D12 テクスチャのコピーには
+    // 行ピッチのアライメントが必要（D3D12_TEXTURE_DATA_PITCH_ALIGNMENT = 256）
+    uint64_t rowPitch = ((static_cast<uint64_t>(fbWidth) + 255) / 256) * 256;
+    uint64_t readbackSize = rowPitch * fbHeight;
+
+    D3D12_HEAP_PROPERTIES readbackHeap = {};
+    readbackHeap.Type = D3D12_HEAP_TYPE_READBACK;
+
+    D3D12_RESOURCE_DESC bufDesc = {};
+    bufDesc.Dimension          = D3D12_RESOURCE_DIMENSION_BUFFER;
+    bufDesc.Width              = readbackSize;
+    bufDesc.Height             = 1;
+    bufDesc.DepthOrArraySize   = 1;
+    bufDesc.MipLevels          = 1;
+    bufDesc.Format             = DXGI_FORMAT_UNKNOWN;
+    bufDesc.SampleDesc.Count   = 1;
+    bufDesc.SampleDesc.Quality = 0;
+    bufDesc.Layout             = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+    hr = device->CreateCommittedResource(
+        &readbackHeap, D3D12_HEAP_FLAG_NONE, &bufDesc,
+        D3D12_RESOURCE_STATE_COPY_DEST, nullptr,
+        IID_PPV_ARGS(&m_feedbackReadback));
+
+    if (FAILED(hr))
+    {
+        GX_LOG_WARN("TextureStreaming: Failed to create readback buffer (0x%08X)", hr);
+        m_feedbackMap.Reset();
+        return false;
+    }
+    m_feedbackReadback->SetName(L"TextureStreaming_FeedbackReadback");
+
+    m_feedbackConfig.enabled = true;
+    m_feedbackInitialized = true;
+    m_feedbackData.resize(static_cast<size_t>(fbWidth) * fbHeight, 0xFF);
+
+    GX_LOG_INFO("TextureStreaming: feedback initialized (%ux%u, readback %llu bytes)",
+                fbWidth, fbHeight, readbackSize);
+    return true;
+}
+
+// ============================================================================
+// GPU Sampler Feedback — UAV → Readback コピー & マップ
+// ============================================================================
+
+void TextureStreamingManager::ReadbackFeedback(ID3D12GraphicsCommandList* cmdList)
+{
+    if (!m_feedbackInitialized || !m_feedbackConfig.enabled)
+        return;
+
+    // CPU-only モード（device == nullptr）: readbackは不要、テストデータをそのまま使う
+    if (!m_feedbackMap || !m_feedbackReadback || !cmdList)
+    {
+        m_feedbackReadbackReady = true;
+        return;
+    }
+
+    uint32_t fbWidth  = m_feedbackConfig.feedbackWidth;
+    uint32_t fbHeight = m_feedbackConfig.feedbackHeight;
+
+    // UAV → COPY_SOURCE バリア
+    D3D12_RESOURCE_BARRIER barrier = {};
+    barrier.Type  = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Transition.pResource   = m_feedbackMap.Get();
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+    barrier.Transition.StateAfter  = D3D12_RESOURCE_STATE_COPY_SOURCE;
+    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    cmdList->ResourceBarrier(1, &barrier);
+
+    // テクスチャ → バッファ コピー
+    D3D12_TEXTURE_COPY_LOCATION src = {};
+    src.pResource        = m_feedbackMap.Get();
+    src.Type             = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+    src.SubresourceIndex = 0;
+
+    uint64_t rowPitch = ((static_cast<uint64_t>(fbWidth) + 255) / 256) * 256;
+
+    D3D12_TEXTURE_COPY_LOCATION dst = {};
+    dst.pResource                         = m_feedbackReadback.Get();
+    dst.Type                              = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+    dst.PlacedFootprint.Offset            = 0;
+    dst.PlacedFootprint.Footprint.Format  = DXGI_FORMAT_R8_UINT;
+    dst.PlacedFootprint.Footprint.Width   = fbWidth;
+    dst.PlacedFootprint.Footprint.Height  = fbHeight;
+    dst.PlacedFootprint.Footprint.Depth   = 1;
+    dst.PlacedFootprint.Footprint.RowPitch = static_cast<UINT>(rowPitch);
+
+    cmdList->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+
+    // COPY_SOURCE → UAV バリア（次フレームで再利用）
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
+    barrier.Transition.StateAfter  = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+    cmdList->ResourceBarrier(1, &barrier);
+
+    // Map して CPU 側データにコピー
+    void* mappedData = nullptr;
+    D3D12_RANGE readRange = { 0, static_cast<SIZE_T>(rowPitch * fbHeight) };
+    HRESULT hr = m_feedbackReadback->Map(0, &readRange, &mappedData);
+    if (SUCCEEDED(hr) && mappedData)
+    {
+        const uint8_t* src8 = static_cast<const uint8_t*>(mappedData);
+        for (uint32_t y = 0; y < fbHeight; ++y)
+        {
+            std::memcpy(&m_feedbackData[static_cast<size_t>(y) * fbWidth],
+                        src8 + y * rowPitch,
+                        fbWidth);
+        }
+
+        D3D12_RANGE writeRange = { 0, 0 };
+        m_feedbackReadback->Unmap(0, &writeRange);
+        m_feedbackReadbackReady = true;
+    }
+    else
+    {
+        GX_LOG_WARN("TextureStreaming: Failed to map readback buffer (0x%08X)", hr);
+        m_feedbackReadbackReady = false;
+    }
+}
+
+// ============================================================================
+// GPU Sampler Feedback — readback結果を解析してmipリクエスト生成
+// ============================================================================
+
+void TextureStreamingManager::ProcessFeedback()
+{
+    if (!m_feedbackInitialized || !m_feedbackConfig.enabled)
+        return;
+
+    if (!m_feedbackReadbackReady)
+        return;
+
+    uint32_t fbWidth  = m_feedbackConfig.feedbackWidth;
+    uint32_t fbHeight = m_feedbackConfig.feedbackHeight;
+
+    if (m_feedbackData.empty() || m_textures.empty())
+        return;
+
+    // フィードバックマップの各テクセルには、そのスクリーン領域で
+    // シェーダがアクセスした最小ミップレベル（最高解像度）が格納されている。
+    // 0xFF は「アクセスなし」を示す。
+    //
+    // テクスチャとフィードバックテクセルの対応付け:
+    // フィードバックマップを登録テクスチャ数で均等に分割し、
+    // 各テクスチャの担当領域内の最小値をそのテクスチャの要求mipとする。
+    // (完全な実装ではテクスチャIDをエンコードしたフィードバックマップを使う)
+    uint32_t texCount = static_cast<uint32_t>(m_textures.size());
+    uint32_t totalTexels = fbWidth * fbHeight;
+
+    // 各テクスチャの最小mipレベルを算出
+    // 均等分割: テクスチャ i はテクセル [i * texelsPerTex, (i+1) * texelsPerTex) を担当
+    uint32_t texelsPerTex = (totalTexels + texCount - 1) / texCount;
+
+    for (uint32_t ti = 0; ti < texCount; ++ti)
+    {
+        auto& tex = m_textures[ti];
+        uint8_t minMip = 0xFF;
+
+        uint32_t start = ti * texelsPerTex;
+        uint32_t end   = (std::min)(start + texelsPerTex, totalTexels);
+
+        for (uint32_t idx = start; idx < end; ++idx)
+        {
+            uint8_t val = m_feedbackData[idx];
+            if (val < minMip)
+                minMip = val;
+        }
+
+        if (minMip == 0xFF)
+        {
+            // アクセスなし — 最低解像度で十分
+            continue;
+        }
+
+        // フィードバックから得たmipレベルをテクスチャの有効範囲にクランプ
+        uint32_t requestedMip = static_cast<uint32_t>(minMip);
+        if (requestedMip >= tex.mipCount)
+            requestedMip = tex.mipCount - 1;
+
+        // 現在より高解像度が必要な場合のみリクエスト生成
+        if (requestedMip < tex.currentMipLevel)
+        {
+            tex.requestedMipLevel = requestedMip;
+            tex.priority = MipPriority::High;
+            tex.lastAccessFrame = m_currentFrame;
+        }
+    }
+
+    m_feedbackReadbackReady = false;
 }
 
 } // namespace gx

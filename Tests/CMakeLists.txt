@@ -238,6 +238,24 @@ set(TEST_SOURCES
     test_BundleManager.cpp
     test_AsyncLoadPipeline.cpp
     test_AssetRemapper.cpp
+    # Result<T> type and ConcurrentObjectPool
+    test_Result.cpp
+    test_ConcurrentObjectPool.cpp
+    # SSS: Screen-Space Subsurface Scattering
+    test_SSS.cpp
+    # Editor Panels: SceneHierarchy, PropertyInspector, AssetBrowser, Console, Timeline
+    test_EditorPanels.cpp
+    # ShaderVariant: シェーダーバリアント管理システム
+    test_ShaderVariant.cpp
+    # ECS QueryCache: クエリ結果キャッシュ
+    test_ECSQueryCache.cpp
+    # Hair Renderer + Spline Camera Rail
+    test_HairRenderer.cpp
+    test_SplineCameraRail.cpp
+    # TLS/DTLS, DecalProjector, ConvolutionReverb
+    test_TLSSocket.cpp
+    test_DecalProjector.cpp
+    test_ConvolutionReverb.cpp
 )
 
 add_executable(GXLibTests ${TEST_SOURCES})

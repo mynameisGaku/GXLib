@@ -7,6 +7,37 @@
 namespace gx { namespace ecs {
 
 // ---------------------------------------------------------------------------
+// QueryCache
+// ---------------------------------------------------------------------------
+const gx::Vector<Archetype*>& QueryCache::GetMatchingArchetypes(
+    ComponentMask mask, gx::Vector<Archetype>& allArchetypes)
+{
+    uint64_t key = static_cast<uint64_t>(mask);
+
+    auto it = m_cache.find(key);
+    if (it != m_cache.end() && it->second.version == m_version)
+    {
+        // キャッシュヒット — バージョンが一致するのでそのまま返す
+        return it->second.archetypes;
+    }
+
+    // キャッシュミスまたは古いバージョン — 再構築
+    CacheEntry entry;
+    entry.version = m_version;
+
+    for (auto& arch : allArchetypes)
+    {
+        if ((arch.GetMask() & mask) == mask)
+        {
+            entry.archetypes.push_back(&arch);
+        }
+    }
+
+    m_cache[key] = std::move(entry);
+    return m_cache[key].archetypes;
+}
+
+// ---------------------------------------------------------------------------
 // 構築 / 破棄
 // ---------------------------------------------------------------------------
 World::World()
@@ -196,6 +227,10 @@ Archetype& World::FindOrCreateArchetype(ComponentMask mask)
     }
 
     m_archetypes.emplace_back(mask, infos);
+
+    // 新しいアーキタイプが追加されたのでクエリキャッシュを無効化
+    m_queryCache.Invalidate();
+
     return m_archetypes.back();
 }
 
@@ -264,15 +299,14 @@ void World::MoveEntity(EntityID entity, ComponentMask newMask)
 void World::ForEachRaw(ComponentMask mask,
                        std::function<void(EntityID, Archetype&, uint32_t)> fn)
 {
-    for (auto& arch : m_archetypes)
-    {
-        if ((arch.GetMask() & mask) != mask)
-            continue;
+    const auto& matching = m_queryCache.GetMatchingArchetypes(mask, m_archetypes);
 
-        uint32_t count = arch.GetEntityCount();
+    for (auto* arch : matching)
+    {
+        uint32_t count = arch->GetEntityCount();
         for (uint32_t row = 0; row < count; ++row)
         {
-            fn(arch.GetEntity(row), arch, row);
+            fn(arch->GetEntity(row), *arch, row);
         }
     }
 }

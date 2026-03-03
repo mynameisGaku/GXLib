@@ -1,5 +1,9 @@
 /// @file GPUCull.hlsl
-/// @brief GPU frustum + occlusion culling compute shader
+/// @brief GPU frustum culling compute shader
+///
+/// Per-object bounding sphere frustum test. Visible objects are appended
+/// to a RWStructuredBuffer and their count is tracked via an
+/// RWByteAddressBuffer counter so the CPU can read back the total.
 
 cbuffer CullConstants : register(b0)
 {
@@ -25,10 +29,13 @@ struct DrawCommand
     uint objectIndex;
 };
 
-StructuredBuffer<MeshletBounds> g_Bounds : register(t0);
-AppendStructuredBuffer<DrawCommand> g_DrawCommands : register(u0);
+StructuredBuffer<MeshletBounds>    g_Bounds       : register(t0);
+RWStructuredBuffer<DrawCommand>    g_DrawCommands : register(u0);
+RWByteAddressBuffer                g_Counter      : register(u1);
 
-// Frustum planes extraction from view-projection matrix
+// Extract six frustum planes from a row-major view-projection matrix.
+// Each plane is stored as (A, B, C, D) where Ax+By+Cz+D=0 and
+// (A,B,C) is normalised so that the distance test gives a true metric value.
 void ExtractFrustumPlanes(float4x4 vp, out float4 planes[6])
 {
     // Left
@@ -83,6 +90,11 @@ void CSMain(uint3 dtid : SV_DispatchThreadID)
 
     if (FrustumTest(bounds.center, bounds.radius, planes))
     {
+        // Atomically increment the visible count and use the returned
+        // value as the write index into the draw command buffer.
+        uint visibleIndex;
+        g_Counter.InterlockedAdd(0, 1, visibleIndex);
+
         DrawCommand cmd;
         cmd.indexCountPerInstance = 0;
         cmd.instanceCount = 1;
@@ -91,6 +103,6 @@ void CSMain(uint3 dtid : SV_DispatchThreadID)
         cmd.startInstanceLocation = 0;
         cmd.meshletIndex = idx;
         cmd.objectIndex = idx;
-        g_DrawCommands.Append(cmd);
+        g_DrawCommands[visibleIndex] = cmd;
     }
 }

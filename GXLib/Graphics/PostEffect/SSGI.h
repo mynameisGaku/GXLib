@@ -5,6 +5,7 @@
 /// スクリーン空間でグローバルイルミネーション（間接照明）を近似する。
 /// GBufferの深度・法線・カラーからレイマーチングで周囲のバウンスライトを計算し、
 /// 間接照明として加算する。SSAOの上位互換としてカラー情報を含むGIを実現。
+/// テンポラルリプロジェクションによりフレーム間の蓄積でノイズを低減する。
 /// @addtogroup grp_gfx_postfx/// @{
 
 #include "pch_graphics.h"
@@ -13,6 +14,7 @@
 #include "Graphics/Resource/DynamicBuffer.h"
 #include "Graphics/Device/DescriptorHeap.h"
 #include "Graphics/Pipeline/Shader.h"
+#include "Math/Matrix4x4.h"
 
 namespace gx
 {
@@ -31,12 +33,25 @@ struct SSGIConstants
     float padding[2];       ///< 32B アライメント用
 };
 
+/// SSGI テンポラルリゾルブ定数バッファ (GPU送信用)
+struct SSGITemporalConstants
+{
+    Matrix4x4 prevViewProj;  ///< 前フレームのVP行列 (row-major transposed)
+    Matrix4x4 invViewProj;   ///< 現フレームの逆VP行列 (row-major transposed)
+    float alpha;             ///< 新フレーム混合比率 (0.01~1.0)
+    float screenWidth;       ///< スクリーン幅
+    float screenHeight;      ///< スクリーン高さ
+    float hasHistory;        ///< ヒストリが存在するか (0.0 or 1.0)
+};  // 160B -> 256-align
+
 /// @brief スクリーン空間グローバルイルミネーション
 ///
 /// GBuffer（深度・法線・カラー）からレイマーチングを行い、
 /// 周囲のサーフェスからのバウンスライト（間接照明）を計算する。
 /// コンピュートシェーダーベースでフルスクリーンに適用し、
 /// ポストエフェクトパイプラインでシーンに合成する。
+/// テンポラルリプロジェクションで前フレームの結果と混合し、
+/// ノイズを大幅に低減する。
 class SSGI
 {
 public:
@@ -114,8 +129,24 @@ public:
     /// @brief 深度厚み閾値を取得する
     float GetThickness() const { return m_thickness; }
 
+    /// @brief テンポラル蓄積の新フレーム混合比率を設定する
+    /// @param a 0.01~1.0 にクランプ（小さいほど蓄積が強い）
+    void SetTemporalAlpha(float a) { m_temporalAlpha = std::clamp(a, 0.01f, 1.0f); }
+
+    /// @brief テンポラル蓄積の新フレーム混合比率を取得する
+    float GetTemporalAlpha() const { return m_temporalAlpha; }
+
+    /// @brief 前フレームのビュープロジェクション行列を設定する
+    /// @param vp 前フレームVP行列
+    void SetPrevViewProj(const Matrix4x4& vp) { m_prevViewProj = vp; }
+
+    /// @brief 現フレームの逆VP行列を設定する
+    /// @param invVP 現フレーム逆VP行列
+    void SetInvViewProj(const Matrix4x4& invVP) { m_invViewProj = invVP; }
+
 private:
     bool CreatePipelines(ID3D12Device* device);
+    bool CreateTemporalPipeline(ID3D12Device* device);
 
     bool m_enabled = false;
     float m_intensity = 0.5f;
@@ -126,7 +157,7 @@ private:
     uint32_t m_width  = 0;
     uint32_t m_height = 0;
 
-    // パイプライン
+    // SSGIメインパイプライン
     Shader m_shader;
     ComPtr<ID3D12RootSignature> m_rootSignature;
     ComPtr<ID3D12PipelineState> m_pso;
@@ -140,6 +171,33 @@ private:
                        RenderTarget& normalRT, uint32_t frameIndex);
     void UpdateSRVHeapFromDepthBuffer(RenderTarget& srcHDR, DepthBuffer& depth,
                                        RenderTarget& normalRT, uint32_t frameIndex);
+
+    // SSGI中間結果 (テンポラル合成前)
+    RenderTarget m_intermediateRT;
+
+    // テンポラル蓄積
+    RenderTarget m_historyRT[2];              ///< テンポラル蓄積ヒストリ (ダブルバッファ)
+    uint32_t m_historyWriteIdx = 0;           ///< ヒストリ書き込みインデックス
+
+    // テンポラルリゾルブパイプライン
+    ComPtr<ID3D12RootSignature> m_temporalRS;
+    ComPtr<ID3D12PipelineState> m_temporalPSO;
+    DynamicBuffer m_temporalCB;
+    DescriptorHeap m_temporalHeap;            ///< 4 slots x 2 frames = 8 slots
+
+    float m_temporalAlpha = 0.1f;             ///< 新フレーム混合比率
+    Matrix4x4 m_prevViewProj = {};            ///< 前フレームVP行列
+    Matrix4x4 m_invViewProj = {};             ///< 現フレーム逆VP行列
+    bool m_hasHistory = false;                ///< ヒストリが存在するか
+
+    void UpdateTemporalSRVHeap(RenderTarget& currentGI, RenderTarget& depthRT,
+                                uint32_t frameIndex);
+    void UpdateTemporalSRVHeapFromDepthBuffer(RenderTarget& currentGI, DepthBuffer& depth,
+                                               uint32_t frameIndex);
+    void ExecuteTemporalResolve(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
+                                 RenderTarget& destHDR, RenderTarget& depthRT);
+    void ExecuteTemporalResolveDepthBuffer(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
+                                            RenderTarget& destHDR, DepthBuffer& depth);
 };
 
 } // namespace gx

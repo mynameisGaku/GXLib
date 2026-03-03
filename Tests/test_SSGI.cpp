@@ -133,3 +133,66 @@ TEST(SSGITest, SampleCountClamp)
     ssgi.SetSampleCount(1);
     EXPECT_EQ(ssgi.GetSampleCount(), 4);
 }
+
+// ============================================================================
+// TemporalAlphaDefault: テンポラルアルファのデフォルト値
+// ============================================================================
+TEST(SSGITest, TemporalAlphaDefault)
+{
+    SSGI ssgi;
+    EXPECT_NEAR(ssgi.GetTemporalAlpha(), 0.1f, kEps);
+}
+
+// ============================================================================
+// TemporalAlphaSet: テンポラルアルファの設定
+// ============================================================================
+TEST(SSGITest, TemporalAlphaSet)
+{
+    SSGI ssgi;
+    ssgi.SetTemporalAlpha(0.5f);
+    EXPECT_NEAR(ssgi.GetTemporalAlpha(), 0.5f, kEps);
+}
+
+// ============================================================================
+// TemporalAlphaClamp: テンポラルアルファのクランプ動作
+// ============================================================================
+TEST(SSGITest, TemporalAlphaClamp)
+{
+    SSGI ssgi;
+
+    // 上限クランプ
+    ssgi.SetTemporalAlpha(5.0f);
+    EXPECT_NEAR(ssgi.GetTemporalAlpha(), 1.0f, kEps);
+
+    // 下限クランプ
+    ssgi.SetTemporalAlpha(0.001f);
+    EXPECT_NEAR(ssgi.GetTemporalAlpha(), 0.01f, kEps);
+
+    // 負値
+    ssgi.SetTemporalAlpha(-1.0f);
+    EXPECT_NEAR(ssgi.GetTemporalAlpha(), 0.01f, kEps);
+}
+
+// ============================================================================
+// SetPrevViewProj: 前フレームVP行列の設定
+// ============================================================================
+TEST(SSGITest, SetPrevViewProj)
+{
+    SSGI ssgi;
+    Matrix4x4 vp = Matrix4x4::Identity();
+    vp._11 = 2.0f;
+    ssgi.SetPrevViewProj(vp);
+    // 設定が例外を起こさないことを確認（内部状態は直接検証不可）
+    EXPECT_TRUE(true);
+}
+
+// ============================================================================
+// SetInvViewProj: 逆VP行列の設定
+// ============================================================================
+TEST(SSGITest, SetInvViewProj)
+{
+    SSGI ssgi;
+    Matrix4x4 invVP = Matrix4x4::Identity();
+    ssgi.SetInvViewProj(invVP);
+    EXPECT_TRUE(true);
+}

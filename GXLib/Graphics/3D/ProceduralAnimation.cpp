@@ -137,14 +137,10 @@ void ProceduralAnimator::Update(float deltaTime)
             swingPhase = MathUtil::Clamp(swingPhase, 0.0f, 1.0f);
             leg.state.stepProgress = swingPhase;
 
-            // スイング開始時にリフトオフ/着地位置を設定
-            if (!wasGrounded == false && wasGrounded) // just entered swing
+            // スイング開始時にリフトオフ位置を記録
+            if (wasGrounded) // just entered swing (was stance, now swing)
             {
                 leg.liftoffPos = leg.state.footWorldPosition;
-                leg.landingPos = leg.config.footOffset;
-                leg.landingPos.x += m_movementDir.x * leg.config.stepLength * 0.5f;
-                leg.landingPos.z += m_movementDir.z * leg.config.stepLength * 0.5f;
-                leg.landingPos.y  = m_groundHeight + leg.config.footOffset.y;
             }
 
             // 着地位置を更新（移動方向に基づく）

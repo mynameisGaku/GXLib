@@ -41,6 +41,47 @@ struct ComponentTypeID
 };
 
 // ---------------------------------------------------------------------------
+// QueryCache
+// ---------------------------------------------------------------------------
+
+/// @brief クエリ結果キャッシュ
+///
+/// コンポーネントマスクごとにマッチするArchetypeポインタのリストをキャッシュし、
+/// 毎フレームの全Archetype線形走査を回避する。Archetype構成が変わったら
+/// Invalidate()でバージョンを進め、次回アクセス時に再構築させる。
+class QueryCache
+{
+public:
+    /// @brief コンポーネントマスクに一致するArchetypeリストを取得（キャッシュ付き）
+    /// @param mask 必要なコンポーネントのビットマスク
+    /// @param allArchetypes 全アーキタイプリストへの参照
+    /// @return マッチするArchetypeポインタのリスト
+    const gx::Vector<Archetype*>& GetMatchingArchetypes(
+        ComponentMask mask, gx::Vector<Archetype>& allArchetypes);
+
+    /// @brief Archetype追加/変更時にキャッシュを無効化する
+    void Invalidate() { m_version++; }
+
+    /// @brief 全キャッシュをクリアする
+    void Clear() { m_cache.clear(); m_version++; }
+
+    /// @brief 現在のキャッシュバージョンを取得する（テスト用）
+    uint32_t GetVersion() const { return m_version; }
+
+    /// @brief キャッシュされているエントリ数を取得する（テスト用）
+    uint32_t GetCacheEntryCount() const { return static_cast<uint32_t>(m_cache.size()); }
+
+private:
+    struct CacheEntry
+    {
+        gx::Vector<Archetype*> archetypes; ///< マッチしたArchetypeポインタのリスト
+        uint32_t version = 0;               ///< このエントリが構築された時点のバージョン
+    };
+    gx::HashMap<uint64_t, CacheEntry> m_cache; ///< マスクハッシュ -> キャッシュエントリ
+    uint32_t m_version = 0;                     ///< 現在のバージョン（Invalidateで増加）
+};
+
+// ---------------------------------------------------------------------------
 // World
 // ---------------------------------------------------------------------------
 
@@ -113,9 +154,17 @@ public:
     void ForEach(std::function<void(EntityID, Ts&...)> fn)
     {
         ComponentMask mask = BuildMask<Ts...>();
-        ForEachRaw(mask, [&](EntityID eid, Archetype& arch, uint32_t row) {
-            fn(eid, *static_cast<Ts*>(arch.GetComponentData(ComponentTypeID<Ts>::ID(), row))...);
-        });
+        const auto& matching = m_queryCache.GetMatchingArchetypes(mask, m_archetypes);
+
+        for (auto* archetype : matching)
+        {
+            uint32_t count = archetype->GetEntityCount();
+            for (uint32_t row = 0; row < count; ++row)
+            {
+                fn(archetype->GetEntity(row),
+                   *static_cast<Ts*>(archetype->GetComponentData(ComponentTypeID<Ts>::ID(), row))...);
+            }
+        }
     }
 
     /// @brief コンポーネントセットTs...に一致するエンティティ数を返す
@@ -123,14 +172,17 @@ public:
     uint32_t CountEntities()
     {
         ComponentMask mask = BuildMask<Ts...>();
+        const auto& matching = m_queryCache.GetMatchingArchetypes(mask, m_archetypes);
         uint32_t count = 0;
-        for (auto& arch : m_archetypes)
+        for (auto* archetype : matching)
         {
-            if ((arch.GetMask() & mask) == mask)
-                count += arch.GetEntityCount();
+            count += archetype->GetEntityCount();
         }
         return count;
     }
+
+    /// @brief クエリキャッシュへの参照を取得する（テスト用）
+    QueryCache& GetQueryCache() { return m_queryCache; }
 
     // -----------------------------------------------------------------------
     // システム
@@ -203,6 +255,7 @@ private:
     gx::HashMap<ComponentID, uint32_t> m_componentSizes;   ///< コンポーネントIDごとのバイトサイズ
     gx::HashMap<ComponentID, gx::String> m_componentNames; ///< コンポーネントIDごとのデバッグ名
     gx::Vector<std::unique_ptr<System>> m_systems;                ///< 登録されたシステムのリスト
+    QueryCache m_queryCache;                                       ///< クエリ結果キャッシュ
 };
 
 // ---------------------------------------------------------------------------
