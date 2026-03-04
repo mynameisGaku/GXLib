@@ -264,8 +264,12 @@ bool LensFlare::CreateComputePipeline(ID3D12Device* device)
     m_computeRS = RootSignatureBuilder()
         .SetFlags(D3D12_ROOT_SIGNATURE_FLAG_NONE)
         .AddCBV(0)
-        .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2)
-        .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1)
+        .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, 0,
+                            D3D12_SHADER_VISIBILITY_ALL,
+                            D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE)
+        .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, 0,
+                            D3D12_SHADER_VISIBILITY_ALL,
+                            D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE)
         .Build(device);
 
     if (!m_computeRS)
@@ -302,7 +306,8 @@ bool LensFlare::CreateGhostRenderPipeline(ID3D12Device* device)
         .SetFlags(D3D12_ROOT_SIGNATURE_FLAG_NONE)
         .AddCBV(0)
         .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1,
-                            0, D3D12_SHADER_VISIBILITY_VERTEX)
+                            0, D3D12_SHADER_VISIBILITY_VERTEX,
+                            D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE)
         .Build(device);
 
     if (!m_ghostRS)
@@ -346,7 +351,8 @@ bool LensFlare::CreateCompositePipeline(ID3D12Device* device)
     m_compositeRS = RootSignatureBuilder()
         .AddCBV(0)
         .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, 0,
-                            D3D12_SHADER_VISIBILITY_PIXEL)
+                            D3D12_SHADER_VISIBILITY_PIXEL,
+                            D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE)
         .AddStaticSampler(0, D3D12_FILTER_MIN_MAG_MIP_LINEAR,
                           D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
                           D3D12_COMPARISON_FUNC_NEVER)
