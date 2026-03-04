@@ -461,9 +461,10 @@ void CSTraceGhosts(uint3 dtid : SV_DispatchThreadID)
         float  rayIntensity = 1.0;
         bool   valid = true;
 
-        // ========== フェーズ1: シーン側 → 反射面A まで屈折で進む ==========
-        // インターフェースをシーン側から順に (numInterfaces-1 → reflA+1)
-        for (int i = (int)numInterfaces - 1; i > (int)reflA; --i)
+        // ========== フェーズ1: シーン側 → 反射面B（センサー側）まで屈折で進む ==========
+        // レイはシーン側から入射し、reflBに到達するまで屈折で通過する
+        // インターフェースをシーン側から順に (numInterfaces-1 → reflB+1)
+        for (int i = (int)numInterfaces - 1; i > (int)reflB; --i)
         {
             LensInterface iface = gLensInterfaces[i];
             float n1_corr = DispersionCorrect(iface.n2, lambda); // シーン→センサー方向: n2が入射側
@@ -478,13 +479,13 @@ void CSTraceGhosts(uint3 dtid : SV_DispatchThreadID)
 
         if (!valid) { allValid = false; continue; }
 
-        // ========== フェーズ2: 反射面A で反射 ==========
+        // ========== フェーズ2: 反射面B（センサー側）で第1反射 ==========
         {
-            LensInterface ifaceA = gLensInterfaces[reflA];
-            float nInside = DispersionCorrect(ifaceA.n1, lambda);
-            float nOutside = DispersionCorrect(ifaceA.n2, lambda);
-            // レイはシーン側から来ているので n2→n1 方向で反射面に到達
-            if (!TraceReflect(rayPos, rayDir, ifaceA, nInside, nOutside, rayIntensity))
+            LensInterface ifaceB = gLensInterfaces[reflB];
+            // レイはシーン側(n2)から到達 → n2側で反射
+            float nIncoming = DispersionCorrect(ifaceB.n2, lambda);
+            float nOther    = DispersionCorrect(ifaceB.n1, lambda);
+            if (!TraceReflect(rayPos, rayDir, ifaceB, nIncoming, nOther, rayIntensity))
             {
                 valid = false;
             }
@@ -492,17 +493,15 @@ void CSTraceGhosts(uint3 dtid : SV_DispatchThreadID)
 
         if (!valid) { allValid = false; continue; }
 
-        // ========== フェーズ3: 反射面A → 反射面B まで屈折で戻る ==========
-        // 反射後はセンサー方向に戻るが反射面Bまで
-        for (int j = (int)reflA + 1; j < (int)reflB; ++j)
+        // ========== フェーズ3: 反射面B → 反射面A まで屈折で戻る ==========
+        // 反射後はシーン方向(+Z)に戻る。reflB+1 → reflA-1 を屈折通過する
+        for (int j = (int)reflB + 1; j < (int)reflA; ++j)
         {
-            // 逆方向の屈折: n1→n2 (元の定義通り)
             LensInterface iface = gLensInterfaces[j];
+            // センサー→シーン方向: n1が入射側, n2が出射側
             float n1_corr = DispersionCorrect(iface.n1, lambda);
             float n2_corr = DispersionCorrect(iface.n2, lambda);
 
-            // 反射後は逆向き（センサー→シーン方向）に進むので
-            // n1/n2は反転しない（TraceRefractが法線方向で自動調整）
             if (!TraceRefract(rayPos, rayDir, iface, n1_corr, n2_corr, rayIntensity))
             {
                 valid = false;
@@ -512,12 +511,13 @@ void CSTraceGhosts(uint3 dtid : SV_DispatchThreadID)
 
         if (!valid) { allValid = false; continue; }
 
-        // ========== フェーズ4: 反射面B で反射 ==========
+        // ========== フェーズ4: 反射面A（シーン側）で第2反射 ==========
         {
-            LensInterface ifaceB = gLensInterfaces[reflB];
-            float nInside = DispersionCorrect(ifaceB.n2, lambda);
-            float nOutside = DispersionCorrect(ifaceB.n1, lambda);
-            if (!TraceReflect(rayPos, rayDir, ifaceB, nInside, nOutside, rayIntensity))
+            LensInterface ifaceA = gLensInterfaces[reflA];
+            // レイはセンサー側(n1)から到達 → n1側で反射
+            float nIncoming = DispersionCorrect(ifaceA.n1, lambda);
+            float nOther    = DispersionCorrect(ifaceA.n2, lambda);
+            if (!TraceReflect(rayPos, rayDir, ifaceA, nIncoming, nOther, rayIntensity))
             {
                 valid = false;
             }
@@ -525,11 +525,12 @@ void CSTraceGhosts(uint3 dtid : SV_DispatchThreadID)
 
         if (!valid) { allValid = false; continue; }
 
-        // ========== フェーズ5: 反射面B → センサーまで屈折で進む ==========
-        for (int k = (int)reflB - 1; k >= 0; --k)
+        // ========== フェーズ5: 反射面A → センサーまで屈折で進む ==========
+        // 第2反射後、再びセンサー方向(-Z)に進む。reflA-1 → 0 を屈折通過する
+        for (int k = (int)reflA - 1; k >= 0; --k)
         {
             LensInterface iface = gLensInterfaces[k];
-            float n1_corr = DispersionCorrect(iface.n2, lambda);
+            float n1_corr = DispersionCorrect(iface.n2, lambda); // シーン→センサー方向
             float n2_corr = DispersionCorrect(iface.n1, lambda);
 
             if (!TraceRefract(rayPos, rayDir, iface, n1_corr, n2_corr, rayIntensity))

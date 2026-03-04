@@ -633,7 +633,7 @@ void LensFlare::Execute(ID3D12GraphicsCommandList* cmdList,
             gcb.gridSizeRender    = static_cast<uint32_t>(gridSize);
             gcb.numGhostsRender   = static_cast<uint32_t>(m_numGhosts);
             gcb.channelIndex      = ch;
-            gcb.globalIntensity   = m_settings.intensity * m_sunVisible;
+            gcb.globalIntensity   = 1.0f;  // sunVisible は Pass1 lightBrightness に、intensity は Pass3 composite に含まれる
             gcb.starburstStrength = m_settings.starburstStrength;
             gcb.apertureBlades    = m_settings.apertureBlades;
             gcb.screenSize[0]     = static_cast<float>(m_width);
