@@ -184,10 +184,8 @@ public:
     Override<bool>  lensFlareEnabled;
     Override<float> lensFlareIntensity;
     Override<float> lensFlareThreshold;
-    Override<int>   lensFlareGhostCount;
-    Override<float> lensFlareGhostDispersion;
-    Override<float> lensFlareHaloRadius;
-    Override<float> lensFlareChromaticShift;
+    Override<float> lensFlareApertureBlades;
+    Override<float> lensFlareStarburstStrength;
 
     // --- Fog ---
     Override<FogMode>  fogMode;

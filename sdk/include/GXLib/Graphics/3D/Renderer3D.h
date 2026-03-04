@@ -24,10 +24,12 @@
 #include "Graphics/3D/ShaderModelConstants.h"
 #include "Graphics/3D/InstanceBuffer.h"
 #include "Graphics/3D/IBL.h"
+#include "Graphics/3D/ComputeSkinning.h"
 #include "Graphics/Resource/Buffer.h"
 #include "Graphics/Resource/DynamicBuffer.h"
 #include "Graphics/Resource/DepthBuffer.h"
 #include "Graphics/Resource/TextureManager.h"
+#include "Graphics/Device/DescriptorHeap.h"
 #include "Graphics/Pipeline/Shader.h"
 
 namespace gx
@@ -193,6 +195,18 @@ public:
     /// @param animator 共有アニメーション状態
     void DrawSkinnedModelInstanced(const Model& model, const Transform3D* transforms,
                                     uint32_t count, const Animator& animator);
+
+    /// @brief GPU Compute Skinning の有効/無効を設定する
+    /// @param enabled trueでCompute Shader スキニングを使用（falseでVSスキニングにフォールバック）
+    void SetComputeSkinningEnabled(bool enabled);
+
+    /// @brief GPU Compute Skinning が有効かどうかを取得する
+    /// @return 有効ならtrue
+    bool IsComputeSkinningEnabled() const { return m_computeSkinning.IsEnabled(); }
+
+    /// @brief GPU Compute Skinning が使用可能かどうかを取得する
+    /// @return 初期化済み・有効・PSO作成済みならtrue
+    bool IsComputeSkinningReady() const { return m_computeSkinning.IsReady() && m_computeSkinning.IsEnabled(); }
 
     /// @brief マテリアルオーバーライドを設定する（全サブメッシュにこのマテリアルを適用）
     /// @param mat オーバーライドするマテリアル（描画後に ClearMaterialOverride で解除すること）
@@ -403,6 +417,16 @@ private:
     bool m_instanceSRVInitialized = false;
     ComPtr<ID3D12PipelineState> m_psoInstanced;        ///< インスタンシング用PSO（static）
     ComPtr<ID3D12PipelineState> m_psoSkinnedInstanced;  ///< インスタンシング用PSO（skinned）
+
+    // GPU Compute Skinning
+    ComputeSkinning m_computeSkinning;                     ///< Compute Shader スキニング
+    DescriptorHeap  m_computeSkinningHeap;                 ///< SRV/UAV ヒープ (3スロット: inputSRV, boneSRV, outputUAV)
+    ComPtr<ID3D12Resource> m_skinnedOutputBuffer;          ///< スキニング出力バッファ (Vertex3D_PBR)
+    uint32_t m_skinnedOutputVertexCount = 0;               ///< 出力バッファの頂点数
+    ComPtr<ID3D12Resource> m_boneMatrixBuffer;             ///< ボーン行列バッファ (StructuredBuffer<float4x4>)
+    uint32_t m_boneMatrixBufferCapacity = 0;               ///< ボーン行列バッファの最大ボーン数
+    bool InitializeComputeSkinningResources(ID3D12Device* device);
+    void DispatchComputeSkinning(const Model& model, const void* boneData, uint32_t boneCount);
 };
 
 /// @}

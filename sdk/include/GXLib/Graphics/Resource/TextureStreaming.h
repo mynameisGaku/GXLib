@@ -15,8 +15,17 @@
 
 struct ID3D12Device;
 struct ID3D12GraphicsCommandList;
+struct ID3D12Resource;
 
 namespace gx {
+
+/// @brief GPU Sampler Feedback サポート
+struct SamplerFeedbackConfig
+{
+    bool enabled = false;
+    uint32_t feedbackWidth  = 0;    ///< フィードバックマップ幅 (screen/16)
+    uint32_t feedbackHeight = 0;    ///< フィードバックマップ高さ
+};
 
 /// @brief ミップリクエスト優先度
 enum class MipPriority
@@ -95,6 +104,28 @@ public:
     /// @return テクスチャ数
     uint32_t GetTextureCount() const { return static_cast<uint32_t>(m_textures.size()); }
 
+    /// @brief GPUサンプラーフィードバックを初期化する
+    /// @param device D3D12デバイス
+    /// @param screenWidth 画面幅（ピクセル）
+    /// @param screenHeight 画面高さ（ピクセル）
+    /// @return 成功した場合true
+    bool InitializeFeedback(ID3D12Device* device, uint32_t screenWidth, uint32_t screenHeight);
+
+    /// @brief フィードバックマップをCPUに読み戻す
+    /// @param cmdList コマンドリスト
+    void ReadbackFeedback(ID3D12GraphicsCommandList* cmdList);
+
+    /// @brief readback結果を解析してmipリクエストを生成する
+    void ProcessFeedback();
+
+    /// @brief フィードバックマップリソースを取得する
+    /// @return フィードバックマップ（UAV）、未初期化の場合nullptr
+    ID3D12Resource* GetFeedbackMap() const { return m_feedbackMap.Get(); }
+
+    /// @brief フィードバックが有効かどうか
+    /// @return フィードバックが有効ならtrue
+    bool IsFeedbackEnabled() const { return m_feedbackConfig.enabled; }
+
 private:
     uint64_t EstimateMipSize(uint32_t width, uint32_t height, uint32_t mipLevel) const;
     void EvictLRU();
@@ -109,6 +140,14 @@ private:
     bool m_initialized = false;                       ///< 初期化済みフラグ
 
     ComPtr<ID3D12Resource> m_stagingBuffer;  ///< mipストリーミング用ステージングバッファ (UPLOAD)
+
+    // GPU Feedback
+    SamplerFeedbackConfig m_feedbackConfig;            ///< フィードバック設定
+    ComPtr<ID3D12Resource> m_feedbackMap;               ///< Min-mip feedback map (UAV)
+    ComPtr<ID3D12Resource> m_feedbackReadback;          ///< CPU readback buffer
+    gx::Vector<uint8_t>    m_feedbackData;              ///< CPU側読み戻しデータ
+    bool m_feedbackInitialized = false;                 ///< フィードバック初期化済み
+    bool m_feedbackReadbackReady = false;               ///< readbackデータ読取可能
 };
 
 } // namespace gx

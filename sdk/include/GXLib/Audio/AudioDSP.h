@@ -184,5 +184,84 @@ private:
                      float a1, float a2);
 };
 
+/// @brief コンボリューションリバーブ
+///
+/// インパルスレスポンス（IR）を用いた畳み込みリバーブ。
+/// Schroederリバーブより自然なリバーブサウンドを提供する。
+/// 短い IR（< 4096サンプル）に対して時間領域の直接畳み込みを行う。
+class ConvolutionReverb
+{
+public:
+    ConvolutionReverb() = default;
+    ~ConvolutionReverb() = default;
+
+    /// @brief インパルスレスポンスで初期化する
+    /// @param impulseResponse IRデータ（モノラル float）
+    /// @param irLength IRサンプル数
+    /// @param sampleRate サンプルレート（Hz）
+    void Initialize(const float* impulseResponse, int irLength, int sampleRate = 44100);
+
+    /// @brief オーディオバッファにコンボリューションリバーブを適用する
+    /// @param buffer インターリーブPCMバッファ（モノラル / ステレオ）
+    /// @param numSamples サンプル数（1チャンネルあたり）
+    void Process(float* buffer, int numSamples);
+
+    /// @brief 内部状態をリセットする（IR設定は保持）
+    void Reset();
+
+    /// @brief 初期化済みか
+    /// @return IRが設定されている場合true
+    bool IsInitialized() const { return !m_ir.empty(); }
+
+    /// @brief Wet/Dry比率を設定する
+    /// @param wet Wet比率（0.0=ドライのみ、1.0=ウェットのみ）
+    void SetWetDry(float wet) { m_wet = std::clamp(wet, 0.0f, 1.0f); }
+
+    /// @brief Wet/Dry比率を取得する
+    /// @return 現在のWet比率
+    float GetWetDry() const { return m_wet; }
+
+    /// @brief プリディレイを設定する
+    /// @param ms プリディレイ時間（ミリ秒）
+    void SetPreDelay(float ms) { m_preDelayMs = (std::max)(ms, 0.0f); }
+
+    /// @brief プリディレイを取得する
+    /// @return プリディレイ時間（ミリ秒）
+    float GetPreDelay() const { return m_preDelayMs; }
+
+    /// @brief IR長を取得する
+    /// @return IRサンプル数
+    int GetIRLength() const { return m_irLength; }
+
+    /// @brief サンプルレートを取得する
+    /// @return サンプルレート（Hz）
+    int GetSampleRate() const { return m_sampleRate; }
+
+    /// @brief 簡易ルームIR生成（指数減衰 + 初期反射）
+    /// @param roomSizeMeters 部屋サイズ（メートル）。反射間隔に影響
+    /// @param dampingFactor 減衰係数（0.0〜1.0）。高いほど短い残響
+    /// @param sampleRate サンプルレート（Hz）
+    /// @return 生成されたIRデータ
+    static gx::Vector<float> GenerateRoomIR(float roomSizeMeters, float dampingFactor, int sampleRate = 44100);
+
+private:
+    /// @brief 時間領域の直接畳み込み処理
+    /// @param buffer PCMバッファ（モノラル）
+    /// @param numSamples サンプル数
+    void ProcessDirect(float* buffer, int numSamples);
+
+    gx::Vector<float> m_ir;              ///< インパルスレスポンス
+    gx::Vector<float> m_inputHistory;    ///< 入力サンプル履歴（畳み込み用）
+    int m_irLength     = 0;              ///< IR長
+    float m_wet        = 0.5f;           ///< ウェット比率
+    float m_preDelayMs = 0.0f;           ///< プリディレイ (ms)
+    int m_sampleRate   = 44100;
+
+    // プリディレイバッファ
+    gx::Vector<float> m_preDelayBuffer;  ///< プリディレイ円形バッファ
+    int m_preDelayWritePos = 0;          ///< プリディレイ書き込み位置
+    int m_preDelaySamples  = 0;          ///< プリディレイサンプル数
+};
+
 } // namespace gx
 /// @}

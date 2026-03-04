@@ -1,22 +1,23 @@
 #pragma once
 /// @file LensFlare.h
-/// @brief レンズフレア/グレアエフェクト
+/// @brief 物理ベースレンズフレア — 光束追跡（Ray Bundle Tracing）
 ///
-/// DxLibには無い機能。HDRシーンの明るい部分からゴーストイメージ、ハローリング、
-/// スターバースト、色収差シフトを生成し、カメラレンズの光学的特性を再現する。
-/// ダストテクスチャによるレンズ汚れ表現にも対応。
+/// カメラレンズを複数の球面/平面インターフェースとしてモデル化し、
+/// 各ゴーストパス（2回反射）をコンピュートシェーダーでレイトレースする。
+/// Sellmeier分散による波長依存屈折率で自然な色収差を再現。
 ///
-/// 処理の流れ:
-/// 1. 閾値抽出 (明るいピクセルのみ)
-/// 2. ゴーストイメージ生成 (反転UV + 複数スケール)
-/// 3. ハローリング (周辺部の環状グレア)
-/// 4. 色収差シフト (R/Bチャンネルのオフセット)
-/// 5. スターバーストパターン (角度ベースの放射状フィルタ)
+/// パイプライン:
+/// Pass 1 [CS]: 光束追跡 → GhostVertex UAV 生成
+/// Pass 2 [VS/PS]: ゴーストクアッド描画（加算ブレンド → フレアRT）
+/// Pass 3 [Fullscreen PS]: シーン + フレアRT 合成
 
 #include "pch_graphics.h"
 #include "Graphics/Resource/RenderTarget.h"
 #include "Graphics/Resource/DynamicBuffer.h"
+#include "Graphics/Resource/Buffer.h"
+#include "Graphics/Device/DescriptorHeap.h"
 #include "Graphics/Pipeline/Shader.h"
+#include "Graphics/3D/Camera3D.h"
 
 namespace gx
 {
@@ -26,27 +27,25 @@ namespace gx
 /// @brief レンズフレアエフェクトの設定パラメータ
 struct LensFlareSettings
 {
-    bool  enabled          = false;  ///< エフェクト有効フラグ
-    float intensity        = 1.0f;   ///< 全体強度
-    float threshold        = 1.5f;   ///< 輝度閾値 (この値以上のピクセルからフレアを生成)
-    int   ghostCount       = 4;      ///< ゴーストイメージの数
-    float ghostDispersion  = 0.5f;   ///< ゴーストの分散距離
-    float haloRadius       = 0.6f;   ///< ハローリングの半径
-    float chromaticShift   = 0.01f;  ///< 色収差シフト量
-    bool  dustEnabled      = false;  ///< レンズダストテクスチャ有効フラグ
+    bool  enabled           = false; ///< エフェクト有効フラグ
+    float intensity         = 1.0f;  ///< 全体強度
+    float threshold         = 1.5f;  ///< (予約: 将来の自動輝度抽出用)
+    int   gridSize          = 32;    ///< グリッド解像度 per ghost
+    float apertureBlades    = 6.0f;  ///< 絞り羽根数（スターバースト形状）
+    float starburstStrength = 0.3f;  ///< スターバースト強度
 };
 
-/// @brief カメラレンズの光学的フレアエフェクト
+/// @brief 物理ベースレンズフレアエフェクト
 ///
-/// HDRシーンから閾値以上の明部を抽出し、ゴーストイメージ・ハローリング・
-/// スターバースト・色収差を合成してレンズフレアを生成する。
+/// 光束追跡（Ray Bundle Tracing）でカメラレンズ系を通るゴーストパスを
+/// コンピュートシェーダーでトレースし、加算ブレンドで描画する。
 class LensFlare
 {
 public:
     LensFlare() = default;
     ~LensFlare() = default;
 
-    /// @brief 初期化。PSO・定数バッファを作成する
+    /// @brief 初期化。パイプライン・バッファ・レンズ系データを作成する
     /// @param device D3D12デバイス (nullptrの場合はCPUのみ初期化)
     /// @param width 画面幅
     /// @param height 画面高さ
@@ -56,58 +55,115 @@ public:
     /// @brief リソースを解放する
     void Shutdown();
 
-    /// @brief 設定パラメータを更新する
-    void SetSettings(const LensFlareSettings& settings) { m_settings = settings; }
-
-    /// @brief 現在の設定パラメータを取得する
-    const LensFlareSettings& GetSettings() const { return m_settings; }
-
     /// @brief レンズフレアを生成してHDRシーンに合成する
     /// @param cmdList コマンドリスト
-    /// @param hdrInput 入力HDRシーン (SRV状態)
+    /// @param hdrInput 入力HDRシーン
     /// @param outputRT 出力先レンダーターゲット
     /// @param frameIndex ダブルバッファ用フレームインデックス
+    /// @param camera カメラ (太陽スクリーン座標の計算に使う)
     void Execute(ID3D12GraphicsCommandList* cmdList,
                  RenderTarget& hdrInput, RenderTarget& outputRT,
-                 uint32_t frameIndex);
+                 uint32_t frameIndex, const Camera3D& camera);
 
     /// @brief 画面リサイズ時にサイズを更新する
     void OnResize(ID3D12Device* device, uint32_t width, uint32_t height);
 
-    /// @brief エフェクトが有効かどうか
-    bool IsEnabled() const { return m_settings.enabled; }
+    // --- 太陽情報（VolumetricLight パターン踏襲）---
+    void SetLightDirection(const Vector3& dir) { m_lightDirection = dir; }
+    const Vector3& GetLightDirection() const { return m_lightDirection; }
+    void SetLightColor(const Vector3& color) { m_lightColor = color; }
+    const Vector3& GetLightColor() const { return m_lightColor; }
 
-    // --- 個別セッター/ゲッター ---
-    void SetEnabled(bool v)            { m_settings.enabled = v; }
-    void SetIntensity(float v)         { m_settings.intensity = v; }
-    float GetIntensity() const         { return m_settings.intensity; }
-    void SetThreshold(float v)         { m_settings.threshold = v; }
-    float GetThreshold() const         { return m_settings.threshold; }
-    void SetGhostCount(int v)          { m_settings.ghostCount = v; }
-    int  GetGhostCount() const         { return m_settings.ghostCount; }
-    void SetGhostDispersion(float v)   { m_settings.ghostDispersion = v; }
-    float GetGhostDispersion() const   { return m_settings.ghostDispersion; }
-    void SetHaloRadius(float v)        { m_settings.haloRadius = v; }
-    float GetHaloRadius() const        { return m_settings.haloRadius; }
-    void SetChromaticShift(float v)    { m_settings.chromaticShift = v; }
-    float GetChromaticShift() const    { return m_settings.chromaticShift; }
+    // --- 設定 ---
+    void SetSettings(const LensFlareSettings& s) { m_settings = s; }
+    const LensFlareSettings& GetSettings() const { return m_settings; }
+
+    bool IsEnabled() const { return m_settings.enabled; }
+    void SetEnabled(bool v) { m_settings.enabled = v; }
+    void SetIntensity(float v) { m_settings.intensity = v; }
+    float GetIntensity() const { return m_settings.intensity; }
+    void SetThreshold(float v) { m_settings.threshold = v; }
+    float GetThreshold() const { return m_settings.threshold; }
 
 private:
-    bool CreatePipelines(ID3D12Device* device);
+    /// レンズインターフェースデータ（CPU側、GPU転送用）
+    struct LensInterfaceData
+    {
+        float centerZ;
+        float radius;
+        float apertureRadius;
+        float n1, n2;
+        float coatingN, coatingD;
+        int   isAperture;
+    };
 
-    LensFlareSettings m_settings;                  ///< エフェクト設定
+    /// 太陽のスクリーン座標と可視性を更新する
+    void UpdateSunScreenPos(const Camera3D& camera);
 
-    ID3D12Device* m_device = nullptr;              ///< D3D12デバイス
-    bool m_initialized = false;                    ///< 初期化完了フラグ
+    /// レンズ系を初期化する（7インターフェース定義）
+    void InitializeLensSystem();
 
-    uint32_t m_width  = 0;                         ///< 画面幅
-    uint32_t m_height = 0;                         ///< 画面高さ
+    /// ゴーストペアを列挙する（全 (i,j) 反射ペア）
+    void EnumerateGhosts();
 
-    // パイプライン
-    Shader                      m_shader;          ///< レンズフレアシェーダー
-    ComPtr<ID3D12RootSignature> m_rootSignature;   ///< ルートシグネチャ
-    ComPtr<ID3D12PipelineState> m_pso;             ///< パイプラインステート
-    DynamicBuffer               m_constantBuffer;  ///< 定数バッファ
+    /// 各パイプラインを作成する
+    bool CreateComputePipeline(ID3D12Device* device);
+    bool CreateGhostRenderPipeline(ID3D12Device* device);
+    bool CreateCompositePipeline(ID3D12Device* device);
+
+    /// GPUバッファ（レンズデータ、ゴーストペア、ゴースト頂点）を作成する
+    bool CreateGPUBuffers(ID3D12Device* device);
+
+    // --- 設定 ---
+    LensFlareSettings m_settings;
+
+    // --- デバイス ---
+    ID3D12Device* m_device = nullptr;
+    bool m_initialized = false;
+    uint32_t m_width  = 0;
+    uint32_t m_height = 0;
+
+    // --- レンズ系データ (CPU) ---
+    static constexpr int k_MaxInterfaces = 8;
+    static constexpr int k_MaxGhosts = 28; // 8*7/2
+    gx::Vector<LensInterfaceData> m_lensInterfaces;
+    gx::Vector<uint32_t> m_ghostPairsA; // 反射面A (シーン側)
+    gx::Vector<uint32_t> m_ghostPairsB; // 反射面B (センサー側)
+    int m_numInterfaces = 0;
+    int m_numGhosts = 0;
+
+    // --- GPU バッファ ---
+    Buffer m_lensInterfaceBuffer;    ///< StructuredBuffer<LensInterface> (Upload)
+    Buffer m_ghostPairBuffer;        ///< StructuredBuffer<uint2> (Upload)
+    Buffer m_ghostVertexBuffer;      ///< RWStructuredBuffer<GhostVertex> (Default, UAV)
+    DynamicBuffer m_constantBuffer;  ///< 定数バッファ
+
+    // --- デスクリプタヒープ ---
+    DescriptorHeap m_srvUavHeap;     ///< SRV/UAV ヒープ (shader-visible, 8スロット)
+
+    // --- 中間 RT ---
+    RenderTarget m_flareRT;          ///< ゴースト描画先 (R16G16B16A16_FLOAT)
+
+    // --- パイプライン ---
+    Shader m_shader;
+
+    // Pass 1: Compute (光束追跡)
+    ComPtr<ID3D12RootSignature> m_computeRS;
+    ComPtr<ID3D12PipelineState> m_computePSO;
+
+    // Pass 2: Ghost Quad Rendering (加算ブレンド)
+    ComPtr<ID3D12RootSignature> m_ghostRS;
+    ComPtr<ID3D12PipelineState> m_ghostPSO;
+
+    // Pass 3: Composite (フルスクリーン合成)
+    ComPtr<ID3D12RootSignature> m_compositeRS;
+    ComPtr<ID3D12PipelineState> m_compositePSO;
+
+    // --- 太陽情報 ---
+    Vector3 m_lightDirection = { 0.3f, -1.0f, 0.4f };
+    Vector3 m_lightColor     = { 1.0f, 0.98f, 0.95f };
+    Vector2 m_sunScreenUV    = { 0.5f, 0.5f };
+    float   m_sunVisible     = 0.0f;
 };
 
 /// @}

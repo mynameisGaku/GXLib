@@ -4,13 +4,16 @@
 ///
 /// アニメーションクリップのデータベースから、現在の状態（速度・向き・足位置等）に
 /// 最も近いポーズを高速検索し、シームレスなアニメーション遷移を実現する。
+///
+/// KD-Tree 高速化:
+///   Build() 完了時に特徴量ベクトル (17次元) の KD-Tree を自動構築し、
+///   FindBestMatch() を O(n) 線形探索から O(log n) 近傍探索に置き換える。
+///   KD-Tree 未構築時は従来の線形探索にフォールバックする。
 /// @addtogroup grp_gfx_3d/// @{
 
 #include "pch_graphics.h"
 #include "Math/Vector3.h"
 #include "Math/Quaternion.h"
-#include <vector>
-#include <string>
 
 namespace gx {
 
@@ -58,7 +61,8 @@ struct MotionMatchingConfig
 /// @brief モーションデータベース
 ///
 /// 複数のAnimationClipからポーズ特徴量を事前計算し、
-/// クエリに対して最良のマッチを線形検索する。
+/// KD-Tree による O(log n) 近傍探索でクエリに対する最良マッチを返す。
+/// KD-Tree 未構築時は線形探索にフォールバックする。
 class MotionDatabase
 {
 public:
@@ -73,7 +77,7 @@ public:
     /// @return クリップ数
     size_t GetClipCount() const;
 
-    /// @brief データベースを構築する（全ポーズの特徴量を事前計算）
+    /// @brief データベースを構築する（全ポーズの特徴量を事前計算 + KD-Tree 構築）
     /// @param skeleton スケルトン参照
     /// @param config マッチング設定
     void Build(const Skeleton& skeleton, const MotionMatchingConfig& config);
@@ -101,10 +105,62 @@ public:
     /// @return クリップポインタ
     const AnimationClip* GetClip(size_t index) const;
 
+    /// @brief KD-Tree が構築済みかどうか
+    bool IsKDTreeBuilt() const { return m_kdBuilt; }
+
 private:
     /// @brief 2つの特徴量間のコストを計算する
     static float ComputeCost(const MotionFeature& a, const MotionFeature& b,
                               const MotionMatchingConfig& config);
+
+    // ---------------------------------------------------------------
+    // KD-Tree (O(log n) nearest neighbor search)
+    // ---------------------------------------------------------------
+
+    /// @brief 特徴量ベクトルの次元数
+    ///
+    /// velocity(3) + futurePosition(3) + facingDirection(3)
+    /// + leftFootPosition(3) + rightFootPosition(3)
+    /// + leftFootVelocity(1) + rightFootVelocity(1) = 17
+    static constexpr int k_FeatureDims = 17;
+
+    /// @brief KD-Tree ノード
+    struct KDNode
+    {
+        int   poseIndex  = -1;    ///< リーフ: ポーズインデックス (-1 = 内部ノード)
+        int   splitAxis  = 0;     ///< 分割軸 (特徴ベクトル内のインデックス)
+        float splitValue = 0.0f;  ///< 分割値
+        int   left       = -1;    ///< 左子ノードインデックス
+        int   right      = -1;    ///< 右子ノードインデックス
+    };
+
+    gx::Vector<KDNode> m_kdNodes;
+    int  m_kdRoot  = -1;
+    bool m_kdBuilt = false;
+
+    /// @brief KD-Tree を構築する (Build() から呼ばれる)
+    void BuildKDTree();
+
+    /// @brief KD-Tree を再帰的に構築する
+    /// @param indices ポーズインデックス配列 (ソートされる)
+    /// @param begin 対象範囲の先頭
+    /// @param end   対象範囲の末尾 (exclusive)
+    /// @param depth 現在の深さ
+    /// @return 作成したノードのインデックス
+    int BuildKDTreeRecursive(gx::Vector<int>& indices, int begin, int end, int depth);
+
+    /// @brief 指定ポーズの特徴量ベクトルから axis 番目の要素を取得する
+    float FeatureValue(int poseIndex, int axis) const;
+
+    /// @brief MotionFeature を平坦な float 配列に変換する
+    static void FlattenFeature(const MotionFeature& f, float out[k_FeatureDims]);
+
+    /// @brief KD-Tree による最近傍探索 (再帰)
+    void KDSearch(int nodeIdx, const float query[k_FeatureDims],
+                  int& bestIdx, float& bestDist) const;
+
+    /// @brief 平坦化された特徴量同士の L2 距離の二乗を計算する
+    static float FeatureDistSq(const float a[k_FeatureDims], const float b[k_FeatureDims]);
 
     gx::Vector<const AnimationClip*> m_clips;
     gx::Vector<MotionPose>           m_poses;

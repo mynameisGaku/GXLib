@@ -37,9 +37,14 @@ float4 PSTAA(FullscreenVSOutput input) : SV_Target
     float2 uv = input.uv;
     float depth = gDepth.Sample(gPointSampler, uv).r;
 
+    // === ジッター除去 ===
+    // シーンはジッター付きプロジェクションで描画されているため、
+    // リプロジェクションには非ジッターUVでNDCを再構成する
+    float2 unjitteredUV = uv - jitterOffset * float2(0.5, -0.5);
+
     // === リプロジェクション ===
-    // UV → NDC (clip space)
-    float2 ndc = uv * float2(2.0, -2.0) + float2(-1.0, 1.0);
+    // UV → NDC (clip space) — 非ジッター座標を使用
+    float2 ndc = unjitteredUV * float2(2.0, -2.0) + float2(-1.0, 1.0);
     float4 clipPos = float4(ndc, depth, 1.0);
 
     // ワールド座標再構成 (行ベクトル × 行列: DirectXMath 規約)
@@ -51,8 +56,7 @@ float4 PSTAA(FullscreenVSOutput input) : SV_Target
     float2 prevNDC = prevClip.xy / prevClip.w;
     float2 historyUV = prevNDC * float2(0.5, -0.5) + 0.5; // NDC[-1,1]→UV[0,1] (Y反転: D3D UV原点は左上)
 
-    // 現フレームの色 (ジッター補正: ジッター分UVをオフセットして中心を取得)
-    float2 unjitteredUV = uv - jitterOffset * float2(0.5, -0.5);
+    // 現フレームの色 (非ジッターUVで中心を取得)
     float4 currentColor = gScene.Sample(gLinearSampler, unjitteredUV);
 
     // === 画面外チェック ===
@@ -73,7 +77,7 @@ float4 PSTAA(FullscreenVSOutput input) : SV_Target
         [unroll]
         for (int dx = -1; dx <= 1; dx++)
         {
-            float2 sampleUV = uv + float2(dx, dy) * texelSize;
+            float2 sampleUV = unjitteredUV + float2(dx, dy) * texelSize;
             float4 s = gScene.Sample(gLinearSampler, sampleUV);
             m1 += s;
             m2 += s * s;
