@@ -23,6 +23,11 @@ bool ContactShadows::Initialize(ID3D12Device* device, uint32_t width, uint32_t h
         GX_LOG_ERROR("ContactShadows: Failed to create shadow RT");
         return false;
     }
+    if (!m_blurTempRT.Create(device, width, height, DXGI_FORMAT_R8_UNORM))
+    {
+        GX_LOG_ERROR("ContactShadows: Failed to create blur temp RT");
+        return false;
+    }
 
     // シェーダーコンパイラ
     if (!m_shader.Initialize())
@@ -30,6 +35,8 @@ bool ContactShadows::Initialize(ID3D12Device* device, uint32_t width, uint32_t h
 
     // 定数バッファ (256B アライメント)
     if (!m_generateCB.Initialize(device, 256, 256))
+        return false;
+    if (!m_blurCB.Initialize(device, 256, 256))
         return false;
 
     // 生成パス用ルートシグネチャ: CBV(b0) + DescTable(SRV t0, pixel) + static sampler
@@ -47,11 +54,10 @@ bool ContactShadows::Initialize(ID3D12Device* device, uint32_t width, uint32_t h
         if (!m_generateRS) return false;
     }
 
-    // 合成パス用ルートシグネチャ: CBV(b0) + DescTable(SRV t0, pixel) + static sampler
+    // ブラー＋合成パス用ルートシグネチャ: CBV(b0) + DescTable(SRV t0, pixel) + static sampler
     {
         RootSignatureBuilder rsb;
-        m_compositeRS = rsb
-            .SetFlags(D3D12_ROOT_SIGNATURE_FLAG_NONE)
+        m_blurRS = rsb
             .AddCBV(0)
             .AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, 0,
                                 D3D12_SHADER_VISIBILITY_PIXEL)
@@ -59,7 +65,7 @@ bool ContactShadows::Initialize(ID3D12Device* device, uint32_t width, uint32_t h
                               D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
                               D3D12_COMPARISON_FUNC_NEVER)
             .Build(device);
-        if (!m_compositeRS) return false;
+        if (!m_blurRS) return false;
     }
 
     if (!CreatePipelines(device))
@@ -97,12 +103,42 @@ bool ContactShadows::CreatePipelines(ID3D12Device* device)
         if (!m_generatePSO) return false;
     }
 
+    // 水平ブラー PSO
+    {
+        auto ps = m_shader.CompileFromFile(L"Shaders/ContactShadows.hlsl", L"PSBlurH", L"ps_6_0");
+        if (!ps.valid) return false;
+        PipelineStateBuilder b;
+        m_blurHPSO = b.SetRootSignature(m_blurRS.Get())
+            .SetVertexShader(vsBytecode)
+            .SetPixelShader(ps.GetBytecode())
+            .SetRenderTargetFormat(DXGI_FORMAT_R8_UNORM)
+            .SetDepthEnable(false)
+            .SetCullMode(D3D12_CULL_MODE_NONE)
+            .Build(device);
+        if (!m_blurHPSO) return false;
+    }
+
+    // 垂直ブラー PSO
+    {
+        auto ps = m_shader.CompileFromFile(L"Shaders/ContactShadows.hlsl", L"PSBlurV", L"ps_6_0");
+        if (!ps.valid) return false;
+        PipelineStateBuilder b;
+        m_blurVPSO = b.SetRootSignature(m_blurRS.Get())
+            .SetVertexShader(vsBytecode)
+            .SetPixelShader(ps.GetBytecode())
+            .SetRenderTargetFormat(DXGI_FORMAT_R8_UNORM)
+            .SetDepthEnable(false)
+            .SetCullMode(D3D12_CULL_MODE_NONE)
+            .Build(device);
+        if (!m_blurVPSO) return false;
+    }
+
     // 合成PSO (HDR R16G16B16A16_FLOAT + MultiplyBlend)
     {
         auto ps = m_shader.CompileFromFile(L"Shaders/ContactShadows.hlsl", L"PSComposite", L"ps_6_0");
         if (!ps.valid) return false;
         PipelineStateBuilder b;
-        m_compositePSO = b.SetRootSignature(m_compositeRS.Get())
+        m_compositePSO = b.SetRootSignature(m_blurRS.Get())
             .SetVertexShader(vsBytecode)
             .SetPixelShader(ps.GetBytecode())
             .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT)
@@ -188,7 +224,73 @@ void ContactShadows::Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameI
     cmdList->DrawInstanced(3, 1, 0, 0);
 
     // ================================================================
-    // Pass 2: 乗算合成 (shadowRT → hdrRT)
+    // Pass 2: 水平ブラー (shadowRT → blurTempRT)
+    // ================================================================
+    m_shadowRT.TransitionTo(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    m_blurTempRT.TransitionTo(cmdList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+    auto blurTempRTV = m_blurTempRT.GetRTVHandle();
+    cmdList->OMSetRenderTargets(1, &blurTempRTV, FALSE, nullptr);
+    cmdList->RSSetViewports(1, &vp);
+    cmdList->RSSetScissorRects(1, &sc);
+
+    cmdList->SetPipelineState(m_blurHPSO.Get());
+    cmdList->SetGraphicsRootSignature(m_blurRS.Get());
+
+    ID3D12DescriptorHeap* shadowHeaps[] = { m_shadowRT.GetSRVHeap().GetHeap() };
+    cmdList->SetDescriptorHeaps(1, shadowHeaps);
+
+    ContactShadowBlurConstants blurH = {};
+    blurH.blurDirX = 1.0f / static_cast<float>(m_width);
+    blurH.blurDirY = 0.0f;
+
+    p = m_blurCB.Map(frameIndex);
+    if (p)
+    {
+        memcpy(p, &blurH, sizeof(blurH));
+        m_blurCB.Unmap(frameIndex);
+    }
+    cmdList->SetGraphicsRootConstantBufferView(0, m_blurCB.GetGPUVirtualAddress(frameIndex));
+    cmdList->SetGraphicsRootDescriptorTable(1, m_shadowRT.GetSRVGPUHandle());
+
+    cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    cmdList->DrawInstanced(3, 1, 0, 0);
+
+    // ================================================================
+    // Pass 3: 垂直ブラー (blurTempRT → shadowRT)
+    // ================================================================
+    m_blurTempRT.TransitionTo(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    m_shadowRT.TransitionTo(cmdList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+    shadowRTV = m_shadowRT.GetRTVHandle();
+    cmdList->OMSetRenderTargets(1, &shadowRTV, FALSE, nullptr);
+    cmdList->RSSetViewports(1, &vp);
+    cmdList->RSSetScissorRects(1, &sc);
+
+    cmdList->SetPipelineState(m_blurVPSO.Get());
+    cmdList->SetGraphicsRootSignature(m_blurRS.Get());
+
+    ID3D12DescriptorHeap* blurTempHeaps[] = { m_blurTempRT.GetSRVHeap().GetHeap() };
+    cmdList->SetDescriptorHeaps(1, blurTempHeaps);
+
+    ContactShadowBlurConstants blurV = {};
+    blurV.blurDirX = 0.0f;
+    blurV.blurDirY = 1.0f / static_cast<float>(m_height);
+
+    p = m_blurCB.Map(frameIndex);
+    if (p)
+    {
+        memcpy(p, &blurV, sizeof(blurV));
+        m_blurCB.Unmap(frameIndex);
+    }
+    cmdList->SetGraphicsRootConstantBufferView(0, m_blurCB.GetGPUVirtualAddress(frameIndex));
+    cmdList->SetGraphicsRootDescriptorTable(1, m_blurTempRT.GetSRVGPUHandle());
+
+    cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    cmdList->DrawInstanced(3, 1, 0, 0);
+
+    // ================================================================
+    // Pass 4: 乗算合成 (shadowRT → hdrRT)
     // ================================================================
     m_shadowRT.TransitionTo(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     hdrRT.TransitionTo(cmdList, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -199,13 +301,14 @@ void ContactShadows::Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameI
     cmdList->RSSetScissorRects(1, &sc);
 
     cmdList->SetPipelineState(m_compositePSO.Get());
-    cmdList->SetGraphicsRootSignature(m_compositeRS.Get());
+    cmdList->SetGraphicsRootSignature(m_blurRS.Get());
 
-    ID3D12DescriptorHeap* shadowHeaps[] = { m_shadowRT.GetSRVHeap().GetHeap() };
-    cmdList->SetDescriptorHeaps(1, shadowHeaps);
+    ID3D12DescriptorHeap* shadowFinalHeaps[] = { m_shadowRT.GetSRVHeap().GetHeap() };
+    cmdList->SetDescriptorHeaps(1, shadowFinalHeaps);
 
-    // ダミーCBV設定（RSにb0があるため）
-    cmdList->SetGraphicsRootConstantBufferView(0, m_generateCB.GetGPUVirtualAddress(frameIndex));
+    // 合成パスではCBは不使用だが、ルートシグネチャにはb0があるので
+    // ブラーCBをダミーとして設定
+    cmdList->SetGraphicsRootConstantBufferView(0, m_blurCB.GetGPUVirtualAddress(frameIndex));
     cmdList->SetGraphicsRootDescriptorTable(1, m_shadowRT.GetSRVGPUHandle());
 
     cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -217,6 +320,7 @@ void ContactShadows::OnResize(ID3D12Device* device, uint32_t width, uint32_t hei
     m_width  = width;
     m_height = height;
     m_shadowRT.Create(device, width, height, DXGI_FORMAT_R8_UNORM);
+    m_blurTempRT.Create(device, width, height, DXGI_FORMAT_R8_UNORM);
 }
 
 } // namespace gx

@@ -38,6 +38,14 @@ struct ContactShadowConstants
 };
 static_assert(sizeof(ContactShadowConstants) == 240, "ContactShadowConstants size mismatch");
 
+/// @brief ブラー定数バッファ（水平/垂直方向のテクセルオフセット）
+struct ContactShadowBlurConstants
+{
+    float blurDirX;   ///< 水平方向: 1/width, 垂直時は0
+    float blurDirY;   ///< 垂直方向: 1/height, 水平時は0
+    float padding[2];
+};
+
 /// @brief スクリーンスペースコンタクトシャドウ
 ///
 /// CSMでは表現できない小さなオブジェクトや細かい凹凸のセルフシャドウを
@@ -96,7 +104,7 @@ private:
     bool m_enabled = false;  ///< デフォルトは無効
 
     float   m_maxDistance = 0.3f;   ///< マーチ最大距離（ビュー空間）
-    int     m_stepCount   = 16;     ///< マーチステップ数
+    int     m_stepCount   = 32;     ///< マーチステップ数
     float   m_thickness   = 0.05f;  ///< 厚み閾値
     float   m_intensity   = 0.5f;   ///< シャドウ強度
 
@@ -104,17 +112,21 @@ private:
     uint32_t m_height = 0;
 
     // レンダーターゲット
-    RenderTarget m_shadowRT;  ///< R8_UNORM: シャドウマスク
+    RenderTarget m_shadowRT;    ///< R8_UNORM: シャドウマスク
+    RenderTarget m_blurTempRT;  ///< R8_UNORM: ブラー中間RT
 
     // パイプライン
     Shader                       m_shader;
     ComPtr<ID3D12RootSignature>  m_generateRS;   ///< 生成パス用 RS
-    ComPtr<ID3D12RootSignature>  m_compositeRS;  ///< 合成パス用 RS
+    ComPtr<ID3D12RootSignature>  m_blurRS;       ///< ブラー＋合成パス用 RS
     ComPtr<ID3D12PipelineState>  m_generatePSO;  ///< コンタクトシャドウ生成
+    ComPtr<ID3D12PipelineState>  m_blurHPSO;     ///< 水平ブラー
+    ComPtr<ID3D12PipelineState>  m_blurVPSO;     ///< 垂直ブラー
     ComPtr<ID3D12PipelineState>  m_compositePSO; ///< 乗算合成
 
     // 定数バッファ
     DynamicBuffer m_generateCB;
+    DynamicBuffer m_blurCB;
 };
 
 /// @}
