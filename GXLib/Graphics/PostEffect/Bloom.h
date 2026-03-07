@@ -24,10 +24,11 @@ namespace gx
 /// Bloom定数バッファ (閾値・強度・テクセルサイズ)
 struct BloomConstants
 {
-    float    threshold;    ///< この輝度以上のピクセルだけ抽出
+    float    threshold;    ///< この輝度以上のピクセルだけ抽出（露出補正空間）
     float    intensity;    ///< 最終合成時の明るさ倍率
     float    texelSizeX;   ///< 1.0 / テクスチャ幅
     float    texelSizeY;   ///< 1.0 / テクスチャ高さ
+    float    exposure;     ///< 露出補正値（AutoExposure適応済み）
 };
 
 /// @brief 明部の光の滲みを再現するBloomエフェクト
@@ -66,6 +67,15 @@ public:
     void SetIntensity(float intensity) { m_intensity = intensity; }
     float GetIntensity() const { return m_intensity; }
 
+    /// @brief 露出補正値を設定。AutoExposureの適応済み露出値を渡す
+    void SetExposure(float e) { m_exposure = e; }
+    float GetExposure() const { return m_exposure; }
+
+    /// @brief アップサンプル時のmip間散乱係数。低いほど遠距離ブルームが減衰する
+    /// Unity/UE5のScatterパラメータに相当。0.5で各mipの寄与が幾何的に半減。
+    void SetScatter(float s) { m_scatter = s; }
+    float GetScatter() const { return m_scatter; }
+
     void SetEnabled(bool enabled) { m_enabled = enabled; }
     bool IsEnabled() const { return m_enabled; }
 
@@ -84,8 +94,10 @@ private:
 
     ID3D12Device* m_device = nullptr;
 
-    float m_threshold = 1.0f;
+    float m_threshold = 2.0f;    ///< 露出補正空間での閾値
     float m_intensity = 0.5f;
+    float m_scatter   = 0.5f;   ///< アップサンプル時のmip間減衰率
+    float m_exposure  = 1.0f;   ///< 露出補正値（AutoExposure適応済み）
     bool  m_enabled   = true;
 
     // MIPレベルRT

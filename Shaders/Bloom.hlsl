@@ -11,9 +11,10 @@
 
 cbuffer BloomConstants : register(b0)
 {
-    float  gThreshold;  // 輝度閾値（これ以上の輝度がブルームに寄与）
+    float  gThreshold;  // 輝度閾値（露出補正空間、これ以上の輝度がブルームに寄与）
     float  gIntensity;  // ブルーム合成時の強度
     float2 gTexelSize;  // テクセルサイズ (1/width, 1/height)
+    float  gExposure;   // 露出補正値（AutoExposure適応済み）
 };
 
 Texture2D    tSource : register(t0);
@@ -25,12 +26,13 @@ float Luminance(float3 color)
     return dot(color, float3(0.2126f, 0.7152f, 0.0722f));
 }
 
-/// @brief 閾値パス — 閾値以上の輝度を持つピクセルだけを抽出
+/// @brief 閾値パス — 露出補正後の輝度で閾値比較し、発光体のみを抽出
 float4 PSThreshold(FullscreenVSOutput input) : SV_Target
 {
     float3 color = tSource.Sample(sLinear, input.uv).rgb;
     float lum = Luminance(color);
-    float contribution = max(lum - gThreshold, 0.0f) / max(lum, 0.001f);
+    float exposedLum = lum * gExposure;  // 露出補正
+    float contribution = max(exposedLum - gThreshold, 0.0f) / max(exposedLum, 0.001f);
     return float4(color * contribution, 1.0f);
 }
 

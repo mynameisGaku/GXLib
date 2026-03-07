@@ -137,6 +137,7 @@ void Bloom::UpdateCB(ID3D12GraphicsCommandList* cmdList, float texelX, float tex
     bc.intensity  = m_intensity;
     bc.texelSizeX = texelX;
     bc.texelSizeY = texelY;
+    bc.exposure   = m_exposure;
 
     void* p = m_constantBuffer.Map(0);
     if (p)
@@ -244,9 +245,9 @@ void Bloom::Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
         ID3D12DescriptorHeap* heaps[] = { m_mipRT[i].GetSRVHeap().GetHeap() };
         cmdList->SetDescriptorHeaps(1, heaps);
 
-        // intensityは最終合成時に使うので、ここでは1.0
+        // 各mipの寄与をscatterで幾何的に減衰させる（低mipの広いブルームを抑制）
         BloomConstants bc = {};
-        bc.intensity = 1.0f;
+        bc.intensity = m_scatter;
         bc.texelSizeX = tw;
         bc.texelSizeY = th;
         void* p = m_constantBuffer.Map(0);
