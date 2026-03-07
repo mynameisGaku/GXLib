@@ -114,13 +114,8 @@ void QualitySettings::Apply(PostEffectPipeline& pipeline) const
         pipeline.GetSSAO().SetRadius(m_params.ssaoRadius);
     }
 
-    // Bloom
+    // Bloom (threshold/intensity は RenderProfile が管理 — QualitySettings は有効/無効のみ)
     pipeline.GetBloom().SetEnabled(m_params.bloomEnabled);
-    if (m_params.bloomEnabled)
-    {
-        pipeline.GetBloom().SetThreshold(m_params.bloomThreshold);
-        pipeline.GetBloom().SetIntensity(m_params.bloomIntensity);
-    }
 
     // SSR
     pipeline.GetSSR().SetEnabled(m_params.ssrEnabled);
@@ -139,6 +134,8 @@ void QualitySettings::Apply(PostEffectPipeline& pipeline) const
 
     // DoF
     pipeline.GetDoF().SetEnabled(m_params.dofEnabled);
+    if (m_params.dofEnabled)
+        pipeline.SetDoFAutoFocus(true);
 
     // VolumetricLight
     pipeline.GetVolumetricLight().SetEnabled(m_params.volumetricLightEnabled);

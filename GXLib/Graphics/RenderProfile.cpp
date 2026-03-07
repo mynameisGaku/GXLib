@@ -1041,7 +1041,7 @@ RenderProfile RenderProfile::CreateDefault()
 
     // Bloom
     p.bloomEnabled.Set(true);
-    p.bloomThreshold.Set(1.0f);
+    p.bloomThreshold.Set(2.0f);
     p.bloomIntensity.Set(0.5f);
 
     // SSAO
@@ -1053,8 +1053,8 @@ RenderProfile RenderProfile::CreateDefault()
     // DoF
     p.dofEnabled.Set(false);
     p.dofFocalDistance.Set(10.0f);
-    p.dofFocalRange.Set(5.0f);
-    p.dofBokehRadius.Set(5.0f);
+    p.dofFocalRange.Set(20.0f);
+    p.dofBokehRadius.Set(3.0f);
 
     // MotionBlur
     p.motionBlurEnabled.Set(true);
@@ -1089,8 +1089,8 @@ RenderProfile RenderProfile::CreateDefault()
     // AutoExposure
     p.autoExposureEnabled.Set(true);
     p.autoExposureSpeed.Set(1.5f);
-    p.autoExposureMin.Set(0.1f);
-    p.autoExposureMax.Set(4.0f);
+    p.autoExposureMin.Set(0.5f);
+    p.autoExposureMax.Set(2.0f);
     p.autoExposureKeyValue.Set(0.18f);
 
     // ContactShadows
