@@ -952,6 +952,7 @@ void Renderer3D::Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
             shaderLights.lights[i] = m_currentLights.lights[i];
         shaderLights.numLights = n;
         shaderLights.ambientColor = m_currentLights.ambientColor;
+        shaderLights.iblIntensity = m_ibl.GetIntensity();
         memcpy(cbData, &shaderLights, sizeof(ShaderLightConstants));
         m_lightCB.Unmap(frameIndex);
     }
