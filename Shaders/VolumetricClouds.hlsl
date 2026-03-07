@@ -239,7 +239,8 @@ float3 ComputeAtmosphericSunColor(float3 baseSunColor, float sunElevation)
 
 float lightMarch(float3 pos)
 {
-    float stepSize = (cloudTop - cloudBottom) / max((float)lightSteps, 1.0);
+    float totalRange = (cloudTop - cloudBottom);
+    float stepSize = totalRange * 0.5 / max((float)lightSteps, 1.0);
     float opticalDepth = 0.0;
 
     [loop]
@@ -248,6 +249,7 @@ float lightMarch(float3 pos)
         pos += sunDirection * stepSize;
         if (pos.y > cloudTop || pos.y < cloudBottom) break;
         opticalDepth += max(sampleCloudDensityLOD(pos), 0.0) * stepSize;
+        stepSize *= 1.5;  // Cone stepping: exponential step increase
     }
     return opticalDepth;
 }
@@ -304,10 +306,12 @@ CloudResult traceCloud(float2 uv, float3 rayDir, float rawDepth, float sceneDist
     float3 coolAmbient = float3(0.35, 0.45, 0.6);
     float3 ambientColor = lerp(warmAmbient, coolAmbient, saturate(sunDirection.y));
 
-    // レイマーチ
-    float stepSize = (tRange.y - tRange.x) / max((float)marchSteps, 1.0);
+    // レイマーチ（Adaptive step size: 空の空間は2倍ステップ、密度検出後はベースに戻す）
+    float baseStepSize = (tRange.y - tRange.x) / max((float)marchSteps, 1.0);
+    float stepSize = baseStepSize * 2.0;
+    int zeroCount = 0;
     float jitter = interleavedGradientNoise(uv * screenDimensions);
-    float t = tRange.x + stepSize * jitter;
+    float t = tRange.x + baseStepSize * jitter;
 
     [loop]
     for (int i = 0; i < marchSteps; ++i)
@@ -319,6 +323,10 @@ CloudResult traceCloud(float2 uv, float3 rayDir, float rawDepth, float sceneDist
 
         if (density > 0.00001)
         {
+            // 密度を検出 → 細かいステップに戻す
+            stepSize = baseStepSize;
+            zeroCount = 0;
+
             float opticalDepth = lightMarch(pos);
 
             // マルチオクターブ散乱
@@ -358,6 +366,13 @@ CloudResult traceCloud(float2 uv, float3 rayDir, float rawDepth, float sceneDist
 
             r.lightEnergy += lightContrib * (1.0 - sampleTransmittance) * r.transmittance;
             r.transmittance *= sampleTransmittance;
+        }
+        else
+        {
+            // 連続ゼロ密度 → 粗いステップに切り替え
+            zeroCount++;
+            if (zeroCount >= 3)
+                stepSize = baseStepSize * 2.0;
         }
 
         t += stepSize;

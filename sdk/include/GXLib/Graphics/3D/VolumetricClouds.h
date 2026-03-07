@@ -237,7 +237,7 @@ private:
     bool m_hasPreviousVP = false;
     bool m_hasHistory = false;
     bool m_temporalEnabled = true;
-    float m_temporalAlpha = 0.05f;
+    float m_temporalAlpha = 0.1f;
 };
 
 /// @}

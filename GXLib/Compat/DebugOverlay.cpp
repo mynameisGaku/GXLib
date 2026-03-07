@@ -241,6 +241,13 @@ void DebugOverlay::DrawPostFXTab(const DebugOverlayContext& ctx)
             if (ImGui::SliderFloat("Ambient Top", &v, 0.0f, 1.0f, "%.2f")) cl.SetAmbientTop(v);
             v = cl.GetAtmosphereDensity();
             if (ImGui::SliderFloat("Atmo Density", &v, 0.0f, 0.001f, "%.6f")) cl.SetAtmosphereDensity(v);
+            bool temporal = cl.IsTemporalEnabled();
+            if (ImGui::Checkbox("Temporal", &temporal)) cl.SetTemporalEnabled(temporal);
+            if (temporal)
+            {
+                v = cl.GetTemporalAlpha();
+                if (ImGui::SliderFloat("Temporal Alpha", &v, 0.01f, 0.5f, "%.3f")) cl.SetTemporalAlpha(v);
+            }
             ImGui::TreePop();
         }
     }

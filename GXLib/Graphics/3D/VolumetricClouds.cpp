@@ -21,32 +21,33 @@ namespace gx
 namespace
 {
 
+/// HLSL frac() equivalent: always returns [0,1), unlike std::fmod which can return negative values.
+inline float hlslFrac(float x) { return x - std::floor(x); }
+
 float hashF(float x, float y, float z)
 {
-    float p0 = std::fmod(x * 0.3183099f + 0.1f, 1.0f);
-    float p1 = std::fmod(y * 0.3183099f + 0.1f, 1.0f);
-    float p2 = std::fmod(z * 0.3183099f + 0.1f, 1.0f);
-    if (p0 < 0) p0 += 1.0f;
-    if (p1 < 0) p1 += 1.0f;
-    if (p2 < 0) p2 += 1.0f;
+    float p0 = hlslFrac(x * 0.3183099f + 0.1f);
+    float p1 = hlslFrac(y * 0.3183099f + 0.1f);
+    float p2 = hlslFrac(z * 0.3183099f + 0.1f);
     p0 *= 17.0f; p1 *= 17.0f; p2 *= 17.0f;
-    return std::fmod(p0 * p1 * p2 * (p0 + p1 + p2), 1.0f);
+    return hlslFrac(p0 * p1 * p2 * (p0 + p1 + p2));
 }
 
 struct Float3 { float x, y, z; };
 
 Float3 hash3F(float ix, float iy, float iz)
 {
-    float px = std::fmod(std::abs(ix * 0.1031f), 1.0f);
-    float py = std::fmod(std::abs(iy * 0.1030f), 1.0f);
-    float pz = std::fmod(std::abs(iz * 0.0973f), 1.0f);
+    float px = hlslFrac(ix * 0.1031f);
+    float py = hlslFrac(iy * 0.1030f);
+    float pz = hlslFrac(iz * 0.0973f);
     // dot(p, p.yzx + 33.33)
     float d = px * (py + 33.33f) + py * (pz + 33.33f) + pz * (px + 33.33f);
     px += d; py += d; pz += d;
-    // frac((p.xxy + p.yzz) * p.zyx) — ensures 3 distinct components
-    return { std::fmod(std::abs((px + px + py) * pz), 1.0f),
-             std::fmod(std::abs((py + pz + pz) * px), 1.0f),
-             std::fmod(std::abs((pz + px + py) * py), 1.0f) };
+    // frac((p.xxy + p.yxx) * p.zyx) — matches HLSL hash3()
+    // xxy+yxx = (x+y, x+x, y+x), zyx = (z, y, x)
+    return { hlslFrac((px + py) * pz),
+             hlslFrac((px + px) * py),
+             hlslFrac((py + px) * px) };
 }
 
 float worleyCPU(float px, float py, float pz)
@@ -153,9 +154,8 @@ bool VolumetricClouds::Initialize(ID3D12Device* device, uint32_t width, uint32_t
     if (!CreatePipelines(device))
         return false;
 
-    // ノイズテクスチャ生成は現在無効（プロシージャルモード固定）
-    // TODO: テクスチャノイズをプロシージャルと同一ハッシュで再生成する際に復活させる
-    // m_noiseThread = std::thread([this]() { GenerateNoiseData(); });
+    // 3Dノイズテクスチャをバックグラウンドスレッドで生成（CPU側ハッシュはHLSL frac()互換に修正済み）
+    m_noiseThread = std::thread([this]() { GenerateNoiseData(); });
 
     // Temporal reprojection resources
     CreateTemporalPipeline(device);
@@ -587,10 +587,7 @@ static CloudConstants BuildCloudCB(const VolumetricClouds& self,
     cb.ambientBottom    = self.GetAmbientBottom();
     cb.ambientTop       = self.GetAmbientTop();
     cb.atmosphereDensity = self.GetAtmosphereDensity();
-    // 3Dテクスチャノイズはプロシージャルと異なるハッシュ関数・周波数を使用するため
-    // アップロード時に雲の形が突然変わってしまう。一貫性のためプロシージャルを常用。
-    // TODO: テクスチャノイズをプロシージャルと同一ハッシュで生成するか、クロスフェードを実装
-    cb.useNoiseTextures = 0;
+    cb.useNoiseTextures = noiseUploaded ? 1 : 0;
     return cb;
 }
 
@@ -603,13 +600,16 @@ void VolumetricClouds::Execute(ID3D12GraphicsCommandList* cmdList, uint32_t fram
                                 DepthBuffer& depth, const Camera3D& camera,
                                 float elapsedTime)
 {
-    // ノイズテクスチャは現在未使用（useNoiseTextures=0、プロシージャルモード固定）
-    // D3D12バリデーションエラー回避のためアップロードをスキップ
-    // TODO: テクスチャノイズをプロシージャルと同一ハッシュで再生成する際に復活させる
+    // 非同期ノイズ生成完了チェック → GPUリソース作成 + アップロード
+    if (!m_noiseUploaded && m_noiseDataReady.load(std::memory_order_acquire))
+    {
+        if (!m_baseNoiseTexture)
+            CreateNoiseResources(m_device);
+        UploadNoiseTextures(cmdList);
+    }
 
-    // Temporal path: 未完成のためレガシーパスを使用
-    // TODO: テンポラルリプロジェクションのフリッカー問題を修正後に有効化
-    if (false && m_temporalEnabled && m_temporalPSO && m_cloudOnlyPSO)
+    // Temporal path: half-res cloud → temporal resolve + bilateral upsample → composite
+    if (m_temporalEnabled && m_temporalPSO && m_cloudOnlyPSO)
     {
         // Pass 1: half-res cloud-only → m_cloudRT
         ExecuteCloudOnly(cmdList, frameIndex, depth, camera, elapsedTime);
@@ -918,6 +918,7 @@ void VolumetricClouds::OnResize(ID3D12Device* device, uint32_t width, uint32_t h
         m_historyRT[0].Create(device, width, height, DXGI_FORMAT_R16G16B16A16_FLOAT);
         m_historyRT[1].Create(device, width, height, DXGI_FORMAT_R16G16B16A16_FLOAT);
         m_hasHistory = false;
+        m_hasPreviousVP = false;
     }
 }
 
