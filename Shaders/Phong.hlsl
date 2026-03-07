@@ -87,8 +87,10 @@ PSOutput PSMain(PSInput input)
 
     // --- アンビエント + IBL ---
     // Phongモデルではmetallic=0, roughness=gRoughnessとして近似的にIBLを適用
-    float3 iblContrib = EvaluateIBL(N, V, albedo.rgb, 0.0, gRoughness, ao);
-    float3 ambient = iblContrib + gAmbientColor * albedo.rgb * ao;
+    float3 iblContrib = EvaluateIBL(N, V, albedo.rgb, 0.0, gRoughness, ao, gIBLIntensity);
+    // IBL有効時は定数ambientを抑制（IBLが環境光を既に含んでいるため）
+    float iblFade = saturate(gIBLIntensity * 0.5);
+    float3 ambient = iblContrib + gAmbientColor * albedo.rgb * ao * (1.0 - iblFade);
 
     // --- エミッシブ ---
     float3 emissive = SampleEmissive(input.texcoord);
@@ -103,6 +105,5 @@ PSOutput PSMain(PSInput input)
     output.color    = float4(finalColor, albedo.a);
     output.normal   = EncodeNormal(N, 0.0f, gRoughness); // Phong: non-metallic
     output.albedo   = float4(albedo.rgb, 1.0);
-    output.velocity = EncodeVelocity(input.currClipPos, input.prevClipPos);
     return output;
 }

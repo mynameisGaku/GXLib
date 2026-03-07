@@ -41,6 +41,5 @@ PSOutput PSMain(PSInput input)
     output.color    = float4(finalColor, albedo.a);
     output.normal   = EncodeNormal(N, 0.0f, 1.0f); // Unlit: metallic=0, roughness=1
     output.albedo   = float4(albedo.rgb, 1.0);
-    output.velocity = EncodeVelocity(input.currClipPos, input.prevClipPos);
     return output;
 }

@@ -174,8 +174,10 @@ PSOutput PSMain(PSInput input)
     }
 
     // --- アンビエント + IBL ---
-    float3 iblContrib = EvaluateIBL(N, V, albedo.rgb, metallic, roughness, ao);
-    float3 ambient = iblContrib + gAmbientColor * albedo.rgb * ao * cavity;
+    float3 iblContrib = EvaluateIBL(N, V, albedo.rgb, metallic, roughness, ao, gIBLIntensity);
+    // IBL有効時は定数ambientを抑制（IBLが環境光を既に含んでいるため）
+    float iblFade = saturate(gIBLIntensity * 0.5);
+    float3 ambient = iblContrib + gAmbientColor * albedo.rgb * ao * cavity * (1.0 - iblFade);
 
     // --- エミッシブ ---
     float3 emissive = SampleEmissive(input.texcoord);
@@ -190,6 +192,5 @@ PSOutput PSMain(PSInput input)
     output.color    = float4(finalColor, albedo.a);
     output.normal   = EncodeNormal(N, metallic, roughness);
     output.albedo   = float4(albedo.rgb, 1.0);
-    output.velocity = EncodeVelocity(input.currClipPos, input.prevClipPos);
     return output;
 }

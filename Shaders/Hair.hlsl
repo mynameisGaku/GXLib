@@ -186,6 +186,5 @@ PSOutput PSMain(PSInput input)
     output.color    = float4(finalColor, albedo.a);
     output.normal   = EncodeNormal(N, 0.0f, 1.0f);
     output.albedo   = float4(hairColor, 1.0);
-    output.velocity = EncodeVelocity(input.currClipPos, input.prevClipPos);
     return output;
 }

@@ -126,7 +126,7 @@ SamplerState        sLinearClamp   : register(s1);   // リニアClampサンプ�
 // ============================================================================
 
 /// @brief IBL間接照明 — 拡散(照射マップ) + 鏡面(プリフィルタマップ + BRDF LUT)
-float3 EvaluateIBL(float3 N, float3 V, float3 albedo, float metallic, float roughness, float ao)
+float3 EvaluateIBL(float3 N, float3 V, float3 albedo, float metallic, float roughness, float ao, float iblIntensity = 1.0)
 {
     float NdotV = max(dot(N, V), 0.0);
     float3 R = reflect(-V, N);
@@ -149,7 +149,7 @@ float3 EvaluateIBL(float3 N, float3 V, float3 albedo, float metallic, float roug
     float2 envBRDF = tIBLBRDFLUT.Sample(sLinearClamp, float2(NdotV, roughness)).rg;
     float3 specularIBL = prefilteredColor * (F * envBRDF.x + envBRDF.y);
 
-    return (diffuseIBL + specularIBL) * ao;
+    return (diffuseIBL + specularIBL) * ao * iblIntensity;
 }
 
 #endif // PBR_COMMON_HLSLI

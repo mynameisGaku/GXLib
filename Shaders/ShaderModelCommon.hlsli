@@ -66,6 +66,7 @@ cbuffer LightConstants : register(b2)
     LightData gLights[MAX_LIGHTS]; // ライト配列（最大16個）
     float3    gAmbientColor;       // アンビエントライト色
     uint      gNumLights;          // 有効ライト数
+    float     gIBLIntensity;       // IBL強度乗算係数
 };
 
 // ============================================================================
@@ -243,26 +244,23 @@ struct PSInput
 // ============================================================================
 
 #if defined(DEFERRED_PATH)
-// Deferred GBuffer出力 (4 MRT):
+// Deferred GBuffer出力 (3 MRT):
 //   Target0: Normal.xyz + Roughness (R16G16B16A16_FLOAT)
 //   Target1: Albedo.rgb + Metallic  (R8G8B8A8_UNORM)
 //   Target2: Emissive.rgb + AO      (R8G8B8A8_UNORM — エミッシブは0-1にクランプ)
-//   Target3: Velocity               (R16G16_FLOAT)
 struct PSOutput
 {
     float4 gbuffer0 : SV_Target0; // Normal.xyz + Roughness
     float4 gbuffer1 : SV_Target1; // Albedo.rgb + Metallic
     float4 gbuffer2 : SV_Target2; // Emissive.rgb(scaled) + AO
-    float2 velocity : SV_Target3; // Per-object MotionBlur速度
 };
 #else
-// Forward MRT出力 (4 MRT):
+// Forward MRT出力 (3 MRT):
 struct PSOutput
 {
     float4 color    : SV_Target0; // HDRライティング結果
     float4 normal   : SV_Target1; // エンコード済み法線 + メタリック/ラフネス (SSR/RTGI用)
     float4 albedo   : SV_Target2; // ライティング前のアルベド (RTGI用)
-    float2 velocity : SV_Target3; // スクリーン空間速度ベクトル（Per-object MotionBlur用）
 };
 #endif
 
@@ -430,16 +428,6 @@ float3 ApplyFog(float3 color, float3 posW)
     return color;
 }
 
-/// @brief 速度ベクトルをエンコード（Per-object MotionBlur用）
-/// 現フレームと前フレームのクリップ空間座標からスクリーン空間速度を計算する
-float2 EncodeVelocity(float4 currClip, float4 prevClip)
-{
-    float2 currNDC = currClip.xy / currClip.w;
-    float2 prevNDC = prevClip.xy / prevClip.w;
-    // NDC差分をそのまま速度として出力（-2〜+2の範囲）
-    return (currNDC - prevNDC) * 0.5f;
-}
-
 /// @brief 法線エンコード（MRT出力用、[0,1]にマップ + メタリック/ラフネスパック）
 float4 EncodeNormal(float3 N, float metallic, float roughness)
 {
@@ -460,7 +448,6 @@ PSOutput WriteGBuffer(PSInput input, float3 N, float4 albedo,
     float emissiveMax = max(max(emissive.r, emissive.g), max(emissive.b, 0.001f));
     float emissiveScale = min(emissiveMax, 1.0f) / emissiveMax;
     output.gbuffer2 = float4(emissive * emissiveScale, ao);
-    output.velocity = EncodeVelocity(input.currClipPos, input.prevClipPos);
     return output;
 }
 #endif

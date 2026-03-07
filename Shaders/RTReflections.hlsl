@@ -42,6 +42,7 @@ cbuffer LightConstants : register(b2)
     LightData g_Lights[16];   // ライト配列
     float3    g_AmbientColor; // アンビエント色
     uint      g_NumLights;    // 有効ライト数
+    float     g_IBLIntensity; // IBL強度
 };
 
 // ============================================================================

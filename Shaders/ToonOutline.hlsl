@@ -145,7 +145,6 @@ PSOutput PSMain_Outline(PSInput input)
     output.color    = float4(outlineColor, 1.0f);
     output.normal   = float4(0.5f, 0.5f, 1.0f, 0.5f);
     output.albedo   = float4(outlineColor, 1.0f);
-    output.velocity = EncodeVelocity(input.currClipPos, input.prevClipPos);
 
     return output;
 }
