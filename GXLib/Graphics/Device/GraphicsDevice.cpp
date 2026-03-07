@@ -134,10 +134,12 @@ void GraphicsDevice::ConfigureInfoQueue()
     infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
     infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
 
-    // クリアバリューの不一致警告は無害なので抑制
+    // 無害な警告を抑制
     D3D12_MESSAGE_ID denyIds[] = {
         D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
         D3D12_MESSAGE_ID_CLEARDEPTHSTENCILVIEW_MISMATCHINGCLEARVALUE,
+        D3D12_MESSAGE_ID_CREATEGRAPHICSPIPELINESTATE_RENDERTARGETVIEW_NOT_SET,
+        D3D12_MESSAGE_ID_CREATERESOURCE_STATE_IGNORED,
     };
 
     D3D12_MESSAGE_SEVERITY denySeverities[] = {
@@ -160,7 +162,7 @@ void GraphicsDevice::ReportLiveObjects()
     if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiDebug))))
     {
         GX_LOG_INFO("=== DXGI Live Objects Report ===");
-        dxgiDebug->ReportLiveObjects(DXGI_DEBUG_ALL,
+        dxgiDebug->ReportLiveObjects(DXGI_DEBUG_D3D12,
             static_cast<DXGI_DEBUG_RLO_FLAGS>(DXGI_DEBUG_RLO_SUMMARY | DXGI_DEBUG_RLO_IGNORE_INTERNAL));
         GX_LOG_INFO("=== End DXGI Report ===");
     }

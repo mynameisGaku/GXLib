@@ -90,7 +90,7 @@ bool VirtualTexture::InitializeGPU(ID3D12Device* device, uint32_t screenWidth, u
 
         HRESULT hr = device->CreateCommittedResource(
             &heapProps, D3D12_HEAP_FLAG_NONE, &desc,
-            D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr,
+            D3D12_RESOURCE_STATE_COMMON, nullptr,
             IID_PPV_ARGS(&m_feedbackBuffer));
 
         if (FAILED(hr))

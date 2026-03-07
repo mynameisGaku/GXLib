@@ -112,7 +112,7 @@ bool SamplerFeedback::CreateFeedbackFor(ID3D12Device* device, uint32_t texIndex,
         &heapProps,
         D3D12_HEAP_FLAG_NONE,
         &fbDesc,
-        D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+        D3D12_RESOURCE_STATE_COMMON,
         nullptr,
         IID_PPV_ARGS(&m_feedbackMaps[texIndex])
     );
