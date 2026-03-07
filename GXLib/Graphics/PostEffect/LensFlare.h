@@ -85,6 +85,10 @@ public:
     void SetThreshold(float v) { m_settings.threshold = v; }
     float GetThreshold() const { return m_settings.threshold; }
 
+    // --- 雲遮蔽 ---
+    void  SetCloudOcclusion(float v) { m_cloudOcclusion = v; }
+    float GetCloudOcclusion() const  { return m_cloudOcclusion; }
+
 private:
     /// レンズインターフェースデータ（CPU側、GPU転送用）
     struct LensInterfaceData
@@ -160,10 +164,11 @@ private:
     ComPtr<ID3D12PipelineState> m_compositePSO;
 
     // --- 太陽情報 ---
-    Vector3 m_lightDirection = { 0.3f, -1.0f, 0.4f };
+    Vector3 m_lightDirection  = { 0.3f, -1.0f, 0.4f };
     Vector3 m_lightColor     = { 1.0f, 0.98f, 0.95f };
     Vector2 m_sunScreenUV    = { 0.5f, 0.5f };
     float   m_sunVisible     = 0.0f;
+    float   m_cloudOcclusion = 1.0f;  ///< 雲遮蔽 (1.0=遮蔽なし, 0.0=完全遮蔽)
 };
 
 /// @}

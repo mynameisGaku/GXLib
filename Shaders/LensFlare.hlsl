@@ -150,7 +150,7 @@ bool IntersectSphere(float3 origin, float3 dir,
     hitPos = float3(0, 0, 0);
     hitNormal = float3(0, 0, 0);
 
-    float3 center = float3(0, 0, centerZ);
+    float3 center = float3(0, 0, centerZ + radius);
     float3 oc = origin - center;
 
     float a = dot(dir, dir);
@@ -165,23 +165,17 @@ bool IntersectSphere(float3 origin, float3 dir,
     float t1 = (-b - sqrtD) / (2.0 * a);
     float t2 = (-b + sqrtD) / (2.0 * a);
 
-    // 正しい交差点を選択: レイ方向に最も近い面
-    // radius > 0 (凸): 近い面を選択
-    // radius < 0 (凹): 遠い面を選択
-    if (radius > 0)
-        hitT = (t1 > 0.001) ? t1 : t2;
+    // 最も近い正の交差点を選択（球面中心が centerZ+radius にあるため、
+    // 凸/凹に関わらず常に nearest-positive で頂点付近の面に当たる）
+    if (t1 > 0.001)
+        hitT = t1;
+    else if (t2 > 0.001)
+        hitT = t2;
     else
-        hitT = (t2 > 0.001) ? t2 : t1;
-
-    if (hitT < 0.001)
         return false;
 
     hitPos = origin + dir * hitT;
     hitNormal = normalize(hitPos - center);
-
-    // radius < 0 の場合、法線を反転
-    if (radius < 0)
-        hitNormal = -hitNormal;
 
     return true;
 }
@@ -449,14 +443,17 @@ void CSTraceGhosts(uint3 dtid : SV_DispatchThreadID)
 
     // 3波長のレイトレース
     float wavelengths[3] = { 650.0, 550.0, 450.0 }; // R, G, B (nm)
-    float2 sensorPos[3];
+    float2 sensorPos[3] = { float2(0,0), float2(0,0), float2(0,0) };
     float  intensities[3] = { 0, 0, 0 };
-    bool   allValid = true;
 
     for (int ch = 0; ch < 3; ++ch)
     {
         float lambda = wavelengths[ch];
-        float3 rayPos = float3(gridPos.x, gridPos.y, firstIface.centerZ);
+        // レイ開始点は前玉曲面の最大突出（サグ）より前方に置く
+        float R_abs = abs(firstIface.radius);
+        float safeA = min(entranceR, R_abs * 0.99);
+        float sag = (R_abs > 0.001) ? (R_abs - sqrt(R_abs * R_abs - safeA * safeA)) : 0.0;
+        float3 rayPos = float3(gridPos.x, gridPos.y, firstIface.centerZ + sag + 0.5);
         float3 rayDir = normalize(float3(-lightAngle.x, -lightAngle.y, -1.0));
         float  rayIntensity = 1.0;
         bool   valid = true;
@@ -477,7 +474,7 @@ void CSTraceGhosts(uint3 dtid : SV_DispatchThreadID)
             }
         }
 
-        if (!valid) { allValid = false; continue; }
+        if (!valid) { continue; }
 
         // ========== フェーズ2: 反射面B（センサー側）で第1反射 ==========
         {
@@ -491,7 +488,7 @@ void CSTraceGhosts(uint3 dtid : SV_DispatchThreadID)
             }
         }
 
-        if (!valid) { allValid = false; continue; }
+        if (!valid) { continue; }
 
         // ========== フェーズ3: 反射面B → 反射面A まで屈折で戻る ==========
         // 反射後はシーン方向(+Z)に戻る。reflB+1 → reflA-1 を屈折通過する
@@ -509,7 +506,7 @@ void CSTraceGhosts(uint3 dtid : SV_DispatchThreadID)
             }
         }
 
-        if (!valid) { allValid = false; continue; }
+        if (!valid) { continue; }
 
         // ========== フェーズ4: 反射面A（シーン側）で第2反射 ==========
         {
@@ -523,7 +520,7 @@ void CSTraceGhosts(uint3 dtid : SV_DispatchThreadID)
             }
         }
 
-        if (!valid) { allValid = false; continue; }
+        if (!valid) { continue; }
 
         // ========== フェーズ5: 反射面A → センサーまで屈折で進む ==========
         // 第2反射後、再びセンサー方向(-Z)に進む。reflA-1 → 0 を屈折通過する
@@ -540,14 +537,13 @@ void CSTraceGhosts(uint3 dtid : SV_DispatchThreadID)
             }
         }
 
-        if (!valid) { allValid = false; continue; }
+        if (!valid) { continue; }
 
         // ========== センサー面（Z=0）に投影 ==========
         float hitT;
         float3 hitPos;
         if (!IntersectPlane(rayPos, rayDir, 0.0, hitT, hitPos))
         {
-            allValid = false;
             continue;
         }
 
@@ -564,7 +560,7 @@ void CSTraceGhosts(uint3 dtid : SV_DispatchThreadID)
     v.intensityR = intensities[0];
     v.intensityG = intensities[1];
     v.intensityB = intensities[2];
-    v.valid = allValid ? 1.0 : 0.0;
+    v.valid = (intensities[0] > 0 || intensities[1] > 0 || intensities[2] > 0) ? 1.0 : 0.0;
 
     gGhostVertices[outIdx] = v;
 }
@@ -708,9 +704,6 @@ float4 PSComposite(FullscreenVSOutput input) : SV_Target
 {
     float3 scene = gSceneTexture.Sample(gCompositeSampler, input.uv).rgb;
     float3 flare = gFlareTexture.Sample(gCompositeSampler, input.uv).rgb;
-
-    // フレアエネルギーをReinhard でソフトクランプ（ホワイトアウト防止）
-    flare = flare / (1.0 + flare);
 
     float3 result = scene + flare * gCompositeIntensity;
     return float4(result, 1.0);

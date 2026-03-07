@@ -99,7 +99,7 @@ bool LensFlare::Initialize(ID3D12Device* device, uint32_t width, uint32_t height
         return false;
 
     // 定数バッファ (256B align × 2フレーム)
-    if (!m_constantBuffer.Initialize(device, 256, 256))
+    if (!m_constantBuffer.Initialize(device, 256 * 5, 256))
         return false;
 
     // SRV/UAV ヒープ (shader-visible)
@@ -512,12 +512,23 @@ void LensFlare::Execute(ID3D12GraphicsCommandList* cmdList,
 
     int gridSize = m_settings.gridSize;
     uint32_t totalVertices = static_cast<uint32_t>(m_numGhosts) * gridSize * gridSize;
+    auto cbBaseAddr = m_constantBuffer.GetGPUVirtualAddress(frameIndex);
 
     // ========================================================================
-    // Pass 1: Compute Shader — 光束追跡
+    // 全パスの定数バッファを一括書き込み
+    // DynamicBuffer は同一フレームで同一ベースアドレスを返すため、
+    // オフセットで各パスの CB データを分離する
+    //   Slot 0 (offset    0): CS LensFlareCB
+    //   Slot 1 (offset  256): Ghost CB ch=0 (Red)
+    //   Slot 2 (offset  512): Ghost CB ch=1 (Green)
+    //   Slot 3 (offset  768): Ghost CB ch=2 (Blue)
+    //   Slot 4 (offset 1024): Composite CB
     // ========================================================================
     {
-        // 定数バッファ更新
+        auto* cbPtr = static_cast<char*>(m_constantBuffer.Map(frameIndex));
+        if (!cbPtr) return;
+
+        // --- Slot 0: CS LensFlareCB ---
         struct LensFlareCB
         {
             float lightScreenUV[2];
@@ -535,42 +546,80 @@ void LensFlare::Execute(ID3D12GraphicsCommandList* cmdList,
         LensFlareCB cb = {};
         cb.lightScreenUV[0] = m_sunScreenUV.x;
         cb.lightScreenUV[1] = m_sunScreenUV.y;
-        cb.lightBrightness  = m_sunVisible * 5.0f;  // 輝度（可視性でスケール）
+        cb.lightBrightness  = m_sunVisible * m_cloudOcclusion * 8.0f;
         cb.globalIntensity  = m_settings.intensity;
         cb.numInterfaces    = static_cast<uint32_t>(m_numInterfaces);
         cb.gridSize         = static_cast<uint32_t>(gridSize);
         cb.numGhosts        = static_cast<uint32_t>(m_numGhosts);
-        cb.sensorSize       = 36.0f;  // 35mmフルサイズ相当 (mm)
+        cb.sensorSize       = 36.0f;
         cb.apertureBlades   = m_settings.apertureBlades;
         cb.starburstStrength = m_settings.starburstStrength;
         cb.screenSize[0]    = static_cast<float>(m_width);
         cb.screenSize[1]    = static_cast<float>(m_height);
+        memcpy(cbPtr, &cb, sizeof(cb));
 
-        void* p = m_constantBuffer.Map(frameIndex);
-        if (p)
+        // --- Slot 1-3: Ghost CB per channel ---
+        struct GhostRenderCB
         {
-            memcpy(p, &cb, sizeof(cb));
-            m_constantBuffer.Unmap(frameIndex);
+            uint32_t gridSizeRender;
+            uint32_t numGhostsRender;
+            uint32_t channelIndex;
+            float    globalIntensity;
+            float    starburstStrength;
+            float    apertureBlades;
+            float    screenSize[2];
+            float    lightScreenUV[2];
+            float    padding[2];
+        };
+
+        for (uint32_t ch = 0; ch < 3; ++ch)
+        {
+            GhostRenderCB gcb = {};
+            gcb.gridSizeRender    = static_cast<uint32_t>(gridSize);
+            gcb.numGhostsRender   = static_cast<uint32_t>(m_numGhosts);
+            gcb.channelIndex      = ch;
+            gcb.globalIntensity   = 1.0f;
+            gcb.starburstStrength = m_settings.starburstStrength;
+            gcb.apertureBlades    = m_settings.apertureBlades;
+            gcb.screenSize[0]     = static_cast<float>(m_width);
+            gcb.screenSize[1]     = static_cast<float>(m_height);
+            gcb.lightScreenUV[0]  = m_sunScreenUV.x;
+            gcb.lightScreenUV[1]  = m_sunScreenUV.y;
+            memcpy(cbPtr + 256 * (1 + ch), &gcb, sizeof(gcb));
         }
 
-        // ヒープバインド
+        // --- Slot 4: Composite CB ---
+        struct CompositeCB { float intensity; float pad[3]; };
+        CompositeCB ccb = { m_settings.intensity, {0,0,0} };
+        memcpy(cbPtr + 1024, &ccb, sizeof(ccb));
+
+        m_constantBuffer.Unmap(frameIndex);
+    }
+
+    // ========================================================================
+    // Pass 1: Compute Shader — 光束追跡
+    // ========================================================================
+    {
         ID3D12DescriptorHeap* heaps[] = { m_srvUavHeap.GetHeap() };
         cmdList->SetDescriptorHeaps(1, heaps);
 
         cmdList->SetComputeRootSignature(m_computeRS.Get());
         cmdList->SetPipelineState(m_computePSO.Get());
 
-        cmdList->SetComputeRootConstantBufferView(0, m_constantBuffer.GetGPUVirtualAddress(frameIndex));
+        cmdList->SetComputeRootConstantBufferView(0, cbBaseAddr); // offset 0
         cmdList->SetComputeRootDescriptorTable(1, m_srvUavHeap.GetGPUHandle(0)); // t0,t1 SRV
         cmdList->SetComputeRootDescriptorTable(2, m_srvUavHeap.GetGPUHandle(2)); // u0 UAV
 
         uint32_t dispatchX = (totalVertices + 255) / 256;
         cmdList->Dispatch(dispatchX, 1, 1);
 
-        // UAV バリア
+        // GhostVertexBuffer: UAV → SRV（VS で読み取るためステート遷移）
         D3D12_RESOURCE_BARRIER barrier = {};
-        barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-        barrier.UAV.pResource = m_ghostVertexBuffer.GetResource();
+        barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+        barrier.Transition.pResource   = m_ghostVertexBuffer.GetResource();
+        barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+        barrier.Transition.StateAfter  = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+        barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
         cmdList->ResourceBarrier(1, &barrier);
     }
 
@@ -580,7 +629,6 @@ void LensFlare::Execute(ID3D12GraphicsCommandList* cmdList,
     {
         m_flareRT.TransitionTo(cmdList, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-        // フレアRTをクリア（黒）
         auto rtv = m_flareRT.GetRTVHandle();
         float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
         cmdList->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
@@ -597,62 +645,33 @@ void LensFlare::Execute(ID3D12GraphicsCommandList* cmdList,
         sc.bottom = static_cast<LONG>(m_height);
         cmdList->RSSetScissorRects(1, &sc);
 
-        // ヒープ再バインド（グラフィックスパイプラインに切り替え）
         ID3D12DescriptorHeap* heaps[] = { m_srvUavHeap.GetHeap() };
         cmdList->SetDescriptorHeaps(1, heaps);
 
         cmdList->SetGraphicsRootSignature(m_ghostRS.Get());
         cmdList->SetPipelineState(m_ghostPSO.Get());
-
-        // GhostVertex SRV はスロット[3]
         cmdList->SetGraphicsRootDescriptorTable(1, m_srvUavHeap.GetGPUHandle(3));
-
         cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-        // 各チャンネル (R, G, B) を別インスタンスバッチで描画
         uint32_t quadsPerGhost = (gridSize - 1) * (gridSize - 1);
-        uint32_t verticesPerGhost = quadsPerGhost * 6; // 2 triangles per quad
+        uint32_t verticesPerGhost = quadsPerGhost * 6;
 
         for (uint32_t ch = 0; ch < 3; ++ch)
         {
-            // Ghost Render CB を更新
-            struct GhostRenderCB
-            {
-                uint32_t gridSizeRender;
-                uint32_t numGhostsRender;
-                uint32_t channelIndex;
-                float    globalIntensity;
-                float    starburstStrength;
-                float    apertureBlades;
-                float    screenSize[2];
-                float    lightScreenUV[2];
-                float    padding[2];
-            };
-
-            GhostRenderCB gcb = {};
-            gcb.gridSizeRender    = static_cast<uint32_t>(gridSize);
-            gcb.numGhostsRender   = static_cast<uint32_t>(m_numGhosts);
-            gcb.channelIndex      = ch;
-            gcb.globalIntensity   = 1.0f;  // sunVisible は Pass1 lightBrightness に、intensity は Pass3 composite に含まれる
-            gcb.starburstStrength = m_settings.starburstStrength;
-            gcb.apertureBlades    = m_settings.apertureBlades;
-            gcb.screenSize[0]     = static_cast<float>(m_width);
-            gcb.screenSize[1]     = static_cast<float>(m_height);
-            gcb.lightScreenUV[0]  = m_sunScreenUV.x;
-            gcb.lightScreenUV[1]  = m_sunScreenUV.y;
-
-            void* p = m_constantBuffer.Map(frameIndex);
-            if (p)
-            {
-                memcpy(p, &gcb, sizeof(gcb));
-                m_constantBuffer.Unmap(frameIndex);
-            }
-
-            cmdList->SetGraphicsRootConstantBufferView(0, m_constantBuffer.GetGPUVirtualAddress(frameIndex));
-
-            // DrawInstanced: verticesPerGhost 頂点 × numGhosts インスタンス
+            cmdList->SetGraphicsRootConstantBufferView(0, cbBaseAddr + 256 * (1 + ch));
             cmdList->DrawInstanced(verticesPerGhost, m_numGhosts, 0, 0);
         }
+    }
+
+    // GhostVertexBuffer: SRV → UAV（次フレームの CS 用にステートを戻す）
+    {
+        D3D12_RESOURCE_BARRIER barrier = {};
+        barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+        barrier.Transition.pResource   = m_ghostVertexBuffer.GetResource();
+        barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+        barrier.Transition.StateAfter  = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+        barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+        cmdList->ResourceBarrier(1, &barrier);
     }
 
     // ========================================================================
@@ -697,19 +716,12 @@ void LensFlare::Execute(ID3D12GraphicsCommandList* cmdList,
                                                m_srvUavHeap.GetCPUHandle(5));
         }
 
-        // Composite CB
-        struct CompositeCB { float intensity; float pad[3]; };
-        CompositeCB ccb = { m_settings.intensity, {0,0,0} };
-
-        void* p = m_constantBuffer.Map(frameIndex);
-        if (p) { memcpy(p, &ccb, sizeof(ccb)); m_constantBuffer.Unmap(frameIndex); }
-
         ID3D12DescriptorHeap* heaps[] = { m_srvUavHeap.GetHeap() };
         cmdList->SetDescriptorHeaps(1, heaps);
 
         cmdList->SetGraphicsRootSignature(m_compositeRS.Get());
         cmdList->SetPipelineState(m_compositePSO.Get());
-        cmdList->SetGraphicsRootConstantBufferView(0, m_constantBuffer.GetGPUVirtualAddress(frameIndex));
+        cmdList->SetGraphicsRootConstantBufferView(0, cbBaseAddr + 1024); // offset 1024
         cmdList->SetGraphicsRootDescriptorTable(1, m_srvUavHeap.GetGPUHandle(4));
 
         cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
