@@ -112,6 +112,27 @@ bool DepthOfField::Initialize(ID3D12Device* device, uint32_t width, uint32_t hei
         [this](ID3D12Device* dev) { return CreatePipelines(dev); }
     );
 
+    // オートフォーカス用 depth readback バッファ (2フレームリング)
+    for (int i = 0; i < 2; ++i)
+    {
+        D3D12_RESOURCE_DESC bufDesc = {};
+        bufDesc.Dimension          = D3D12_RESOURCE_DIMENSION_BUFFER;
+        bufDesc.Width              = 256; // D3D12 row pitch 最小アライメント
+        bufDesc.Height             = 1;
+        bufDesc.DepthOrArraySize   = 1;
+        bufDesc.MipLevels          = 1;
+        bufDesc.Format             = DXGI_FORMAT_UNKNOWN;
+        bufDesc.SampleDesc.Count   = 1;
+        bufDesc.Layout             = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+        D3D12_HEAP_PROPERTIES heapProps = {};
+        heapProps.Type = D3D12_HEAP_TYPE_READBACK;
+
+        device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE,
+            &bufDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr,
+            IID_PPV_ARGS(&m_depthReadback[i]));
+    }
+
     GX_LOG_INFO("DepthOfField initialized (%dx%d, blur=%dx%d)", width, height, halfW, halfH);
     return true;
 }
@@ -216,10 +237,68 @@ void DepthOfField::UpdateCompositeSRVHeap(RenderTarget& srcHDR, uint32_t frameIn
 
 void DepthOfField::Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
                             RenderTarget& srcHDR, RenderTarget& destHDR,
-                            DepthBuffer& depth, const Camera3D& camera)
+                            DepthBuffer& depth, const Camera3D& camera,
+                            float deltaTime)
 {
     uint32_t halfW = (std::max)(m_width / 2u, 1u);
     uint32_t halfH = (std::max)(m_height / 2u, 1u);
+
+    // ================================================================
+    // オートフォーカス: 画面中央の深度を readback して追従
+    // ================================================================
+    if (m_autoFocusEnabled && m_depthReadback[0])
+    {
+        // 1. 画面中央の深度ピクセルを readback[frameIndex] にコピー
+        uint32_t cx = m_width / 2;
+        uint32_t cy = m_height / 2;
+
+        depth.TransitionTo(cmdList, D3D12_RESOURCE_STATE_COPY_SOURCE);
+
+        D3D12_TEXTURE_COPY_LOCATION srcLoc = {};
+        srcLoc.pResource        = depth.GetResource();
+        srcLoc.Type             = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+        srcLoc.SubresourceIndex = 0;
+
+        D3D12_TEXTURE_COPY_LOCATION dstLoc = {};
+        dstLoc.pResource                          = m_depthReadback[frameIndex].Get();
+        dstLoc.Type                               = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+        dstLoc.PlacedFootprint.Offset             = 0;
+        dstLoc.PlacedFootprint.Footprint.Format   = DXGI_FORMAT_R32_FLOAT;
+        dstLoc.PlacedFootprint.Footprint.Width    = 1;
+        dstLoc.PlacedFootprint.Footprint.Height   = 1;
+        dstLoc.PlacedFootprint.Footprint.Depth    = 1;
+        dstLoc.PlacedFootprint.Footprint.RowPitch = 256;
+
+        D3D12_BOX box = { cx, cy, 0, cx + 1, cy + 1, 1 };
+        cmdList->CopyTextureRegion(&dstLoc, 0, 0, 0, &srcLoc, &box);
+
+        // 2. 前フレームの readback[1-frameIndex] から深度を読み取り
+        if (m_readbackValid)
+        {
+            void* data = nullptr;
+            D3D12_RANGE readRange = { 0, sizeof(float) };
+            HRESULT hr = m_depthReadback[1 - frameIndex]->Map(0, &readRange, &data);
+            if (SUCCEEDED(hr) && data)
+            {
+                float depthNDC = *reinterpret_cast<float*>(data);
+                D3D12_RANGE writeRange = { 0, 0 };
+                m_depthReadback[1 - frameIndex]->Unmap(0, &writeRange);
+
+                // NDC depth → linear view-space Z
+                float nearZ = camera.GetNearZ();
+                float farZ  = camera.GetFarZ();
+                float linearZ = nearZ * farZ / (farZ - depthNDC * (farZ - nearZ));
+
+                // クランプ (異常値防止)
+                linearZ = (std::max)(nearZ, (std::min)(linearZ, farZ));
+
+                // exponential smoothing
+                float alpha = 1.0f - expf(-m_autoFocusSpeed * deltaTime);
+                m_focalDistance = m_focalDistance + alpha * (linearZ - m_focalDistance);
+            }
+        }
+        m_readbackValid = true;
+    }
 
     // フルスクリーンビューポート
     D3D12_VIEWPORT vpFull = {};
@@ -304,9 +383,10 @@ void DepthOfField::Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameInd
     ID3D12DescriptorHeap* srcHeaps[] = { srcHDR.GetSRVHeap().GetHeap() };
     cmdList->SetDescriptorHeaps(1, srcHeaps);
 
+    const float blurScale = m_bokehRadius / 8.0f;  // 8.0 = 従来の固定ブラー幅
     DoFBlurConstants blurH = {};
-    blurH.texelSizeX = 1.0f / static_cast<float>(m_width);
-    blurH.texelSizeY = 1.0f / static_cast<float>(m_height);
+    blurH.texelSizeX = (1.0f / static_cast<float>(m_width)) * blurScale;
+    blurH.texelSizeY = (1.0f / static_cast<float>(m_height)) * blurScale;
 
     p = m_blurCB.Map(frameIndex);
     if (p)
@@ -339,8 +419,8 @@ void DepthOfField::Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameInd
     cmdList->SetDescriptorHeaps(1, blurTempHeaps);
 
     DoFBlurConstants blurV = {};
-    blurV.texelSizeX = 1.0f / static_cast<float>(halfW);
-    blurV.texelSizeY = 1.0f / static_cast<float>(halfH);
+    blurV.texelSizeX = (1.0f / static_cast<float>(halfW)) * blurScale;
+    blurV.texelSizeY = (1.0f / static_cast<float>(halfH)) * blurScale;
 
     p = m_blurCB.Map(frameIndex);
     if (p)

@@ -51,8 +51,10 @@ float4 PSCoC(FullscreenVSOutput input) : SV_Target
     float linearZ = LinearizeDepth(depth);
 
     // フォーカス距離からのずれ → CoC
+    // 遷移幅をfocalRange全幅に拡大 + 二次曲線でイーズイン（ゲーム向け緩やかボケ）
     float diff = abs(linearZ - gFocalDistance);
-    float coc = saturate((diff - gFocalRange * 0.5) / (gFocalRange * 0.5 + 0.001));
+    float rawCoc = saturate((diff - gFocalRange * 0.5) / (gFocalRange + 0.001));
+    float coc = rawCoc * rawCoc;
 
     return float4(coc, 0, 0, 0);
 }

@@ -75,9 +75,11 @@ public:
     /// @param destHDR 出力先HDR RT (ピントぼけ適用後)
     /// @param depth 深度バッファ (CoC計算に使う)
     /// @param camera カメラ (逆射影行列の取得に使う)
+    /// @param deltaTime フレーム間秒数 (オートフォーカス平滑化に使用)
     void Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
                  RenderTarget& srcHDR, RenderTarget& destHDR,
-                 DepthBuffer& depth, const Camera3D& camera);
+                 DepthBuffer& depth, const Camera3D& camera,
+                 float deltaTime = 0.0f);
 
     /// @brief 画面リサイズ対応
     void OnResize(ID3D12Device* device, uint32_t width, uint32_t height);
@@ -97,13 +99,27 @@ public:
     void SetBokehRadius(float r) { m_bokehRadius = r; }
     float GetBokehRadius() const { return m_bokehRadius; }
 
+    /// @brief オートフォーカス有効/無効。有効時は画面中央の深度からフォーカス距離を自動設定
+    void SetAutoFocusEnabled(bool e) { m_autoFocusEnabled = e; }
+    bool IsAutoFocusEnabled() const { return m_autoFocusEnabled; }
+
+    /// @brief オートフォーカス追従速度 (exponential smoothing)
+    void SetAutoFocusSpeed(float s) { m_autoFocusSpeed = s; }
+    float GetAutoFocusSpeed() const { return m_autoFocusSpeed; }
+
 private:
     bool CreatePipelines(ID3D12Device* device);
 
     bool m_enabled = false;            ///< 有効フラグ
     float m_focalDistance = 10.0f;     ///< フォーカス距離（ビュー空間Z）
-    float m_focalRange   = 5.0f;      ///< フォーカス鮮明範囲
-    float m_bokehRadius  = 8.0f;      ///< ぼけの最大半径（ピクセル）
+    float m_focalRange   = 20.0f;     ///< フォーカス鮮明範囲
+    float m_bokehRadius  = 3.0f;      ///< ぼけの最大半径（ピクセル）
+
+    // オートフォーカス
+    bool  m_autoFocusEnabled = true;   ///< デフォルト有効
+    float m_autoFocusSpeed   = 5.0f;   ///< 追従速度 (exponential smoothing)
+    ComPtr<ID3D12Resource> m_depthReadback[2]; ///< 2フレームリング readback
+    bool  m_readbackValid    = false;  ///< readback データが有効かどうか
 
     uint32_t m_width  = 0;             ///< 画面幅（ピクセル）
     uint32_t m_height = 0;             ///< 画面高さ（ピクセル）
