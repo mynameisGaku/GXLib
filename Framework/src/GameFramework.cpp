@@ -9,6 +9,10 @@
 #include "Graphics/3D/CascadedShadowMap.h"
 #include "Graphics/3D/Fog.h"
 
+#include <thread>
+#include <atomic>
+#include <chrono>
+
 namespace gx
 {
 
@@ -64,10 +68,149 @@ int GameFramework::Run(GameBase& game, const Config& config)
 }
 
 // ============================================================================
-// Initialize — エンジン全体の初期化
+// Initialize — 3フェーズ初期化 + ロード画面
 // ============================================================================
 
 bool GameFramework::Initialize(const Config& config)
+{
+    // --- Phase 1: コア初期化 (同期) ---
+    if (!InitializeCore(config))
+        return false;
+
+    // --- ロード画面用 CommandList 初期化 ---
+    if (!m_loadingCmdList.Initialize(m_device))
+    {
+        GX_LOG_ERROR("GameFramework: Failed to initialize loading CommandList");
+        return false;
+    }
+
+    // --- ロード画面初期化 ---
+    LoadingScreen loadingScreen;
+    if (!loadingScreen.Initialize(m_device, m_commandQueue.GetQueue(),
+                                   m_screenWidth, m_screenHeight))
+    {
+        GX_LOG_WARN("GameFramework: LoadingScreen init failed, falling back to sync init");
+        std::atomic<float> dummyProgress{0.0f};
+        std::atomic<bool> dummyFailed{false};
+        InitializeHeavy(dummyProgress, dummyFailed);
+        if (dummyFailed.load()) return false;
+        if (!FinalizeInit(config)) return false;
+        return true;
+    }
+
+    // フォントアトラスアップロードを確実に完了
+    m_commandQueue.Flush();
+
+    // --- Phase 2: バックグラウンド初期化 + ロード画面描画 ---
+    std::atomic<float> progress{0.0f};
+    std::atomic<bool>  failed{false};
+    std::atomic<bool>  done{false};
+
+    std::thread worker([this, &progress, &failed, &done]() {
+        InitializeHeavy(progress, failed);
+        done.store(true);
+    });
+
+    // メインスレッド: ロード画面ループ
+    while (!done.load())
+    {
+        m_app.GetWindow().ProcessMessages();
+
+        uint32_t fi = m_swapChain.GetCurrentBackBufferIndex();
+        m_loadingCmdList.Reset(fi);
+        auto* cmd = m_loadingCmdList.Get();
+
+        loadingScreen.Render(cmd,
+                             m_swapChain.GetCurrentRTVHandle(),
+                             m_swapChain.GetCurrentBackBuffer(),
+                             fi,
+                             progress.load(),
+                             L"Initializing");
+
+        m_loadingCmdList.Close();
+        ID3D12CommandList* lists[] = { cmd };
+        m_commandQueue.ExecuteCommandLists(lists, 1);
+        m_swapChain.Present(true);
+        m_commandQueue.Flush();
+    }
+
+    worker.join();
+
+    if (failed.load())
+    {
+        GX_LOG_ERROR("GameFramework: Background initialization failed");
+        loadingScreen.Shutdown();
+        return false;
+    }
+
+    // --- ロード画面1フレーム描画ヘルパー ---
+    auto renderLoadingFrame = [&](float prog, float fadeAlpha) {
+        m_app.GetWindow().ProcessMessages();
+        uint32_t fi = m_swapChain.GetCurrentBackBufferIndex();
+        m_loadingCmdList.Reset(fi);
+        auto* cmd = m_loadingCmdList.Get();
+        loadingScreen.Render(cmd,
+                             m_swapChain.GetCurrentRTVHandle(),
+                             m_swapChain.GetCurrentBackBuffer(),
+                             fi, prog, L"Initializing", fadeAlpha);
+        m_loadingCmdList.Close();
+        ID3D12CommandList* lists[] = { cmd };
+        m_commandQueue.ExecuteCommandLists(lists, 1);
+        m_swapChain.Present(true);
+        m_commandQueue.Flush();
+    };
+
+    // --- Phase 3: ファイナライズ ---
+    renderLoadingFrame(1.0f, 1.0f);
+    if (!FinalizeInit(config))
+    {
+        loadingScreen.Shutdown();
+        return false;
+    }
+    // FinalizeInit による timer ジャンプを吸収
+    renderLoadingFrame(1.0f, 1.0f);
+
+    // --- 100%ホールド (0.3秒) → フェードアウト (0.6秒) → 黒フレーム ---
+    {
+        auto transitionStart = std::chrono::high_resolution_clock::now();
+        constexpr float k_HoldDuration = 0.3f;
+        constexpr float k_FadeDuration = 0.6f;
+        constexpr float k_TotalDuration = k_HoldDuration + k_FadeDuration;
+
+        while (true)
+        {
+            auto now = std::chrono::high_resolution_clock::now();
+            float elapsed = std::chrono::duration<float>(now - transitionStart).count();
+            if (elapsed >= k_TotalDuration) break;
+
+            float fadeAlpha;
+            if (elapsed < k_HoldDuration)
+                fadeAlpha = 1.0f;
+            else
+                fadeAlpha = 1.0f - (elapsed - k_HoldDuration) / k_FadeDuration;
+
+            renderLoadingFrame(1.0f, fadeAlpha);
+        }
+
+        // 両方のバックバッファを確実に黒にする
+        renderLoadingFrame(1.0f, 0.0f);
+        renderLoadingFrame(1.0f, 0.0f);
+    }
+
+    loadingScreen.Shutdown();
+
+    // ゲーム描画のフェードイン開始
+    m_fadeInAlpha = 1.0f;
+
+    GX_LOG_INFO("=== GameFramework: Initialized ===");
+    return true;
+}
+
+// ============================================================================
+// InitializeCore — Phase 1: コアサブシステム (同期)
+// ============================================================================
+
+bool GameFramework::InitializeCore(const Config& config)
 {
     // Application (Window + Timer)
     ApplicationDesc appDesc;
@@ -92,38 +235,10 @@ bool GameFramework::Initialize(const Config& config)
 
     m_device = m_graphicsDevice.GetDevice();
 
-    // Graphics pipeline
+    // Graphics pipeline (CommandQueue, CommandList, SwapChain)
     if (!InitializeGraphics())
         return false;
 
-    // Renderers
-    if (!InitializeRenderers())
-        return false;
-
-    // Camera
-    float aspect = static_cast<float>(m_screenWidth) / static_cast<float>(m_screenHeight);
-    m_mainCamera.SetPerspective(XM_PIDIV4, aspect, 0.1f, 1000.0f);
-    m_mainCamera.SetPosition(0.0f, 3.0f, -10.0f);
-    m_mainCamera.LookAt({ 0.0f, 0.0f, 0.0f });
-
-    // RenderProfile + QualitySettings
-    auto profile = RenderProfile::CreateDefault();
-    profile.Apply(m_postEffect, &m_renderer3D);
-
-    auto detectedLevel = QualitySettings::AutoDetect(m_graphicsDevice);
-    m_qualitySettings.SetQualityLevel(detectedLevel);
-    m_qualitySettings.Apply(m_postEffect);
-
-    // ImGui 初期化（デバッグオーバーレイ用）
-    // InputManager より先に登録する。ImGui のコールバックは常に false を返すので
-    // InputManager 側のメッセージ処理はブロックされない。
-    // 逆順だと InputManager が return true でチェーンを切り、ImGui にマウスイベントが届かない。
-    m_imguiManager.Initialize(m_device, m_commandQueue.GetQueue(), m_app.GetWindow());
-
-    // Input（ImGui の後に初期化 — コールバック登録順序が重要）
-    m_inputManager.Initialize(m_app.GetWindow());
-
-    GX_LOG_INFO("=== GameFramework: Initialized ===");
     return true;
 }
 
@@ -146,32 +261,93 @@ bool GameFramework::InitializeGraphics()
     return true;
 }
 
-bool GameFramework::InitializeRenderers()
+// ============================================================================
+// InitializeHeavy — Phase 2: 重いサブシステム (バックグラウンド)
+// ============================================================================
+
+void GameFramework::InitializeHeavy(std::atomic<float>& progress, std::atomic<bool>& failed)
 {
+    GX_LOG_INFO("GameFramework: Initializing (Phase 2: Heavy subsystems)...");
+
     auto* queue = m_commandQueue.GetQueue();
 
+    // SpriteBatch
     if (!m_spriteBatch.Initialize(m_device, queue, m_screenWidth, m_screenHeight))
-        return false;
-    if (!m_primitiveBatch.Initialize(m_device, m_screenWidth, m_screenHeight))
-        return false;
-    if (!m_fontManager.Initialize(m_device, &m_spriteBatch.GetTextureManager()))
-        return false;
-    m_textRenderer.Initialize(&m_spriteBatch, &m_fontManager);
+    { failed.store(true); return; }
+    progress.store(0.10f);
 
+    // PrimitiveBatch
+    if (!m_primitiveBatch.Initialize(m_device, m_screenWidth, m_screenHeight))
+    { failed.store(true); return; }
+    progress.store(0.15f);
+
+    // FontManager + TextRenderer
+    if (!m_fontManager.Initialize(m_device, &m_spriteBatch.GetTextureManager()))
+    { failed.store(true); return; }
+    m_textRenderer.Initialize(&m_spriteBatch, &m_fontManager);
+    progress.store(0.20f);
+
+    // AudioManager (non-fatal)
+    m_audioManager.Initialize();
+    progress.store(0.30f);
+
+    // Renderer3D (PSO多数 — 最重)
     if (!m_renderer3D.Initialize(m_device, queue, m_screenWidth, m_screenHeight))
-        return false;
+    { failed.store(true); return; }
+    progress.store(0.60f);
+
+    // PostEffectPipeline (PSO多数)
     m_postEffect.SetGraphicsDevice(&m_graphicsDevice);
     if (!m_postEffect.Initialize(m_device, m_screenWidth, m_screenHeight))
-        return false;
-
-    // AudioManager
-    m_audioManager.Initialize();
+    { failed.store(true); return; }
+    progress.store(0.90f);
 
     // デフォルトフォント
     m_defaultFont = m_fontManager.CreateFont(L"Meiryo", 20);
     if (m_defaultFont < 0)
         m_defaultFont = m_fontManager.CreateFont(L"MS Gothic", 20);
 
+    progress.store(1.0f);
+}
+
+// ============================================================================
+// FinalizeInit — Phase 3: ファイナライズ (同期)
+// ============================================================================
+
+bool GameFramework::FinalizeInit(const Config& config)
+{
+    GX_LOG_INFO("GameFramework: Initializing (Phase 3: Finalize)...");
+
+    // Camera
+    float aspect = static_cast<float>(m_screenWidth) / static_cast<float>(m_screenHeight);
+    m_mainCamera.SetPerspective(XM_PIDIV4, aspect, 0.1f, 1000.0f);
+    m_mainCamera.SetPosition(0.0f, 3.0f, -10.0f);
+    m_mainCamera.LookAt({ 0.0f, 0.0f, 0.0f });
+
+    // RenderProfile + QualitySettings
+    auto profile = RenderProfile::CreateDefault();
+    profile.Apply(m_postEffect, &m_renderer3D);
+
+    auto detectedLevel = QualitySettings::AutoDetect(m_graphicsDevice);
+    m_qualitySettings.SetQualityLevel(detectedLevel);
+    m_qualitySettings.Apply(m_postEffect);
+
+    // ImGui 初期化
+    m_imguiManager.Initialize(m_device, m_commandQueue.GetQueue(), m_app.GetWindow());
+
+    // Input（ImGui の後に初期化 — コールバック登録順序が重要）
+    m_inputManager.Initialize(m_app.GetWindow());
+
+    return true;
+}
+
+// ============================================================================
+// InitializeRenderers — 後方互換用 (未使用、3フェーズ移行済み)
+// ============================================================================
+
+bool GameFramework::InitializeRenderers()
+{
+    // InitializeHeavy + FinalizeInit に分割済み
     return true;
 }
 
@@ -202,7 +378,7 @@ void GameFramework::SetupDefaultScene()
         lightTransform->position = { 0.0f, 10.0f, 0.0f };
 
     // やや青みがかった環境光
-    m_ambientColor = Vector3{ 0.15f, 0.15f, 0.2f };
+    m_ambientColor = Vector3{ 0.25f, 0.28f, 0.35f };
 
     GX_LOG_INFO("GameFramework: Default scene created (Camera + Directional Light + Sky)");
 }
@@ -217,7 +393,7 @@ void GameFramework::SetupDefaultSky()
     auto& skybox = m_renderer3D.GetSkybox();
     skybox.SetColors(
         Vector3{ 0.15f, 0.3f, 0.8f },    // 天頂: 深い青
-        Vector3{ 0.6f, 0.75f, 0.95f }     // 地平: 淡い水色
+        Vector3{ 0.37f, 0.35f, 0.34f }    // 地平: 暗灰色 (Unityライク)
     );
     skybox.SetSun(m_sunDirection, 8.0f);   // HDR 太陽ハイライト
 
@@ -233,6 +409,21 @@ void GameFramework::SetupDefaultSky()
     clouds.SetSunDirection(m_sunDirection);
     clouds.SetSunColor(Vector3{ 1.0f, 0.98f, 0.95f });
     clouds.SetSilverLiningIntensity(0.6f); // 太陽側の雲の縁が光る
+    clouds.SetMSOctaves(6);
+    clouds.SetMSAttenuation(0.3f);
+    clouds.SetMSContribution(0.7f);
+    clouds.SetMSEccentricity(0.5f);
+    clouds.SetPowderAmount(0.8f);
+    clouds.SetAmbientBottom(0.20f);
+    clouds.SetAmbientTop(0.55f);
+    clouds.SetAtmosphereDensity(0.00003f);
+
+    // --- SkyAtmosphere (物理ベース大気散乱) ---
+    auto& sky = m_postEffect.GetSkyAtmosphere();
+    sky.SetEnabled(true);
+    sky.SetSunDirection(m_sunDirection);
+    sky.SetSunColor(Vector3{ 1.0f, 0.98f, 0.95f });
+    sky.SetSunIntensity(20.0f);
 
     // --- LensFlare (物理ベースレンズフレア) ---
     auto& lensFlare = m_postEffect.GetLensFlare();
@@ -292,12 +483,26 @@ void GameFramework::RenderFrame(GameBase& game, float deltaTime)
     // ImGui フレーム開始
     m_imguiManager.BeginFrame();
 
+    // シーン内の LightComponent からライトデータを収集（シャドウパスの前に必要）
+    {
+        gx::Vector<LightData> lights;
+        auto lightComps = m_defaultScene.FindComponentsOfType<LightComponent>();
+        for (auto* lc : lightComps)
+        {
+            if (lc->IsEnabled())
+                lights.push_back(lc->lightData);
+        }
+        if (!lights.empty())
+            m_renderer3D.SetLights(lights.data(), static_cast<uint32_t>(lights.size()), m_ambientColor);
+    }
+
     // --- シャドウパス (CSM) ---
     m_renderer3D.UpdateShadow(m_mainCamera);
     for (uint32_t cascade = 0; cascade < CascadedShadowMap::k_NumCascades; ++cascade)
     {
         m_renderer3D.BeginShadowPass(cmdList, m_frameIndex, cascade);
         m_sceneRenderer.Render(m_defaultScene, m_renderer3D);
+        game.OnDraw3D();
         m_renderer3D.EndShadowPass(cascade);
     }
 
@@ -313,19 +518,6 @@ void GameFramework::RenderFrame(GameBase& game, float deltaTime)
         Matrix4x4 vp;
         XMStoreFloat4x4(XM(&vp), XMMatrixTranspose(viewRotOnly * ToXMMATRIX(m_mainCamera.GetProjectionMatrix())));
         m_renderer3D.GetSkybox().Draw(cmdList, m_frameIndex, vp);
-    }
-
-    // シーン内の LightComponent からライトデータを収集
-    {
-        gx::Vector<LightData> lights;
-        auto lightComps = m_defaultScene.FindComponentsOfType<LightComponent>();
-        for (auto* lc : lightComps)
-        {
-            if (lc->IsEnabled())
-                lights.push_back(lc->lightData);
-        }
-        if (!lights.empty())
-            m_renderer3D.SetLights(lights.data(), static_cast<uint32_t>(lights.size()), m_ambientColor);
     }
 
     // 3D PBR 描画
@@ -379,6 +571,24 @@ void GameFramework::RenderFrame(GameBase& game, float deltaTime)
         cmdList->RSSetViewports(1, &vp);
         cmdList->RSSetScissorRects(1, &scissor);
         m_imguiManager.EndFrame(cmdList);
+
+        // --- フェードイン: 黒オーバーレイを減衰させる ---
+        if (m_fadeInAlpha > 0.0f)
+        {
+            uint32_t a = static_cast<uint32_t>(m_fadeInAlpha * 255.0f);
+            if (a > 0)
+            {
+                m_primitiveBatch.Begin(cmdList, m_frameIndex);
+                m_primitiveBatch.DrawBox(0.0f, 0.0f,
+                                          static_cast<float>(m_screenWidth),
+                                          static_cast<float>(m_screenHeight),
+                                          (a << 24), true);
+                m_primitiveBatch.End();
+            }
+            constexpr float k_FadeInDuration = 0.6f;
+            m_fadeInAlpha -= deltaTime / k_FadeInDuration;
+            if (m_fadeInAlpha < 0.0f) m_fadeInAlpha = 0.0f;
+        }
 
         // Present 状態に遷移
         barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;

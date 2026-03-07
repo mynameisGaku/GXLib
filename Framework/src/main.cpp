@@ -5,10 +5,22 @@
 /// （カメラ + DirectionalLight）・レンダリングパイプラインが全て動作する。
 
 #include "GameFramework.h"
+#include <GXLib.h>
 
 class SampleGame : public gx::GameBase
 {
 public:
+
+    class MeshObject
+    {
+    public:
+        GPUMesh mesh;
+        Transform3D transform;
+    };
+
+    GPUMesh m_cube;
+    Vector<MeshObject> m_spheres;
+
     void OnStart() override
     {
         // デフォルトシーンにはカメラと DirectionalLight が既に配置済み
@@ -17,6 +29,23 @@ public:
         cam.LookAt({ 0.0f, 0.0f, 0.0f });
 
         ToggleDebugOverlay();
+
+        MeshData meshData = MeshGenerator::CreateBox(2.0f, 2.0f, 2.0f);
+        m_cube = GetRenderer().CreateGPUMesh(meshData);
+
+        for(int i = 0; i < 10; ++i)
+        {
+            MeshData sphereData = MeshGenerator::CreateSphere(1.0f, 16, 16);
+            MeshObject obj;
+            obj.mesh = GetRenderer().CreateGPUMesh(sphereData);
+            float rx = GetRandF(0.0f, 1.0f);
+            float ry = GetRandF(0.0f, 1.0f);
+            float rz = GetRandF(0.0f, 1.0f);
+            float prx = rx - .5f;
+            float prz = rz - .5f;
+            obj.transform.SetPosition({ prx * 10.f, ry * 5.f, prz * 10.f });
+            m_spheres.push_back(std::move(obj));
+        }
     }
 
     void OnUpdate(float dt) override
@@ -71,6 +100,19 @@ public:
         if (input.GetKeyboard().IsKeyDown('D'))        cam.MoveRight(speed);
         if (input.GetKeyboard().IsKeyDown(VK_SPACE))   cam.MoveUp(speed);
         if (input.GetKeyboard().IsKeyDown(VK_LSHIFT))  cam.MoveUp(-speed);
+    }
+
+    void OnDraw3D() override
+    {
+        Transform3D t;
+        t.SetPosition({ 0.0f, -0.5f, 0.0f });
+        t.SetScale({15.0f, 1.0f, 15.0f});
+        GetRenderer().DrawMesh(m_cube, t);
+
+        for (const auto& obj : m_spheres)
+        {
+            GetRenderer().DrawMesh(obj.mesh, obj.transform);
+        }
     }
 
     void OnDraw2D() override

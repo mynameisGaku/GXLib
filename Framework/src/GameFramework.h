@@ -38,6 +38,11 @@
 #include "Graphics/3D/GraphicsComponents.h"
 #include "Compat/DebugOverlay.h"
 #include "Compat/ImGuiManager.h"
+#include "Graphics/Rendering/LoadingScreen.h"
+#include "Math/Random.h"
+
+#include <thread>
+#include <atomic>
 
 namespace gx
 {
@@ -121,7 +126,10 @@ public:
 
 private:
     bool Initialize(const Config& config);
+    bool InitializeCore(const Config& config);
     bool InitializeGraphics();
+    void InitializeHeavy(std::atomic<float>& progress, std::atomic<bool>& failed);
+    bool FinalizeInit(const Config& config);
     bool InitializeRenderers();
     void SetupDefaultScene();
     void SetupDefaultSky();
@@ -154,7 +162,7 @@ private:
     DebugOverlay         m_debugOverlay;
 
     // --- 状態 ---
-    Vector3              m_ambientColor = { 0.15f, 0.15f, 0.2f };
+    Vector3              m_ambientColor = { 0.25f, 0.28f, 0.35f };
     Vector3              m_sunDirection = { 0.3f, -1.0f, 0.4f };
     ID3D12Device*        m_device       = nullptr;
     uint32_t             m_screenWidth  = 0;
@@ -163,9 +171,13 @@ private:
     float                m_deltaTime    = 0.0f;
     bool                 m_vsync        = true;
     int                  m_defaultFont  = -1;
+    float                m_fadeInAlpha  = 0.0f; ///< フェードイン用 (1=黒, 0=完了)
 
     uint64_t m_frameFenceValues[SwapChain::k_BufferCount] = {};
     uint32_t m_frameIndex = 0;
+
+    // --- ロード画面用 ---
+    CommandList m_loadingCmdList;
 
     friend class GameBase;
 };
