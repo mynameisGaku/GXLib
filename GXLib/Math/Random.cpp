@@ -6,7 +6,8 @@ namespace gx {
 Random::Random()
 {
     std::random_device rd;
-    m_engine.seed(rd());
+    std::seed_seq seq{ rd(), rd(), rd(), rd(), rd(), rd(), rd(), rd() };
+    m_engine.seed(seq);
 }
 
 Random::Random(uint32_t seed) : m_engine(seed)

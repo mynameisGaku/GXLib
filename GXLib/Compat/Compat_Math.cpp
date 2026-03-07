@@ -1,10 +1,38 @@
 /// @file Compat_Math.cpp
-/// @brief 簡易API 数学ユーティリティ関数の実装（VECTOR/MATRIX演算）
+/// @brief 簡易API 数学ユーティリティ関数の実装（VECTOR/MATRIX演算・乱数）
 #include "pch.h"
 #include "Compat/GXLib.h"
 #include "Compat/CompatTypes.h"
+#include "Math/Random.h"
 
 namespace gx {
+
+// ============================================================================
+// 乱数
+// ============================================================================
+int GetRand(int max)
+{
+    if (max <= 0) return 0;
+    return Random::Global().Int(0, max);
+}
+
+int GetRandRange(int min, int max)
+{
+    if (min >= max) return min;
+    return Random::Global().Int(min, max);
+}
+
+float GetRandF(float min, float max)
+{
+    if (min >= max) return min;
+    return Random::Global().Float(min, max);
+}
+
+int SRand(int seed)
+{
+    Random::Global().SetSeed(static_cast<uint32_t>(seed));
+    return 0;
+}
 
 // ============================================================================
 // VECTOR 演算
