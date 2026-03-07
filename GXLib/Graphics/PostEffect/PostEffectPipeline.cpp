@@ -14,6 +14,7 @@
 #include "Graphics/RayTracing/RTReflections.h"
 #include "Graphics/RayTracing/RTGI.h"
 #include "Core/Logger.h"
+#include <DirectXPackedVector.h>
 
 namespace gx
 {
@@ -172,6 +173,31 @@ bool PostEffectPipeline::Initialize(ID3D12Device* device, uint32_t width, uint32
     {
         if (!m_ssgi.Initialize(m_graphicsDevice, width, height))
             GX_LOG_WARN("PostEffectPipeline: SSGI initialization failed (non-fatal)");
+    }
+
+    // SkyAtmosphere (物理ベース大気散乱)
+    if (!m_skyAtmosphere.Initialize(device, width, height))
+        GX_LOG_WARN("PostEffectPipeline: SkyAtmosphere init failed (non-fatal)");
+
+    // 太陽位置クラウド透過率 readback バッファ (2フレームリング)
+    for (int i = 0; i < 2; ++i)
+    {
+        D3D12_RESOURCE_DESC bufDesc = {};
+        bufDesc.Dimension          = D3D12_RESOURCE_DIMENSION_BUFFER;
+        bufDesc.Width              = 256; // D3D12 row pitch 最小アライメント
+        bufDesc.Height             = 1;
+        bufDesc.DepthOrArraySize   = 1;
+        bufDesc.MipLevels          = 1;
+        bufDesc.Format             = DXGI_FORMAT_UNKNOWN;
+        bufDesc.SampleDesc.Count   = 1;
+        bufDesc.Layout             = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+        D3D12_HEAP_PROPERTIES heapProps = {};
+        heapProps.Type = D3D12_HEAP_TYPE_READBACK;
+
+        device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE,
+            &bufDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr,
+            IID_PPV_ARGS(&m_sunReadback[i]));
     }
 
     GX_LOG_INFO("PostEffectPipeline initialized (%dx%d) with SSAO/SSR/SSGI/VolumetricLight/Bloom/DoF/MotionBlur/Outline/TAA/FXAA/Vignette/ColorGrading", width, height);
@@ -391,6 +417,13 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
     // ========================================
     RenderTarget* currentHDR = &m_hdrRT;
 
+    // SkyAtmosphere (HDRチェーン最初、depth<1.0はdiscard → インプレース合成)
+    if (m_skyAtmosphere.IsEnabled() && HasFlag(mask, PostFXFlag::SkyAtmosphere))
+    {
+        m_skyAtmosphere.Execute(m_cmdList, m_frameIndex, *currentHDR, depthBuffer, camera);
+        currentHDR->TransitionTo(m_cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    }
+
     // RTGI / SSGI (GI加算合成, SSAOの前) — 排他: RTGI優先、非対応時SSGIフォールバック
     bool rtgiUsed = false;
     if (m_rtGI && m_rtGI->IsEnabled() && m_cmdList4 && HasFlag(mask, PostFXFlag::RTGI))
@@ -445,15 +478,7 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
         currentHDR = dest;
     }
 
-    // ボリューメトリックライト (HDR空間, SSRの後・Bloomの前)
-    if (m_volumetricLight.IsEnabled() && HasFlag(mask, PostFXFlag::VolumetricLight))
-    {
-        RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
-        m_volumetricLight.Execute(m_cmdList, m_frameIndex, *currentHDR, *dest, depthBuffer, camera);
-        currentHDR = dest;
-    }
-
-    // ボリューメトリッククラウド (HDR空間, ゴッドレイの後・Bloomの前)
+    // ボリューメトリッククラウド (HDR空間, SSRの後・ゴッドレイの前)
     if (m_volumetricClouds.IsEnabled() && HasFlag(mask, PostFXFlag::VolumetricClouds))
     {
         RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
@@ -462,9 +487,79 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
         currentHDR = dest;
     }
 
-    // ブルーム
+    // 太陽位置のクラウド透過率を GPU readback で取得 (1フレーム遅延)
+    // VolumetricClouds が alpha に transmittance を書き込んでいるのでそれを読む
+    if (m_volumetricClouds.IsEnabled() && m_sunReadback[0])
+    {
+        Vector2 sunUV = m_volumetricLight.GetLastSunScreenPos();
+        uint32_t px = static_cast<uint32_t>(
+            (std::min)((std::max)(sunUV.x, 0.0f), 0.999f) * m_width);
+        uint32_t py = static_cast<uint32_t>(
+            (std::min)((std::max)(sunUV.y, 0.0f), 0.999f) * m_height);
+
+        // currentHDR → COPY_SOURCE → 太陽ピクセルをコピー
+        currentHDR->TransitionTo(m_cmdList, D3D12_RESOURCE_STATE_COPY_SOURCE);
+
+        D3D12_TEXTURE_COPY_LOCATION srcLoc = {};
+        srcLoc.pResource        = currentHDR->GetResource();
+        srcLoc.Type             = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+        srcLoc.SubresourceIndex = 0;
+
+        D3D12_TEXTURE_COPY_LOCATION dstLoc = {};
+        dstLoc.pResource                          = m_sunReadback[m_frameIndex].Get();
+        dstLoc.Type                               = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+        dstLoc.PlacedFootprint.Offset             = 0;
+        dstLoc.PlacedFootprint.Footprint.Format   = k_HDRFormat;
+        dstLoc.PlacedFootprint.Footprint.Width    = 1;
+        dstLoc.PlacedFootprint.Footprint.Height   = 1;
+        dstLoc.PlacedFootprint.Footprint.Depth    = 1;
+        dstLoc.PlacedFootprint.Footprint.RowPitch = 256;
+
+        D3D12_BOX box = { px, py, 0, px + 1, py + 1, 1 };
+        m_cmdList->CopyTextureRegion(&dstLoc, 0, 0, 0, &srcLoc, &box);
+
+        // 前フレームのリードバックから透過率を取得
+        if (m_sunReadbackValid)
+        {
+            void* data = nullptr;
+            D3D12_RANGE readRange = { 0, 8 }; // R16G16B16A16_FLOAT = 8 bytes
+            HRESULT hr = m_sunReadback[1 - m_frameIndex]->Map(0, &readRange, &data);
+            if (SUCCEEDED(hr) && data)
+            {
+                auto* half4 = reinterpret_cast<DirectX::PackedVector::XMHALF4*>(data);
+                DirectX::XMFLOAT4 pixel;
+                DirectX::XMStoreFloat4(&pixel,
+                    DirectX::PackedVector::XMLoadHalf4(half4));
+                m_sunCloudTransmittance = pixel.w; // alpha = transmittance
+                D3D12_RANGE writeRange = { 0, 0 };
+                m_sunReadback[1 - m_frameIndex]->Unmap(0, &writeRange);
+            }
+        }
+        m_sunReadbackValid = true;
+
+        m_lensFlare.SetCloudOcclusion(m_sunCloudTransmittance);
+    }
+    else
+    {
+        m_lensFlare.SetCloudOcclusion(1.0f);
+    }
+
+    // ボリューメトリックライト (HDR空間, クラウドの後・Bloomの前)
+    if (m_volumetricLight.IsEnabled() && HasFlag(mask, PostFXFlag::VolumetricLight))
+    {
+        RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
+        m_volumetricLight.Execute(m_cmdList, m_frameIndex, *currentHDR, *dest, depthBuffer, camera);
+        currentHDR = dest;
+    }
+
+    // ブルーム（露出補正型抽出: AutoExposureの適応済み露出で正規化し閾値比較）
     if (m_bloom.IsEnabled() && HasFlag(mask, PostFXFlag::Bloom))
     {
+        float bloomExposure = m_exposure;
+        if (m_autoExposure.IsEnabled())
+            bloomExposure = m_autoExposure.GetCurrentExposure();
+        m_bloom.SetExposure(bloomExposure);
+
         RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
         m_bloom.Execute(m_cmdList, m_frameIndex, *currentHDR, *dest);
         dest->TransitionTo(m_cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -484,7 +579,7 @@ void PostEffectPipeline::Resolve(D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV,
     if (m_dof.IsEnabled() && HasFlag(mask, PostFXFlag::DoF))
     {
         RenderTarget* dest = (currentHDR == &m_hdrRT) ? &m_hdrPingPongRT : &m_hdrRT;
-        m_dof.Execute(m_cmdList, m_frameIndex, *currentHDR, *dest, depthBuffer, camera);
+        m_dof.Execute(m_cmdList, m_frameIndex, *currentHDR, *dest, depthBuffer, camera, deltaTime);
         currentHDR = dest;
     }
 
@@ -639,6 +734,7 @@ void PostEffectPipeline::OnResize(ID3D12Device* device, uint32_t width, uint32_t
     m_taa.OnResize(device, width, height);
     m_autoExposure.OnResize(device, width, height);
     m_ssgi.OnResize(device, width, height);
+    m_skyAtmosphere.OnResize(device, width, height);
     if (m_rtReflections)
         m_rtReflections->OnResize(device, width, height);
     if (m_rtGI)

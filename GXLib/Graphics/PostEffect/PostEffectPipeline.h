@@ -29,6 +29,7 @@
 #include "Graphics/PostEffect/SSGI.h"
 #include "Graphics/PostEffect/LensFlare.h"
 #include "Graphics/PostEffect/PostFXMask.h"
+#include "Graphics/3D/SkyAtmosphere.h"
 
 namespace gx
 {
@@ -103,6 +104,8 @@ public:
     // --- DoF (被写界深度) ---
     DepthOfField& GetDoF() { return m_dof; }
     const DepthOfField& GetDoF() const { return m_dof; }
+    void SetDoFAutoFocus(bool e) { m_dof.SetAutoFocusEnabled(e); }
+    bool IsDoFAutoFocus() const { return m_dof.IsAutoFocusEnabled(); }
 
     // --- モーションブラー ---
     MotionBlur& GetMotionBlur() { return m_motionBlur; }
@@ -139,6 +142,10 @@ public:
     // --- SSGI (スクリーン空間GI, RTGI フォールバック) ---
     SSGI& GetSSGI() { return m_ssgi; }
     const SSGI& GetSSGI() const { return m_ssgi; }
+
+    // --- SkyAtmosphere (物理ベース大気散乱) ---
+    SkyAtmosphere& GetSkyAtmosphere() { return m_skyAtmosphere; }
+    const SkyAtmosphere& GetSkyAtmosphere() const { return m_skyAtmosphere; }
 
     // --- GraphicsDevice (SSGI 初期化用) ---
     void SetGraphicsDevice(GraphicsDevice* dev) { m_graphicsDevice = dev; }
@@ -268,6 +275,9 @@ private:
     // SSGI (スクリーン空間GI, RTGIフォールバック)
     SSGI m_ssgi;
 
+    // SkyAtmosphere (物理ベース大気散乱)
+    SkyAtmosphere m_skyAtmosphere;
+
     // GraphicsDevice (SSGI初期化用)
     GraphicsDevice* m_graphicsDevice = nullptr;
 
@@ -317,6 +327,11 @@ private:
 
     // メインライト方向 (ContactShadows用)
     Vector3 m_mainLightDirection = { 0.3f, -1.0f, 0.5f };
+
+    // 太陽位置クラウド透過率 readback (1フレーム遅延)
+    ComPtr<ID3D12Resource> m_sunReadback[2];
+    float m_sunCloudTransmittance = 1.0f;
+    bool  m_sunReadbackValid = false;
 };
 
 /// @}
