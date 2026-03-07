@@ -129,8 +129,8 @@ void SkyAtmosphere::Execute(ID3D12GraphicsCommandList* cmdList, uint32_t frameIn
     XMMATRIX vpMat = ToXMMATRIX(camera.GetViewProjectionMatrix());
     XMMATRIX invVP = XMMatrixInverse(nullptr, vpMat);
 
-    // 太陽方向を正規化（太陽に向かう方向）
-    XMVECTOR sunDir = XMVector3Normalize(XMLoadFloat3(XM(&m_sunDirection)));
+    // 太陽方向を正規化（太陽に向かう方向 = ライト方向の反転）
+    XMVECTOR sunDir = XMVector3Normalize(XMVectorNegate(XMLoadFloat3(XM(&m_sunDirection))));
     Vector3 sunDirF;
     XMStoreFloat3(XM(&sunDirF), sunDir);
 
