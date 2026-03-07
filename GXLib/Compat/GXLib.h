@@ -597,6 +597,32 @@ int StopModelAnimation(int handle);
 int UpdateModelAnimation(int handle, float deltaTime);
 
 // ============================================================================
+// 乱数
+// ============================================================================
+
+/// @brief 0〜max の範囲のランダムな整数を取得する（DxLib互換）
+/// @param max 最大値（含む）
+/// @return [0, max] の範囲の乱数値
+int GetRand(int max);
+
+/// @brief min〜max の範囲のランダムな整数を取得する
+/// @param min 最小値（含む）
+/// @param max 最大値（含む）
+/// @return [min, max] の範囲の乱数値
+int GetRandRange(int min, int max);
+
+/// @brief min〜max の範囲のランダムなfloat値を取得する
+/// @param min 最小値
+/// @param max 最大値
+/// @return [min, max] の範囲の乱数値
+float GetRandF(float min, float max);
+
+/// @brief グローバル乱数シードを設定する（DxLib互換）
+/// @param seed シード値
+/// @return 成功時 0
+int SRand(int seed);
+
+// ============================================================================
 // 数学ユーティリティ
 // ============================================================================
 

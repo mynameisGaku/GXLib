@@ -10,6 +10,10 @@
 #include "Graphics/RenderProfile.h"
 #include "Graphics/QualitySettings.h"
 
+#include <thread>
+#include <atomic>
+#include <chrono>
+
 namespace gx_internal
 {
 
@@ -19,7 +23,153 @@ CompatContext& CompatContext::Instance()
     return instance;
 }
 
+// ============================================================================
+// Initialize — 3フェーズ初期化 + ロード画面
+// ============================================================================
+
 bool CompatContext::Initialize()
+{
+    // --- Phase 1: コア初期化 (同期) ---
+    if (!InitCore())
+        return false;
+
+    // --- ロード画面用 CommandList 初期化 ---
+    if (!m_loadingCmdList.Initialize(device))
+    {
+        GX_LOG_ERROR("CompatContext: Failed to initialize loading CommandList");
+        return false;
+    }
+
+    // --- ロード画面初期化 ---
+    gx::LoadingScreen loadingScreen;
+    if (!loadingScreen.Initialize(device, commandQueue.GetQueue(),
+                                   screenWidth, screenHeight))
+    {
+        GX_LOG_WARN("CompatContext: LoadingScreen init failed, falling back to sync init");
+        // フォールバック: ロード画面なしで同期初期化
+        std::atomic<float> dummyProgress{0.0f};
+        std::atomic<bool> dummyFailed{false};
+        InitHeavy(dummyProgress, dummyFailed);
+        if (dummyFailed.load()) return false;
+        if (!FinalizeInit()) return false;
+        return true;
+    }
+
+    // フォントアトラスアップロードを確実に完了
+    commandQueue.Flush();
+
+    // --- Phase 2: バックグラウンド初期化 + ロード画面描画 ---
+    std::atomic<float> progress{0.0f};
+    std::atomic<bool>  failed{false};
+    std::atomic<bool>  done{false};
+
+    std::thread worker([this, &progress, &failed, &done]() {
+        InitHeavy(progress, failed);
+        done.store(true);
+    });
+
+    // メインスレッド: ロード画面ループ
+    while (!done.load())
+    {
+        // メッセージポンプ（ウィンドウが応答なしにならないように）
+        app.GetWindow().ProcessMessages();
+
+        uint32_t fi = swapChain.GetCurrentBackBufferIndex();
+        m_loadingCmdList.Reset(fi);
+        auto* cmd = m_loadingCmdList.Get();
+
+        loadingScreen.Render(cmd,
+                             swapChain.GetCurrentRTVHandle(),
+                             swapChain.GetCurrentBackBuffer(),
+                             fi,
+                             progress.load(),
+                             L"Initializing");
+
+        m_loadingCmdList.Close();
+        ID3D12CommandList* lists[] = { cmd };
+        commandQueue.ExecuteCommandLists(lists, 1);
+        swapChain.Present(true);
+        commandQueue.Flush();
+    }
+
+    worker.join();
+
+    if (failed.load())
+    {
+        GX_LOG_ERROR("CompatContext: Background initialization failed");
+        loadingScreen.Shutdown();
+        return false;
+    }
+
+    // --- ロード画面1フレーム描画ヘルパー ---
+    auto renderLoadingFrame = [&](float prog, float fadeAlpha) {
+        app.GetWindow().ProcessMessages();
+        uint32_t fi = swapChain.GetCurrentBackBufferIndex();
+        m_loadingCmdList.Reset(fi);
+        auto* cmd = m_loadingCmdList.Get();
+        loadingScreen.Render(cmd,
+                             swapChain.GetCurrentRTVHandle(),
+                             swapChain.GetCurrentBackBuffer(),
+                             fi, prog, L"Initializing", fadeAlpha);
+        m_loadingCmdList.Close();
+        ID3D12CommandList* lists[] = { cmd };
+        commandQueue.ExecuteCommandLists(lists, 1);
+        swapChain.Present(true);
+        commandQueue.Flush();
+    };
+
+    // --- Phase 3: ファイナライズ ---
+    // FinalizeInit 前後にフレームを挟み、画面フリーズを防ぐ
+    renderLoadingFrame(1.0f, 1.0f);
+    if (!FinalizeInit())
+    {
+        loadingScreen.Shutdown();
+        return false;
+    }
+    // FinalizeInit による timer ジャンプを吸収
+    renderLoadingFrame(1.0f, 1.0f);
+
+    // --- 100%ホールド (0.3秒) → フェードアウト (0.6秒) → 黒フレーム ---
+    {
+        auto transitionStart = std::chrono::high_resolution_clock::now();
+        constexpr float k_HoldDuration = 0.3f;
+        constexpr float k_FadeDuration = 0.6f;
+        constexpr float k_TotalDuration = k_HoldDuration + k_FadeDuration;
+
+        while (true)
+        {
+            auto now = std::chrono::high_resolution_clock::now();
+            float elapsed = std::chrono::duration<float>(now - transitionStart).count();
+            if (elapsed >= k_TotalDuration) break;
+
+            float fadeAlpha;
+            if (elapsed < k_HoldDuration)
+                fadeAlpha = 1.0f; // ホールド: まだ100%表示
+            else
+                fadeAlpha = 1.0f - (elapsed - k_HoldDuration) / k_FadeDuration;
+
+            renderLoadingFrame(1.0f, fadeAlpha);
+        }
+
+        // 両方のバックバッファを確実に黒にする（パッと変わるのを防止）
+        renderLoadingFrame(1.0f, 0.0f);
+        renderLoadingFrame(1.0f, 0.0f);
+    }
+
+    loadingScreen.Shutdown();
+
+    // ゲーム描画のフェードイン開始
+    fadeInAlpha = 1.0f;
+
+    GX_LOG_INFO("CompatContext: Initialized successfully");
+    return true;
+}
+
+// ============================================================================
+// InitCore — Phase 1: 最低限のサブシステム (同期)
+// ============================================================================
+
+bool CompatContext::InitCore()
 {
     // CrashReporter 初期化（Application より前に行う）
     if (!gx::CrashReporter::Instance().IsInitialized())
@@ -29,7 +179,7 @@ bool CompatContext::Initialize()
         gx::CrashReporter::Instance().InstallHandler();
     }
 
-    GX_LOG_INFO("CompatContext: Initializing...");
+    GX_LOG_INFO("CompatContext: Initializing (Phase 1: Core)...");
 
     // アプリケーション初期化
     gx::ApplicationDesc appDesc;
@@ -82,58 +232,88 @@ bool CompatContext::Initialize()
         return false;
     }
 
-    // SpriteBatch（2Dスプライト描画）
+    return true;
+}
+
+// ============================================================================
+// InitHeavy — Phase 2: 重いサブシステム (バックグラウンドスレッド)
+// ============================================================================
+
+void CompatContext::InitHeavy(std::atomic<float>& progress, std::atomic<bool>& failed)
+{
+    GX_LOG_INFO("CompatContext: Initializing (Phase 2: Heavy subsystems)...");
+
+    // SpriteBatch
     if (!spriteBatch.Initialize(device, commandQueue.GetQueue(),
                                 screenWidth, screenHeight))
     {
         GX_LOG_ERROR("CompatContext: Failed to initialize SpriteBatch");
-        return false;
+        failed.store(true);
+        return;
     }
+    progress.store(0.10f);
 
-    // PrimitiveBatch（2Dプリミティブ描画）
+    // PrimitiveBatch
     if (!primBatch.Initialize(device, screenWidth, screenHeight))
     {
         GX_LOG_ERROR("CompatContext: Failed to initialize PrimitiveBatch");
-        return false;
+        failed.store(true);
+        return;
     }
+    progress.store(0.15f);
 
-    // FontManager（フォント管理）
+    // FontManager
     if (!fontManager.Initialize(device, &spriteBatch.GetTextureManager()))
     {
         GX_LOG_ERROR("CompatContext: Failed to initialize FontManager");
-        return false;
+        failed.store(true);
+        return;
     }
-
-    // TextRenderer（テキスト描画）
     textRenderer.Initialize(&spriteBatch, &fontManager);
-
-    // デフォルトフォント作成 (MS Gothic 16pt)
     defaultFontHandle = fontManager.CreateFont(L"MS Gothic", 16);
+    progress.store(0.20f);
 
-    // InputManager（入力管理）
+    // InputManager
     inputManager.Initialize(app.GetWindow());
+    progress.store(0.25f);
 
-    // AudioManager（音声管理）
+    // AudioManager (non-fatal)
     if (!audioManager.Initialize())
     {
         GX_LOG_ERROR("CompatContext: AudioManager initialization failed (non-fatal)");
     }
+    progress.store(0.30f);
 
-    // Renderer3D
+    // Renderer3D (PSO多数 — 最重)
     if (!renderer3D.Initialize(device, commandQueue.GetQueue(),
                                 screenWidth, screenHeight))
     {
         GX_LOG_ERROR("CompatContext: Failed to initialize Renderer3D");
-        return false;
+        failed.store(true);
+        return;
     }
+    progress.store(0.60f);
 
-    // PostEffectPipeline (GraphicsDevice を先にセット)
+    // PostEffectPipeline (PSO多数 — 重い)
     postEffect.SetGraphicsDevice(&graphicsDevice);
     if (!postEffect.Initialize(device, screenWidth, screenHeight))
     {
         GX_LOG_ERROR("CompatContext: Failed to initialize PostEffectPipeline");
-        return false;
+        failed.store(true);
+        return;
     }
+    progress.store(0.90f);
+
+    progress.store(1.0f);
+}
+
+// ============================================================================
+// FinalizeInit — Phase 3: 初期化後のファイナライズ (同期)
+// ============================================================================
+
+bool CompatContext::FinalizeInit()
+{
+    GX_LOG_INFO("CompatContext: Initializing (Phase 3: Finalize)...");
 
     // カメラ初期設定
     float aspect = static_cast<float>(screenWidth) / static_cast<float>(screenHeight);
@@ -156,14 +336,16 @@ bool CompatContext::Initialize()
     imguiManager.Initialize(device, commandQueue.GetQueue(), app.GetWindow());
 
     // ServiceLocator にサービスを登録
-    // 各サブシステムの所有権は CompatContext が持つため、カスタムデリータで非所有参照を登録
     auto& sl = gx::ServiceLocator::Instance();
     sl.Register<gx::IAudioDevice>(
         std::shared_ptr<gx::IAudioDevice>(&audioManager.GetDevice(), [](gx::IAudioDevice*) {}));
 
-    GX_LOG_INFO("CompatContext: Initialized successfully");
     return true;
 }
+
+// ============================================================================
+// Shutdown
+// ============================================================================
 
 void CompatContext::Shutdown()
 {
@@ -187,6 +369,10 @@ void CompatContext::Shutdown()
 
     GX_LOG_INFO("CompatContext: Shutdown complete");
 }
+
+// ============================================================================
+// ProcessMessage
+// ============================================================================
 
 int CompatContext::ProcessMessage()
 {
@@ -304,6 +490,24 @@ void CompatContext::EndFrame()
         debugOverlay.Draw(dctx);
     }
     imguiManager.EndFrame(cmdList);
+
+    // --- フェードイン: 黒オーバーレイを減衰させる ---
+    if (fadeInAlpha > 0.0f)
+    {
+        uint32_t a = static_cast<uint32_t>(fadeInAlpha * 255.0f);
+        if (a > 0)
+        {
+            primBatch.Begin(cmdList, frameIndex);
+            primBatch.DrawBox(0.0f, 0.0f,
+                              static_cast<float>(screenWidth),
+                              static_cast<float>(screenHeight),
+                              (a << 24), true);
+            primBatch.End();
+        }
+        constexpr float k_FadeInDuration = 0.6f;
+        fadeInAlpha -= app.GetTimer().GetDeltaTime() / k_FadeInDuration;
+        if (fadeInAlpha < 0.0f) fadeInAlpha = 0.0f;
+    }
 
     // バックバッファをPresent状態に遷移
     D3D12_RESOURCE_BARRIER presentBarrier = {};

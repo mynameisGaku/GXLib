@@ -34,6 +34,10 @@
 #include "Compat/DebugOverlay.h"
 #include "Compat/ImGuiManager.h"
 #include "Graphics/QualitySettings.h"
+#include "Graphics/Rendering/LoadingScreen.h"
+
+#include <thread>
+#include <atomic>
 
 namespace gx_internal
 {
@@ -136,6 +140,7 @@ public:
     ActiveBatch  activeBatch    = ActiveBatch::None; ///< 現在アクティブなバッチ種別
     bool         frameActive    = false; ///< フレーム描画中フラグ
     bool         vsyncEnabled   = false; ///< 垂直同期を有効にするか
+    float        fadeInAlpha    = 0.0f; ///< フェードイン用アルファ (1=黒, 0=完了)
     uint32_t     bgColor_r      = 0;    ///< 背景色 赤成分（0〜255）
     uint32_t     bgColor_g      = 0;    ///< 背景色 緑成分（0〜255）
     uint32_t     bgColor_b      = 0;    ///< 背景色 青成分（0〜255）
@@ -181,11 +186,23 @@ public:
     int      graphColorBit = 32;    ///< 色深度の設定値
     gx::String  windowTitle = "GXLib Application"; ///< ウィンドウタイトル
 
+    // --- ロード画面用コマンドリスト ---
+    gx::CommandList      m_loadingCmdList; ///< ロード画面専用コマンドリスト
+
 private:
     CompatContext() = default;
     ~CompatContext() = default;
     CompatContext(const CompatContext&) = delete;
     CompatContext& operator=(const CompatContext&) = delete;
+
+    /// @brief Phase 1: コアサブシステム初期化 (Window, Device, SwapChain)
+    bool InitCore();
+
+    /// @brief Phase 2: 重いサブシステムをバックグラウンドで初期化
+    void InitHeavy(std::atomic<float>& progress, std::atomic<bool>& failed);
+
+    /// @brief Phase 3: 初期化後のファイナライズ (カメラ, プロファイル, ImGui等)
+    bool FinalizeInit();
 };
 
 /// @}
