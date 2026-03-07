@@ -67,12 +67,27 @@ float4 PS(VSOutput input) : SV_Target
     float3 earthCenter = float3(0.0, -PlanetRadius, 0.0);
     float3 rayOrigin = CameraPosition + float3(0.0, PlanetRadius, 0.0);
 
+    // カメラ高度クランプ — CameraPosition.y が負の場合、rayOrigin が惑星球の
+    // 内部になり地表交差判定 (groundHit.x > 0) が機能しなくなる。
+    // 最低1mを確保して交差判定を正常化する。
+    float camDist = length(rayOrigin);
+    if (camDist < PlanetRadius + 1.0)
+        rayOrigin = normalize(rayOrigin) * (PlanetRadius + 1.0);
+
     // 大気との交差判定
     float2 atmoHit = RaySphereIntersect(rayOrigin, rayDir, float3(0, 0, 0), AtmosphereRadius);
     if (atmoHit.y < 0.0) discard;
 
     float tStart = max(atmoHit.x, 0.0);
     float tEnd = atmoHit.y;
+
+    // 惑星地表との交差判定 — 地平線以下はスカイボックスに委任
+    float2 groundHit = RaySphereIntersect(rayOrigin, rayDir, float3(0, 0, 0), PlanetRadius);
+    if (groundHit.x > 0.0)
+        discard;
+
+    if (tStart >= tEnd) discard;
+
     float stepSize = (tEnd - tStart) / float(NumSteps);
 
     // 数値積分
@@ -129,6 +144,12 @@ float4 PS(VSOutput input) : SV_Target
                    ((2.0 + g2) * pow(1.0 + g2 - 2.0 * g * cosTheta, 1.5));
 
     float3 color = SunIntensity * SunColor * (rayleighSum * RayleighCoeff * phaseR + mieSum * MieCoeff * phaseM);
+
+    // 太陽ディスク — 角半径 ~0.53°（cos(0.53°) ≈ 0.99996）
+    // smoothstep でリムを柔らかくし、大気減衰を掛けて地平線付近で赤く沈む
+    float sunDisc = smoothstep(0.9996, 0.99985, cosTheta);
+    float3 atmAtten = exp(-(RayleighCoeff * opticalDepthR + MieCoeff * 1.1 * opticalDepthM));
+    color += SunColor * SunIntensity * sunDisc * atmAtten;
 
     return float4(color, 1.0);
 }

@@ -55,7 +55,13 @@ float4 PSMain(FullscreenVSOutput input) : SV_Target
     float sunDot = max(dot(dir, sunDir), 0.0);
     float sunDisc = pow(sunDot, 256.0);     // 鋭い太陽円盤
     float sunGlow = pow(sunDot, 8.0) * 0.5; // 柔らかいグロー
-    skyColor += (sunDisc + sunGlow) * gSunIntensity;
+
+    // Sun disk: 直射光 — フルintensity (狭い面積なので irradiance への寄与は小さい)
+    float diskContrib = sunDisc * gSunIntensity;
+    // Glow: 大気散乱 — 直射光の約10%, pow(8)の広がりに見合う控えめな強度
+    float glowContrib = sunGlow * min(gSunIntensity * 0.1, 2.0);
+    skyColor += diskContrib + glowContrib;
+    skyColor = min(skyColor, 8.0); // total clamp (diskピクセルは8まで許容)
 
     return float4(skyColor, 1.0);
 }

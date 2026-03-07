@@ -35,6 +35,7 @@ enum class PostFXFlag : uint32_t
     VolumetricFog   = 1 << 16,
     RTSoftShadows   = 1 << 17,
     SSGI            = 1 << 18,
+    SkyAtmosphere   = 1 << 19,
     All             = 0xFFFFFFFF
 };
 

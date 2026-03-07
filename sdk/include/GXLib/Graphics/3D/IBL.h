@@ -119,7 +119,7 @@ private:
 
     // Skyboxパラメータ（前回の値と比較して再生成を判断）
     Vector3 m_topColor     = { 0.3f, 0.5f, 0.9f };
-    Vector3 m_bottomColor  = { 0.7f, 0.8f, 0.95f };
+    Vector3 m_bottomColor  = { 0.37f, 0.35f, 0.34f };
     Vector3 m_sunDirection = { 0.3f, -1.0f, 0.5f };
     float    m_sunIntensity = 5.0f;
 

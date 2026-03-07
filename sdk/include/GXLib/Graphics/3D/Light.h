@@ -53,7 +53,8 @@ struct ShaderLightConstants
     LightData lights[k_MaxLights];  ///< 16×64 = 1024B
     Vector3   ambientColor;         ///< 環境光の色 (12B)
     uint32_t  numLights;            ///< 有効なライト数 (4B)
-};  // Total: 1040B → 256-align = 1280B
+    float     iblIntensity = 1.0f;  ///< IBL強度乗算係数 (4B)
+};  // Total: 1044B → 256-align = 1280B
 
 /// @brief ライトデータのファクトリ（DxLibの SetLightDirection / SetLightDifColor に相当）
 class Light

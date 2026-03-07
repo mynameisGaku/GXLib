@@ -1,35 +1,56 @@
 /// @file VolumetricClouds.hlsl
-/// @brief ボリュメトリッククラウド — レイマーチングピクセルシェーダー
+/// @brief UE5スタイル ボリュメトリッククラウド — マルチオクターブ散乱レイマーチング
 ///
-/// 底面/上面高度で定義される雲レイヤーをレイマーチングするフルスクリーンパス。
-/// FBMノイズで雲密度を生成し、Beer-Lambert則で光散乱を計算する。
+/// Frostbite/Nubis/UE5で使われるマルチオクターブ散乱近似を実装。
+/// Beer-Powder効果、Dual-Lobe HG位相関数、大気遠近法を含む。
+/// v3: 3Dノイズテクスチャサンプリング + テンポラル用PSCloudOnly追加。
 
 #include "Fullscreen.hlsli"
 
+// ─── 定数バッファ ─────────────────────────────────────────────
 cbuffer CloudConstants : register(b0)
 {
     float4x4 invViewProjection;
     float3   cameraPosition;
     float    time;
-    float3   sunDirection;   // 正規化済み、太陽方向
-    float    cloudBottom;    // ワールド空間での雲底面の高度
+    float3   sunDirection;     // 正規化済み、太陽に向かう方向（C++側で反転済み）
+    float    cloudBottom;
     float3   sunColor;
-    float    cloudTop;       // ワールド空間での雲上面の高度
-    float    coverage;       // 0-1 雲の被覆率
-    float    densityMul;     // 密度乗数
+    float    cloudTop;
+    float    coverage;
+    float    densityMul;
     float    windSpeed;
     float    silverLining;
     float3   windDirection;
     int      marchSteps;
     int      lightSteps;
     float2   screenDimensions;
+    float    _pad0;
+    // --- マルチオクターブ散乱 ---
+    int      msOctaves;
+    float    msAttenuation;
+    float    msContribution;
+    float    msEccentricity;
+    float    powderAmount;
+    float    ambientBottom;
+    float    ambientTop;
+    float    atmosphereDensity;
+    int      useNoiseTextures;
+    float    _pad1[3];
 };
 
-Texture2D<float4> sceneTexture : register(t0);
-Texture2D<float>  depthTexture : register(t1);
-SamplerState      linearSampler : register(s0);
+Texture2D<float4>   sceneTexture       : register(t0);
+Texture2D<float>    depthTexture       : register(t1);
+Texture3D<float4>   baseNoiseTexture   : register(t2);
+Texture3D<float4>   detailNoiseTexture : register(t3);
+SamplerState        linearSampler      : register(s0);
+SamplerState        wrapSampler        : register(s1);
 
-// --- ハッシュ / ノイズユーティリティ ---
+// ─── 定数 ────────────────────────────────────────────────────
+static const float PI = 3.14159265;
+static const float ISOTROPIC_PHASE = 1.0 / (4.0 * PI);
+
+// ─── ハッシュ / ノイズ（プロシージャルフォールバック用）────────
 
 float hash(float3 p)
 {
@@ -38,30 +59,42 @@ float hash(float3 p)
     return frac(p.x * p.y * p.z * (p.x + p.y + p.z));
 }
 
+float3 hash3(float3 p)
+{
+    p = frac(p * float3(0.1031, 0.1030, 0.0973));
+    p += dot(p, p.yxz + 33.33);
+    return frac((p.xxy + p.yxx) * p.zyx);
+}
+
+float worley(float3 p)
+{
+    float3 id = floor(p);
+    float3 f  = frac(p);
+    float minDist = 1.0;
+    [unroll] for (int x = -1; x <= 1; x++)
+    [unroll] for (int y = -1; y <= 1; y++)
+    [unroll] for (int z = -1; z <= 1; z++)
+    {
+        float3 offset = float3(x, y, z);
+        float3 h = hash3(id + offset);
+        float3 d = offset + h - f;
+        minDist = min(minDist, dot(d, d));
+    }
+    return sqrt(minDist);
+}
+
 float valueNoise(float3 p)
 {
     float3 i = floor(p);
     float3 f = frac(p);
-    f = f * f * (3.0 - 2.0 * f); // smoothstep
+    f = f * f * (3.0 - 2.0 * f);
 
-    float n000 = hash(i + float3(0, 0, 0));
-    float n100 = hash(i + float3(1, 0, 0));
-    float n010 = hash(i + float3(0, 1, 0));
-    float n110 = hash(i + float3(1, 1, 0));
-    float n001 = hash(i + float3(0, 0, 1));
-    float n101 = hash(i + float3(1, 0, 1));
-    float n011 = hash(i + float3(0, 1, 1));
-    float n111 = hash(i + float3(1, 1, 1));
-
-    float n00 = lerp(n000, n100, f.x);
-    float n01 = lerp(n001, n101, f.x);
-    float n10 = lerp(n010, n110, f.x);
-    float n11 = lerp(n011, n111, f.x);
-
-    float n0 = lerp(n00, n10, f.y);
-    float n1 = lerp(n01, n11, f.y);
-
-    return lerp(n0, n1, f.z);
+    return lerp(
+        lerp(lerp(hash(i + float3(0,0,0)), hash(i + float3(1,0,0)), f.x),
+             lerp(hash(i + float3(0,1,0)), hash(i + float3(1,1,0)), f.x), f.y),
+        lerp(lerp(hash(i + float3(0,0,1)), hash(i + float3(1,0,1)), f.x),
+             lerp(hash(i + float3(0,1,1)), hash(i + float3(1,1,1)), f.x), f.y),
+        f.z);
 }
 
 float fbm(float3 p, int octaves)
@@ -78,66 +111,151 @@ float fbm(float3 p, int octaves)
     return value;
 }
 
-// --- 雲密度 ---
+// Interleaved Gradient Noise（バンディング防止ジッター）
+float interleavedGradientNoise(float2 pos)
+{
+    return frac(52.9829189 * frac(0.06711056 * pos.x + 0.00583715 * pos.y));
+}
+
+// ─── ユーティリティ: Nubis-style リマップ ──────────────────────
+
+float remap(float value, float oldMin, float oldMax, float newMin, float newMax)
+{
+    return newMin + (value - oldMin) / max(oldMax - oldMin, 0.0001) * (newMax - newMin);
+}
+
+// ─── 雲密度サンプリング（共通前処理）─────────────────────────
+
+struct CloudSampleContext
+{
+    float heightFraction;
+    float heightGradient;
+    float3 samplePos;
+};
+
+CloudSampleContext prepareCloudSample(float3 pos)
+{
+    CloudSampleContext ctx;
+    float cloudThickness = max(cloudTop - cloudBottom, 1.0);
+    ctx.heightFraction = saturate((pos.y - cloudBottom) / cloudThickness);
+    ctx.heightGradient = smoothstep(0.0, 0.07, ctx.heightFraction)
+                       * smoothstep(1.0, 0.25, ctx.heightFraction);
+    float3 windOffset = windDirection * windSpeed * time * 0.01;
+    ctx.samplePos = pos * 0.0003 + windOffset;
+    return ctx;
+}
+
+// ─── 雲密度サンプリング（フル品質）──────────────────────────
 
 float sampleCloudDensity(float3 pos)
 {
-    // 雲レイヤー内の高度を正規化
-    float heightFraction = saturate((pos.y - cloudBottom) / max(cloudTop - cloudBottom, 0.001));
+    CloudSampleContext ctx = prepareCloudSample(pos);
 
-    // 垂直プロファイル: 丸みのある形状（中央が厚い）
-    float heightGradient = 4.0 * heightFraction * (1.0 - heightFraction);
+    float shape;
+    if (useNoiseTextures)
+    {
+        float4 baseN = baseNoiseTexture.SampleLevel(wrapSampler, ctx.samplePos, 0);
+        shape = saturate(baseN.r * 2.0);
+    }
+    else
+    {
+        shape = fbm(ctx.samplePos, 4);
+    }
 
-    // 風によるオフセット
-    float3 windOffset = windDirection * windSpeed * time * 0.01;
-    float3 samplePos = pos * 0.0003 + windOffset;
+    // カバレッジリマップ
+    float base = saturate((shape - (1.0 - coverage)) / max(coverage, 0.001));
 
-    // FBMベースシェイプ（4オクターブ）
-    float shape = fbm(samplePos, 4);
+    // 完全に空の空間のみスキップ（閾値を限りなく低くしてエッジフリッカー防止）
+    if (base <= 0.0)
+        return 0.0;
 
-    // 被覆率リマップ: ノイズをシフトして空の被覆量を制御
-    float base = saturate(shape - (1.0 - coverage)) / max(coverage, 0.01);
+    // ディテール侵食（Worley） — エッジを複雑にしてシャープに見せる
+    float detail;
+    if (useNoiseTextures)
+        detail = detailNoiseTexture.SampleLevel(wrapSampler, ctx.samplePos * 4.0 + float3(0, time * 0.003, 0), 0).r;
+    else
+        detail = worley(ctx.samplePos * 4.0 + float3(0, time * 0.003, 0));
 
-    // ディテールノイズ（高周波、微細）
-    float detail = fbm(samplePos * 3.0 + float3(0, time * 0.005, 0), 3);
-    base = saturate(base - detail * 0.3);
+    float detailStrength = 0.35 * lerp(0.3, 1.0, ctx.heightFraction);
+    base = saturate(base - detail * detailStrength);
 
-    return base * heightGradient * densityMul;
+    // エッジコントラスト強調: 低密度域を引き締めて輪郭をくっきりさせる
+    float density = base * ctx.heightGradient * densityMul;
+    density *= smoothstep(0.0, 0.02, density);
+
+    return density;
 }
 
-// --- ライトマーチ（Beer-Lambert内散乱）---
+// ─── 雲密度サンプリング（LOD — lightMarch用軽量版）──────────
+
+float sampleCloudDensityLOD(float3 pos)
+{
+    CloudSampleContext ctx = prepareCloudSample(pos);
+
+    // 3オクターブFBM（Worleyなし） — lightMarchでは形状ディテールのみ、侵食不要
+    float shape;
+    if (useNoiseTextures)
+    {
+        float4 baseN = baseNoiseTexture.SampleLevel(wrapSampler, ctx.samplePos, 0);
+        shape = saturate(baseN.r * 2.0);
+    }
+    else
+    {
+        shape = fbm(ctx.samplePos, 3);
+    }
+
+    float base = saturate((shape - (1.0 - coverage)) / max(coverage, 0.001));
+    return base * ctx.heightGradient * densityMul;
+}
+
+// ─── Henyey-Greenstein 位相関数 ──────────────────────────────
+
+float HenyeyGreenstein(float cosTheta, float g)
+{
+    float g2 = g * g;
+    return (1.0 - g2) / (4.0 * PI * pow(1.0 + g2 - 2.0 * g * cosTheta, 1.5));
+}
+
+// ─── Dual-Lobe HG位相関数 + Silver Lining ────────────────────
+
+float dualLobeHG(float cosTheta, float g)
+{
+    float forward  = HenyeyGreenstein(cosTheta, g);
+    float backward = HenyeyGreenstein(cosTheta, -g * 0.4);
+    float silver   = HenyeyGreenstein(cosTheta, 0.99) * silverLining * 0.005;
+    return lerp(forward, backward, 0.2) + silver;
+}
+
+// ─── 大気散乱による太陽色補正 ────────────────────────────────
+
+float3 ComputeAtmosphericSunColor(float3 baseSunColor, float sunElevation)
+{
+    float airMass = 1.0 / max(sunElevation, 0.04);
+    float3 rayleighOD = float3(0.06, 0.12, 0.28) * min(airMass, 30.0);
+    return baseSunColor * exp(-rayleighOD);
+}
+
+// ─── ライトマーチ ────────────────────────────────────────────
 
 float lightMarch(float3 pos)
 {
     float stepSize = (cloudTop - cloudBottom) / max((float)lightSteps, 1.0);
-    float density = 0.0;
+    float opticalDepth = 0.0;
 
     [loop]
     for (int i = 0; i < lightSteps; ++i)
     {
         pos += sunDirection * stepSize;
-
-        // 雲レイヤーの上に出たら終了
-        if (pos.y > cloudTop) break;
-
-        density += max(sampleCloudDensity(pos), 0.0) * stepSize;
+        if (pos.y > cloudTop || pos.y < cloudBottom) break;
+        opticalDepth += max(sampleCloudDensityLOD(pos), 0.0) * stepSize;
     }
-
-    // Beer-Lambert透過率
-    float transmittance = exp(-density * 0.5);
-
-    // シルバーライニング: 前方散乱（Henyey-Greenstein近似）
-    float silver = exp(-density * 0.1) * silverLining;
-
-    return transmittance + silver;
+    return opticalDepth;
 }
 
-// --- レイとレイヤーの交差判定 ---
+// ─── レイとクラウドレイヤーの交差判定 ─────────────────────────
 
-// 水平スラブ [yBottom, yTop] にヒットするレイの (tMin, tMax) を返す
 float2 intersectCloudLayer(float3 origin, float3 dir)
 {
-    // ゼロ近傍による除算を回避
     if (abs(dir.y) < 0.0001)
     {
         if (origin.y >= cloudBottom && origin.y <= cloudTop)
@@ -148,87 +266,155 @@ float2 intersectCloudLayer(float3 origin, float3 dir)
     float tBot = (cloudBottom - origin.y) / dir.y;
     float tTop = (cloudTop    - origin.y) / dir.y;
 
-    float tMin = min(tBot, tTop);
+    float tMin = max(min(tBot, tTop), 0.0);
     float tMax = max(tBot, tTop);
 
-    tMin = max(tMin, 0.0);
-
-    if (tMin > tMax)
-        return float2(-1.0, -1.0);
-
-    return float2(tMin, tMax);
+    return (tMin > tMax) ? float2(-1.0, -1.0) : float2(tMin, tMax);
 }
 
-// --- メインピクセルシェーダー ---
+// ─── レイマーチコア ──────────────────────────────────────────
 
-float4 PSMain(FullscreenVSOutput input) : SV_Target
+struct CloudResult
 {
-    // シーンカラー（パススルーベース）
-    float4 sceneColor = sceneTexture.Sample(linearSampler, input.uv);
+    float3 lightEnergy;
+    float  transmittance;
+};
 
-    // ワールド空間レイを再構築
-    float2 ndc = float2(input.uv.x * 2.0 - 1.0, (1.0 - input.uv.y) * 2.0 - 1.0);
-    float4 worldFar = mul(float4(ndc, 1.0, 1.0), invViewProjection);
-    worldFar /= worldFar.w;
+CloudResult traceCloud(float2 uv, float3 rayDir, float rawDepth, float sceneDistance)
+{
+    CloudResult r;
+    r.lightEnergy = float3(0, 0, 0);
+    r.transmittance = 1.0;
 
-    float3 rayDir = normalize(worldFar.xyz - cameraPosition);
-
-    // シーン深度（リニア）
-    float rawDepth = depthTexture.Sample(linearSampler, input.uv);
-    float4 worldDepthPos = mul(float4(ndc, rawDepth, 1.0), invViewProjection);
-    worldDepthPos /= worldDepthPos.w;
-    float sceneDistance = length(worldDepthPos.xyz - cameraPosition);
-
-    // 雲レイヤーとの交差判定
     float2 tRange = intersectCloudLayer(cameraPosition, rayDir);
-
     if (tRange.x < 0.0)
-        return sceneColor; // レイが雲レイヤーに到達しない
+        return r;
 
-    // シーン深度にクランプ（ジオメトリの背後に雲を描画しない）
-    // 空ピクセル (far plane) は深度クランプをスキップ — 雲レイヤーが far plane 以遠でも描画可能にする
+    // シーンジオメトリの手前で雲をクリップ
     if (rawDepth < 0.999)
         tRange.y = min(tRange.y, sceneDistance);
     if (tRange.x >= tRange.y)
-        return sceneColor;
+        return r;
+
+    // ライティング準備
+    float3 atmSunColor = ComputeAtmosphericSunColor(sunColor, max(sunDirection.y, 0.0));
+    float cosTheta = dot(rayDir, sunDirection);
+
+    float3 warmAmbient = float3(0.6, 0.4, 0.25);
+    float3 coolAmbient = float3(0.35, 0.45, 0.6);
+    float3 ambientColor = lerp(warmAmbient, coolAmbient, saturate(sunDirection.y));
 
     // レイマーチ
     float stepSize = (tRange.y - tRange.x) / max((float)marchSteps, 1.0);
-    float transmittance = 1.0;
-    float3 lightEnergy = float3(0, 0, 0);
-
-    float t = tRange.x + stepSize * 0.5; // ハーフステップから開始
+    float jitter = interleavedGradientNoise(uv * screenDimensions);
+    float t = tRange.x + stepSize * jitter;
 
     [loop]
     for (int i = 0; i < marchSteps; ++i)
     {
-        if (transmittance < 0.01)
-            break;
+        if (r.transmittance < 0.01) break;
 
         float3 pos = cameraPosition + rayDir * t;
-
         float density = sampleCloudDensity(pos);
 
-        if (density > 0.001)
+        if (density > 0.00001)
         {
-            float lightTransmit = lightMarch(pos);
-            float3 ambient = float3(0.4, 0.45, 0.5); // 空のアンビエント
+            float opticalDepth = lightMarch(pos);
 
-            float3 lightContrib = sunColor * lightTransmit + ambient;
+            // マルチオクターブ散乱
+            float3 scatterLuminance = float3(0, 0, 0);
+            float oAtten   = 1.0;
+            float oContrib = 1.0;
+            float oEccen   = 1.0;
+
+            [unroll]
+            for (int oct = 0; oct < 8; ++oct)
+            {
+                if (oct >= msOctaves) break;
+
+                float beer   = exp(-opticalDepth * oAtten);
+                float powder = 1.0 - exp(-opticalDepth * oAtten * 2.0);
+                float beerPowder = beer * lerp(1.0, powder, powderAmount);
+
+                float phaseVal = lerp(ISOTROPIC_PHASE,
+                                      dualLobeHG(cosTheta, 0.76 * oEccen),
+                                      oEccen);
+
+                scatterLuminance += oContrib * beerPowder * phaseVal * atmSunColor;
+
+                oAtten   *= msAttenuation;
+                oContrib *= msContribution;
+                oEccen   *= msEccentricity;
+            }
+
+            // 高度依存アンビエント
+            float hFrac = saturate((pos.y - cloudBottom) / max(cloudTop - cloudBottom, 1.0));
+            float ambStr = lerp(ambientBottom, ambientTop, hFrac);
+            float3 ambient = ambientColor * ambStr;
+
+            float3 lightContrib = scatterLuminance + ambient;
             float extinction = density * stepSize;
             float sampleTransmittance = exp(-extinction);
 
-            // エネルギー積分（Beer-Lambert）
-            lightEnergy += lightContrib * density * stepSize * transmittance;
-            transmittance *= sampleTransmittance;
+            r.lightEnergy += lightContrib * (1.0 - sampleTransmittance) * r.transmittance;
+            r.transmittance *= sampleTransmittance;
         }
 
         t += stepSize;
     }
 
-    // 雲をシーン上に合成
-    float3 cloudColor = lightEnergy;
-    float3 finalColor = sceneColor.rgb * transmittance + cloudColor;
+    // 大気遠近法
+    float cloudDistance = tRange.x;
+    float fogFactor = 1.0 - exp(-cloudDistance * atmosphereDensity);
+    float3 fogColor = ambientColor * 0.6;
+    r.lightEnergy = lerp(r.lightEnergy, fogColor * (1.0 - r.transmittance), fogFactor);
+    r.transmittance = lerp(r.transmittance, 1.0, fogFactor * 0.5);
 
-    return float4(finalColor, sceneColor.a);
+    return r;
+}
+
+// ─── PSMain — フルスクリーン合成（従来パス）──────────────────
+
+float4 PSMain(FullscreenVSOutput input) : SV_Target
+{
+    float4 sceneColor = sceneTexture.Sample(linearSampler, input.uv);
+
+    // ワールド空間レイ再構築
+    float2 ndc = float2(input.uv.x * 2.0 - 1.0, (1.0 - input.uv.y) * 2.0 - 1.0);
+    float4 worldFar = mul(float4(ndc, 1.0, 1.0), invViewProjection);
+    worldFar /= worldFar.w;
+    float3 rayDir = normalize(worldFar.xyz - cameraPosition);
+
+    // シーン深度
+    float rawDepth = depthTexture.Sample(linearSampler, input.uv);
+    float4 worldDepthPos = mul(float4(ndc, rawDepth, 1.0), invViewProjection);
+    worldDepthPos /= worldDepthPos.w;
+    float sceneDistance = length(worldDepthPos.xyz - cameraPosition);
+
+    CloudResult r = traceCloud(input.uv, rayDir, rawDepth, sceneDistance);
+
+    float3 finalColor = sceneColor.rgb * r.transmittance + r.lightEnergy;
+    return float4(finalColor, r.transmittance);
+}
+
+// ─── PSCloudOnly — クラウドのみ出力（テンポラルパス用）────────
+
+float4 PSCloudOnly(FullscreenVSOutput input) : SV_Target
+{
+    // ワールド空間レイ再構築
+    float2 ndc = float2(input.uv.x * 2.0 - 1.0, (1.0 - input.uv.y) * 2.0 - 1.0);
+    float4 worldFar = mul(float4(ndc, 1.0, 1.0), invViewProjection);
+    worldFar /= worldFar.w;
+    float3 rayDir = normalize(worldFar.xyz - cameraPosition);
+
+    // シーン深度
+    float rawDepth = depthTexture.Sample(linearSampler, input.uv);
+    float4 worldDepthPos = mul(float4(ndc, rawDepth, 1.0), invViewProjection);
+    worldDepthPos /= worldDepthPos.w;
+    float sceneDistance = length(worldDepthPos.xyz - cameraPosition);
+
+    CloudResult r = traceCloud(input.uv, rayDir, rawDepth, sceneDistance);
+
+    // RGB = light energy, A = transmittance
+    return float4(r.lightEnergy, r.transmittance);
 }

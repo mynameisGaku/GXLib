@@ -79,8 +79,10 @@ PSOutput PSMain(PSInput input)
     // アンビエント + IBL間接照明
     // IBLが有効な場合は環境マップからの間接照明を使用し、
     // gAmbientColorは追加の定数アンビエントとして加算する
-    float3 iblContribution = EvaluateIBL(N, V, albedo.rgb, metallic, roughness, ao);
-    float3 ambient = iblContribution + gAmbientColor * albedo.rgb * ao;
+    float3 iblContribution = EvaluateIBL(N, V, albedo.rgb, metallic, roughness, ao, gIBLIntensity);
+    // IBL有効時は定数ambientを抑制（IBLが環境光を既に含んでいるため）
+    float iblFade = saturate(gIBLIntensity * 0.5);
+    float3 ambient = iblContribution + gAmbientColor * albedo.rgb * ao * (1.0 - iblFade);
 
     // エミッシブ
     float3 emissive = SampleEmissive(texcoord);
@@ -197,6 +199,5 @@ PSOutput PSMain(PSInput input)
     output.color    = float4(finalColor, albedo.a);
     output.normal   = encodedNormal;
     output.albedo   = float4(albedo.rgb, 1.0);
-    output.velocity = EncodeVelocity(input.currClipPos, input.prevClipPos);
     return output;
 }
