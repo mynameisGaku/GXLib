@@ -64,7 +64,8 @@ float4 PSMain(FullscreenVSOutput input) : SV_Target
 
         // リニアサンプリングでエッジを自然にブレンド + smoothstep で滑らかな遷移
         float sampleDepth = gDepth.SampleLevel(gLinearSampler, sampleUV, 0).r;
-        float occlusion = smoothstep(0.99, 1.0, sampleDepth);
+        float cloudTransmittance = gScene.SampleLevel(gLinearSampler, sampleUV, 0).a;
+        float occlusion = smoothstep(0.99, 1.0, sampleDepth) * cloudTransmittance;
 
         // ウェイト累積
         godRay += occlusion * weight * illuminationDecay;
@@ -75,6 +76,14 @@ float4 PSMain(FullscreenVSOutput input) : SV_Target
 
     // 最終色: ゴッドレイ × 露出 × 強度 × 太陽可視性 × ライト色
     float3 finalGodRay = godRay * exposure * intensity * sunVisible * lightColor;
+
+    // ローカルトーンマッピングなし — 全体トーンマッピングに任せる
+
+    // 太陽からの距離に応じてゴッドレイを緩やかに減衰させ、
+    // ライトが当たる領域と当たらない領域の境界を滑らかにする
+    float pixelDist = length(uv - sunScreenPos);
+    float radialAtten = 1.0 / (1.0 + pixelDist * pixelDist * 1.5);
+    finalGodRay *= radialAtten;
 
     // シーンに加算合成
     float3 result = sceneColor.rgb + finalGodRay;

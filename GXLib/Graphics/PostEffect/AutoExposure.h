@@ -74,7 +74,7 @@ private:
     bool m_enabled = false;
     float m_adaptationSpeed = 1.5f;
     float m_minExposure = 0.1f;
-    float m_maxExposure = 10.0f;
+    float m_maxExposure = 3.0f;
     float m_keyValue = 0.18f;           // 目標中間灰
     float m_currentExposure = 1.0f;
 

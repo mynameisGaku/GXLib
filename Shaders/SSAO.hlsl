@@ -122,6 +122,7 @@ float4 PSGenerate(FullscreenVSOutput input) : SV_Target
 
     float ao = 1.0 - (occlusion / (float)sampleCount);
     ao = pow(saturate(ao), gPower);
+    ao = max(ao, 0.1);  // ambient を完全に潰さない
 
     return float4(ao, ao, ao, 1.0);
 }

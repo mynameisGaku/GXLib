@@ -115,8 +115,8 @@ private:
     // エフェクトパラメータ
     float m_density   = 1.0f;      ///< 散乱密度
     float m_decay     = 0.97f;     ///< 減衰率
-    float m_weight    = 0.04f;     ///< サンプルウェイト
-    float m_exposure  = 0.35f;     ///< 露出
+    float m_weight    = 0.02f;     ///< サンプルウェイト
+    float m_exposure  = 0.15f;     ///< 露出
     float m_intensity = 1.0f;      ///< 全体強度
     int   m_numSamples = 96;       ///< サンプル数
 
