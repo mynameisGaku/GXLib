@@ -15,8 +15,6 @@
 #include "Math/Vector2.h"
 #include "Math/Vector3.h"
 #include "Math/Matrix4x4.h"
-#include <thread>
-#include <atomic>
 
 namespace gx
 {
@@ -52,8 +50,20 @@ struct CloudConstants
     float      ambientTop;         ///< 雲頂のアンビエント光強度
     float      atmosphereDensity;  ///< 大気遠近法の密度係数
     int        useNoiseTextures;  ///< 3Dノイズテクスチャを使用するか (0=プロシージャル, 1=テクスチャ)
-    float      _pad1[3];          ///< パディング（208B → 256B alignment）
-};  // 208B < 256B alignment
+    float      coverageVariation; ///< カバレッジ空間変調（0=均一, 1=積雲風まばら）
+    float      cloudType;         ///< 雲タイプ（0=stratus, 0.5=stratocumulus, 1.0=cumulus）
+    // --- NEW: AC7品質向上パラメータ (offset 212) ---
+    float      diffusivity;       ///< エッジ鋭さ (0=sharp, 1=soft)
+    float      upperDensity;      ///< 雲頂スカルプティング強度
+    float      shadowDarkness;    ///< 底面暗化強度
+    float      shadowBias;        ///< ライトマーチ初期バイアス
+    float      atmosphereBlueShift; ///< Rayleigh青シフト強度
+    float      ambientSkyR;       ///< 動的アンビエント色R
+    float      ambientSkyG;       ///< 動的アンビエント色G
+    float      ambientSkyB;       ///< 動的アンビエント色B
+    float      detailFadeDistance; ///< ディテール消失距離
+    float      _pad1[3];          ///< パディング（248B → 256B alignment）
+};  // 256B
 
 /// @brief UE5スタイル レイマーチング ボリュメトリッククラウド
 class VolumetricClouds
@@ -87,6 +97,14 @@ public:
     // --- 被覆率（0〜1） ---
     void  SetCoverage(float v)     { m_coverage = v; }
     float GetCoverage() const      { return m_coverage; }
+
+    // --- カバレッジ空間変調（0=均一/曇天, 1=積雲風まばら） ---
+    void  SetCoverageVariation(float v)  { m_coverageVariation = v; }
+    float GetCoverageVariation() const   { return m_coverageVariation; }
+
+    // --- 雲タイプ（0=stratus, 0.5=stratocumulus, 1.0=cumulus） ---
+    void  SetCloudType(float v)          { m_cloudType = v; }
+    float GetCloudType() const           { return m_cloudType; }
 
     // --- 密度乗数 ---
     void  SetDensity(float v)      { m_density = v; }
@@ -137,6 +155,20 @@ public:
     void  SetAtmosphereDensity(float v)   { m_atmosphereDensity = v; }
     float GetAtmosphereDensity() const    { return m_atmosphereDensity; }
 
+    // --- AC7品質向上パラメータ ---
+    void  SetDiffusivity(float v)          { m_diffusivity = v; }
+    float GetDiffusivity() const           { return m_diffusivity; }
+    void  SetUpperDensity(float v)         { m_upperDensity = v; }
+    float GetUpperDensity() const          { return m_upperDensity; }
+    void  SetShadowDarkness(float v)       { m_shadowDarkness = v; }
+    float GetShadowDarkness() const        { return m_shadowDarkness; }
+    void  SetShadowBias(float v)           { m_shadowBias = v; }
+    float GetShadowBias() const            { return m_shadowBias; }
+    void  SetAtmosphereBlueShift(float v)  { m_atmosphereBlueShift = v; }
+    float GetAtmosphereBlueShift() const   { return m_atmosphereBlueShift; }
+    void  SetDetailFadeDistance(float v)    { m_detailFadeDistance = v; }
+    float GetDetailFadeDistance() const     { return m_detailFadeDistance; }
+
     // --- テンポラルリプロジェクション ---
     void  SetTemporalEnabled(bool v)      { m_temporalEnabled = v; }
     bool  IsTemporalEnabled() const       { return m_temporalEnabled; }
@@ -162,6 +194,8 @@ private:
     float    m_cloudBottom  = 1500.0f;
     float    m_cloudTop     = 3000.0f;
     float    m_coverage     = 0.5f;
+    float    m_coverageVariation = 0.0f;
+    float    m_cloudType    = 0.7f;
     float    m_density      = 0.05f;
     float    m_windSpeed    = 10.0f;
     Vector3 m_windDirection = { 1.0f, 0.0f, 0.0f };
@@ -178,6 +212,14 @@ private:
     float m_ambientBottom    = 0.20f;
     float m_ambientTop       = 0.55f;
     float m_atmosphereDensity = 0.00003f;
+
+    // AC7品質向上パラメータ
+    float m_diffusivity         = 0.3f;
+    float m_upperDensity        = 0.2f;
+    float m_shadowDarkness      = 0.6f;
+    float m_shadowBias          = 0.1f;
+    float m_atmosphereBlueShift = 0.7f;
+    float m_detailFadeDistance   = 40000.0f;
 
     // 太陽（外部から設定）
     Vector3 m_sunDirection = { 0.3f, -1.0f, 0.5f };
@@ -203,9 +245,7 @@ private:
     ComPtr<ID3D12Resource> m_detailNoiseUpload;   ///< Upload buffer
     bool m_noiseUploaded = false;
 
-    // --- 非同期ノイズ生成 ---
-    std::thread m_noiseThread;
-    std::atomic<bool> m_noiseDataReady{false};
+    // --- ノイズ生成データ（Initialize中に同期生成→CreateNoiseResources後に解放）---
     gx::Vector<uint8_t> m_baseNoiseData;     ///< 128³×4 bytes
     gx::Vector<uint8_t> m_detailNoiseData;   ///< 32³×4 bytes
 

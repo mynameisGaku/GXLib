@@ -402,21 +402,40 @@ void GameFramework::SetupDefaultSky()
     clouds.SetEnabled(true);
     clouds.SetCloudBottom(1500.0f);        // 雲底 1.5km
     clouds.SetCloudTop(3500.0f);           // 雲頂 3.5km
-    clouds.SetCoverage(0.45f);             // 適度な雲量
-    clouds.SetDensity(0.04f);              // 柔らかい密度
+    clouds.SetCoverage(0.55f);             // マクロ閾値として ~55% 雲域
+    clouds.SetCoverageVariation(0.7f);     // くっきりした積雲群
+    clouds.SetCloudType(0.7f);             // cumulus寄り（背の高い積雲）
+    clouds.SetDensity(0.06f);              // 光が十分通る密度
     clouds.SetWindSpeed(8.0f);             // 穏やかな風
     clouds.SetWindDirection(Vector3{ 1.0f, 0.0f, 0.3f });
     clouds.SetSunDirection(m_sunDirection);
     clouds.SetSunColor(Vector3{ 1.0f, 0.98f, 0.95f });
-    clouds.SetSilverLiningIntensity(0.6f); // 太陽側の雲の縁が光る
+    clouds.SetSilverLiningIntensity(0.8f); // 太陽側のリムライト強化
     clouds.SetMSOctaves(6);
-    clouds.SetMSAttenuation(0.3f);
+    clouds.SetMSAttenuation(0.35f);        // MS散乱やや強化（内部を明るく）
     clouds.SetMSContribution(0.7f);
     clouds.SetMSEccentricity(0.5f);
-    clouds.SetPowderAmount(0.8f);
-    clouds.SetAmbientBottom(0.20f);
-    clouds.SetAmbientTop(0.55f);
+    clouds.SetPowderAmount(0.5f);          // 内部暗化を抑制
+    clouds.SetAmbientBottom(0.10f);        // 雲底を深い影に（直接光が支配）
+    clouds.SetAmbientTop(0.35f);           // 上面は直接光主体で立体感
     clouds.SetAtmosphereDensity(0.00003f);
+
+    // AC7品質向上パラメータ
+    clouds.SetDiffusivity(0.3f);           // シャープな夏積雲
+    clouds.SetUpperDensity(0.2f);          // 控えめな頂部ディテール
+    clouds.SetShadowDarkness(0.6f);        // 強めの底面暗化
+    clouds.SetShadowBias(0.1f);            // 軽めのプレダークニング
+    clouds.SetAtmosphereBlueShift(0.7f);   // Rayleigh強め
+    clouds.SetDetailFadeDistance(40000.0f); // ~40km消失
+
+    // --- VolumetricLight (ゴッドレイ) ---
+    auto& godRay = m_postEffect.GetVolumetricLight();
+    godRay.SetEnabled(true);
+    godRay.SetLightDirection(m_sunDirection);
+    godRay.SetLightColor(Vector3{ 1.0f, 0.98f, 0.95f });
+    godRay.SetIntensity(0.8f);
+    godRay.SetDecay(0.97f);
+    godRay.SetExposure(0.12f);
 
     // --- SkyAtmosphere (物理ベース大気散乱) ---
     auto& sky = m_postEffect.GetSkyAtmosphere();

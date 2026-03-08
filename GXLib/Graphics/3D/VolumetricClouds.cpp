@@ -21,45 +21,158 @@ namespace gx
 namespace
 {
 
-/// HLSL frac() equivalent: always returns [0,1), unlike std::fmod which can return negative values.
-inline float hlslFrac(float x) { return x - std::floor(x); }
-
-float hashF(float x, float y, float z)
-{
-    float p0 = hlslFrac(x * 0.3183099f + 0.1f);
-    float p1 = hlslFrac(y * 0.3183099f + 0.1f);
-    float p2 = hlslFrac(z * 0.3183099f + 0.1f);
-    p0 *= 17.0f; p1 *= 17.0f; p2 *= 17.0f;
-    return hlslFrac(p0 * p1 * p2 * (p0 + p1 + p2));
-}
-
 struct Float3 { float x, y, z; };
 
-Float3 hash3F(float ix, float iy, float iz)
+/// Ken Perlin 標準順列テーブル (256 entries, duplicated to 512)
+static constexpr int s_perm[512] = {
+    151,160,137, 91, 90, 15,131, 13,201, 95, 96, 53,194,233,  7,225,
+    140, 36,103, 30, 69,142,  8, 99, 37,240, 21, 10, 23,190,  6,148,
+    247,120,234, 75,  0, 26,197, 62, 94,252,219,203,117, 35, 11, 32,
+     57,177, 33, 88,237,149, 56, 87,174, 20,125,136,171,168, 68,175,
+     74,165, 71,134,139, 48, 27,166, 77,146,158,231, 83,111,229,122,
+     60,211,133,230,220,105, 92, 41, 55, 46,245, 40,244,102,143, 54,
+     65, 25, 63,161,  1,216, 80, 73,209, 76,132,187,208, 89, 18,169,
+    200,196,135,130,116,188,159, 86,164,100,109,198,173,186,  3, 64,
+     52,217,226,250,124,123,  5,202, 38,147,118,126,255, 82, 85,212,
+    207,206, 59,227, 47, 16, 58, 17,182,189, 28, 42,223,183,170,213,
+    119,248,152,  2, 44,154,163, 70,221,153,101,155,167, 43,172,  9,
+    129, 22, 39,253, 19, 98,108,110, 79,113,224,232,178,185,112,104,
+    218,246, 97,228,251, 34,242,193,238,210,144, 12,191,179,162,241,
+     81, 51,145,235,249, 14,239,107, 49,192,214, 31,181,199,106,157,
+    184, 84,204,176,115,121, 50, 45,127,  4,150,254,138,236,205, 93,
+    222,114, 67, 29, 24, 72,243,141,128,195, 78, 66,215, 61,156,180,
+    151,160,137, 91, 90, 15,131, 13,201, 95, 96, 53,194,233,  7,225,
+    140, 36,103, 30, 69,142,  8, 99, 37,240, 21, 10, 23,190,  6,148,
+    247,120,234, 75,  0, 26,197, 62, 94,252,219,203,117, 35, 11, 32,
+     57,177, 33, 88,237,149, 56, 87,174, 20,125,136,171,168, 68,175,
+     74,165, 71,134,139, 48, 27,166, 77,146,158,231, 83,111,229,122,
+     60,211,133,230,220,105, 92, 41, 55, 46,245, 40,244,102,143, 54,
+     65, 25, 63,161,  1,216, 80, 73,209, 76,132,187,208, 89, 18,169,
+    200,196,135,130,116,188,159, 86,164,100,109,198,173,186,  3, 64,
+     52,217,226,250,124,123,  5,202, 38,147,118,126,255, 82, 85,212,
+    207,206, 59,227, 47, 16, 58, 17,182,189, 28, 42,223,183,170,213,
+    119,248,152,  2, 44,154,163, 70,221,153,101,155,167, 43,172,  9,
+    129, 22, 39,253, 19, 98,108,110, 79,113,224,232,178,185,112,104,
+    218,246, 97,228,251, 34,242,193,238,210,144, 12,191,179,162,241,
+     81, 51,145,235,249, 14,239,107, 49,192,214, 31,181,199,106,157,
+    184, 84,204,176,115,121, 50, 45,127,  4,150,254,138,236,205, 93,
+    222,114, 67, 29, 24, 72,243,141,128,195, 78, 66,215, 61,156,180
+};
+
+/// 順列テーブルベースの決定論的3Dハッシュ（3独立チェーン、素数オフセットで非相関化）
+Float3 hash3Perm(int ix, int iy, int iz)
 {
-    float px = hlslFrac(ix * 0.1031f);
-    float py = hlslFrac(iy * 0.1030f);
-    float pz = hlslFrac(iz * 0.0973f);
-    // dot(p, p.yzx + 33.33)
-    float d = px * (py + 33.33f) + py * (pz + 33.33f) + pz * (px + 33.33f);
-    px += d; py += d; pz += d;
-    // frac((p.xxy + p.yxx) * p.zyx) — matches HLSL hash3()
-    // xxy+yxx = (x+y, x+x, y+x), zyx = (z, y, x)
-    return { hlslFrac((px + py) * pz),
-             hlslFrac((px + px) * py),
-             hlslFrac((py + px) * px) };
+    // Chain 0
+    int a0 = s_perm[ix & 255];
+    int b0 = s_perm[(a0 + iy) & 255];
+    int c0 = s_perm[(b0 + iz) & 255];
+    // Chain 1 (prime offsets: 97, 53, 131)
+    int a1 = s_perm[(ix + 97) & 255];
+    int b1 = s_perm[(a1 + iy + 53) & 255];
+    int c1 = s_perm[(b1 + iz + 131) & 255];
+    // Chain 2 (prime offsets: 173, 211, 67)
+    int a2 = s_perm[(ix + 173) & 255];
+    int b2 = s_perm[(a2 + iy + 211) & 255];
+    int c2 = s_perm[(b2 + iz + 67) & 255];
+    return { static_cast<float>(c0) / 255.0f,
+             static_cast<float>(c1) / 255.0f,
+             static_cast<float>(c2) / 255.0f };
 }
 
-float worleyCPU(float px, float py, float pz)
+// ---------- タイル可能 Perlin 3D ----------
+
+inline int floorToInt(float x)
+{
+    int xi = static_cast<int>(x);
+    return (x < static_cast<float>(xi)) ? xi - 1 : xi;
+}
+
+inline float fade(float t) { return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f); }
+inline float lerpF(float a, float b, float t) { return a + t * (b - a); }
+
+inline float grad3D(int hash, float gx, float gy, float gz)
+{
+    int h = hash & 15;
+    float u = h < 8 ? gx : gy;
+    float v = h < 4 ? gy : (h == 12 || h == 14 ? gx : gz);
+    return ((h & 1) ? -u : u) + ((h & 2) ? -v : v);
+}
+
+/// 任意周期でタイルするPerlin 3Dノイズ (戻り値 [-1, 1])
+/// 8頂点すべてのハッシュをラップ済み座標から独立計算（継ぎ目バグ修正）
+float perlinTileable3D(float x, float y, float z, int period)
+{
+    auto wrap = [&](int i) { return ((i % period) + period) % period; };
+
+    int xi0 = wrap(floorToInt(x));
+    int yi0 = wrap(floorToInt(y));
+    int zi0 = wrap(floorToInt(z));
+    int xi1 = wrap(xi0 + 1);
+    int yi1 = wrap(yi0 + 1);
+    int zi1 = wrap(zi0 + 1);
+
+    float xf = x - std::floor(x);
+    float yf = y - std::floor(y);
+    float zf = z - std::floor(z);
+    float u = fade(xf), v = fade(yf), w = fade(zf);
+
+    // 各頂点のハッシュを正しくラップした座標で計算
+    auto ph = [](int xi, int yi, int zi) -> int {
+        return s_perm[(s_perm[(s_perm[xi & 255] + yi) & 255] + zi) & 255];
+    };
+    int h000 = ph(xi0, yi0, zi0), h100 = ph(xi1, yi0, zi0);
+    int h010 = ph(xi0, yi1, zi0), h110 = ph(xi1, yi1, zi0);
+    int h001 = ph(xi0, yi0, zi1), h101 = ph(xi1, yi0, zi1);
+    int h011 = ph(xi0, yi1, zi1), h111 = ph(xi1, yi1, zi1);
+
+    float x1, x2, y1, y2;
+    x1 = lerpF(grad3D(h000, xf,        yf,        zf),
+               grad3D(h100, xf - 1.0f, yf,        zf), u);
+    x2 = lerpF(grad3D(h010, xf,        yf - 1.0f, zf),
+               grad3D(h110, xf - 1.0f, yf - 1.0f, zf), u);
+    y1 = lerpF(x1, x2, v);
+
+    x1 = lerpF(grad3D(h001, xf,        yf,        zf - 1.0f),
+               grad3D(h101, xf - 1.0f, yf,        zf - 1.0f), u);
+    x2 = lerpF(grad3D(h011, xf,        yf - 1.0f, zf - 1.0f),
+               grad3D(h111, xf - 1.0f, yf - 1.0f, zf - 1.0f), u);
+    y2 = lerpF(x1, x2, v);
+
+    return lerpF(y1, y2, w);
+}
+
+/// タイル可能 FBM 3D (各オクターブで period を 2 倍にして周期維持)
+float fbmTileable3D(float x, float y, float z, int octaves, int basePeriod)
+{
+    float sum = 0.0f, amplitude = 1.0f, frequency = 1.0f;
+    int period = basePeriod;
+    for (int i = 0; i < octaves; ++i)
+    {
+        sum       += amplitude * perlinTileable3D(x * frequency, y * frequency, z * frequency, period);
+        amplitude *= 0.5f;
+        frequency *= 2.0f;
+        period    *= 2;
+    }
+    return sum;
+}
+
+// ---------- タイル可能 Worley ----------
+
+/// 周期的Worleyノイズ（period で自動タイル）
+float worleyTileable(float px, float py, float pz, int period)
 {
     float ix = std::floor(px), iy = std::floor(py), iz = std::floor(pz);
     float fx = px - ix, fy = py - iy, fz = pz - iz;
+    int ixi = static_cast<int>(ix), iyi = static_cast<int>(iy), izi = static_cast<int>(iz);
     float minDist = 1.0f;
     for (int x = -1; x <= 1; x++)
     for (int y = -1; y <= 1; y++)
     for (int z = -1; z <= 1; z++)
     {
-        Float3 h = hash3F(ix + x, iy + y, iz + z);
+        int cx = ((ixi + x) % period + period) % period;
+        int cy = ((iyi + y) % period + period) % period;
+        int cz = ((izi + z) % period + period) % period;
+        Float3 h = hash3Perm(cx, cy, cz);
         float dx = x + h.x - fx;
         float dy = y + h.y - fy;
         float dz = z + h.z - fz;
@@ -67,36 +180,6 @@ float worleyCPU(float px, float py, float pz)
         if (d < minDist) minDist = d;
     }
     return std::sqrt(minDist);
-}
-
-float valueNoiseCPU(float px, float py, float pz)
-{
-    float ix = std::floor(px), iy = std::floor(py), iz = std::floor(pz);
-    float fx = px - ix, fy = py - iy, fz = pz - iz;
-    fx = fx * fx * (3.0f - 2.0f * fx);
-    fy = fy * fy * (3.0f - 2.0f * fy);
-    fz = fz * fz * (3.0f - 2.0f * fz);
-
-    auto h = [&](float ox, float oy, float oz) { return hashF(ix + ox, iy + oy, iz + oz); };
-    float a = h(0,0,0) * (1-fx) + h(1,0,0) * fx;
-    float b = h(0,1,0) * (1-fx) + h(1,1,0) * fx;
-    float c = h(0,0,1) * (1-fx) + h(1,0,1) * fx;
-    float d = h(0,1,1) * (1-fx) + h(1,1,1) * fx;
-    float e = a * (1-fy) + b * fy;
-    float f = c * (1-fy) + d * fy;
-    return e * (1-fz) + f * fz;
-}
-
-float fbmCPU(float px, float py, float pz, int octaves)
-{
-    float value = 0.0f, amp = 0.5f, freq = 1.0f;
-    for (int i = 0; i < octaves; ++i)
-    {
-        value += amp * valueNoiseCPU(px * freq, py * freq, pz * freq);
-        freq *= 2.0f;
-        amp *= 0.5f;
-    }
-    return value;
 }
 
 uint8_t toU8(float v) { return static_cast<uint8_t>((std::max)(0.0f, (std::min)(v, 1.0f)) * 255.0f + 0.5f); }
@@ -107,11 +190,7 @@ uint8_t toU8(float v) { return static_cast<uint8_t>((std::max)(0.0f, (std::min)(
 // Destructor — ensure background noise thread is joined
 // ============================================================================
 
-VolumetricClouds::~VolumetricClouds()
-{
-    if (m_noiseThread.joinable())
-        m_noiseThread.join();
-}
+VolumetricClouds::~VolumetricClouds() = default;
 
 // ============================================================================
 // Initialize
@@ -154,8 +233,9 @@ bool VolumetricClouds::Initialize(ID3D12Device* device, uint32_t width, uint32_t
     if (!CreatePipelines(device))
         return false;
 
-    // 3Dノイズテクスチャをバックグラウンドスレッドで生成（CPU側ハッシュはHLSL frac()互換に修正済み）
-    m_noiseThread = std::thread([this]() { GenerateNoiseData(); });
+    // 3Dノイズテクスチャを同期生成 + GPUリソース作成（Initialize中に~2秒ブロック、シーン表示前なので問題なし）
+    GenerateNoiseData();
+    CreateNoiseResources(device);
 
     // Temporal reprojection resources
     CreateTemporalPipeline(device);
@@ -221,6 +301,10 @@ bool VolumetricClouds::CreatePipelines(ID3D12Device* device)
 void VolumetricClouds::GenerateNoiseData()
 {
     // --- Base shape noise: 128³ RGBA8 ---
+    // R = Perlin-Worley (tileable FBM @4 + invWorley @5, 非整合周波数)
+    // G = Worley @7  (素数, 非整合: 4の倍数ではない → グリッド整列しない)
+    // B = Worley @13 (素数, 非整合, オフセット付きで G とも非整列)
+    // A = Worley @23 (素数, 非整合)
     constexpr uint32_t BASE_SIZE = 128;
     constexpr uint32_t BASE_TEXELS = BASE_SIZE * BASE_SIZE * BASE_SIZE;
     m_baseNoiseData.resize(BASE_TEXELS * 4);
@@ -233,28 +317,33 @@ void VolumetricClouds::GenerateNoiseData()
         float fy = static_cast<float>(y) / BASE_SIZE;
         float fz = static_cast<float>(z) / BASE_SIZE;
 
-        // R = Perlin-Worley (base shape)
-        float perlin = fbmCPU(fx * 4.0f, fy * 4.0f, fz * 4.0f, 4);
-        float wor1 = worleyCPU(fx * 4.0f, fy * 4.0f, fz * 4.0f);
-        float pw = (std::max)(0.0f, perlin - wor1 * 0.35f);
+        // R = tileable Perlin FBM @4 + inverted Worley @5 (非整合で自然な形状)
+        float perlin = fbmTileable3D(fx * 4.0f, fy * 4.0f, fz * 4.0f, 4, 4);
+        float perlin01 = perlin * 0.5f + 0.5f;
+        float wInv = 1.0f - worleyTileable(fx * 5.0f, fy * 5.0f, fz * 5.0f, 5);
+        float pw = (std::max)(0.0f, (std::min)(1.0f, perlin01 * 0.7f + wInv * 0.3f));
 
-        // G = Worley 1x
-        float w1 = worleyCPU(fx * 8.0f, fy * 8.0f, fz * 8.0f);
+        // G = Worley @7 + offset (素数セル数、非整合グリッド)
+        float g = worleyTileable(fx * 7.0f + 0.37f, fy * 7.0f + 0.83f, fz * 7.0f + 0.17f, 7);
 
-        // B = Worley 2x
-        float w2 = worleyCPU(fx * 16.0f, fy * 16.0f, fz * 16.0f);
+        // B = Worley @13 + offset
+        float b = worleyTileable(fx * 13.0f + 0.71f, fy * 13.0f + 0.29f, fz * 13.0f + 0.53f, 13);
 
-        // A = Worley 4x
-        float w4 = worleyCPU(fx * 32.0f, fy * 32.0f, fz * 32.0f);
+        // A = Worley @23 + offset
+        float a = worleyTileable(fx * 23.0f + 0.13f, fy * 23.0f + 0.61f, fz * 23.0f + 0.41f, 23);
 
         uint32_t idx = (z * BASE_SIZE * BASE_SIZE + y * BASE_SIZE + x) * 4;
         m_baseNoiseData[idx + 0] = toU8(pw);
-        m_baseNoiseData[idx + 1] = toU8(w1);
-        m_baseNoiseData[idx + 2] = toU8(w2);
-        m_baseNoiseData[idx + 3] = toU8(w4);
+        m_baseNoiseData[idx + 1] = toU8(g);
+        m_baseNoiseData[idx + 2] = toU8(b);
+        m_baseNoiseData[idx + 3] = toU8(a);
     }
 
     // --- Detail noise: 32³ RGBA8 ---
+    // R = Worley @3 + offset (素数)
+    // G = Worley @7 + offset (素数、base G と周波数同じだが異なるオフセット)
+    // B = Worley @11 + offset (素数)
+    // A = 255
     constexpr uint32_t DETAIL_SIZE = 32;
     constexpr uint32_t DETAIL_TEXELS = DETAIL_SIZE * DETAIL_SIZE * DETAIL_SIZE;
     m_detailNoiseData.resize(DETAIL_TEXELS * 4);
@@ -267,9 +356,9 @@ void VolumetricClouds::GenerateNoiseData()
         float fy = static_cast<float>(y) / DETAIL_SIZE;
         float fz = static_cast<float>(z) / DETAIL_SIZE;
 
-        float w1 = worleyCPU(fx * 8.0f, fy * 8.0f, fz * 8.0f);
-        float w2 = worleyCPU(fx * 16.0f, fy * 16.0f, fz * 16.0f);
-        float w4 = worleyCPU(fx * 32.0f, fy * 32.0f, fz * 32.0f);
+        float w1 = worleyTileable(fx * 3.0f + 0.31f, fy * 3.0f + 0.73f, fz * 3.0f + 0.19f, 3);
+        float w2 = worleyTileable(fx * 7.0f + 0.57f, fy * 7.0f + 0.43f, fz * 7.0f + 0.89f, 7);
+        float w4 = worleyTileable(fx * 11.0f + 0.67f, fy * 11.0f + 0.11f, fz * 11.0f + 0.47f, 11);
 
         uint32_t idx = (z * DETAIL_SIZE * DETAIL_SIZE + y * DETAIL_SIZE + x) * 4;
         m_detailNoiseData[idx + 0] = toU8(w1);
@@ -278,8 +367,7 @@ void VolumetricClouds::GenerateNoiseData()
         m_detailNoiseData[idx + 3] = 255;
     }
 
-    m_noiseDataReady.store(true, std::memory_order_release);
-    GX_LOG_INFO("VolumetricClouds: noise data generated (128^3 + 32^3) on background thread");
+    GX_LOG_INFO("VolumetricClouds: noise data generated (128^3 + 32^3)");
 }
 
 void VolumetricClouds::CreateNoiseResources(ID3D12Device* device)
@@ -588,6 +676,31 @@ static CloudConstants BuildCloudCB(const VolumetricClouds& self,
     cb.ambientTop       = self.GetAmbientTop();
     cb.atmosphereDensity = self.GetAtmosphereDensity();
     cb.useNoiseTextures = noiseUploaded ? 1 : 0;
+    cb.coverageVariation = self.GetCoverageVariation();
+    cb.cloudType         = self.GetCloudType();
+
+    // AC7品質向上パラメータ
+    cb.diffusivity       = self.GetDiffusivity();
+    cb.upperDensity      = self.GetUpperDensity();
+    cb.shadowDarkness    = self.GetShadowDarkness();
+    cb.shadowBias        = self.GetShadowBias();
+    cb.atmosphereBlueShift = self.GetAtmosphereBlueShift();
+    cb.detailFadeDistance = self.GetDetailFadeDistance();
+
+    // sun elevation → ambient color を自動計算
+    float sunElev = (std::max)(sunDirF.y, 0.0f);
+    Vector3 twilight = { 0.2f, 0.15f, 0.35f };   // 薄明
+    Vector3 sunset   = { 0.8f, 0.35f, 0.2f };     // 夕焼け
+    Vector3 daytime  = { 0.35f, 0.45f, 0.6f };    // 昼間
+    Vector3 ambient;
+    if (sunElev < 0.15f)
+        ambient = Vector3::Lerp(twilight, sunset, sunElev / 0.15f);
+    else
+        ambient = Vector3::Lerp(sunset, daytime, (std::min)((sunElev - 0.15f) / 0.35f, 1.0f));
+    cb.ambientSkyR = ambient.x;
+    cb.ambientSkyG = ambient.y;
+    cb.ambientSkyB = ambient.z;
+
     return cb;
 }
 
@@ -600,13 +713,9 @@ void VolumetricClouds::Execute(ID3D12GraphicsCommandList* cmdList, uint32_t fram
                                 DepthBuffer& depth, const Camera3D& camera,
                                 float elapsedTime)
 {
-    // 非同期ノイズ生成完了チェック → GPUリソース作成 + アップロード
-    if (!m_noiseUploaded && m_noiseDataReady.load(std::memory_order_acquire))
-    {
-        if (!m_baseNoiseTexture)
-            CreateNoiseResources(m_device);
+    // GPUリソースはInitialize()で作成済み、初回Execute()でアップロードのみ
+    if (!m_noiseUploaded)
         UploadNoiseTextures(cmdList);
-    }
 
     // Temporal path: half-res cloud → temporal resolve + bilateral upsample → composite
     if (m_temporalEnabled && m_temporalPSO && m_cloudOnlyPSO)

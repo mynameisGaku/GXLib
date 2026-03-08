@@ -241,6 +241,26 @@ void DebugOverlay::DrawPostFXTab(const DebugOverlayContext& ctx)
             if (ImGui::SliderFloat("Ambient Top", &v, 0.0f, 1.0f, "%.2f")) cl.SetAmbientTop(v);
             v = cl.GetAtmosphereDensity();
             if (ImGui::SliderFloat("Atmo Density", &v, 0.0f, 0.001f, "%.6f")) cl.SetAtmosphereDensity(v);
+            if (ImGui::TreeNode("Shape##shape"))
+            {
+                v = cl.GetDiffusivity();
+                if (ImGui::SliderFloat("Diffusivity", &v, 0.0f, 1.0f, "%.2f")) cl.SetDiffusivity(v);
+                v = cl.GetUpperDensity();
+                if (ImGui::SliderFloat("Upper Density", &v, 0.0f, 1.0f, "%.2f")) cl.SetUpperDensity(v);
+                ImGui::TreePop();
+            }
+            if (ImGui::TreeNode("Lighting##lighting"))
+            {
+                v = cl.GetShadowDarkness();
+                if (ImGui::SliderFloat("Shadow Darkness", &v, 0.0f, 1.0f, "%.2f")) cl.SetShadowDarkness(v);
+                v = cl.GetShadowBias();
+                if (ImGui::SliderFloat("Shadow Bias", &v, 0.0f, 2.0f, "%.2f")) cl.SetShadowBias(v);
+                v = cl.GetAtmosphereBlueShift();
+                if (ImGui::SliderFloat("Atmo Blue Shift", &v, 0.0f, 1.0f, "%.2f")) cl.SetAtmosphereBlueShift(v);
+                ImGui::TreePop();
+            }
+            v = cl.GetDetailFadeDistance();
+            if (ImGui::SliderFloat("Detail Fade", &v, 5000.0f, 50000.0f, "%.0f")) cl.SetDetailFadeDistance(v);
             bool temporal = cl.IsTemporalEnabled();
             if (ImGui::Checkbox("Temporal", &temporal)) cl.SetTemporalEnabled(temporal);
             if (temporal)

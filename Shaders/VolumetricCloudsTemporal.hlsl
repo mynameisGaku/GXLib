@@ -122,10 +122,17 @@ float4 PSTemporalResolve(FullscreenVSOutput input) : SV_Target
         cMax = max(cMax, neighbor);
     }
 
-    historyCloud = clamp(historyCloud, cMin, cMax);
+    // クランプ範囲を少し緩和（急なジャンプを軽減）
+    float4 margin = (cMax - cMin) * 0.15;
+    historyCloud = clamp(historyCloud, cMin - margin, cMax + margin);
 
-    // 8. テンポラルブレンド
-    float4 blended = lerp(historyCloud, currentCloud, alpha);
+    // 8. モーション適応テンポラルブレンド
+    // リプロジェクション時のUVずれ = カメラ移動量の指標
+    float2 velocity = abs(uv - prevUV);
+    float motionMag = length(velocity * float2(screenWidth, screenHeight));
+    // 静止→alpha(0.1), 高速移動→0.5 でスムーズに遷移
+    float adaptiveAlpha = lerp(alpha, 0.5, saturate(motionMag * 0.08));
+    float4 blended = lerp(historyCloud, currentCloud, adaptiveAlpha);
 
     // 9. シーン合成
     float3 result = sceneColor.rgb * blended.a + blended.rgb;

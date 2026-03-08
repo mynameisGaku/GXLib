@@ -93,7 +93,7 @@ public:
         }
 
         // WASD でカメラ移動 (VK_* は Windows 仮想キーコード)
-        float speed = 10.0f * dt;
+        float speed = 50.0f * dt;
         if (input.GetKeyboard().IsKeyDown('W'))        cam.MoveForward(speed);
         if (input.GetKeyboard().IsKeyDown('S'))        cam.MoveForward(-speed);
         if (input.GetKeyboard().IsKeyDown('A'))        cam.MoveRight(-speed);
