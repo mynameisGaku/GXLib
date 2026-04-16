@@ -1,0 +1,57 @@
+<Panel id="root">
+    <Canvas id="bgCanvas" class="bgCanvas" onDraw="DrawBackground" />
+
+    <Panel id="contentRoot" class="menuRoot">
+        <Panel id="menuCard" class="menuCard">
+            <Text id="title" class="titleText" font="title" text="GXLib Menu Demo" />
+            <Spacer height="20" />
+            <Button id="btnStart" class="menuButton" font="default" text="Start Game" onClick="StartGame" />
+            <Button id="btnSettings" class="menuButton" font="default" text="Settings" onClick="OpenSettings" />
+            <Button id="btnAbout" class="menuButton" font="default" text="About" onClick="OpenAbout" />
+            <Button id="btnExit" class="menuButton" font="default" text="Exit" onClick="ExitGame" />
+        </Panel>
+
+        <Panel id="settingsPanel" class="settingsPanel" visible="false">
+            <Text id="settingsTitle" class="settingsTitle" font="title" text="Settings" />
+
+            <Panel class="settingRow">
+                <Text class="settingLabel" font="default" text="Volume" />
+                <Slider id="sliderVolume" min="0" max="1" step="0.01" value="0.8" onValueChanged="VolumeChanged" />
+            </Panel>
+
+            <Panel class="settingRow">
+                <Text class="settingLabel" font="default" text="Brightness" />
+                <Slider id="sliderBrightness" min="0" max="1" step="0.01" value="0.5" onValueChanged="BrightnessChanged" />
+            </Panel>
+
+            <Panel class="settingRow">
+                <CheckBox id="chkFullscreen" font="default" text="Fullscreen" checked="0" onValueChanged="FullscreenChanged" />
+            </Panel>
+
+            <Panel class="settingRow">
+                <CheckBox id="chkVsync" font="default" text="V-Sync" checked="1" onValueChanged="VSyncChanged" />
+            </Panel>
+
+            <Panel class="settingRow">
+                <Text class="settingLabel" font="default" text="Difficulty" />
+                <Panel class="difficultyGroup" onValueChanged="DifficultyChanged">
+                    <RadioButton id="rbEasy" font="default" text="Easy" value="Easy" />
+                    <RadioButton id="rbNormal" font="default" text="Normal" value="Normal" selected="1" />
+                    <RadioButton id="rbHard" font="default" text="Hard" value="Hard" />
+                </Panel>
+            </Panel>
+
+            <Button id="btnBack" class="backButton" font="default" text="Back" onClick="BackToMain" />
+        </Panel>
+    </Panel>
+
+    <Dialog id="aboutDialog" visible="false">
+        <Panel class="dialogContent">
+            <Text class="dialogText" font="default" text="GXLib Engine v0.1" />
+            <Text class="dialogText" font="default" text="DirectX 12 Game Framework" />
+            <Panel class="dialogButtons">
+                <Button class="dialogBtn" font="default" text="OK" onClick="CloseAbout" />
+            </Panel>
+        </Panel>
+    </Dialog>
+</Panel>

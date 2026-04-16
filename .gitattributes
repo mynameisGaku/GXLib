@@ -1,0 +1,57 @@
+# Auto-detect text files and ensure LF line endings
+* text=auto eol=lf
+
+# Source files
+*.cpp text eol=lf
+*.h text eol=lf
+*.hpp text eol=lf
+*.c text eol=lf
+*.hlsl text eol=lf
+*.hlsli text eol=lf
+*.cmake text eol=lf
+CMakeLists.txt text eol=lf
+*.lua text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.xml text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.sh text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.js text eol=lf
+*.txt text eol=lf
+
+# Windows project/batch files — CRLF
+*.bat text eol=crlf
+*.sln text eol=crlf
+*.vcxproj text eol=crlf
+*.vcxproj.filters text eol=crlf
+*.filters text eol=crlf
+*.props text eol=crlf
+
+# Binary files — no conversion
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.bmp binary
+*.tga binary
+*.dds binary
+*.hdr binary
+*.wav binary
+*.ogg binary
+*.mp3 binary
+*.fbx binary
+*.gxmd binary
+*.gxan binary
+*.gxpak binary
+*.lib binary
+*.dll binary
+*.exe binary
+*.pdb binary
+*.obj binary
+*.ilk binary
+*.exp binary
+*.ico binary
+*.rtf binary

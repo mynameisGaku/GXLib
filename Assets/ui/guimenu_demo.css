@@ -1,0 +1,178 @@
+/* ==========================================================================
+   GUIMenuDemo — XML/CSS UI (Hot Reload対応)
+   ========================================================================== */
+
+Panel {
+    background-color: #00000000;
+}
+
+Text {
+    background-color: #00000000;
+}
+
+#root {
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+}
+
+#bgCanvas {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #00000000;
+    shadow-color: #2B396F;
+    border-color: #0E1326;
+}
+
+.menuRoot {
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 20;
+}
+
+.menuCard {
+    flex-direction: column;
+    align-items: center;
+    padding: 32;
+    background-color: #11172BE6;
+    border-width: 1;
+    border-color: #5B86FF55;
+    corner-radius: 18;
+    shadow-offset-y: 10;
+    shadow-blur: 26;
+    shadow-color: #00000088;
+    width: 560;
+}
+
+.titleText {
+    color: #FFDC64;
+    margin-bottom: 26;
+    background-color: #0B0F1FCC;
+    padding: 4 16 8;
+    corner-radius: 10;
+}
+
+.menuButton {
+    background-color: #293F7DFF;
+    border-width: 1;
+    border-color: #7EA1FF88;
+    color: #FFFFFF;
+    width: 320;
+    height: 52;
+    corner-radius: 12;
+    margin-bottom: 14;
+    justify-content: center;
+    align-items: center;
+    shadow-offset-y: 3;
+    shadow-blur: 10;
+    shadow-color: #0A0D1A99;
+    transition-duration: 0.12;
+}
+
+.menuButton:hover {
+    background-color: #3759A9FF;
+    border-color: #A6BEFF;
+}
+
+.menuButton:pressed {
+    background-color: #1E2E5CFF;
+}
+
+.settingsPanel {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 30;
+    background-color: #11172BF2;
+    corner-radius: 14;
+    width: 560;
+    border-width: 1;
+    border-color: #5B86FF44;
+    shadow-offset-y: 10;
+    shadow-blur: 26;
+    shadow-color: #00000088;
+}
+
+.settingsTitle {
+    color: #D6E2FF;
+    margin-bottom: 20;
+}
+
+.settingRow {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 14;
+    width: 500;
+}
+
+.settingLabel {
+    color: #C0CADB;
+    width: 160;
+}
+
+.difficultyGroup {
+    flex-direction: row;
+    gap: 16;
+}
+
+.backButton {
+    background-color: #783232E6;
+    color: #FFFFFF;
+    width: 200;
+    height: 40;
+    corner-radius: 6;
+    margin-top: 20;
+    justify-content: center;
+    align-items: center;
+    transition-duration: 0.12;
+}
+
+.backButton:hover {
+    background-color: #A04646;
+}
+
+.backButton:pressed {
+    background-color: #5A1E1E;
+}
+
+.dialogContent {
+    flex-direction: column;
+    align-items: center;
+    padding: 30;
+    background-color: #1E2332FA;
+    border-radius: 12;
+    width: 400;
+    shadow-offset-y: 10;
+    shadow-blur: 24;
+    shadow-color: #00000088;
+    transition-duration: 0.2;
+}
+
+.dialogText {
+    color: #DCDCE6;
+    margin-bottom: 20;
+}
+
+.dialogButtons {
+    flex-direction: row;
+    gap: 20;
+}
+
+.dialogBtn {
+    background-color: #32508CE6;
+    color: #FFFFFF;
+    width: 120;
+    height: 38;
+    corner-radius: 6;
+    justify-content: center;
+    align-items: center;
+}
+
+.dialogBtn:hover {
+    background-color: #466EB4;
+}

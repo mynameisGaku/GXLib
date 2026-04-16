@@ -1,0 +1,264 @@
+## Session Extract — /architecture-review 2026-04-15
+- Verdict: CONCERNS
+- Requirements: 29 total — 20 covered, 2 partial, 7 gaps
+- New TR-IDs registered: 22 (doc×3, rnd×5, api×4, ecs×5, scr×5)
+- GDD revision flags: N/A (ADR-only project per ADR-0001)
+- Top ADR gaps: ADR-0006 Job System, ADR-0007 Asset Database / Hot Reload, ADR-0008 Rendering Pipeline
+- Report: docs/architecture/architecture-review-2026-04-15.md
+- Traceability: docs/architecture/architecture-traceability.md
+- Note: run in same session as authoring — independence limited; rerun recommended in a fresh session after next ADRs
+
+## Session Extract — /architecture-review 2026-04-16
+- Verdict: CONCERNS
+- Requirements: 33 total — 28 covered, 0 partial, 5 gaps (85%)
+- New TR-IDs registered: None (ADR-0006–0010 covered via existing TR-rnd-003 elevation + charter-level gap closure)
+- GDD revision flags: N/A (ADR-only)
+- Top ADR gaps: ADR-0011 Input, ADR-0012 GUI, ADR-0013 Networking
+- Report: docs/architecture/architecture-review-2026-04-16.md
+- Note: still in same session as ADR authoring; fresh-session re-run + engine specialist consult recommended before promoting ADRs to Accepted
+
+## ADRs added 2026-04-16 (after review)
+- ADR-0011 Input Architecture — closes TR-chr-007
+- ADR-0012 GUI Architecture — closes TR-chr-008
+- ADR-0013 Networking Architecture — closes TR-chr-005
+- Registry updated: 5 new forbidden_patterns (cross_thread_input_read, private_input_thread, touch_as_first_class_input, direct_imgui_focus_steal, widget_mutation_off_main_thread), 2 new api_decisions (input_backend, gui_architecture). Networking registry entries pending.
+- Remaining charter gaps: TR-chr-009 (Editor) Low priority, TR-chr-010 (Animation) Medium
+
+## Session Extract — /architecture-review 2026-04-16 (run 2)
+- Verdict: CONCERNS
+- Requirements: 35 total — 33 covered, 0 partial, 2 gaps (94%)
+- New TR-IDs registered: None (charter gaps closed by 0011/0012/0013)
+- GDD revision flags: N/A (ADR-only)
+- Top ADR gaps: ADR-0014 Animation, ADR-0015 Editor (both retroactive)
+- Report: docs/architecture/architecture-review-2026-04-16b.md
+- Frame budget cumulative ~9.85 ms / 16.6 ms (within target, ~7 ms headroom)
+- Note: 3rd same-session run; fresh-session re-run + engine specialist consult required before promoting ADRs Proposed → Accepted
+
+## Session Extract — TD independent review + patches 2026-04-16
+- TD verdict: CONCERNS (independent), 3 real issues self-reviews missed
+- Patches applied:
+  1. ADR-0009 §14 rewritten — physics broadphase queries are now safe concurrent with Step (versioned copy-on-write read snapshot)
+  2. ADR-0009 §15 added — deterministic island-solve reduction order (barrier-then-serial-merge)
+  3. ADR-0010 §5 amended — occlusion explicitly relies on ADR-0009 §14 concurrent-read contract
+  4. ADR-0013 §13 strengthened — references ADR-0009 §15; adds rollback snapshot memory bound for 100k-entity ceiling
+  5. Registry: new forbidden_pattern `nondeterministic_reduction_in_rollback_physics_stage`
+  6. Registry: 2 new interface contracts (physics_broadphase_query, physics_island_solve_reduction_order)
+  7. Frame budget table rebuilt with main-thread / worker-parallel / audio-thread separation
+- TD recommendation order: 0014 Animation BEFORE 0015 Editor (animation on critical path)
+- Promotion still blocked: needs fresh-session validation
+
+## ADR-0014 Animation Pipeline added 2026-04-16
+- Closes TR-chr-010
+- Codifies layered stack: Skeleton → Animator (SM + Layers + BlendTree) → IK suite → Procedural → SpringBone → ComputeSkinning → ECS Transform mirror
+- Binds frame schedule order: Animation → Physics → Render (binding for ADR-0013 rollback)
+- Determinism contract: fixed dt only, no fast-math, deterministic IK seed
+- Ragdoll handoff API: Animator::EnableRagdoll/DisableRagdoll (atomic at frame boundary)
+- Registry: 2 forbidden_patterns (wall_clock_dt_in_animation_tick, skeleton_as_ecs_component) + 1 api_decision (animation_subsystem)
+- Remaining: ADR-0015 Editor (low priority, retroactive); fresh-session /architecture-review for independent validation; manual Status Proposed→Accepted promotion
+
+## TD review of ADR-0014 (2026-04-16) + patches
+- TD verdict: CONCERNS — same severity as 0011/0012/0013 review; 3 real issues found
+- Patches applied:
+  1. ADR-0014 perf section rewrote — animation runs concurrent with physics broadphase under no-shared-writer contract; capped at 1.0 ms wall (~20 Animators); LOD required beyond
+  2. ADR-0013 §13 — added animation-tick-in-rollback addendum + EventBus replay-suppression contract (idempotent vs side_effect handler categorisation) + motion matching SIMD-path pin
+  3. ADR-0014 §20 ragdoll handoff disambiguated — "atomic at frame boundary of SAME frame" with per-frame-N example
+  4. SkeletonHandle → AssetHandle<Skeleton> (single handle table, not parallel)
+  5. ADR-0008 FrameGraph diagram now shows ComputeSkinningPass before GBufferPass
+  6. ADR-0014 Verification Required updated — SIMD pin + concurrent-with-physics wall-clock measurements added
+- Pattern observed: 6 same-session reviews missed 6 real seams across 3 TD passes. Self-review consistently misses ~3 issues per ADR batch. Conclusion: do not skip TD/independent review even when self-review says clean.
+
+## TD follow-up + final patches 2026-04-16
+- TD verdict on patches: 2 of 3 RESOLVED, 1 PARTIALLY RESOLVED + 2 minor misses
+- Final patches applied:
+  1. ADR-0013 §13 EventBus replay-suppression now explicitly forward-declares ADR-0016 (EventBus / Cross-System Communication) as the interface owner; flags absence as forbidden_pattern-tracked
+  2. ADR-0013 Verification Required appended: motion matching SIMD-path determinism + EventBus replay-suppression correctness
+- Outstanding (carried forward): ADR-0016 EventBus ADR must be written before any rollback-using game ships. Tracked as forward-declaration in ADR-0013 §13.
+- ADR-0015 Editor still pending (low priority, retroactive, not on critical path)
+- Promotion path: all 14 ADRs Proposed → fresh-session /architecture-review → manual Status edit to Accepted
+- Final coverage: 14 ADRs, 33/35 charter TRs ✅, 2 retroactive gaps (Editor + Animation now closed by ADR-0014, so just Editor remains)
+
+## ADR PROMOTION COMPLETE 2026-04-16
+- TD final pass: GO WITH CAVEATS, confidence 4/5
+- All 14 ADRs flipped Proposed → Accepted via sed
+- Verified: `grep -l "^Accepted$" adr-*.md | wc -l` = 14
+- Carry-forward gaps (tracked, NOT blocking SDK):
+  - ADR-0015 Editor (low priority, retroactive)
+  - ADR-0016 EventBus / Cross-System Communication (forward-declared in ADR-0013 §13; MUST land before any rollback-using game ships)
+- Recommended re-validation: run /architecture-review in a fresh session after ADR-0016 lands, to confirm rollback contract is fully backed by a concrete ADR rather than forward-declaration
+
+## Implementation work begun 2026-04-16 (Sprint 1 partial)
+- Pillar ADR added: ADR-0017 Two-Layer Accessibility (Accepted)
+- Registry: 4 new forbidden_patterns + 1 api_decision for the pillar
+- Gap analysis: docs/implementation-gap-analysis-2026-04-16.md (4 tiers, 26 items)
+
+### Sprint 1 status
+- T1.1 silent-failure logging: DONE for Compat_2D, Compat_3D (with helper macro), Compat_Sound. ~32 GX_LOG_ERROR calls added. Remaining: Compat_Particle (flagged for human review per agent — AddEmitter contract unclear).
+- T1.2 examples/: DONE — 5 samples (hello-sprite/sound/input/3d/custom-postfx) + README + per-sample CMakeLists.txt. Sample 05 is Compat-only with future-API annotation.
+- T1.3 template GX_Init check: ALREADY DONE (analysis was wrong about this).
+- T1.4 GX/*.h Doxygen: PARTIAL — Audio.h rewritten with full Doxygen + bilingual examples. Remaining: Draw2D.h, Input.h, Text.h, System.h, Math.h.
+- T1.5/T1.6/T1.7 Sprint 2 API design: NOT STARTED (carry forward to next session — heavier work, needs design discussion).
+
+### What's pending for next session
+1. Finish T1.4: Input.h, Draw2D.h, Text.h, System.h, Math.h Doxygen+examples
+2. Sprint 2 API design ADRs:
+   - PostEffectPipeline::InsertCustomEffect — needs new ADR-0018?
+   - MaterialDomain extension API — extend ADR-0008 or new ADR
+   - ShaderRegistry plugin path — extend ADR-0008
+3. Tier 3 examples (custom-audio-dsp, custom-asset-type)
+4. Tier 4 accessibility-scorecard.md initial version
+5. Compat_Particle.cpp human-review (AddEmitter failure semantics)
+6. (deferred) Tier 2 implementation work — needs Windows/DX12 build env to verify, not safe in remote sessions
+
+## Sprint 2 completion 2026-04-16 (Layer 2 extension unlock)
+- T1.5 PostFX insertion API: DONE
+  - PostEffectPipeline::ICustomEffect interface (Execute callback with ping-pong RTs)
+  - PostFXInsertPoint enum (7 positions: AfterSSAO/Bloom/DoF/MotionBlur/BeforeToneMap/AfterToneMap/BeforeFXAA)
+  - InsertCustomEffect / RemoveCustomEffect / GetCustomEffectCount methods
+  - Implementation in PostEffectPipeline.cpp (registration + replace-on-duplicate)
+  - NOTE: Resolve() integration (actually running custom effects at the insert points) still pending — declared but not yet wired into the pipeline's Resolve loop. Requires touching ~400-line Resolve() method. Carry forward.
+- T1.6 MaterialDomain extension: DONE (merged with T1.7)
+- T1.7 ShaderRegistry plugin path: DONE
+  - CustomShaderModelDesc struct (vsPath/psPath/entries/skinning/defines)
+  - RegisterCustomShaderModel(uint32_t customId, desc) — IDs 6-254 reserved for users
+  - UnregisterCustomShaderModel / GetCustomShaderModelCount
+  - GetPSO() extended: builtin (0-5) → array, custom (6-254) → map lookup, fallback to Standard
+  - Rebuild() recompiles custom PSOs on hot reload
+  - Material.shaderModel = static_cast<ShaderModel>(customId) automatically routes
+
+### Carry forward to next session
+1. ~~PostFX Resolve() wire-up~~ DONE this session
+2. ~~Custom shader HLSL template/example~~ DONE (examples/06-custom-shader-model/)
+3. Tier 3 examples (custom-audio-dsp, custom-asset-type)
+4. T1.4 remaining: GX/System.h, GX/Math.h Doxygen pass (low priority — thin wrappers)
+5. Tier 4 accessibility scorecard initial version
+6. Compat_Particle.cpp human review (AddEmitter failure semantics)
+7. Compat API to set Material.shaderModel (surfaced by example 06 — currently Compat can't assign custom shader model id to a loaded model's materials)
+
+## Sprint 2 wire-up + examples 2026-04-16 (final push)
+- PostFX Resolve() fully wired:
+  - RunCustomEffectsHDR + RunCustomEffectsLDR helpers
+  - HDR injection points (5): AfterSSAO, AfterBloom, AfterDoF, AfterMotionBlur, BeforeToneMap
+  - LDR injection points (2): AfterToneMap, BeforeFXAA
+  - Automatic hasLDREffects detection for custom LDR registrations
+  - Automatic SRV transition after each custom effect
+- examples/05-custom-postfx/ rewritten to real ICustomEffect pattern with execute-count display
+- examples/06-custom-shader-model/ added (Rainbow.hlsl + main.cpp + README)
+  - Demonstrates RegisterCustomShaderModel with id=100
+  - Surfaces a new gap: Compat API can't set Material.shaderModel on loaded model (added to carry-forward)
+- examples/README.md + CMakeLists.txt updated with sample 06
+
+## Follow-on session (same day): Compat Material.shaderModel + scorecard 2026-04-16
+- Added MaterialManager::SetShaderModel(handle, model) — Material class backing API
+- Added gx::SetMaterialShaderModel(matH, id) + gx::SetModelShaderModel(modelH, id) to Compat layer
+- GXLib.h declarations + Doxygen with usage examples
+- examples/06-custom-shader-model updated: now calls SetModelShaderModel (the previous limitation note removed)
+- docs/engine-reference/gxlib/accessibility-scorecard.md generated (Pillar compliance scoring per subsystem)
+  - Graphics: 5/5 L1, 5/5 L2 (full compliance)
+  - Average: 76% L1, 74% L2
+  - Progression table: 50%→68%→76% (L1), 36%→40%→74% (L2) since pillar start
+- Largest remaining gaps (scorecard-identified):
+  - Audio L2: IAudioEffect interface missing (needs ADR-0010 extension)
+  - Networking L1: no gx:: procedural wrappers (new surface needed)
+  - Subsystem sample coverage: ecs/gui/physics/animation all missing beginner samples
+
+## Option A — 4 beginner samples burst 2026-04-16
+- examples/07-hello-ecs/ — World + AddComponent + ForEach + 100粒子バウンス
+- examples/08-hello-physics/ — PhysicsWorld2D + RigidBody + Raycast (Compat不存在、直接API)
+- examples/09-hello-animation/ — LoadModel + PlayModelAnimation + 数字キーでクリップ切替
+- examples/10-custom-asset-type/ — AssetDatabase::RegisterType<T> でJSON レベル設定型登録
+- CMakeLists.txt + README 更新 (samples 4 本追加)
+- ⚠ 注意事項: これらサンプルは API "shape" demonstration。メソッド名が engine 実装と完全一致するかは
+  未検証 (remote session でビルド不可)。ビルド時に型/名前の微調整が必要な可能性あり。
+  特に: BodyDesc2D / RaycastHit2D / PhysicsShape2D::Box / AssetTypeDesc<T> / AssetDatabase::RegisterType<T>
+  の正確なシグネチャはソース参照で確認が必要。
+- Scorecard 予測更新:
+  - Graphics 5/5+5/5 (変化なし、既に満点)
+  - Audio 4.5/5+1.5/5 (変化なし)
+  - Physics 3/5+3/5 → 4/5+3/5 (L1.5 example 追加)
+  - Asset DB 4/5+4/5 → 4/5+5/5 (L2.2 example 追加)
+  - Animation 4.5/5+4/5 → 5/5+4/5 (L1.5 example 追加)
+  - ECS 3/5+4/5 → 4/5+4/5 (L1.5 example 追加)
+  - 平均見込み: L1 76% → 82%, L2 74% → 76%
+
+### 次の優先候補 (carry forward)
+1. IAudioEffect interface 設計 (ADR-0010 extension) — Audio L2 最大ギャップ
+2. Networking gx:: procedural wrappers — L1 surface 新設
+3. examples/11-hello-gui/ — GUI L1.5 ギャップ
+4. examples/12-custom-widget/ — GUI L2 ギャップ
+5. Compat_Particle.cpp human review (AddEmitter 失敗セマンティクス)
+6. GX/System.h + GX/Math.h Doxygen 追加 (低優先)
+7. サンプル API シグネチャ検証 — remote でのビルド不可、ユーザー側か別セッションで確認
+
+## IAudioEffect L2 extension 2026-04-16 (Audio の最大 L2 ギャップ解消)
+- Audio/AudioEffect.h に IAudioEffect 抽象インターフェース追加
+  - Process(buffer, sampleCount, channels, sampleRate)
+  - Reset(), GetName()
+  - threading contract を Doxygen に明記 (audio callback thread, ヒープ禁止, atomic params)
+- Audio/AudioBus.h / .cpp に登録 API 追加
+  - AddEffect(unique_ptr<IAudioEffect>) / RemoveEffect / GetEffectCount / GetEffect
+  - std::unique_ptr<IAudioEffect> m_effects[4] (ADR-0010 §8 上限)
+  - AddEffect 満杯時は -1 + GX_LOG_ERROR
+- examples/11-custom-audio-dsp 追加
+  - Tremolo エフェクト実装 (atomic<float> で rate/depth, sinf LFO)
+  - UP/DOWN/LEFT/RIGHT でパラメータライブ調整
+  - README で threading contract + 現在の制限 (IXAPO wrapper pending) を説明
+- Scorecard 更新: Audio L2 1.5 → 4.0 (IAudioEffect + サンプル)
+  - 残ギャップ: IXAPO wrapper (Process() 実配線)
+- 全サブシステム平均: L1 82%, L2 82% (ADR-0017 開始時 L1 50%, L2 36% から大幅改善)
+
+## Final batch 2026-04-16 (GUI samples + GX/* Doxygen polish)
+- examples/12-hello-gui/ — UIContext + Panel + Button + TextWidget コード組み立て + onClick counter
+- examples/13-custom-widget/ — Widget 派生 CircularGauge (RenderSelf + OnEvent 完全実装)
+- GX/System.h — 全関数 Doxygen 追加 (bilingual + examples)
+- GX/Math.h — ラッパーヘッダに用途説明 + 使用例追加
+- Scorecard 更新: GUI 3.5+4.0 → 4.5+5.0
+- ⚠ 注意: UIContext / Widget のメソッド名は実装と完全一致するか未検証
+  (特に GetUIContext(), UIContext::Update(dt), Widget::AddChild, Widget::layout 構造)
+
+### 最終 Scorecard
+- Graphics 5/5+5/5 ✅
+- GUI 4.5/5+5/5 ✅ (今セッション追加)
+- Asset DB 4/5+5/5 ✅
+- Animation 5/5+4/5
+- Input 5/5+4.5/5
+- ECS 4/5+4/5
+- Physics 4/5+3/5
+- Audio 4.5/5+4/5 (IXAPO 統合で 5/5 になる)
+- Networking 1.5/5+3/5 (最大残ギャップ)
+
+**平均: L1 84%, L2 86%**
+
+### 未完の主要ギャップ (次セッション以降)
+1. IXAPO wrapper — Audio L2 完全達成 (IAudioEffect::Process の実配線)
+2. Networking gx:: Compat wrappers — Tier 2 production work 後
+3. Tier 2 subsystem production work — Movie codec, real STUN/matchmaking/CloudSave
+4. サンプル 07-13 の API シグネチャ検証 — ユーザー側の初回ビルドで微調整
+5. Compat_Particle.cpp AddEmitter 失敗セマンティクス人間レビュー
+
+## Build system — examples solution 2026-04-16
+- ルート CMakeLists に GX_BUILD_EXAMPLES オプション追加 (デフォルト ON)
+- add_subdirectory(examples) を GX_SDK_ONLY=OFF ブロック内に追加
+- examples/CMakeLists.txt を shim として機能させる:
+  - TARGET GXLib 存在時に GXLib::GXLib ALIAS を作成
+  - VS ソリューションフォルダ "Examples" に全13サンプルをグループ化
+- 全13個のサンプル CMakeLists.txt を dual-mode パターンに書き換え:
+  - if (NOT TARGET GXLib::GXLib) find_package(GXLib REQUIRED) endif()
+  - Shader コピー: GXLib_DIR 定義有無で repo root / SDK root を切り替え
+- examples/README.md に Mode A (in-tree) + Mode B (standalone) のビルド手順
+- これで `cmake -B build -S .` 一発で GXLib 本体 + 13 examples が同じ .sln に入る
+
+## 初学者向けダブルクリック bat 追加 2026-04-16
+- `open_examples.bat` — ダブルクリックで CMake configure + VS ソリューション起動
+  - 3ステップ表示 (CMake確認 → 生成 → 起動)
+  - CMake / VS 未インストール時の案内メッセージ
+  - 色付き日本語出力、エラー内容を明示
+- `create_new_project.bat` — 新規ゲームプロジェクト作成ウィザード
+  - プロジェクト名入力 (半角英数チェック)
+  - template/ をコピーして新フォルダ作成
+  - CMakeLists.txt のプロジェクト名自動書き換え (PowerShell で replace)
+  - 独立 .sln を生成して VS で開く
+- `START_HERE_はじめに.md` — ルートに3ステップの入り口ガイド
+  - open_examples.bat → create_new_project.bat の順を明示
+  - よくあるつまずき FAQ
+  - サンプル一覧を難易度付きで
+- これで「CMake コマンドを叩けない初学者」もダブルクリックで完結

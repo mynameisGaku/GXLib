@@ -1,0 +1,368 @@
+/// @file Animator.cpp
+/// @brief アニメーターの実装
+#include "pch_graphics.h"
+#include "Graphics/3D/Animator.h"
+
+namespace gx
+{
+
+void Animator::SetSkeleton(Skeleton* skeleton)
+{
+    m_skeleton = skeleton;
+    EnsurePoseStorage();
+
+    if (!m_skeleton)
+        return;
+
+    const auto& joints = m_skeleton->GetJoints();
+    const uint32_t jointCount = static_cast<uint32_t>(joints.size());
+    m_bindPose.resize(jointCount);
+    for (uint32_t i = 0; i < jointCount; ++i)
+        m_bindPose[i] = DecomposeTRS(joints[i].localTransform);
+}
+
+void Animator::EvaluateBindPose()
+{
+    if (!m_skeleton)
+        return;
+
+    EnsurePoseStorage();
+    uint32_t jointCount = m_skeleton->GetJointCount();
+    if (jointCount == 0)
+        return;
+
+    if (!m_bindPose.empty())
+        m_localPose = m_bindPose;
+    else
+        m_localPose.assign(jointCount, IdentityTRS());
+
+    for (uint32_t i = 0; i < jointCount; ++i)
+    {
+        XMMATRIX S = XMMatrixScaling(m_localPose[i].scale.x, m_localPose[i].scale.y, m_localPose[i].scale.z);
+        XMMATRIX R = XMMatrixRotationQuaternion(XMLoadFloat4(XM(&m_localPose[i].rotation)));
+        XMMATRIX T = XMMatrixTranslation(m_localPose[i].translation.x, m_localPose[i].translation.y, m_localPose[i].translation.z);
+        XMStoreFloat4x4(XM(&m_localTransforms[i]), S * R * T);
+    }
+
+    m_skeleton->ComputeGlobalTransforms(m_localTransforms.data(), m_globalTransforms.data());
+    m_skeleton->ComputeBoneMatrices(m_globalTransforms.data(), m_boneConstants.boneMatrices);
+}
+
+void Animator::SetCurrentTime(float time)
+{
+    if (!m_skeleton || !m_current.clip)
+        return;
+
+    float duration = m_current.clip->GetDuration();
+    m_current.time = (std::max)(0.0f, (std::min)(time, duration));
+
+    EnsurePoseStorage();
+    uint32_t jointCount = m_skeleton->GetJointCount();
+    if (jointCount == 0)
+        return;
+
+    SampleClip(m_current, m_localPose);
+
+    // ルートモーション固定
+    if (jointCount > 0 && !m_bindPose.empty())
+    {
+        if (m_lockRootPosition)
+            m_localPose[0].translation = m_bindPose[0].translation;
+        if (m_lockRootRotation)
+            m_localPose[0].rotation = m_bindPose[0].rotation;
+    }
+
+    for (uint32_t i = 0; i < jointCount; ++i)
+    {
+        XMMATRIX S = XMMatrixScaling(m_localPose[i].scale.x, m_localPose[i].scale.y, m_localPose[i].scale.z);
+        XMMATRIX R = XMMatrixRotationQuaternion(XMLoadFloat4(XM(&m_localPose[i].rotation)));
+        XMMATRIX T = XMMatrixTranslation(m_localPose[i].translation.x, m_localPose[i].translation.y, m_localPose[i].translation.z);
+        XMStoreFloat4x4(XM(&m_localTransforms[i]), S * R * T);
+    }
+
+    m_skeleton->ComputeGlobalTransforms(m_localTransforms.data(), m_globalTransforms.data());
+    m_skeleton->ComputeBoneMatrices(m_globalTransforms.data(), m_boneConstants.boneMatrices);
+}
+
+void Animator::Play(const AnimationClip* clip, bool loop, float speed)
+{
+    m_current.clip = clip;
+    m_current.time = 0.0f;
+    m_current.loop = loop;
+    m_current.speed = speed;
+    m_next = {};
+    m_fading = false;
+    m_playing = (clip != nullptr);
+    m_paused = false;
+
+    // ルートモーション: 再生開始時にバインドポーズ位置を初期値にリセット
+    if (m_rootMotionEnabled && !m_bindPose.empty())
+    {
+        m_prevRootPosition = m_bindPose[0].translation;
+        m_prevRootRotation = m_bindPose[0].rotation;
+    }
+    m_rootMotionDelta = { 0.0f, 0.0f, 0.0f };
+    m_rootMotionRotDelta = { 0.0f, 0.0f, 0.0f, 1.0f };
+}
+
+void Animator::SetBlendStack(BlendStack* stack)
+{
+    m_blendStack = stack;
+    m_mode = stack ? AnimMode::BlendStack : AnimMode::Simple;
+}
+
+void Animator::SetStateMachine(AnimatorStateMachine* sm)
+{
+    m_stateMachine = sm;
+    m_mode = sm ? AnimMode::StateMachine : AnimMode::Simple;
+}
+
+void Animator::CrossFade(const AnimationClip* clip, float duration, bool loop, float speed)
+{
+    if (!clip)
+        return;
+
+    if (!m_current.clip)
+    {
+        Play(clip, loop, speed);
+        return;
+    }
+
+    m_next.clip = clip;
+    m_next.time = 0.0f;
+    m_next.loop = loop;
+    m_next.speed = speed;
+    m_fadeDuration = (std::max)(duration, 0.0001f);
+    m_fadeTime = 0.0f;
+    m_fading = true;
+}
+
+void Animator::EnsurePoseStorage()
+{
+    if (!m_skeleton)
+        return;
+
+    uint32_t jointCount = m_skeleton->GetJointCount();
+    m_poseA.resize(jointCount);
+    m_poseB.resize(jointCount);
+    m_localPose.resize(jointCount);
+    m_localTransforms.resize(jointCount);
+    m_globalTransforms.resize(jointCount);
+}
+
+void Animator::AdvanceClip(ClipState& state, float deltaTime)
+{
+    if (!state.clip) return;
+
+    state.time += deltaTime * state.speed;
+    float duration = state.clip->GetDuration();
+    if (duration <= 0.0f) return;
+
+    if (state.loop)
+    {
+        state.time = fmodf(state.time, duration);
+        if (state.time < 0.0f)
+            state.time += duration;
+    }
+    else if (state.time >= duration)
+    {
+        state.time = duration;
+    }
+}
+
+void Animator::SampleClip(const ClipState& state, gx::Vector<TransformTRS>& outPose)
+{
+    if (!m_skeleton) return;
+
+    uint32_t jointCount = m_skeleton->GetJointCount();
+    if (!state.clip)
+    {
+        if (!m_bindPose.empty())
+            outPose = m_bindPose;
+        else
+            outPose.assign(jointCount, IdentityTRS());
+        return;
+    }
+
+    if (!m_bindPose.empty())
+        state.clip->SampleTRS(state.time, jointCount, outPose.data(), m_bindPose.data());
+    else
+        state.clip->SampleTRS(state.time, jointCount, outPose.data(), nullptr);
+}
+
+void Animator::BlendPoses(const gx::Vector<TransformTRS>& a,
+                          const gx::Vector<TransformTRS>& b,
+                          float t,
+                          gx::Vector<TransformTRS>& outPose)
+{
+    const uint32_t count = static_cast<uint32_t>(outPose.size());
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        TransformTRS out = outPose[i];
+        out.translation = {
+            a[i].translation.x + (b[i].translation.x - a[i].translation.x) * t,
+            a[i].translation.y + (b[i].translation.y - a[i].translation.y) * t,
+            a[i].translation.z + (b[i].translation.z - a[i].translation.z) * t
+        };
+
+        XMVECTOR qa = XMLoadFloat4(XM(&a[i].rotation));
+        XMVECTOR qb = XMLoadFloat4(XM(&b[i].rotation));
+        Quaternion rot;
+        XMStoreFloat4(XM(&rot), XMQuaternionSlerp(qa, qb, t));
+        out.rotation = rot;
+
+        out.scale = {
+            a[i].scale.x + (b[i].scale.x - a[i].scale.x) * t,
+            a[i].scale.y + (b[i].scale.y - a[i].scale.y) * t,
+            a[i].scale.z + (b[i].scale.z - a[i].scale.z) * t
+        };
+
+        outPose[i] = out;
+    }
+}
+
+void Animator::Update(float deltaTime)
+{
+    if (!m_skeleton)
+        return;
+
+    // BlendStack/StateMachineモードはm_playingに依存しない
+    if (m_mode == AnimMode::Simple && (!m_playing || m_paused))
+        return;
+
+    EnsurePoseStorage();
+    uint32_t jointCount = m_skeleton->GetJointCount();
+    if (jointCount == 0)
+        return;
+
+    const TransformTRS* bindPose = m_bindPose.empty() ? nullptr : m_bindPose.data();
+
+    // イベント用: 進行前の時刻を記録
+    float prevTime = m_current.time;
+
+    switch (m_mode)
+    {
+    case AnimMode::BlendStack:
+        // BlendStackモード: 全レイヤーの合成結果を取得
+        if (m_blendStack)
+        {
+            m_blendStack->Update(deltaTime, jointCount, bindPose, m_localPose.data());
+        }
+        break;
+
+    case AnimMode::StateMachine:
+        // StateMachineモード: 状態遷移に基づいたポーズを取得
+        if (m_stateMachine)
+        {
+            m_stateMachine->Update(deltaTime, jointCount, bindPose, m_localPose.data());
+        }
+        break;
+
+    case AnimMode::Simple:
+    default:
+        // Simpleモード: 既存のクロスフェードロジック
+        if (m_fading && m_next.clip)
+        {
+            AdvanceClip(m_current, deltaTime);
+            AdvanceClip(m_next, deltaTime);
+
+            SampleClip(m_current, m_poseA);
+            SampleClip(m_next, m_poseB);
+
+            m_fadeTime += deltaTime;
+            float t = (std::min)(m_fadeTime / m_fadeDuration, 1.0f);
+            BlendPoses(m_poseA, m_poseB, t, m_localPose);
+
+            if (t >= 1.0f)
+            {
+                m_current = m_next;
+                m_next = {};
+                m_fading = false;
+            }
+        }
+        else
+        {
+            AdvanceClip(m_current, deltaTime);
+            SampleClip(m_current, m_localPose);
+        }
+        break;
+    }
+
+    // アニメーションイベント発火
+    if (m_eventCallback && m_current.clip)
+    {
+        m_firedEvents.clear();
+        m_current.clip->CollectEvents(prevTime, m_current.time, m_firedEvents);
+        for (const auto* evt : m_firedEvents)
+            m_eventCallback(*evt);
+    }
+
+    // ルートモーション抽出（差分を計算してルートボーンを固定）
+    if (m_rootMotionEnabled && jointCount > 0 && !m_bindPose.empty())
+    {
+        const Vector3& curPos = m_localPose[0].translation;
+        const Quaternion& curRot = m_localPose[0].rotation;
+
+        m_rootMotionDelta = {
+            curPos.x - m_prevRootPosition.x,
+            curPos.y - m_prevRootPosition.y,
+            curPos.z - m_prevRootPosition.z
+        };
+
+        // 回転差分: delta = cur * inverse(prev)
+        XMVECTOR qCur  = XMLoadFloat4(XM(&curRot));
+        XMVECTOR qPrev = XMLoadFloat4(XM(&m_prevRootRotation));
+        XMVECTOR qDelta = XMQuaternionMultiply(qCur, XMQuaternionInverse(qPrev));
+        XMStoreFloat4(XM(&m_rootMotionRotDelta), XMQuaternionNormalize(qDelta));
+
+        m_prevRootPosition = curPos;
+        m_prevRootRotation = curRot;
+
+        // ルートボーンをバインドポーズに固定
+        m_localPose[0].translation = m_bindPose[0].translation;
+        m_localPose[0].rotation    = m_bindPose[0].rotation;
+    }
+    else
+    {
+        // ルートモーション無効時の従来ロック
+        if (jointCount > 0 && !m_bindPose.empty())
+        {
+            if (m_lockRootPosition)
+                m_localPose[0].translation = m_bindPose[0].translation;
+            if (m_lockRootRotation)
+                m_localPose[0].rotation = m_bindPose[0].rotation;
+        }
+        m_rootMotionDelta = { 0.0f, 0.0f, 0.0f };
+        m_rootMotionRotDelta = { 0.0f, 0.0f, 0.0f, 1.0f };
+    }
+
+    // ローカル変換行列を作成
+    for (uint32_t i = 0; i < jointCount; ++i)
+    {
+        XMMATRIX S = XMMatrixScaling(m_localPose[i].scale.x, m_localPose[i].scale.y, m_localPose[i].scale.z);
+        XMMATRIX R = XMMatrixRotationQuaternion(XMLoadFloat4(XM(&m_localPose[i].rotation)));
+        XMMATRIX T = XMMatrixTranslation(m_localPose[i].translation.x, m_localPose[i].translation.y, m_localPose[i].translation.z);
+        XMStoreFloat4x4(XM(&m_localTransforms[i]), S * R * T);
+    }
+
+    // ローカル→グローバル変換
+    m_skeleton->ComputeGlobalTransforms(m_localTransforms.data(), m_globalTransforms.data());
+
+    // IK適用（FK計算後、ボーン行列計算前に実行）
+    if (m_footIK && m_footIK->IsEnabled() && m_footIK->IsSetup() && m_getGroundHeight)
+    {
+        m_footIK->Apply(m_localTransforms.data(), m_globalTransforms.data(),
+                        *m_skeleton, m_worldTransform, m_getGroundHeight);
+    }
+    if (m_lookAtIK && m_lookAtIK->IsEnabled() && m_lookAtIK->IsSetup() && m_lookAtActive)
+    {
+        m_lookAtIK->Apply(m_localTransforms.data(), m_globalTransforms.data(),
+                          *m_skeleton, m_worldTransform, m_lookAtTarget, m_lookAtWeight);
+    }
+
+    // 逆バインドポーズを適用してスキニング用行列を生成
+    uint32_t boneCount = (std::min)(jointCount, BoneConstants::k_MaxBones);
+    m_skeleton->ComputeBoneMatrices(m_globalTransforms.data(), m_boneConstants.boneMatrices);
+}
+
+} // namespace gx

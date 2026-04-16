@@ -1,0 +1,377 @@
+/// @file TextRenderer.cpp
+/// @brief TextRenderer の実装
+///
+/// 文字列を1文字ずつ走査し、FontManager からグリフ情報（アトラス上のUV矩形）を取得して
+/// SpriteBatch::DrawRectGraph で描画する。改行文字は行送り処理を行う。
+#include "pch_graphics.h"
+#include "Graphics/Rendering/TextRenderer.h"
+#include "Graphics/Rendering/SpriteBatch.h"
+#include <cstdarg>
+
+namespace gx
+{
+
+void TextRenderer::Initialize(SpriteBatch* spriteBatch, FontManager* fontManager)
+{
+    m_spriteBatch = spriteBatch;
+    m_fontManager = fontManager;
+}
+
+void TextRenderer::DrawString(int fontHandle, float x, float y, const gx::WString& text, uint32_t color)
+{
+    if (!m_spriteBatch || !m_fontManager)
+        return;
+
+    int atlasHandle = m_fontManager->GetAtlasTextureHandle(fontHandle);
+    if (atlasHandle < 0)
+        return;
+
+    // 0xAARRGGBB形式の色を float4 に変換し、SpriteBatch の描画色として設定。
+    // SpriteBatch は頂点カラーとしてこの色を乗算するため、文字色が反映される。
+    float a = static_cast<float>((color >> 24) & 0xFF) / 255.0f;
+    float r = static_cast<float>((color >> 16) & 0xFF) / 255.0f;
+    float g = static_cast<float>((color >> 8) & 0xFF) / 255.0f;
+    float b = static_cast<float>((color) & 0xFF) / 255.0f;
+
+    // 描画色を保存・設定
+    m_spriteBatch->SetDrawColor(r, g, b, a);
+
+    float cursorX = x;
+    float cursorY = y;
+
+    for (wchar_t ch : text)
+    {
+        // 改行処理
+        if (ch == L'\n')
+        {
+            cursorX = x;
+            cursorY += static_cast<float>(m_fontManager->GetLineHeight(fontHandle));
+            continue;
+        }
+
+        const GlyphInfo* glyph = m_fontManager->GetGlyphInfo(fontHandle, ch);
+        if (!glyph)
+            continue;
+
+        // スペースはadvanceだけ進める
+        if (ch == L' ')
+        {
+            cursorX += glyph->advance;
+            continue;
+        }
+
+        // グリフを描画
+        float drawX = cursorX + glyph->offsetX;
+        float drawY = cursorY + glyph->offsetY;
+
+        // SpriteBatch::DrawRectGraphでアトラスの一部を描画
+        // srcX, srcY, w, h はアトラス上のピクセル座標
+        int srcX = static_cast<int>(glyph->u0 * FontManager::k_AtlasSize);
+        int srcY = static_cast<int>(glyph->v0 * FontManager::k_AtlasSize);
+        srcX = (std::min)(srcX, static_cast<int>(FontManager::k_AtlasSize - 1));
+        srcY = (std::min)(srcY, static_cast<int>(FontManager::k_AtlasSize - 1));
+
+        m_spriteBatch->DrawRectGraph(drawX, drawY, srcX, srcY,
+                                     glyph->width, glyph->height,
+                                     atlasHandle, true);
+
+        cursorX += glyph->advance;
+    }
+
+    // 描画色をリセット
+    m_spriteBatch->SetDrawColor(1.0f, 1.0f, 1.0f, 1.0f);
+}
+
+void TextRenderer::DrawStringTransformed(int fontHandle, float x, float y,
+                                         const gx::WString& text, uint32_t color,
+                                         const Transform2D& transform)
+{
+    // 各グリフの4隅を Transform2D で変換してから DrawRectModiGraph で描画する。
+    // これにより文字列全体に回転・拡縮・移動を適用できる。
+    if (!m_spriteBatch || !m_fontManager)
+        return;
+
+    int atlasHandle = m_fontManager->GetAtlasTextureHandle(fontHandle);
+    if (atlasHandle < 0)
+        return;
+
+    float a = static_cast<float>((color >> 24) & 0xFF) / 255.0f;
+    float r = static_cast<float>((color >> 16) & 0xFF) / 255.0f;
+    float g = static_cast<float>((color >> 8) & 0xFF) / 255.0f;
+    float b = static_cast<float>((color) & 0xFF) / 255.0f;
+    m_spriteBatch->SetDrawColor(r, g, b, a);
+
+    float cursorX = x;
+    float cursorY = y;
+
+    for (wchar_t ch : text)
+    {
+        if (ch == L'\n')
+        {
+            cursorX = x;
+            cursorY += static_cast<float>(m_fontManager->GetLineHeight(fontHandle));
+            continue;
+        }
+
+        const GlyphInfo* glyph = m_fontManager->GetGlyphInfo(fontHandle, ch);
+        if (!glyph)
+            continue;
+
+        if (ch == L' ')
+        {
+            cursorX += glyph->advance;
+            continue;
+        }
+
+        float drawX = cursorX + glyph->offsetX;
+        float drawY = cursorY + glyph->offsetY;
+
+        float x1 = drawX;
+        float y1 = drawY;
+        float x2 = drawX + glyph->width;
+        float y2 = drawY;
+        float x3 = drawX + glyph->width;
+        float y3 = drawY + glyph->height;
+        float x4 = drawX;
+        float y4 = drawY + glyph->height;
+
+        Vector2 p1 = TransformPoint(transform, x1, y1);
+        Vector2 p2 = TransformPoint(transform, x2, y2);
+        Vector2 p3 = TransformPoint(transform, x3, y3);
+        Vector2 p4 = TransformPoint(transform, x4, y4);
+
+        float srcX = glyph->u0 * FontManager::k_AtlasSize;
+        float srcY = glyph->v0 * FontManager::k_AtlasSize;
+        float srcW = static_cast<float>(glyph->width);
+        float srcH = static_cast<float>(glyph->height);
+
+        m_spriteBatch->DrawRectModiGraph(p1.x, p1.y, p2.x, p2.y,
+                                         p3.x, p3.y, p4.x, p4.y,
+                                         srcX, srcY, srcW, srcH,
+                                         atlasHandle, true);
+
+        cursorX += glyph->advance;
+    }
+
+    m_spriteBatch->SetDrawColor(1.0f, 1.0f, 1.0f, 1.0f);
+}
+
+void TextRenderer::DrawFormatString(int fontHandle, float x, float y, uint32_t color, const wchar_t* format, ...)
+{
+    // printf 形式の可変引数をバッファに展開してから DrawString に委譲する
+    wchar_t buffer[1024];
+
+    va_list args;
+    va_start(args, format);
+    vswprintf_s(buffer, _countof(buffer), format, args);
+    va_end(args);
+
+    DrawString(fontHandle, x, y, buffer, color);
+}
+
+int TextRenderer::GetStringWidth(int fontHandle, const gx::WString& text)
+{
+    if (!m_fontManager)
+        return 0;
+
+    // 各文字の advance（次の文字への水平移動量）を合算して描画幅を計算する。
+    // 改行が含まれる場合は1行目の幅のみを返す。
+    float width = 0.0f;
+
+    for (wchar_t ch : text)
+    {
+        if (ch == L'\n')
+            break;
+
+        const GlyphInfo* glyph = m_fontManager->GetGlyphInfo(fontHandle, ch);
+        if (glyph)
+        {
+            width += glyph->advance;
+        }
+    }
+
+    return static_cast<int>(ceilf(width));
+}
+
+float TextRenderer::MeasureLineWidth(int fontHandle, const gx::WString& line)
+{
+    float width = 0.0f;
+    for (wchar_t ch : line)
+    {
+        const GlyphInfo* glyph = m_fontManager->GetGlyphInfo(fontHandle, ch);
+        if (glyph)
+            width += glyph->advance;
+    }
+    return width;
+}
+
+gx::Vector<gx::WString> TextRenderer::BreakLines(int fontHandle, const gx::WString& text,
+                                                    const TextLayoutOptions& options)
+{
+    gx::Vector<gx::WString> result;
+
+    // Split by \n first
+    gx::Vector<gx::WString> paragraphs;
+    size_t start = 0;
+    while (start <= text.size())
+    {
+        size_t pos = text.find(L'\n', start);
+        if (pos == gx::WString::npos)
+        {
+            paragraphs.push_back(text.substr(start));
+            break;
+        }
+        paragraphs.push_back(text.substr(start, pos - start));
+        start = pos + 1;
+    }
+
+    bool doWrap = options.wordWrap && options.maxWidth > 0.0f;
+
+    for (const auto& para : paragraphs)
+    {
+        if (!doWrap || para.empty())
+        {
+            result.push_back(para);
+            continue;
+        }
+
+        // Word-wrap this paragraph
+        float lineWidth = 0.0f;
+        size_t lineStart = 0;
+        size_t lastSpace = gx::WString::npos; // index of last space in current line segment
+
+        for (size_t i = 0; i < para.size(); ++i)
+        {
+            wchar_t ch = para[i];
+
+            if (ch == L' ')
+                lastSpace = i;
+
+            float charAdvance = 0.0f;
+            const GlyphInfo* glyph = m_fontManager->GetGlyphInfo(fontHandle, ch);
+            if (glyph)
+                charAdvance = glyph->advance;
+
+            if (lineWidth + charAdvance > options.maxWidth && i > lineStart)
+            {
+                // Need to break
+                if (lastSpace != gx::WString::npos && lastSpace > lineStart)
+                {
+                    // Break at last space
+                    result.push_back(para.substr(lineStart, lastSpace - lineStart));
+                    // Skip the space itself
+                    lineStart = lastSpace + 1;
+                    // Recalculate width from lineStart to current position
+                    lineWidth = 0.0f;
+                    for (size_t j = lineStart; j <= i; ++j)
+                    {
+                        const GlyphInfo* g = m_fontManager->GetGlyphInfo(fontHandle, para[j]);
+                        if (g)
+                            lineWidth += g->advance;
+                    }
+                    lastSpace = gx::WString::npos;
+                }
+                else
+                {
+                    // Force-break at current character (no space found)
+                    result.push_back(para.substr(lineStart, i - lineStart));
+                    lineStart = i;
+                    lineWidth = charAdvance;
+                    lastSpace = gx::WString::npos;
+                }
+            }
+            else
+            {
+                lineWidth += charAdvance;
+            }
+        }
+
+        // Add the remaining part of the paragraph
+        result.push_back(para.substr(lineStart));
+    }
+
+    return result;
+}
+
+void TextRenderer::DrawStringLayout(int fontHandle, float x, float y,
+                                     const gx::WString& text, uint32_t color,
+                                     const TextLayoutOptions& options)
+{
+    if (!m_spriteBatch || !m_fontManager)
+        return;
+
+    gx::Vector<gx::WString> lines = BreakLines(fontHandle, text, options);
+    float lineHeight = static_cast<float>(m_fontManager->GetLineHeight(fontHandle)) * options.lineSpacing;
+    float cursorY = y;
+
+    for (const auto& line : lines)
+    {
+        float drawX = x;
+
+        if (options.maxWidth > 0.0f && options.align != TextAlign::Left)
+        {
+            float lineWidth = MeasureLineWidth(fontHandle, line);
+            if (options.align == TextAlign::Center)
+                drawX = x + (options.maxWidth - lineWidth) * 0.5f;
+            else // Right
+                drawX = x + (options.maxWidth - lineWidth);
+        }
+
+        DrawString(fontHandle, drawX, cursorY, line, color);
+        cursorY += lineHeight;
+    }
+}
+
+int TextRenderer::GetStringHeight(int fontHandle, const gx::WString& text,
+                                   const TextLayoutOptions& options)
+{
+    if (!m_fontManager)
+        return 0;
+
+    gx::Vector<gx::WString> lines = BreakLines(fontHandle, text, options);
+    float lineHeight = static_cast<float>(m_fontManager->GetLineHeight(fontHandle)) * options.lineSpacing;
+
+    if (lines.empty())
+        return 0;
+
+    return static_cast<int>(ceilf(static_cast<float>(lines.size()) * lineHeight));
+}
+
+void TextRenderer::DrawStringInRect(int fontHandle, float x, float y, float width, float height,
+                                     const gx::WString& text, uint32_t color,
+                                     const TextLayoutOptions& options)
+{
+    if (!m_spriteBatch || !m_fontManager)
+        return;
+
+    // Override maxWidth to match the rect width
+    TextLayoutOptions rectOptions = options;
+    rectOptions.maxWidth = width;
+
+    gx::Vector<gx::WString> lines = BreakLines(fontHandle, text, rectOptions);
+    float lineHeight = static_cast<float>(m_fontManager->GetLineHeight(fontHandle)) * rectOptions.lineSpacing;
+    float cursorY = y;
+
+    for (const auto& line : lines)
+    {
+        // Clip: skip lines whose top exceeds the rect bottom
+        if (cursorY + lineHeight > y + height + 0.5f)
+            break;
+
+        float drawX = x;
+
+        if (rectOptions.maxWidth > 0.0f && rectOptions.align != TextAlign::Left)
+        {
+            float lineWidth = MeasureLineWidth(fontHandle, line);
+            if (rectOptions.align == TextAlign::Center)
+                drawX = x + (rectOptions.maxWidth - lineWidth) * 0.5f;
+            else // Right
+                drawX = x + (rectOptions.maxWidth - lineWidth);
+        }
+
+        DrawString(fontHandle, drawX, cursorY, line, color);
+        cursorY += lineHeight;
+    }
+}
+
+} // namespace gx

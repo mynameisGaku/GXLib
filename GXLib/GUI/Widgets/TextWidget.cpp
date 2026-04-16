@@ -1,0 +1,79 @@
+#include "pch_graphics.h"
+#include "GUI/Widgets/TextWidget.h"
+#include "GUI/UIRenderer.h"
+
+namespace gx { namespace GUI {
+
+float TextWidget::GetIntrinsicWidth() const
+{
+    if (m_text.empty() || m_fontHandle < 0 || !m_renderer) return 0.0f;
+    return static_cast<float>(m_renderer->GetTextWidth(m_fontHandle, m_text));
+}
+
+float TextWidget::GetIntrinsicHeight() const
+{
+    if (m_fontHandle < 0 || !m_renderer) return 0.0f;
+    return static_cast<float>(m_renderer->GetLineHeight(m_fontHandle));
+}
+
+void TextWidget::RenderSelf(UIRenderer& renderer)
+{
+    if (m_text.empty() || m_fontHandle < 0) return;
+    const Style& drawStyle = GetRenderStyle();
+
+    // 背景（設定されている場合）
+    if (!drawStyle.backgroundColor.IsTransparent())
+    {
+        UIRectEffect effect;
+        const UIRectEffect* eff = GetActiveEffect(drawStyle, effect);
+        renderer.DrawRect(globalRect, drawStyle, 1.0f, eff);
+    }
+
+    // テキスト位置計算（textAlign）
+    float textX = globalRect.x + computedStyle.padding.left;
+    float textY = globalRect.y + computedStyle.padding.top;
+
+    float contentW = globalRect.width - computedStyle.padding.HorizontalTotal();
+    float textW = static_cast<float>(renderer.GetTextWidth(m_fontHandle, m_text));
+    float textH = static_cast<float>(renderer.GetLineHeight(m_fontHandle));
+
+    switch (computedStyle.textAlign)
+    {
+    case TextAlign::Center:
+        textX += (contentW - textW) * 0.5f;
+        break;
+    case TextAlign::Right:
+        textX += contentW - textW;
+        break;
+    default:
+        break;
+    }
+
+    // verticalAlign（縦方向の揃え）
+    float contentH = globalRect.height - computedStyle.padding.VerticalTotal();
+    switch (computedStyle.verticalAlign)
+    {
+    case VAlign::Center:
+        textY += (contentH - textH) * 0.5f;
+        break;
+    case VAlign::Bottom:
+        textY += contentH - textH;
+        break;
+    default:
+        break;
+    }
+
+    // 上側の余白を軽く詰める（ただし枠からはみ出さないように制限）
+    float capOffset = renderer.GetFontCapOffset(m_fontHandle);
+    textY -= capOffset;
+    float topLimit = globalRect.y + computedStyle.padding.top;
+    float bottomLimit = topLimit + contentH - textH;
+    if (textY < topLimit) textY = topLimit;
+    if (textY > bottomLimit) textY = bottomLimit;
+
+    renderer.DrawText(textX, textY, m_fontHandle, m_text, drawStyle.color, 1.0f);
+
+    // 子は通常描画しない（TextWidgetは末端）
+}
+
+}} // namespace gx::GUI

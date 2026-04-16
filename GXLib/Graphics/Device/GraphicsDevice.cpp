@@ -1,0 +1,207 @@
+/// @file GraphicsDevice.cpp
+/// @brief D3D12デバイス初期化の実装
+#include "pch_graphics.h"
+#include "Graphics/Device/GraphicsDevice.h"
+#include "Core/Logger.h"
+#include <dxgidebug.h>
+
+namespace gx
+{
+
+GraphicsDevice::~GraphicsDevice()
+{
+#ifdef _DEBUG
+    // static 破棄中にデバッグレイヤーが ERROR を出すとブレーク例外が飛ぶため、
+    // デストラクタでは break-on-error を無効化してからレポートする
+    if (m_device)
+    {
+        ComPtr<ID3D12InfoQueue> infoQueue;
+        if (SUCCEEDED(m_device.As(&infoQueue)))
+        {
+            infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, FALSE);
+            infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, FALSE);
+        }
+    }
+    // 自身の ComPtr を先に解放してからレポートすることで
+    // GraphicsDevice 自体のオブジェクトがリーク誤検出されるのを防ぐ
+    m_device5.Reset();
+    m_device.Reset();
+    m_adapter.Reset();
+    m_factory.Reset();
+    ReportLiveObjects();
+#endif
+}
+
+bool GraphicsDevice::Initialize(bool enableDebugLayer, bool enableGPUValidation)
+{
+    GX_LOG_INFO("Initializing Graphics Device...");
+
+    if (enableDebugLayer)
+    {
+        EnableDebugLayer(enableGPUValidation);
+    }
+
+    // DXGIファクトリ作成（デバッグ時はデバッグフラグ付き）
+    UINT factoryFlags = enableDebugLayer ? DXGI_CREATE_FACTORY_DEBUG : 0;
+    HRESULT hr = CreateDXGIFactory2(factoryFlags, IID_PPV_ARGS(&m_factory));
+    if (FAILED(hr))
+    {
+        GX_LOG_ERROR("Failed to create DXGI Factory (HRESULT: 0x%08X)", hr);
+        return false;
+    }
+
+    if (!SelectAdapter())
+    {
+        GX_LOG_ERROR("Failed to select GPU adapter");
+        return false;
+    }
+
+    // Feature Level 12.0でデバイス作成（DX12の最低要件）
+    hr = D3D12CreateDevice(
+        m_adapter.Get(),
+        D3D_FEATURE_LEVEL_12_0,
+        IID_PPV_ARGS(&m_device)
+    );
+
+    if (FAILED(hr))
+    {
+        GX_LOG_ERROR("Failed to create D3D12 Device (HRESULT: 0x%08X)", hr);
+        return false;
+    }
+
+    if (enableDebugLayer)
+    {
+        ConfigureInfoQueue();
+    }
+
+    // DXR (DirectX Raytracing) 対応チェック
+    // Options5でRaytracingTierを確認し、Tier 1.0以上ならDevice5を取得する
+    D3D12_FEATURE_DATA_D3D12_OPTIONS5 options5 = {};
+    hr = m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &options5, sizeof(options5));
+    if (SUCCEEDED(hr) && options5.RaytracingTier >= D3D12_RAYTRACING_TIER_1_0)
+    {
+        hr = m_device.As(&m_device5);
+        if (SUCCEEDED(hr))
+        {
+            m_supportsRaytracing = true;
+            GX_LOG_INFO("DXR Raytracing Tier 1.0+ supported (ID3D12Device5 acquired)");
+        }
+    }
+    else
+    {
+        GX_LOG_INFO("DXR Raytracing not supported on this GPU — SSR fallback will be used");
+    }
+
+    GX_LOG_INFO("Graphics Device initialized successfully");
+    return true;
+}
+
+void GraphicsDevice::EnableDebugLayer(bool gpuValidation)
+{
+    ComPtr<ID3D12Debug> debugController;
+    if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
+    {
+        debugController->EnableDebugLayer();
+        GX_LOG_INFO("D3D12 Debug Layer enabled");
+
+        // GPU-based validation: GPUコマンド実行時にも検証する（非常に低速だが詳細）
+        if (gpuValidation)
+        {
+            ComPtr<ID3D12Debug1> debug1;
+            if (SUCCEEDED(debugController.As(&debug1)))
+            {
+                debug1->SetEnableGPUBasedValidation(TRUE);
+                GX_LOG_INFO("D3D12 GPU-Based Validation enabled (performance will be reduced)");
+            }
+        }
+    }
+    else
+    {
+        GX_LOG_WARN("Failed to enable D3D12 Debug Layer");
+    }
+}
+
+void GraphicsDevice::ConfigureInfoQueue()
+{
+    ComPtr<ID3D12InfoQueue> infoQueue;
+    if (FAILED(m_device.As(&infoQueue)))
+    {
+        GX_LOG_WARN("ID3D12InfoQueue not available (Debug Layer may be disabled)");
+        return;
+    }
+
+    // CORRUPTION/ERRORでデバッガブレーク（致命的な問題をすぐ発見できる）
+    infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
+    infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
+
+    // 無害な警告を抑制
+    D3D12_MESSAGE_ID denyIds[] = {
+        D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
+        D3D12_MESSAGE_ID_CLEARDEPTHSTENCILVIEW_MISMATCHINGCLEARVALUE,
+        D3D12_MESSAGE_ID_CREATEGRAPHICSPIPELINESTATE_RENDERTARGETVIEW_NOT_SET,
+        D3D12_MESSAGE_ID_CREATERESOURCE_STATE_IGNORED,
+    };
+
+    D3D12_MESSAGE_SEVERITY denySeverities[] = {
+        D3D12_MESSAGE_SEVERITY_INFO,
+    };
+
+    D3D12_INFO_QUEUE_FILTER filter = {};
+    filter.DenyList.NumIDs       = _countof(denyIds);
+    filter.DenyList.pIDList      = denyIds;
+    filter.DenyList.NumSeverities = _countof(denySeverities);
+    filter.DenyList.pSeverityList = denySeverities;
+    infoQueue->PushStorageFilter(&filter);
+
+    GX_LOG_INFO("D3D12 InfoQueue configured (break on error/corruption, suppress info)");
+}
+
+void GraphicsDevice::ReportLiveObjects()
+{
+    ComPtr<IDXGIDebug1> dxgiDebug;
+    if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiDebug))))
+    {
+        GX_LOG_INFO("=== DXGI Live Objects Report ===");
+        dxgiDebug->ReportLiveObjects(DXGI_DEBUG_D3D12,
+            static_cast<DXGI_DEBUG_RLO_FLAGS>(DXGI_DEBUG_RLO_SUMMARY | DXGI_DEBUG_RLO_IGNORE_INTERNAL));
+        GX_LOG_INFO("=== End DXGI Report ===");
+    }
+    else
+    {
+        GX_LOG_WARN("DXGIGetDebugInterface1 failed — debug interface not available");
+    }
+}
+
+bool GraphicsDevice::SelectAdapter()
+{
+    ComPtr<IDXGIAdapter1> adapter;
+
+    // 高性能GPU優先で列挙し、ソフトウェアアダプタ(WARP)はスキップ
+    for (UINT i = 0;
+        m_factory->EnumAdapterByGpuPreference(i, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,
+            IID_PPV_ARGS(&adapter)) != DXGI_ERROR_NOT_FOUND;
+        ++i)
+    {
+        DXGI_ADAPTER_DESC1 desc;
+        adapter->GetDesc1(&desc);
+
+        if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+            continue;
+
+        // D3D12デバイスが作れるか事前チェック（nullptr渡しで実際には作らない）
+        if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_0,
+            __uuidof(ID3D12Device), nullptr)))
+        {
+            m_adapter = adapter;
+            m_dedicatedVRAM = desc.DedicatedVideoMemory;
+            GX_LOG_INFO("Selected GPU: %ls", desc.Description);
+            GX_LOG_INFO("  Video Memory: %llu MB", desc.DedicatedVideoMemory / (1024 * 1024));
+            return true;
+        }
+    }
+
+    GX_LOG_ERROR("No compatible GPU found");
+    return false;
+}
+
+} // namespace gx

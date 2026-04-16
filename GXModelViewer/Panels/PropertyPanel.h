@@ -1,0 +1,65 @@
+#pragma once
+/// @file PropertyPanel.h
+/// @brief 選択エンティティのプロパティインスペクタパネル
+///
+/// トランスフォーム、モデルマテリアル（直接編集）、マテリアルオーバーライド、
+/// ギズモ設定、レンダリングオプション（ボーン表示/ワイヤフレーム）を提供する。
+
+#include "Scene/SceneGraph.h"
+#include "Graphics/3D/Material.h"
+#include "Graphics/Resource/TextureManager.h"
+#include <imgui.h>
+#include "ImGuizmo.h"
+#include "ImGuiFileDialog.h"
+
+/// @brief 選択エンティティのプロパティ（Transform/Material/Gizmo等）を編集するパネル
+class PropertyPanel
+{
+public:
+    /// @brief プロパティパネルを独立ウィンドウとして描画する
+    /// @param scene シーングラフ（選択エンティティの取得に使用）
+    /// @param matManager マテリアルハンドルからマテリアルを参照
+    /// @param texManager テクスチャ管理（将来のテクスチャプレビュー用）
+    /// @param gizmoOp ギズモ操作モード（移動/回転/拡縮）の参照
+    /// @param gizmoMode 座標空間（ワールド/ローカル）の参照
+    /// @param useSnap スナップON/OFFの参照
+    /// @param snapT 移動スナップ値の参照
+    /// @param snapR 回転スナップ値の参照
+    /// @param snapS スケールスナップ値の参照
+    void Draw(SceneGraph& scene, gx::MaterialManager& matManager, gx::TextureManager& texManager,
+              ImGuizmo::OPERATION& gizmoOp, ImGuizmo::MODE& gizmoMode,
+              bool& useSnap, float& snapT, float& snapR, float& snapS);
+
+    /// @brief タブコンテナ内埋め込み用（Begin/Endなし）
+    void DrawContent(SceneGraph& scene, gx::MaterialManager& matManager, gx::TextureManager& texManager,
+                     ImGuizmo::OPERATION& gizmoOp, ImGuizmo::MODE& gizmoMode,
+                     bool& useSnap, float& snapT, float& snapR, float& snapS);
+
+private:
+    /// @brief Transform（Position/Rotation/Scale）の編集UI
+    void DrawTransformSection(SceneEntity& entity);
+
+    /// @brief マテリアルオーバーライド（エンティティ全体に適用する上書きマテリアル）の編集UI
+    void DrawMaterialOverrideSection(SceneEntity& entity);
+
+    /// @brief モデル本体のサブメッシュ別マテリアルを直接編集するUI
+    void DrawModelMaterials(SceneEntity& entity, gx::MaterialManager& matManager,
+                            gx::TextureManager& texManager);
+
+    /// @brief シェーダーモデル固有パラメータの編集UI（Toon/Phong/Subsurface/ClearCoat等）
+    void DrawShaderModelParams(gxfmt::ShaderModelParams& params, gxfmt::ShaderModel model);
+
+    /// @brief テクスチャスロットのBrowse/Clear UIを描画する
+    void DrawTextureSlots(gx::Material* mat, int matHandle, gx::MaterialManager& matManager,
+                          gx::TextureManager& texManager, int submeshIndex);
+
+    /// @brief テクスチャファイルダイアログの結果を処理する
+    void HandleTextureDialog(gx::MaterialManager& matManager, gx::TextureManager& texManager);
+
+    char m_nameBuffer[256] = {};  ///< エンティティ名編集バッファ
+
+    // --- テクスチャ割り当て状態 ---
+    int m_pendingTexMatHandle = -1;  ///< テクスチャ選択待ちのマテリアルハンドル
+    int m_pendingTexSlot = -1;       ///< テクスチャ選択待ちのスロット（0=albedo...）
+    bool m_pendingTexIsOverride = false; ///< オーバーライドマテリアル用か
+};

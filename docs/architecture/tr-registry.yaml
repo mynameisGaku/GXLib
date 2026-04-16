@@ -1,56 +1,210 @@
 # Technical Requirement ID Registry
 #
-# PURPOSE: Persistent, stable IDs for every GDD technical requirement.
-# Prevents TR-ID renumbering across /architecture-review runs, which would
-# break story references.
+# PURPOSE: Persistent, stable IDs for every architectural requirement.
+# (This project is ADR-only per ADR-0001; requirements are sourced from ADRs
+# rather than GDDs. Format otherwise matches the template.)
 #
 # RULES:
 #   - IDs are PERMANENT. Never renumber, never delete (use status: deprecated).
 #   - Add new entries only at the END of each system's list.
-#   - When a GDD requirement is reworded (same intent): update `requirement`
-#     text and add a `revised` date. The ID stays the same.
-#   - When a requirement is removed from the GDD: set status: deprecated.
-#   - When a requirement is split or replaced: set status: superseded-by with
-#     the new TR-ID(s).
+#   - When a requirement is reworded (same intent): update `requirement` text
+#     and add a `revised` date. The ID stays the same.
+#   - When a requirement is removed: set status: deprecated.
+#   - When a requirement is split or replaced: set status: superseded-by.
 #
 # WRITTEN BY: /architecture-review (appends new entries, never overwrites)
-# READ BY:    /create-stories (embed IDs in stories)
-#             /story-done (look up current requirement text at review time)
-#             /story-readiness (validate TR-ID exists and is active)
+# READ BY:    /create-stories, /story-done, /story-readiness
 #
 # ID FORMAT: TR-[system-slug]-[NNN]
-#   system-slug = short slug matching the GDD system name
-#   NNN = three-digit zero-padded sequence per system, starting at 001
 #
 # STATUS VALUES: active | deprecated | superseded-by: TR-[system]-NNN
 
-version: 1
-last_updated: ""
+version: 3
+last_updated: "2026-04-16"
 
-requirements: []
+requirements:
+  # ─── doc (ADR-0001 Documentation strategy) ────────────────────────────────
+  - id: TR-doc-001
+    system: doc
+    source_adr: docs/architecture/adr-0001-documentation-strategy.md
+    requirement: "Template skills (/architecture-review, /create-stories, etc.) must operate without GDDs."
+    status: active
+    added: 2026-04-15
+    revised: ""
 
-# --- EXAMPLE ENTRIES (remove when first real entries are added) ---
-#
-# - id: TR-combat-001
-#   system: combat
-#   gdd: design/gdd/combat-system.md
-#   requirement: "Player takes damage from enemies based on attack power minus defence"
-#   created: 2026-03-10
-#   revised: ""
-#   status: active
-#
-# - id: TR-combat-002
-#   system: combat
-#   gdd: design/gdd/combat-system.md
-#   requirement: "Combo window timing is 0.4 seconds between hits"
-#   created: 2026-03-10
-#   revised: "2026-04-01"
-#   status: active
-#
-# - id: TR-combat-003
-#   system: combat
-#   gdd: design/gdd/combat-system.md
-#   requirement: "Old damage formula using raw stats"
-#   created: 2026-03-10
-#   revised: ""
-#   status: superseded-by: TR-combat-001
+  - id: TR-doc-002
+    system: doc
+    source_adr: docs/architecture/adr-0001-documentation-strategy.md
+    requirement: "Traceability from architectural decisions to implementation must be preserved (ADR → tr-registry → stories)."
+    status: active
+    added: 2026-04-15
+    revised: ""
+
+  - id: TR-doc-003
+    system: doc
+    source_adr: docs/architecture/adr-0001-documentation-strategy.md
+    requirement: "Documentation scheme must scale to future subsystem additions without template friction."
+    status: active
+    added: 2026-04-15
+    revised: ""
+
+  # ─── rnd (ADR-0002 DX12 backend) ──────────────────────────────────────────
+  - id: TR-rnd-001
+    system: rnd
+    source_adr: docs/architecture/adr-0002-dx12-backend-choice.md
+    requirement: "60 fps at 1080p on mid-range consumer hardware with the full Phase 5 feature set enabled."
+    status: active
+    added: 2026-04-15
+    revised: ""
+
+  - id: TR-rnd-002
+    system: rnd
+    source_adr: docs/architecture/adr-0002-dx12-backend-choice.md
+    requirement: "Support HDR10 / scRGB output, VRS Tier 1 and Tier 2, Mesh Shader pipeline, Sampler Feedback, DirectStorage, and DXR 1.1 where hardware allows."
+    status: active
+    added: 2026-04-15
+    revised: ""
+
+  - id: TR-rnd-003
+    system: rnd
+    source_adr: docs/architecture/adr-0002-dx12-backend-choice.md
+    requirement: "Deferred + Forward+ hybrid rendering pipeline (Deferred default; Forward+ opt-in for transparency)."
+    status: active
+    added: 2026-04-15
+    revised: ""
+    notes: "Partial coverage in ADR-0002; dedicated Rendering Pipeline ADR recommended."
+
+  - id: TR-rnd-004
+    system: rnd
+    source_adr: docs/architecture/adr-0002-dx12-backend-choice.md
+    requirement: "Graceful feature fallback when hardware lacks a capability, gated on runtime gx::GraphicsCaps."
+    status: active
+    added: 2026-04-15
+    revised: ""
+
+  - id: TR-rnd-005
+    system: rnd
+    source_adr: docs/architecture/adr-0002-dx12-backend-choice.md
+    requirement: "Keep DX12 / DXGI types out of public GXLib headers; use forward-declared opaque handles."
+    status: active
+    added: 2026-04-15
+    revised: ""
+
+  # ─── api (ADR-0003 DXLib compat API layer) ────────────────────────────────
+  - id: TR-api-001
+    system: api
+    source_adr: docs/architecture/adr-0003-dxlib-compat-api-layer.md
+    requirement: "A DXLib program must port to GXLib by changing #include and adding gx:: namespace qualification — no algorithmic rewrite required for the most-used DXLib functions."
+    status: active
+    added: 2026-04-15
+    revised: ""
+
+  - id: TR-api-002
+    system: api
+    source_adr: docs/architecture/adr-0003-dxlib-compat-api-layer.md
+    requirement: "Compat functions return int following DXLib convention: 0 = success, -1 = failure; no exceptions across the Compat boundary."
+    status: active
+    added: 2026-04-15
+    revised: ""
+
+  - id: TR-api-003
+    system: api
+    source_adr: docs/architecture/adr-0003-dxlib-compat-api-layer.md
+    requirement: "Procedural Compat API and class-style API (gx::App) must coexist over the same underlying engine."
+    status: active
+    added: 2026-04-15
+    revised: ""
+
+  - id: TR-api-004
+    system: api
+    source_adr: docs/architecture/adr-0003-dxlib-compat-api-layer.md
+    requirement: "GXLib-exclusive features (HDR, VRS, PostFX) must be reachable from the procedural layer via GXLib-only functions (e.g., SetPostFXMask, EnableHDROutput) without breaking DXLib-shaped calls."
+    status: active
+    added: 2026-04-15
+    revised: ""
+
+  # ─── ecs (ADR-0004 Archetype-based ECS) ───────────────────────────────────
+  - id: TR-ecs-001
+    system: ecs
+    source_adr: docs/architecture/adr-0004-ecs-architecture.md
+    requirement: "Handle 100k live entities at 60 fps with component-access latency ≤ 2 ms per frame on a mid-range CPU."
+    status: active
+    added: 2026-04-15
+    revised: ""
+
+  - id: TR-ecs-002
+    system: ecs
+    source_adr: docs/architecture/adr-0004-ecs-architecture.md
+    requirement: "Support runtime component composition — entities can gain or lose components without respawning."
+    status: active
+    added: 2026-04-15
+    revised: ""
+
+  - id: TR-ecs-003
+    system: ecs
+    source_adr: docs/architecture/adr-0004-ecs-architecture.md
+    requirement: "Provide query iteration filtered by component set: World::Query<Cs...>()."
+    status: active
+    added: 2026-04-15
+    revised: ""
+
+  - id: TR-ecs-004
+    system: ecs
+    source_adr: docs/architecture/adr-0004-ecs-architecture.md
+    requirement: "Bridge OOP Node and ECS Entity: Transform (required) and Lifetime/Tag (optional) are mirrored once per frame via EntityBridge."
+    status: active
+    added: 2026-04-15
+    revised: ""
+
+  - id: TR-ecs-005
+    system: ecs
+    source_adr: docs/architecture/adr-0004-ecs-architecture.md
+    requirement: "Lua scripts must be able to spawn/destroy entities and run queries via gxlib.world."
+    status: active
+    added: 2026-04-15
+    revised: ""
+
+  # ─── scr (ADR-0005 Lua scripting boundary) ────────────────────────────────
+  - id: TR-scr-001
+    system: scr
+    source_adr: docs/architecture/adr-0005-lua-scripting-boundary.md
+    requirement: "Scripts are hot-reloadable without invalidating C++-held Lua references (generation-counted callbacks)."
+    status: active
+    added: 2026-04-15
+    revised: ""
+
+  - id: TR-scr-002
+    system: scr
+    source_adr: docs/architecture/adr-0005-lua-scripting-boundary.md
+    requirement: "Untrusted mod code runs sandboxed: no os.execute / io.open arbitrary paths / package.loadlib / dofile / loadfile; gxlib.io is path-restricted to the script asset root."
+    status: active
+    added: 2026-04-15
+    revised: ""
+
+  - id: TR-scr-003
+    system: scr
+    source_adr: docs/architecture/adr-0005-lua-scripting-boundary.md
+    requirement: "Lua→C++ trivial bound function call overhead ≤ 1 μs averaged; full ECS query from script ≤ 20 μs."
+    status: active
+    added: 2026-04-15
+    revised: ""
+
+  - id: TR-scr-004
+    system: scr
+    source_adr: docs/architecture/adr-0005-lua-scripting-boundary.md
+    requirement: "Deterministic call cost — no JIT warm-up stalls or unpredictable GC pauses in the gameplay loop."
+    status: active
+    added: 2026-04-15
+    revised: ""
+
+  - id: TR-scr-005
+    system: scr
+    source_adr: docs/architecture/adr-0005-lua-scripting-boundary.md
+    requirement: "C++ types are script-visible only via explicit sol::usertype<T> registration; GraphicsDevice, archetype internals, and detail:: types are never bound."
+    status: active
+    added: 2026-04-15
+    revised: ""
+
+  # ─── charter-level gaps (no ADR yet — placeholder for future registration) ─
+  # These are NOT registered here; they will be added when their ADR is written.
+  # Tracked in docs/architecture/architecture-traceability.md "Known Gaps".

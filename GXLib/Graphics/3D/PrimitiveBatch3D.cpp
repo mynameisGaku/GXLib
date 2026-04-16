@@ -1,0 +1,410 @@
+/// @file PrimitiveBatch3D.cpp
+/// @brief 3Dプリミティブバッチの実装
+#include "pch_graphics.h"
+#include "Graphics/3D/PrimitiveBatch3D.h"
+#include "Graphics/Pipeline/RootSignature.h"
+#include "Graphics/Pipeline/PipelineState.h"
+#include "Graphics/Pipeline/ShaderLibrary.h"
+#include "Math/MathConvert.h"
+#include "Core/Logger.h"
+
+namespace gx
+{
+
+bool PrimitiveBatch3D::Initialize(ID3D12Device* device)
+{
+    if (!m_shader.Initialize())
+        return false;
+
+    uint32_t vbSize = k_MaxVertices * sizeof(LineVertex3D);
+    if (!m_vertexBuffer.Initialize(device, vbSize, sizeof(LineVertex3D)))
+        return false;
+
+    if (!m_constantBuffer.Initialize(device, 256, 256))
+        return false;
+
+    if (!CreatePipelineState(device))
+        return false;
+
+    // ホットリロード用PSO Rebuilder登録
+    ShaderLibrary::Instance().RegisterPSORebuilder(
+        L"Shaders/Primitive3D.hlsl",
+        [this](ID3D12Device* dev) { return CreatePipelineState(dev); }
+    );
+
+    GX_LOG_INFO("PrimitiveBatch3D initialized (max %d vertices)", k_MaxVertices);
+    return true;
+}
+
+bool PrimitiveBatch3D::CreatePipelineState(ID3D12Device* device)
+{
+    auto vsBlob = m_shader.CompileFromFile(L"Shaders/Primitive3D.hlsl", L"VSMain", L"vs_6_0");
+    auto psBlob = m_shader.CompileFromFile(L"Shaders/Primitive3D.hlsl", L"PSMain", L"ps_6_0");
+    if (!vsBlob.valid || !psBlob.valid)
+    {
+        GX_LOG_ERROR("PrimitiveBatch3D: Failed to compile shaders");
+        return false;
+    }
+
+    RootSignatureBuilder rsBuilder;
+    m_rootSignature = rsBuilder
+        .SetFlags(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT)
+        .AddCBV(0)
+        .Build(device);
+
+    if (!m_rootSignature)
+        return false;
+
+    D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT,  0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+    };
+
+    PipelineStateBuilder psoBuilder;
+    m_pso = psoBuilder
+        .SetRootSignature(m_rootSignature.Get())
+        .SetVertexShader(vsBlob.GetBytecode())
+        .SetPixelShader(psBlob.GetBytecode())
+        .SetInputLayout(inputLayout, _countof(inputLayout))
+        .SetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE)
+        .SetRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT)  // HDR RT
+        .SetDepthFormat(DXGI_FORMAT_D32_FLOAT)
+        .SetDepthEnable(true)
+        .SetDepthWriteMask(D3D12_DEPTH_WRITE_MASK_ZERO)  // 深度書き込みOFF
+        .SetCullMode(D3D12_CULL_MODE_NONE)
+        .SetAlphaBlend()
+        .Build(device);
+
+    return m_pso != nullptr;
+}
+
+void PrimitiveBatch3D::Begin(ID3D12GraphicsCommandList* cmdList, uint32_t frameIndex,
+                              const Matrix4x4& viewProjection)
+{
+    m_cmdList    = cmdList;
+    m_frameIndex = frameIndex;
+    m_vertexCount = 0;
+
+    m_mappedVertices = static_cast<LineVertex3D*>(m_vertexBuffer.Map(frameIndex));
+
+    // 定数バッファ
+    void* cbData = m_constantBuffer.Map(frameIndex);
+    if (cbData)
+    {
+        memcpy(cbData, &viewProjection, sizeof(Matrix4x4));
+        m_constantBuffer.Unmap(frameIndex);
+    }
+}
+
+void PrimitiveBatch3D::DrawLine(const Vector3& p0, const Vector3& p1, const Vector4& color)
+{
+    if (!m_mappedVertices || m_vertexCount + 2 > k_MaxVertices)
+        return;
+
+    m_mappedVertices[m_vertexCount++] = { p0, color };
+    m_mappedVertices[m_vertexCount++] = { p1, color };
+}
+
+void PrimitiveBatch3D::DrawWireBox(const Vector3& center, const Vector3& extents, const Vector4& color)
+{
+    float cx = center.x, cy = center.y, cz = center.z;
+    float ex = extents.x, ey = extents.y, ez = extents.z;
+
+    // 8頂点
+    Vector3 v[8] = {
+        { cx - ex, cy - ey, cz - ez }, { cx + ex, cy - ey, cz - ez },
+        { cx + ex, cy + ey, cz - ez }, { cx - ex, cy + ey, cz - ez },
+        { cx - ex, cy - ey, cz + ez }, { cx + ex, cy - ey, cz + ez },
+        { cx + ex, cy + ey, cz + ez }, { cx - ex, cy + ey, cz + ez },
+    };
+
+    // 12辺
+    int edges[][2] = {
+        {0,1},{1,2},{2,3},{3,0}, // front
+        {4,5},{5,6},{6,7},{7,4}, // back
+        {0,4},{1,5},{2,6},{3,7}, // sides
+    };
+
+    for (auto& e : edges)
+        DrawLine(v[e[0]], v[e[1]], color);
+}
+
+void PrimitiveBatch3D::DrawWireSphere(const Vector3& center, float radius, const Vector4& color,
+                                        uint32_t segments)
+{
+    float step = XM_2PI / static_cast<float>(segments);
+
+    // XY平面
+    for (uint32_t i = 0; i < segments; ++i)
+    {
+        float a0 = step * i, a1 = step * (i + 1);
+        DrawLine(
+            { center.x + cosf(a0) * radius, center.y + sinf(a0) * radius, center.z },
+            { center.x + cosf(a1) * radius, center.y + sinf(a1) * radius, center.z }, color);
+    }
+    // XZ平面
+    for (uint32_t i = 0; i < segments; ++i)
+    {
+        float a0 = step * i, a1 = step * (i + 1);
+        DrawLine(
+            { center.x + cosf(a0) * radius, center.y, center.z + sinf(a0) * radius },
+            { center.x + cosf(a1) * radius, center.y, center.z + sinf(a1) * radius }, color);
+    }
+    // YZ平面
+    for (uint32_t i = 0; i < segments; ++i)
+    {
+        float a0 = step * i, a1 = step * (i + 1);
+        DrawLine(
+            { center.x, center.y + cosf(a0) * radius, center.z + sinf(a0) * radius },
+            { center.x, center.y + cosf(a1) * radius, center.z + sinf(a1) * radius }, color);
+    }
+}
+
+void PrimitiveBatch3D::DrawGrid(float size, uint32_t divisions, const Vector4& color)
+{
+    float step = size / static_cast<float>(divisions);
+    float half = size * 0.5f;
+
+    for (uint32_t i = 0; i <= divisions; ++i)
+    {
+        float pos = -half + step * i;
+        DrawLine({ pos, 0, -half }, { pos, 0, half }, color);
+        DrawLine({ -half, 0, pos }, { half, 0, pos }, color);
+    }
+}
+
+void PrimitiveBatch3D::DrawWireCone(const Vector3& center, const Vector3& direction,
+                                     float height, float radius, const Vector4& color,
+                                     uint32_t segments)
+{
+    // Compute tip position
+    XMVECTOR vCenter = XMLoadFloat3(XM(&center));
+    XMVECTOR vDir    = XMVector3Normalize(XMLoadFloat3(XM(&direction)));
+    XMVECTOR vTip    = XMVectorAdd(vCenter, XMVectorScale(vDir, height));
+
+    Vector3 tip;
+    XMStoreFloat3(XM(&tip), vTip);
+
+    // Build two perpendicular vectors to the direction axis
+    XMVECTOR vRef = (fabsf(direction.y) > 0.9f)
+                    ? XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f)
+                    : XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+    XMVECTOR vRight = XMVector3Normalize(XMVector3Cross(vDir, vRef));
+    XMVECTOR vUp    = XMVector3Cross(vRight, vDir);
+
+    float step = XM_2PI / static_cast<float>(segments);
+
+    Vector3 prevBase;
+    for (uint32_t i = 0; i <= segments; ++i)
+    {
+        float angle = step * i;
+        XMVECTOR vOffset = XMVectorAdd(
+            XMVectorScale(vRight, cosf(angle) * radius),
+            XMVectorScale(vUp,    sinf(angle) * radius));
+        XMVECTOR vBasePoint = XMVectorAdd(vCenter, vOffset);
+
+        Vector3 basePoint;
+        XMStoreFloat3(XM(&basePoint), vBasePoint);
+
+        if (i > 0)
+        {
+            // Base circle edge
+            DrawLine(prevBase, basePoint, color);
+        }
+
+        // Line from base to tip (draw at each vertex for full wireframe)
+        if (i < segments)
+        {
+            DrawLine(basePoint, tip, color);
+        }
+
+        prevBase = basePoint;
+    }
+}
+
+void PrimitiveBatch3D::DrawWireCapsule(const Vector3& p0, const Vector3& p1, float radius,
+                                        const Vector4& color, uint32_t segments)
+{
+    XMVECTOR vP0   = XMLoadFloat3(XM(&p0));
+    XMVECTOR vP1   = XMLoadFloat3(XM(&p1));
+    XMVECTOR vAxis = XMVectorSubtract(vP1, vP0);
+    XMVECTOR vDir  = XMVector3Normalize(vAxis);
+
+    // Build two perpendicular vectors to the capsule axis
+    Vector3 dir;
+    XMStoreFloat3(XM(&dir), vDir);
+    XMVECTOR vRef = (fabsf(dir.y) > 0.9f)
+                    ? XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f)
+                    : XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+    XMVECTOR vRight = XMVector3Normalize(XMVector3Cross(vDir, vRef));
+    XMVECTOR vUp    = XMVector3Cross(vRight, vDir);
+
+    float step = XM_2PI / static_cast<float>(segments);
+
+    // --- Draw circles at p0 and p1, plus 4 connecting lines ---
+    Vector3 prevP0Circle, prevP1Circle;
+    for (uint32_t i = 0; i <= segments; ++i)
+    {
+        float angle = step * i;
+        XMVECTOR vOffset = XMVectorAdd(
+            XMVectorScale(vRight, cosf(angle) * radius),
+            XMVectorScale(vUp,    sinf(angle) * radius));
+
+        Vector3 cp0, cp1;
+        XMStoreFloat3(XM(&cp0), XMVectorAdd(vP0, vOffset));
+        XMStoreFloat3(XM(&cp1), XMVectorAdd(vP1, vOffset));
+
+        if (i > 0)
+        {
+            DrawLine(prevP0Circle, cp0, color);
+            DrawLine(prevP1Circle, cp1, color);
+        }
+
+        // 4 connecting lines at cardinal directions (every segments/4)
+        if (segments >= 4 && i < segments && (i % (segments / 4)) == 0)
+        {
+            DrawLine(cp0, cp1, color);
+        }
+
+        prevP0Circle = cp0;
+        prevP1Circle = cp1;
+    }
+
+    // --- Draw hemisphere arcs at each end ---
+    float halfStep = XM_PI / static_cast<float>(segments);
+
+    // Helper lambda: draw a semicircle arc on a given plane at a given endpoint
+    auto drawHemisphereArc = [&](XMVECTOR vCenter, XMVECTOR vTangent, XMVECTOR vAxisDir, float sign)
+    {
+        Vector3 prev;
+        for (uint32_t i = 0; i <= segments; ++i)
+        {
+            float angle = halfStep * i;  // 0 to PI
+            XMVECTOR vPoint = XMVectorAdd(vCenter,
+                XMVectorAdd(
+                    XMVectorScale(vTangent, cosf(angle) * radius),
+                    XMVectorScale(vAxisDir, sinf(angle) * radius * sign)));
+
+            Vector3 pt;
+            XMStoreFloat3(XM(&pt), vPoint);
+
+            if (i > 0)
+                DrawLine(prev, pt, color);
+
+            prev = pt;
+        }
+    };
+
+    // p0 hemisphere: arcs in the -axis direction (right and up planes)
+    drawHemisphereArc(vP0, vRight, vDir, -1.0f);
+    drawHemisphereArc(vP0, vUp,    vDir, -1.0f);
+
+    // p1 hemisphere: arcs in the +axis direction (right and up planes)
+    drawHemisphereArc(vP1, vRight, vDir, 1.0f);
+    drawHemisphereArc(vP1, vUp,    vDir, 1.0f);
+}
+
+void PrimitiveBatch3D::DrawWireFrustum(const Matrix4x4& inverseViewProjection, const Vector4& color)
+{
+    XMMATRIX invVP = XMLoadFloat4x4(XM(&inverseViewProjection));
+
+    // NDC corners: (x, y, z) where z=0 is near, z=1 is far
+    Vector3 ndcCorners[8] = {
+        { -1.0f, -1.0f, 0.0f }, {  1.0f, -1.0f, 0.0f },
+        {  1.0f,  1.0f, 0.0f }, { -1.0f,  1.0f, 0.0f },
+        { -1.0f, -1.0f, 1.0f }, {  1.0f, -1.0f, 1.0f },
+        {  1.0f,  1.0f, 1.0f }, { -1.0f,  1.0f, 1.0f },
+    };
+
+    // Unproject NDC corners to world space
+    Vector3 worldCorners[8];
+    for (int i = 0; i < 8; ++i)
+    {
+        XMVECTOR vNDC = XMLoadFloat3(XM(&ndcCorners[i]));
+        XMVECTOR vWorld = XMVector3TransformCoord(vNDC, invVP);
+        XMStoreFloat3(XM(&worldCorners[i]), vWorld);
+    }
+
+    // 12 edges: 4 near, 4 far, 4 connecting
+    int edges[][2] = {
+        {0,1},{1,2},{2,3},{3,0}, // near plane
+        {4,5},{5,6},{6,7},{7,4}, // far plane
+        {0,4},{1,5},{2,6},{3,7}, // connecting edges
+    };
+
+    for (auto& e : edges)
+        DrawLine(worldCorners[e[0]], worldCorners[e[1]], color);
+}
+
+void PrimitiveBatch3D::DrawWireCircle(const Vector3& center, const Vector3& normal, float radius,
+                                       const Vector4& color, uint32_t segments)
+{
+    XMVECTOR vCenter = XMLoadFloat3(XM(&center));
+    XMVECTOR vNormal = XMVector3Normalize(XMLoadFloat3(XM(&normal)));
+
+    // Build two perpendicular vectors to the normal
+    XMVECTOR vRef = (fabsf(normal.y) > 0.9f)
+                    ? XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f)
+                    : XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+    XMVECTOR vRight = XMVector3Normalize(XMVector3Cross(vNormal, vRef));
+    XMVECTOR vUp    = XMVector3Cross(vRight, vNormal);
+
+    float step = XM_2PI / static_cast<float>(segments);
+
+    Vector3 prev;
+    for (uint32_t i = 0; i <= segments; ++i)
+    {
+        float angle = step * i;
+        XMVECTOR vOffset = XMVectorAdd(
+            XMVectorScale(vRight, cosf(angle) * radius),
+            XMVectorScale(vUp,    sinf(angle) * radius));
+        XMVECTOR vPoint = XMVectorAdd(vCenter, vOffset);
+
+        Vector3 pt;
+        XMStoreFloat3(XM(&pt), vPoint);
+
+        if (i > 0)
+            DrawLine(prev, pt, color);
+
+        prev = pt;
+    }
+}
+
+void PrimitiveBatch3D::DrawAxis(const Vector3& origin, float size, float alpha)
+{
+    // X axis - Red
+    DrawLine(origin, { origin.x + size, origin.y, origin.z },
+             { 1.0f, 0.0f, 0.0f, alpha });
+    // Y axis - Green
+    DrawLine(origin, { origin.x, origin.y + size, origin.z },
+             { 0.0f, 1.0f, 0.0f, alpha });
+    // Z axis - Blue
+    DrawLine(origin, { origin.x, origin.y, origin.z + size },
+             { 0.0f, 0.0f, 1.0f, alpha });
+}
+
+void PrimitiveBatch3D::End()
+{
+    if (!m_mappedVertices || m_vertexCount == 0)
+    {
+        if (m_mappedVertices)
+            m_vertexBuffer.Unmap(m_frameIndex);
+        m_mappedVertices = nullptr;
+        return;
+    }
+
+    m_vertexBuffer.Unmap(m_frameIndex);
+    m_mappedVertices = nullptr;
+
+    // パイプライン設定
+    m_cmdList->SetPipelineState(m_pso.Get());
+    m_cmdList->SetGraphicsRootSignature(m_rootSignature.Get());
+    m_cmdList->SetGraphicsRootConstantBufferView(0, m_constantBuffer.GetGPUVirtualAddress(m_frameIndex));
+
+    m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
+    auto vbv = m_vertexBuffer.GetVertexBufferView(m_frameIndex, m_vertexCount * sizeof(LineVertex3D));
+    m_cmdList->IASetVertexBuffers(0, 1, &vbv);
+    m_cmdList->DrawInstanced(m_vertexCount, 1, 0, 0);
+}
+
+} // namespace gx

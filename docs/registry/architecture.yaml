@@ -30,7 +30,8 @@
 #   Superseded entries:     Grep pattern="status: superseded"
 
 version: 1
-last_updated: ""
+last_updated: "2026-04-15"
+# 2026-04-15: ADR-0001..ADR-0010 (doc, DX12, Compat, ECS, Lua, Jobs, AssetDB, RenderPipeline, Physics, Audio)
 
 # ─── STATE OWNERSHIP ─────────────────────────────────────────────────────────
 # Who is the authoritative owner of each piece of shared game state.
@@ -43,7 +44,50 @@ last_updated: ""
 # interface: how other systems access this state (read-only property, method call,
 #   signal, shared resource, etc.) — this is the contract other ADRs depend on.
 
-state_ownership: []
+state_ownership:
+  - state: graphics_device
+    status: active
+    owner_system: Graphics/Device
+    adr: docs/architecture/adr-0002-dx12-backend-choice.md
+    interface: "gx::GraphicsDevice (sole owner of ID3D12Device; non-copyable; accessed via forward-declared handles — no DX12 types in public headers)"
+    write_access: graphics-device-only
+    referenced_by:
+      - docs/architecture/adr-0002-dx12-backend-choice.md
+    added: 2026-04-15
+    revised: ""
+
+  - state: worker_threads
+    status: active
+    owner_system: Core/JobSystem
+    adr: docs/architecture/adr-0006-job-system-architecture.md
+    interface: "gx::JobSystem (singleton; owns all worker threads for the process; fixed count = hardware_concurrency() - 1 by default; workers live for process lifetime, joined on Shutdown)."
+    write_access: jobsystem-only
+    referenced_by:
+      - docs/architecture/adr-0006-job-system-architecture.md
+    added: 2026-04-15
+    revised: ""
+
+  - state: asset_cache
+    status: active
+    owner_system: Core/AssetDatabase
+    adr: docs/architecture/adr-0007-asset-database-hot-reload.md
+    interface: "gx::AssetDatabase (singleton; single process-wide map AssetId → AssetRecord; owns load state, generation counter, ref count, dependency graph). Consumers access via AssetHandle<T>, never via raw pointer across frames."
+    write_access: assetdatabase-only
+    referenced_by:
+      - docs/architecture/adr-0007-asset-database-hot-reload.md
+    added: 2026-04-15
+    revised: ""
+
+  - state: rigid_body_state
+    status: active
+    owner_system: Physics/PhysicsWorld{2D,3D}
+    adr: docs/architecture/adr-0009-physics-architecture.md
+    interface: "gx::PhysicsWorld2D / gx::PhysicsWorld3D own per-body dynamic state (position, orientation, linear/angular velocity, accumulated forces). ECS components hold only opaque BodyHandle (32-bit index + 32-bit generation) plus static metadata (mass, material AssetId). Transforms sync between ECS and PhysicsWorld via EntityBridge at defined frame phase."
+    write_access: physicsworld-only
+    referenced_by:
+      - docs/architecture/adr-0009-physics-architecture.md
+    added: 2026-04-15
+    revised: ""
 
 # Example:
 #
@@ -71,7 +115,154 @@ state_ownership: []
 #
 # pattern options: signal | direct_call | event_bus | shared_resource | rpc | none
 
-interfaces: []
+interfaces:
+  - contract: compat_context_ownership
+    status: active
+    pattern: shared_resource
+    producer: Compat/CompatContext
+    consumers:
+      - Compat/Compat_2D
+      - Compat/Compat_3D
+      - Compat/Compat_Font
+      - Compat/Compat_Input
+      - Compat/Compat_Sound
+      - Compat/Compat_System
+      - Compat/Compat_Particle
+      - Compat/Compat_Math
+    adr: docs/architecture/adr-0003-dxlib-compat-api-layer.md
+    signal_signature: "gx::CompatContext& gx::GetCompatContext(); (file-static singleton, lazily acquires GraphicsDevice/FontManager/SoundManager/InputManager on first use, releases on GX_End())"
+    referenced_by:
+      - docs/architecture/adr-0003-dxlib-compat-api-layer.md
+    added: 2026-04-15
+    revised: ""
+
+  - contract: oop_ecs_entity_bridge
+    status: active
+    pattern: shared_resource
+    producer: ECS/EntityBridge
+    consumers:
+      - Core/SceneManager (OOP side)
+      - ECS/World (ECS side)
+    adr: docs/architecture/adr-0004-ecs-architecture.md
+    signal_signature: "gx::EntityBridge::Attach(Node*, Entity); bridge mirrors Transform (required) and Lifetime/Tag (optional) between a scene Node and an ECS entity. Single canonical owner per paired entity: Node drives if authored, ECS drives if spawned. Sync runs once per frame at a defined phase — not every mutation."
+    referenced_by:
+      - docs/architecture/adr-0004-ecs-architecture.md
+    added: 2026-04-15
+    revised: ""
+
+  - contract: job_submission
+    status: active
+    pattern: direct_call
+    producer: "any subsystem (Graphics, Physics, ECS, IO, AI, Audio, etc.)"
+    consumers:
+      - Core/JobSystem
+    adr: docs/architecture/adr-0006-job-system-architecture.md
+    signal_signature: "JobHandle Submit(fn, JobPriority); JobHandle SubmitAfter(dep(s), fn, JobPriority); JobHandle ParallelFor(begin, end, batchSize, fn_i); JobHandle SubmitMainThread(fn). Wait(h) is cooperative — callable from workers, which help drain other work while waiting. Main-thread queue is drained by ProcessMainThreadJobs(budget_ms) — sole path for DX12 swap-chain calls and any Lua state touch."
+    referenced_by:
+      - docs/architecture/adr-0006-job-system-architecture.md
+    added: 2026-04-15
+    revised: ""
+
+  - contract: asset_handle
+    status: active
+    pattern: shared_resource
+    producer: Core/AssetDatabase
+    consumers:
+      - "any subsystem requesting assets (Graphics, Audio, ECS, Lua, Physics, GUI, etc.)"
+    adr: docs/architecture/adr-0007-asset-database-hot-reload.md
+    signal_signature: "AssetHandle<T> AssetDatabase::Get<T>(AssetId); future<AssetHandle<T>> LoadAsync<T>(AssetId). Handle carries generation counter; Resolve() returns current T* or nullptr; IsStale() indicates reload since last resolve. Consumers never hold raw pointers across frames."
+    referenced_by:
+      - docs/architecture/adr-0007-asset-database-hot-reload.md
+    added: 2026-04-15
+    revised: ""
+
+  - contract: file_provider_chain
+    status: active
+    pattern: shared_resource
+    producer: IO/AsyncLoadPipeline
+    consumers:
+      - Core/AssetDatabase
+      - Core/AssetReloader
+    adr: docs/architecture/adr-0007-asset-database-hot-reload.md
+    signal_signature: "IFileProvider { bool Resolves(AssetId); span<byte> ReadSync(AssetId); future<bytes> ReadAsync(AssetId); }. Stacked priority order: PhysicalFileProvider > ArchiveFileProvider > PakFileProvider > BundleManager. AssetRemapper may route AssetId → alternate path ahead of the chain. Dev mode prefers Physical (for hot reload); ship mode prefers Archive/Pak."
+    referenced_by:
+      - docs/architecture/adr-0007-asset-database-hot-reload.md
+    added: 2026-04-15
+    revised: ""
+
+  - contract: framegraph_pass_declaration
+    status: active
+    pattern: direct_call
+    producer: "rendering subsystems (Shadow, GBuffer, Deferred shade, Forward+, PostFX, etc.)"
+    consumers:
+      - Graphics/FrameGraph/FrameGraph
+    adr: docs/architecture/adr-0008-rendering-pipeline.md
+    signal_signature: "FrameGraph::Pass(name).Read(handle).Write(handle).Execute(fn) — passes declare their resource reads/writes upfront. FrameGraph emits all ResourceBarrier calls automatically, aliases transient resources, culls passes whose outputs are never read, and parallelises recording across JobSystem workers. Command recording is per-worker; submission to ID3D12CommandQueue is main-thread-only (ADR-0006)."
+    referenced_by:
+      - docs/architecture/adr-0008-rendering-pipeline.md
+    added: 2026-04-15
+    revised: ""
+
+  - contract: body_handle
+    status: active
+    pattern: shared_resource
+    producer: Physics/PhysicsWorld{2D,3D}
+    consumers:
+      - "any subsystem referencing physics bodies (ECS RigidBody components, gameplay code, Lua bindings, CharacterController, Ragdoll)"
+    adr: docs/architecture/adr-0009-physics-architecture.md
+    signal_signature: "gx::BodyHandle = 64-bit opaque (32-bit index + 32-bit generation). Returned by AddBody(BodyDesc); invalidated by RemoveBody. All physics APIs (AddConstraint, Raycast filter, SetVelocity, GetTransform) take BodyHandle — never a raw pointer. Generation detects use-after-remove."
+    referenced_by:
+      - docs/architecture/adr-0009-physics-architecture.md
+    added: 2026-04-15
+    revised: ""
+
+  - contract: audio_bus
+    status: active
+    pattern: shared_resource
+    producer: Audio/AudioMixer
+    consumers:
+      - Audio/AudioEmitter
+      - Audio/MusicPlayer
+      - Audio/AudioSnapshot
+      - "gameplay code adjusting volume / mute / solo / DSP params"
+    adr: docs/architecture/adr-0010-audio-architecture.md
+    signal_signature: "gx::AudioBus carries volume, mute, solo, optional reverb send, and an insert chain of ≤4 DSP effects (LowPass / HighPass / Reverb / Delay / Compressor). Default topology: Master → {Music, SFX, Voice, Ambient}. Reverb is a special send-target bus. AudioManager::GetBus(name) retrieves. Parameter writes are atomic double-buffered; no locks on the XAudio2 callback path."
+    referenced_by:
+      - docs/architecture/adr-0010-audio-architecture.md
+    added: 2026-04-15
+    revised: ""
+
+  - name: physics_broadphase_query
+    status: active
+    pattern: concurrent_versioned_read
+    producer: Physics/PhysicsWorld3D (and PhysicsWorld2D)
+    consumers:
+      - "Physics/PhysicsWorld3D::Raycast / OverlapSphere / ShapeCast"
+      - Audio/AudioOcclusion (Job-thread, Normal priority, concurrent with Step)
+      - IO/Network/InterestManagement (Job-thread, replication tick, concurrent with Step)
+    adr: docs/architecture/adr-0009-physics-architecture.md
+    signal_signature: "Read-only queries against the broadphase AABB-tree are safe from any thread at any time, including concurrent with PhysicsWorld::Step. The tree is published copy-on-write — readers acquire the current root pointer atomically and traverse a stable snapshot (prior-frame or current-frame). Mutations remain main-thread or queued via the command buffer that flushes at next-step start. Consumers MUST NOT cache raw node pointers across calls."
+    referenced_by:
+      - docs/architecture/adr-0009-physics-architecture.md
+      - docs/architecture/adr-0010-audio-architecture.md
+      - docs/architecture/adr-0013-networking-architecture.md
+    added: 2026-04-16
+    revised: ""
+
+  - name: physics_island_solve_reduction_order
+    status: active
+    pattern: deterministic_barrier_then_serial_merge
+    producer: Physics/PhysicsWorld3D (constraint solver)
+    consumers:
+      - IO/Network/RollbackNetcode (re-simulation must be byte-identical)
+      - Core/SaveSystem + ReplaySystem (deterministic replay)
+    adr: docs/architecture/adr-0009-physics-architecture.md
+    signal_signature: "Island solve runs one Job per island in parallel on JobSystem workers. Each Job writes its solved island state into a pre-allocated slot indexed by deterministic island-ID (lowest-body-id-in-island). After a barrier on all island Jobs, a single main-thread pass merges results in ascending island-ID order. Reduction order is therefore independent of Job completion order, worker thread count, or CPU SKU. Fast-math is disabled in physics solver TUs."
+    referenced_by:
+      - docs/architecture/adr-0009-physics-architecture.md
+      - docs/architecture/adr-0013-networking-architecture.md
+    added: 2026-04-16
+    revised: ""
 
 # Example:
 #
@@ -100,7 +291,93 @@ interfaces: []
 # Register a budget when an ADR explicitly claims a frame time allocation.
 # The registry lets /architecture-review verify the total doesn't exceed the target.
 
-performance_budgets: []
+performance_budgets:
+  - target_fps: 60
+    total_frame_budget_ms: 16.6
+    platform: PC
+    adr: docs/architecture/adr-0002-dx12-backend-choice.md
+    added: 2026-04-15
+    revised: ""
+
+  - system: ecs-update
+    status: active
+    budget_ms: 2.0
+    adr: docs/architecture/adr-0004-ecs-architecture.md
+    notes: "All registered ECS systems combined, at 100k live entities with 4-component query iteration, on mid-range CPU. Includes archetype walk + component access + command-buffer flush; excludes per-system gameplay logic complexity."
+    referenced_by:
+      - docs/architecture/adr-0004-ecs-architecture.md
+    added: 2026-04-15
+    revised: ""
+
+  - system: script-execution
+    status: active
+    budget_ms: 1.0
+    adr: docs/architecture/adr-0005-lua-scripting-boundary.md
+    notes: "All live Lua scripts combined, per frame at 60 fps. Includes Lua VM execution, sol2 binding calls, and pcall error trapping. Scripts exceeding budget are logged; preemption is cooperative (scripts expected to yield via coroutines for long work)."
+    referenced_by:
+      - docs/architecture/adr-0005-lua-scripting-boundary.md
+    added: 2026-04-15
+    revised: ""
+
+  - system: job-system-scheduling
+    status: active
+    budget_ms: 0.2
+    adr: docs/architecture/adr-0006-job-system-architecture.md
+    notes: "Scheduler overhead only — time spent in Submit/SubmitAfter/Wait/steal/wake, excluding user job bodies. Target: ~200 jobs/frame + ParallelFor splits. Worker sleep/wake latency ≤ 50 μs via condition variable."
+    referenced_by:
+      - docs/architecture/adr-0006-job-system-architecture.md
+    added: 2026-04-15
+    revised: ""
+
+  - system: asset-resolve
+    status: active
+    budget_ns: 100
+    adr: docs/architecture/adr-0007-asset-database-hot-reload.md
+    notes: "Steady-state AssetDatabase::Get<T>(AssetId) call overhead ≤ 100 ns: hashmap lookup + generation check + type-tag cast. Excludes initial load cost (handled by AsyncLoader). AssetHandle<T>::Resolve() on an already-valid handle is likewise ≤ 100 ns."
+    referenced_by:
+      - docs/architecture/adr-0007-asset-database-hot-reload.md
+    added: 2026-04-15
+    revised: ""
+
+  - system: clustered-light-build
+    status: active
+    budget_ms: 0.3
+    adr: docs/architecture/adr-0008-rendering-pipeline.md
+    notes: "Per-frame ClusteredLighting::BuildLightList for 256 active lights on a 16×9×24 cluster grid, mid-range CPU. Excludes GPU-side cluster fill / sort. Soft cap 512 lights/frame, hard cap 4096."
+    referenced_by:
+      - docs/architecture/adr-0008-rendering-pipeline.md
+    added: 2026-04-15
+    revised: ""
+
+  - system: framegraph-compile
+    status: active
+    budget_ms: 0.1
+    adr: docs/architecture/adr-0008-rendering-pipeline.md
+    notes: "Per-frame FrameGraph pass-sort + transient-resource aliasing + barrier emission, for a typical ~20-pass render frame on mid-range CPU. Excludes command-list recording time (parallelised across JobSystem workers)."
+    referenced_by:
+      - docs/architecture/adr-0008-rendering-pipeline.md
+    added: 2026-04-15
+    revised: ""
+
+  - system: physics-step
+    status: active
+    budget_ms: 3.0
+    adr: docs/architecture/adr-0009-physics-architecture.md
+    notes: "Full PhysicsWorld3D::Step at 60 Hz for 1,000 active dynamic rigid bodies on 8-core mid-range CPU. Includes broadphase refit (≤ 0.3 ms), narrow-phase (≤ 0.8 ms), constraint solve at 8 velocity + 3 position iterations (≤ 1.5 ms), and ECS mirror (≤ 0.4 ms). Excludes cloth and ragdoll workloads (measured separately)."
+    referenced_by:
+      - docs/architecture/adr-0009-physics-architecture.md
+    added: 2026-04-15
+    revised: ""
+
+  - system: audio-total
+    status: active
+    budget_ms: 1.5
+    adr: docs/architecture/adr-0010-audio-architecture.md
+    notes: "Per-frame audio budget at 60 fps on mid-range CPU. Breakdown: XAudio2 mix + bus DSP ≤ 1.0 ms (runs on XAudio2-owned audio thread, not main thread), occlusion raycast batch ≤ 0.2 ms (shares physics raycast budget), main-thread audio API (Play/SetVolume/snapshot-blend) ≤ 0.3 ms. Assumes ≤64 live voices + 8 streaming voices."
+    referenced_by:
+      - docs/architecture/adr-0010-audio-architecture.md
+    added: 2026-04-15
+    revised: ""
 
 # Example:
 #
@@ -131,7 +408,261 @@ performance_budgets: []
 # Register an API decision when the choice is non-obvious and other ADRs might
 # make a different choice for the same purpose without knowing this was decided.
 
-api_decisions: []
+api_decisions:
+  - purpose: project_documentation_strategy
+    status: active
+    api: "ADR-only (docs/architecture/adr-*.md) + Doxygen in headers"
+    not: "GDD-driven workflow (design/gdd/*.md)"
+    adr: docs/architecture/adr-0001-documentation-strategy.md
+    reason: "GXLib is a game engine SDK, not a game. GDD vocabulary (Player Fantasy, Tuning Knobs, Acceptance Criteria as gameplay) does not apply to API design."
+    referenced_by:
+      - docs/architecture/adr-0001-documentation-strategy.md
+    added: 2026-04-15
+    revised: ""
+
+  - purpose: rendering_backend
+    status: active
+    api: "DirectX 12 (Feature Level 12_1 min, 12_2 where available), DXC + HLSL 6.x"
+    not: "DirectX 11, Vulkan, dual-backend abstraction"
+    adr: docs/architecture/adr-0002-dx12-backend-choice.md
+    reason: "DXLib's DX11 heritage blocks modern GPU features (HDR, VRS, Mesh Shaders, Sampler Feedback, DirectStorage, DXR). Windows-only scope means Vulkan offers no portability benefit and weaker Windows feature maturity."
+    referenced_by:
+      - docs/architecture/adr-0002-dx12-backend-choice.md
+    added: 2026-04-15
+    revised: ""
+
+  - purpose: public_procedural_api
+    status: active
+    api: "namespace gx:: free functions with DXLib-shaped names (DrawGraph, DrawString, LoadGraph, LoadSoundMem, etc.); int return codes (0 success, -1 failure); GX_Init()/GX_End()/ProcessMessage() for lifecycle"
+    not: "global-namespace DXLib symbols, DxLib_Init / DxLib_End verbatim, exception-based error reporting across the Compat boundary"
+    adr: docs/architecture/adr-0003-dxlib-compat-api-layer.md
+    reason: "Namespace scoping prevents ODR clashes when a user links both DxLib and GXLib during a porting transition, and makes call-site intent explicit in reviews. DXLib-shaped names minimise porting effort for existing DXLib users."
+    referenced_by:
+      - docs/architecture/adr-0003-dxlib-compat-api-layer.md
+    added: 2026-04-15
+    revised: ""
+
+  - purpose: ecs_layout
+    status: active
+    api: "Archetype-based ECS (GXLib/ECS/): entities with identical component sets share an Archetype; each archetype owns contiguous SoA ComponentStorage arrays. Entity = 32-bit index + 32-bit generation. Query<Cs...>() walks matching archetypes."
+    not: "sparse-set ECS (EnTT-style), pure-OOP replacement of ECS, inheritance-based components"
+    adr: docs/architecture/adr-0004-ecs-architecture.md
+    reason: "GXLib's target workloads (particles, AI, projectiles) query 3–5 components per system. Archetype SoA iteration is faster than sparse-set in that regime, and the structural-change cost is accepted as a deferred command-buffer operation."
+    referenced_by:
+      - docs/architecture/adr-0004-ecs-architecture.md
+    added: 2026-04-15
+    revised: ""
+
+  - purpose: scripting_language
+    status: active
+    api: "Lua 5.4 (single embedded scripting language), sol2 3.x for C++ bindings, one sol::state per script context, path-restricted I/O via gxlib.io, sandbox-by-default (explicit allowlist of stdlib functions)"
+    not: "LuaJIT (Lua 5.1 semantics), hand-rolled Lua C API bindings, multi-language scripting (no C#/Python/JS alongside Lua), raw Lua file I/O via io.open"
+    adr: docs/architecture/adr-0005-lua-scripting-boundary.md
+    reason: "Lua 5.4's integer type and to-be-closed variables, plus timing predictability (no JIT warm-up), suit the glue-logic role better than LuaJIT's throughput. sol2 gives header-only type-safe bindings without hand-rolled stack manipulation. One scripting language keeps the binding surface maintainable."
+    referenced_by:
+      - docs/architecture/adr-0005-lua-scripting-boundary.md
+    added: 2026-04-15
+    revised: ""
+
+  - purpose: script_facade_surface
+    status: active
+    api: "Curated gxlib.* namespaces visible to scripts: gxlib.world, gxlib.draw, gxlib.audio, gxlib.input, gxlib.events, gxlib.physics, gxlib.gui, gxlib.io. Component types become script-visible only via explicit sol::usertype<T> registration in GXLib/Script/ScriptBindings.cpp."
+    not: "raw GraphicsDevice / ID3D12Device / internal archetype pointers / detail:: namespace types exposed to Lua"
+    adr: docs/architecture/adr-0005-lua-scripting-boundary.md
+    reason: "A curated facade decouples script authoring from engine internals — C++ can refactor private layout freely as long as the gxlib.* surface is preserved. Explicit binding registration keeps new components C++-only by default, preventing accidental leak of engine internals to untrusted mod code."
+    referenced_by:
+      - docs/architecture/adr-0005-lua-scripting-boundary.md
+    added: 2026-04-15
+    revised: ""
+
+  - purpose: task_scheduler
+    status: active
+    api: "gx::JobSystem singleton + task-stealing (Chase-Lev) deques. Fixed worker count = hardware_concurrency()-1 by default. Three priority tiers (High/Normal/Low), graph-shaped dependencies via SubmitAfter(dep(s), fn), ParallelFor for embarrassingly-parallel loops, SubmitMainThread for thread-affine work. Cooperative Wait (workers help drain)."
+    not: "OS ThreadPool (Windows CreateThreadpoolWork), fiber-based schedulers, std::async-per-call, single shared MPMC queue, subsystems spawning their own std::thread pools, preemptive priority"
+    adr: docs/architecture/adr-0006-job-system-architecture.md
+    reason: "Work-stealing scales near-linearly for game workloads above ~4 cores while OS pools and single-queue designs do not. Fibers introduce MSVC debugger / TLS / DX12 command-list affinity problems that outweigh their nested-parallelism elegance. One shared scheduler prevents oversubscription when 5+ subsystems each want to parallelise."
+    referenced_by:
+      - docs/architecture/adr-0006-job-system-architecture.md
+    added: 2026-04-15
+    revised: ""
+
+  - purpose: asset_identity
+    status: active
+    api: "AssetId = 64-bit FNV-1a hash of normalised logical path (forward slashes, lowercase, no extension unless needed for disambiguation). Addressable via typed constants from a generated asset-ID header built from the project manifest."
+    not: "std::string paths passed through code, relative or absolute filesystem paths hardcoded in source, per-subsystem identity schemes, cryptographic hashes (unnecessary for the use case)"
+    adr: docs/architecture/adr-0007-asset-database-hot-reload.md
+    reason: "Stable hashed IDs survive rename, rebuild, and archive repackaging. Decoupling source from on-disk layout lets shipping repackage assets into .pak / .gxa without touching code. FNV-1a is fast and collision rate over a single game's asset set is negligible — collisions are detected at insert time."
+    referenced_by:
+      - docs/architecture/adr-0007-asset-database-hot-reload.md
+    added: 2026-04-15
+    revised: ""
+
+  - purpose: asset_loading
+    status: active
+    api: "AssetDatabase::Get<T>(AssetId) for sync; AsyncLoader::LoadAsync<T>(AssetId) submits to JobSystem; bytes flow through priority-ordered IFileProvider chain (Physical→Archive→Pak→Bundle), with AssetRemapper overrides ahead of the chain for mod support. DirectStorageManager is used for GPU-bound assets when hardware supports it; automatic fallback to ReadFile+staging upload otherwise."
+    not: "per-subsystem load logic (TextureManager::Load, SoundManager::Load each opening files directly), synchronous blocking loads on the main thread for large assets, DirectStorage-required (no fallback)"
+    adr: docs/architecture/adr-0007-asset-database-hot-reload.md
+    reason: "One load path makes caching, hot reload, dependency tracking, and mod support tractable. Per-subsystem managers duplicate all of these and silently diverge. DirectStorage fallback is mandatory because not all consumer hardware supports it — ADR-0002 commits to running on minimum-spec."
+    referenced_by:
+      - docs/architecture/adr-0007-asset-database-hot-reload.md
+    added: 2026-04-15
+    revised: ""
+
+  - purpose: rendering_pipeline
+    status: active
+    api: "Hybrid Deferred + Forward+ with shared clustered lighting. MaterialDomain enum routes: Opaque→Deferred, Transparent/Cutout/Decal/Particle→Forward+. Both paths sample the same per-frame cluster grid (Graphics/3D/ClusteredLighting). 2D/UI/Text runs after SDR composition in a separate FrameGraph pass."
+    not: "Pure Deferred (transparency suffers), Pure Forward+ (opaque-dense scenes too expensive), Visibility Buffer / GPU-driven single-pass (not on current hardware floor), per-material ad-hoc pipeline branches"
+    adr: docs/architecture/adr-0008-rendering-pipeline.md
+    reason: "Material diversity + dense-opaque performance forces hybrid. Shared clustered light list prevents lighting mismatch at material boundaries. Routing is a data property of the material, not a runtime branch in the shade path."
+    referenced_by:
+      - docs/architecture/adr-0008-rendering-pipeline.md
+    added: 2026-04-15
+    revised: ""
+
+  - purpose: gbuffer_layout
+    status: active
+    api: "4 RTs: RT0 Albedo (RGB8)+MatID (A8); RT1 Normal octahedral (RGB10A2)+Roughness; RT2 Metallic+AO+Emissive mask+MotionVector packed; RT3 Depth (D32_FLOAT separate). Fixed layout."
+    not: "dynamic GBuffer layout per material, adding a 5th RT without an ADR supersede, storing unpacked normals or unpacked motion vectors"
+    adr: docs/architecture/adr-0008-rendering-pipeline.md
+    reason: "Fixed layout lets every consumer (SSAO, decals, deferred shade, post-processing) assume RT bindings. Octahedral + packing keep bandwidth affordable at 1080p+ on mid-range GPUs. Changing the layout is a breaking change that must supersede this ADR."
+    referenced_by:
+      - docs/architecture/adr-0008-rendering-pipeline.md
+    added: 2026-04-15
+    revised: ""
+
+  - purpose: postfx_chain_order
+    status: active
+    api: "Fixed canonical PostFX order on linear fp16 scene colour: AutoExposure → DoF → MotionBlur → Bloom → LensFlare → ChromaticAberration → FilmGrain → ColorGrading → Outline → ContactShadows → ToneMap+OutputTransform → SDR UI composite → Present. PostFXMask (bitmask per camera) enables/disables individual effects but NEVER reorders them."
+    not: "per-camera reordering of PostFX, ColorGrading before Bloom (breaks HDR-aware grading), ToneMap in the middle of the chain, running PostFX on SDR buffers"
+    adr: docs/architecture/adr-0008-rendering-pipeline.md
+    reason: "Physically-meaningful PostFX (Bloom samples linear HDR scene; ColorGrading expects linear input) requires a consistent HDR-throughout pipeline. Fixed order makes per-effect behaviour testable and prevents combinatorial QA explosion. Reordering is a supersede-level decision."
+    referenced_by:
+      - docs/architecture/adr-0008-rendering-pipeline.md
+    added: 2026-04-15
+    revised: ""
+
+  - purpose: hdr_workflow
+    status: active
+    api: "Main scene + PostFX run on R16G16B16A16_FLOAT (linear). Tone-map + output transform at the end selects the swap-chain format at startup: HDR10 (BT.2020 + ST.2084 PQ), scRGB (linear 16-bit), or SDR sRGB (ACES-filmic / Reinhard). Selection is runtime detection via DXGI + user opt-in; SDR is the default to avoid mis-detection."
+    not: "SDR-throughout pipeline with a 'make it HDR' filter at the end, auto-enabling HDR on detection without user opt-in, tone-mapping inside individual PostFX effects"
+    adr: docs/architecture/adr-0008-rendering-pipeline.md
+    reason: "HDR requires linear values throughout for Bloom / DoF / exposure to behave physically. Detecting-but-defaulting-SDR avoids the common bug of apps trying to push HDR to a mis-reporting display and producing washed-out output."
+    referenced_by:
+      - docs/architecture/adr-0008-rendering-pipeline.md
+    added: 2026-04-15
+    revised: ""
+
+  - purpose: physics_backend
+    status: active
+    api: "Custom in-house physics stack: separate PhysicsWorld2D and PhysicsWorld3D, dynamic AABB-tree broadphase, GJK/EPA narrow-phase (with sphere/box/capsule fast paths), sequential-impulse constraint solver with warm starting + Baumgarte + split-impulse, Verlet cloth, capsule-sweep CharacterController, raycast-wheel VehiclePhysics."
+    not: "Jolt Physics, Bullet Physics, NVIDIA PhysX, GPU-accelerated core solver (future ADR), unified 2D-in-3D world"
+    adr: docs/architecture/adr-0009-physics-architecture.md
+    reason: "The in-house stack already exists (Phases 1/3/5). External engines own their own thread pool (conflicts with ADR-0006 single-scheduler model), require adapter layers for ECS and AssetDatabase integration, and leave 2D uncovered (Jolt/PhysX are 3D-only). Custom stack fits the DXLib-heritage SDK positioning — predictable, small, no external version drift."
+    referenced_by:
+      - docs/architecture/adr-0009-physics-architecture.md
+    added: 2026-04-15
+    revised: ""
+
+  - purpose: physics_timestep
+    status: active
+    api: "Fixed timestep solver loop (default 1/60 s). PhysicsWorld accumulates wall-clock delta and runs whole steps; leftover time produces an interpolation factor for rendering. Users tune step rate via SetTimestep(); variable-dt inside the solver is forbidden."
+    not: "variable timestep per frame, substepping based on CPU budget, render-frame-rate-driven physics"
+    adr: docs/architecture/adr-0009-physics-architecture.md
+    reason: "Fixed timestep is required for deterministic replay / save-load / future networked rollback. Variable dt causes solver drift, cloth explosion at low FPS, and non-reproducible bugs that are painful to debug."
+    referenced_by:
+      - docs/architecture/adr-0009-physics-architecture.md
+    added: 2026-04-15
+    revised: ""
+
+  - purpose: audio_backend
+    status: active
+    api: "XAudio2 (Windows SDK) behind a thin IAudioDevice interface. IXAudio2MasteringVoice is the final mix target. Source voices per active sound; streaming OGG uses a 4×500 ms ring-buffer decoded by JobSystem Low-priority jobs. HRTF / 7.1.4 / head-tracked spatial are out of scope for this ADR."
+    not: "WASAPI direct implementation, FMOD Studio integration, Wwise integration, DirectSound (deprecated), OpenAL on Windows"
+    adr: docs/architecture/adr-0010-audio-architecture.md
+    reason: "XAudio2 is the right abstraction level for game audio on Windows — minimal dependency, no licensing, lifelong Microsoft support. FMOD/Wwise add per-title licensing and ~40-100MB SDK footprint that conflicts with GXLib's minimal-friction positioning. WASAPI direct reinvents XAudio2. Users who want FMOD can layer it on top themselves."
+    referenced_by:
+      - docs/architecture/adr-0010-audio-architecture.md
+    added: 2026-04-15
+    revised: ""
+
+  - purpose: audio_mixer_topology
+    status: active
+    api: "Bus hierarchy: Master → {Music, SFX, Voice, Ambient, Reverb-send}. Each non-Master bus carries volume/mute/solo, optional send to Reverb, and an insert chain of ≤4 DSP effects (LowPass/HighPass/Freeverb/Delay/Compressor biquad+feedback). Custom buses via AudioMixer::CreateBus(name, parent). AudioSnapshot captures + blends full mixer state (bus volumes + sends + DSP params)."
+    not: "single-fader mixing, flat-routing without bus hierarchy, per-emitter DSP (must live on a bus), unlimited DSP inserts per bus"
+    adr: docs/architecture/adr-0010-audio-architecture.md
+    reason: "Industry-standard bus-based mixing gives authors the mental model they expect (Master/Music/SFX/Voice). Snapshots make scene-state transitions (menu→game, underwater, combat-duck) authorable as single blends rather than hand-written per-bus tween code. Capping DSP inserts at 4 keeps the mix-thread CPU bounded."
+    referenced_by:
+      - docs/architecture/adr-0010-audio-architecture.md
+    added: 2026-04-15
+    revised: ""
+
+  - purpose: two_layer_accessibility_pillar
+    status: active
+    api: "Every public API addition is reviewed against L1.1–L1.5 (DXLib-shaped procedural call OR gx::App method, sensible defaults, -1 + Logger on failure, Doxygen + example, minimal sample) AND L2.1–L2.5 (extension point public not detail::, in-repo example, override contract documented, transitive types public, modification works as application-side code with no engine recompile)."
+    not: "Layer 1 only (DXLib-clone identity); Layer 2 only (pro engine identity, contradicts ADR-0003); pillar as soft guideline (drift-prone, not enforceable)."
+    adr: docs/architecture/adr-0017-two-layer-accessibility-pillar.md
+    reason: "Project owner explicitly committed both audiences as first-class. Pillar formalises and protects the existing Layer 2 extension points (FrameGraph passes per ADR-0008, AudioDSP::RegisterEffect per ADR-0010, IFileProvider per ADR-0007, Widget derivation per ADR-0012) and prevents future ADRs from quietly hiding extension points. Per-PR checklist + per-release accessibility scorecard turn the pillar from prose into mechanical enforcement."
+    referenced_by:
+      - docs/architecture/adr-0017-two-layer-accessibility-pillar.md
+      - docs/architecture/adr-0003-dxlib-compat-api-layer.md
+      - docs/architecture/adr-0008-rendering-pipeline.md
+      - docs/architecture/adr-0010-audio-architecture.md
+      - docs/architecture/adr-0007-asset-database-hot-reload.md
+      - docs/architecture/adr-0012-gui-architecture.md
+    added: 2026-04-16
+    revised: ""
+
+  - purpose: animation_subsystem
+    status: active
+    api: "Layered: Skeleton (asset, shared) → Animator (per-instance facade with parameter bag) → AnimatorStateMachine + AnimationLayer[] → BlendTree / BlendStack / direct AnimationClip. Post-pose: IK suite (FootIK → FullBodyIK → LookAtIK via IKSolver CCD/FABRIK) → ProceduralAnimation overlays → SpringBone Verlet step → ECS Transform mirror via EntityBridge → ComputeSkinning compute pass (ADR-0008) → SceneRenderer GBuffer. Alternative top-level driver: MotionMatching pose-feature DB. RootMotionLocomotion drives CharacterController (ADR-0009 §10). Ragdoll handoff via Animator::EnableRagdoll/DisableRagdoll."
+    not: "Ozz-animation / ACL as runtime (greenfield-only); Skeleton-as-ECS-components (POD violation); CPU-skinning-only (perf cliff at 50+ skinned characters); animation reading wall-clock dt during rollback window."
+    adr: docs/architecture/adr-0014-animation-pipeline.md
+    reason: "In-house stack already exists across Phases 0/1/3 and integrates natively with ECS / AssetDB / Job System / FrameGraph. Layered design lets gameplay use the highest level it needs (Animator parameter bag) without losing access to lower primitives (raw clip playback). IK suite + motion matching + spring bones cover the common animation-quality features without per-game implementation. Determinism contract (fixed dt, no fast-math, deterministic IK seed) makes animation rollback-safe per ADR-0013."
+    referenced_by:
+      - docs/architecture/adr-0014-animation-pipeline.md
+      - docs/architecture/adr-0008-rendering-pipeline.md
+      - docs/architecture/adr-0009-physics-architecture.md
+      - docs/architecture/adr-0013-networking-architecture.md
+    added: 2026-04-16
+    revised: ""
+
+  - purpose: networking_stack
+    status: active
+    api: "Layered: UDPSocket / TCPSocket / TLSSocket / WebSocket / HTTPClient (Winsock2 + Schannel) → ReliableChannel (ACK bitfield + retransmit + RTT) → NetworkManager (server/client + RPC) → NetworkReplicator + ReplicatedProperty<T> (ECS-integrated) → InterestManagement → NetworkPrediction + RollbackNetcode → NATTraversal + MatchmakingLobby → CloudSave."
+    not: "Photon / Mirror / GameNetworkingSockets / ENet (third-party netcode); TCP-only stack (head-of-line blocking); pure peer-to-peer lockstep without server-authoritative option; rollback-less prediction-only model; private network thread pool (use Job System per ADR-0006)."
+    adr: docs/architecture/adr-0013-networking-architecture.md
+    reason: "Native ECS integration via ReplicatedProperty<T> lets authors mark a field once and replication just works. UDP + ACK-bitfield reliability is required for real-time gameplay (TCP HOL blocking is fatal). Rollback unlocks fighting / racing / fast PvP genres at the cost of binding determinism rules onto gameplay code. Layered design lets each level swap independently. Job System integration keeps networking work scaling without a private thread pool."
+    referenced_by:
+      - docs/architecture/adr-0013-networking-architecture.md
+      - docs/architecture/adr-0004-ecs-architecture.md
+      - docs/architecture/adr-0009-physics-architecture.md
+    added: 2026-04-16
+    revised: ""
+
+  - purpose: gui_architecture
+    status: active
+    api: "Two parallel UI stacks: gx::GUI (retained tree — UIContext + Widget hierarchy + XML/CSS layout via GUILoader/StyleSheet + DataBinding + UITween) for shipping game UI, and gx::ImGuiManager (Dear ImGui via imgui_impl_dx12 + imgui_impl_win32) for editor/debug UI. Per-frame input ownership priority: ImGui (WantCapture flags) → UIContext (Capture/Target/Bubble dispatch) → game code (InputManager queries)."
+    not: "Single unified stack (immediate-mode-only or retained-only); RmlUi / Noesis / Coherent backend; ImGui as a child widget inside UIContext (focus model conflict)."
+    adr: docs/architecture/adr-0012-gui-architecture.md
+    reason: "Game UI needs declarative XML/CSS authoring + animation + data binding (retained); editor/debug UI needs immediate-mode productivity + the ImGuizmo/ImNodes/ImPlot ecosystem (ImGui). The two stacks coexist via a deterministic input-priority contract that respects ImGui's documented WantCapture flags. UIRenderer composites at native resolution after PostFX (per ADR-0008 dynamic_resolution_on_ui_targets); ImGui draws last before Present."
+    referenced_by:
+      - docs/architecture/adr-0012-gui-architecture.md
+      - docs/architecture/adr-0008-rendering-pipeline.md
+      - docs/architecture/adr-0011-input-architecture.md
+    added: 2026-04-16
+    revised: ""
+
+  - purpose: input_backend
+    status: active
+    api: "InputManager + Keyboard + Mouse + Gamepad (XInput) + IMEHandler (IMM32) + ActionMapping; hooked into Window::AddMessageProc"
+    not: "DInput; Raw Input (WM_INPUT); SDL/GLFW/SDL_GameController; private input thread; flat DXLib-style globals (those exist only in the gx:: Compat layer over this stack)"
+    adr: docs/architecture/adr-0011-input-architecture.md
+    reason: "Single per-Window facade aggregates per-device classes giving modern semantics (edges, durations, analog) that DXLib lacks, while the Compat layer (ADR-0003) reproduces the DXLib procedural surface verbatim. XInput is sufficient for the Xbox-shaped controllers that dominate Windows gaming; IMM32 is the correct API for IME composition; hooking the existing Window message pump avoids a private input thread."
+    referenced_by:
+      - docs/architecture/adr-0011-input-architecture.md
+      - docs/architecture/adr-0003-dxlib-compat-api-layer.md
+    added: 2026-04-16
+    revised: ""
 
 # Example:
 #
@@ -157,7 +688,258 @@ api_decisions: []
 # Register a pattern when an ADR explicitly bans it AND other ADRs might
 # unknowingly use it (i.e., it's a tempting but wrong approach for this project).
 
-forbidden_patterns: []
+forbidden_patterns:
+  - pattern: new_gdd_authoring
+    status: active
+    description: "Do not author new files under design/gdd/ for core GXLib subsystems. GXLib is an SDK; architectural decisions are recorded as ADRs only."
+    why: "GDD vocabulary and structure are game-design artifacts. Applying them to API/engine design produces low-value duplication of Doxygen content and forces mismatched concepts (Player Fantasy, Tuning Knobs) onto SDK work. Exception: sample games under sdk/ or examples/ may use their own design/gdd/ tree."
+    adr: docs/architecture/adr-0001-documentation-strategy.md
+    added: 2026-04-15
+
+  - pattern: dx12_type_in_public_header
+    status: active
+    description: "Public GXLib headers (anything a consumer of the library might #include) must not expose D3D12 / DXGI types. Use forward-declared opaque handles (gx::TextureHandle etc.). <d3d12.h> and <dxgi*.h> stay behind the Graphics/Device/ boundary."
+    why: "Leaking backend types forces consumers to include the Windows SDK's DX12 headers, couples game code to a specific DX12 version, and breaks the DXLib-compatible procedural API's promise of simplicity."
+    adr: docs/architecture/adr-0002-dx12-backend-choice.md
+    added: 2026-04-15
+
+  - pattern: unchecked_optional_gpu_feature
+    status: active
+    description: "Optional DX12 features (VRS, Mesh Shaders, Sampler Feedback, DirectStorage, DXR) must be gated on gx::GraphicsCaps at runtime. Never assume the feature is available — always check and provide a fallback path."
+    why: "Consumer GPUs vary widely in feature support. Assuming Mesh Shaders or DirectStorage availability will crash or silently misrender on minimum-spec hardware (older GTX 10-series, RX 400/500, systems without NVMe)."
+    adr: docs/architecture/adr-0002-dx12-backend-choice.md
+    added: 2026-04-15
+
+  - pattern: global_namespace_compat_symbol
+    status: active
+    description: "Compat layer functions (DXLib-shaped procedural API) must be declared inside namespace gx. Never export DrawGraph/DrawString/LoadGraph/etc. in the global namespace, and never use DXLib's exact system names (DxLib_Init, DxLib_End)."
+    why: "Global-namespace symbols create ODR clashes when a user links both DxLib and GXLib during a porting transition. Namespace-scoped symbols also make call-site intent explicit in code review (gx::DrawGraph vs DrawGraph)."
+    adr: docs/architecture/adr-0003-dxlib-compat-api-layer.md
+    added: 2026-04-15
+
+  - pattern: virtual_or_inherited_ecs_component
+    status: active
+    description: "ECS components (types stored in ComponentStorage) must be flat POD-like structs. No virtual methods, no base classes, no inheritance hierarchies. Behaviour belongs in Systems, not Components."
+    why: "Virtual dispatch kills the SoA cache-locality benefit that archetype ECS exists to provide. Inheritance forces indirection or slicing, and breaks the assumption that a ComponentStorage<T> is a tight contiguous array of T."
+    adr: docs/architecture/adr-0004-ecs-architecture.md
+    added: 2026-04-15
+
+  - pattern: mid_query_structural_change
+    status: active
+    description: "Do not add, remove, or destroy entities/components synchronously while iterating a Query. Enqueue the change on the World's command buffer; the buffer flushes between systems, not mid-system."
+    why: "Structural changes during iteration invalidate archetype rows and iterators, causing use-after-free or skipped entities. Deferring via command buffer preserves archetype invariants and keeps the ECS hot path branch-free."
+    adr: docs/architecture/adr-0004-ecs-architecture.md
+    added: 2026-04-15
+
+  - pattern: lua_sandbox_escape
+    status: active
+    description: "Scripts must not have access to os.execute, os.remove, os.rename, os.exit, io.open, io.popen, io.tmpfile, package.loadlib, package.cpath, dofile, or loadfile. File I/O goes through the path-restricted gxlib.io, which refuses to read outside the configured per-script asset root."
+    why: "Untrusted mod code running in end-user shipped builds must not be able to execute arbitrary processes, read/write arbitrary files, or load native DLLs. An explicit allowlist (not denylist) is required; new Lua versions may introduce new unsafe functions that must be reviewed on every Lua bump."
+    adr: docs/architecture/adr-0005-lua-scripting-boundary.md
+    added: 2026-04-15
+
+  - pattern: unregistered_script_binding_leak
+    status: active
+    description: "A C++ type becomes script-visible only via an explicit sol::usertype<T> registration in GXLib/Script/ScriptBindings.cpp. Do not return raw engine-internal types (GraphicsDevice, ID3D12Device, archetype internals, anything under detail::) from bound functions, and do not use sol::stack push on them."
+    why: "Accidental exposure of engine internals gives scripts (including untrusted mods) a path to bypass the curated gxlib.* facade, break engine invariants, or reach forbidden APIs. Explicit-only binding also means C++ internal refactors don't silently alter the script surface."
+    adr: docs/architecture/adr-0005-lua-scripting-boundary.md
+    added: 2026-04-15
+
+  - pattern: raw_thread_spawn_in_subsystem
+    status: active
+    description: "Subsystem code must not spawn its own std::thread / std::jthread / CreateThread. All parallel work goes through gx::JobSystem::Submit / SubmitAfter / ParallelFor / SubmitMainThread."
+    why: "Private thread pools cause oversubscription when 5+ subsystems each create their own, defeat the shared scheduler's load balancing, and make priority/shutdown behaviour incoherent across the engine."
+    adr: docs/architecture/adr-0006-job-system-architecture.md
+    added: 2026-04-15
+
+  - pattern: lua_state_cross_thread
+    status: active
+    description: "A sol::state / lua_State must be touched only from the thread that owns it (typically the main thread). Cross-thread Lua work goes through JobSystem::SubmitMainThread, not a worker-thread Submit."
+    why: "Lua 5.4 states are not thread-safe. Touching a state from multiple threads corrupts the VM silently. Routing through the main-thread queue preserves the single-state-per-thread invariant required by ADR-0005."
+    adr: docs/architecture/adr-0006-job-system-architecture.md
+    added: 2026-04-15
+
+  - pattern: command_queue_submit_off_main_thread
+    status: active
+    description: "Submission to ID3D12CommandQueue (ExecuteCommandLists, Signal, Wait on fence from CPU) must happen on the main thread, via JobSystem::SubmitMainThread if originating on a worker. Command list recording (per worker) is fine; submission is main-thread-only."
+    why: "DX12 command queues are thread-safe in the sense that the API doesn't crash under concurrent submit, but frame pacing, swap-chain Present, and fence signalling require a serialised order that the main thread authoritatively controls. Submitting from workers breaks presentation ordering and interacts badly with DXGI's flip-model swap chain."
+    adr: docs/architecture/adr-0006-job-system-architecture.md
+    added: 2026-04-15
+
+  - pattern: hardcoded_filesystem_path
+    status: active
+    description: "Do not hardcode filesystem paths (absolute or relative) in source code to load assets. Every asset access goes through an AssetId — ideally from a typed constant in a generated per-game asset-ID header, or constructed from a manifest-driven logical path. No fopen / CreateFile / std::ifstream on user-authored paths in gameplay code."
+    why: "Hardcoded paths couple source to on-disk layout, break when shipping repackages assets into .pak / .gxa archives, prevent mod remapping via AssetRemapper, and cannot participate in hot reload. AssetId-based access decouples all of this — rename, repackage, and mod without touching code."
+    adr: docs/architecture/adr-0007-asset-database-hot-reload.md
+    added: 2026-04-15
+
+  - pattern: subsystem_direct_file_io
+    status: active
+    description: "Subsystem code (Graphics, Audio, ECS, etc.) must not open files directly via fopen / CreateFile / std::ifstream / ReadFile for asset loading. All asset bytes flow through AssetDatabase / AsyncLoader / the IFileProvider chain. Logging, crash dumps, and user-facing config files are exceptions, as are direct Windows API uses by IO/ itself."
+    why: "Bypassing the provider chain skips archive/pak resolution, mod remapping, hot reload, dependency tracking, and DirectStorage optimisation. Every subsystem reinventing its own loader guarantees divergence and duplicate caches."
+    adr: docs/architecture/adr-0007-asset-database-hot-reload.md
+    added: 2026-04-15
+
+  - pattern: immediate_gpu_resource_release_on_reload
+    status: active
+    description: "When a GPU-backed asset (texture, mesh, buffer) is reloaded or unrefed, the underlying ID3D12Resource must enter a deferred-release quarantine of at least swap-chain-depth frames (≥ 3) before actual destruction. Do not Release / Destroy the resource synchronously at reload time or at last ref drop."
+    why: "GPU command lists in flight may still reference the old resource. Releasing it before the GPU is done reading causes undefined behaviour (corruption on NVIDIA, crashes on AMD, invisible flicker on Intel). The quarantine aligns destruction with a fence signal from a frame that definitely no longer uses the resource."
+    adr: docs/architecture/adr-0007-asset-database-hot-reload.md
+    added: 2026-04-15
+
+  - pattern: manual_resource_barrier
+    status: active
+    description: "Render passes must not emit ID3D12GraphicsCommandList::ResourceBarrier calls directly. All resource transitions come from FrameGraph's automatic emission based on the pass's declared Read/Write handles. Manual barriers bypass the graph's correctness model."
+    why: "Manual barriers are the #1 source of DX12 correctness bugs (forgotten transitions, over-transitions, wrong before/after states). FrameGraph's model is only correct if it has full visibility of resource usage — manual emissions silently diverge from the graph's bookkeeping, causing invalid state tracking for downstream passes."
+    adr: docs/architecture/adr-0008-rendering-pipeline.md
+    added: 2026-04-15
+
+  - pattern: dynamic_resolution_on_ui_targets
+    status: active
+    description: "DynamicResolution scales only the main 3D render targets (GBuffer, transparent buffer, scene-colour fp16). UI, text, and full-screen PostFX that need exact pixels (FilmGrain, ChromaticAberration) run at native resolution. Tone-map upsamples the scaled scene before UI composite."
+    why: "Scaling UI/text causes readability regressions and breaks hit-testing / layout assumptions. FilmGrain and ChromaticAberration assume per-pixel sampling patterns; scaling them produces wrong visual frequency."
+    adr: docs/architecture/adr-0008-rendering-pipeline.md
+    added: 2026-04-15
+
+  - pattern: raw_physics_body_pointer_in_ecs
+    status: active
+    description: "ECS components must not hold raw pointers to physics bodies (RigidBody*, btCollisionObject*, etc.). All physics-body references in ECS components are gx::BodyHandle (opaque 32-idx + 32-gen). The PhysicsWorld owns the bodies; the ECS just refers to them."
+    why: "Raw pointers become dangling when the PhysicsWorld recompacts its body storage or when a body is removed from script. BodyHandle's generation counter detects use-after-remove and returns a safe null result instead of crashing."
+    adr: docs/architecture/adr-0009-physics-architecture.md
+    added: 2026-04-15
+
+  - pattern: variable_timestep_in_physics_solver
+    status: active
+    description: "Physics solver iteration must run on a fixed timestep (default 1/60 s). Do not pass a variable wall-clock dt into the integrator. PhysicsWorld accumulates the render-side delta and runs whole fixed steps; leftover time is the render interpolation factor."
+    why: "Variable dt breaks determinism (required for replay / save-load), destabilises sequential-impulse solvers at low FPS, and causes cloth/ragdoll explosions when a spike delays a frame. Fixed step + accumulator is the standard solution and is what the solver's convergence analysis assumes."
+    adr: docs/architecture/adr-0009-physics-architecture.md
+    added: 2026-04-15
+
+  - pattern: mid_step_physics_mutation
+    status: active
+    description: "Do not call AddBody / RemoveBody / AddConstraint / RemoveConstraint during PhysicsWorld::Step execution. Mutations from gameplay code or Lua are queued in a command buffer and flushed at the start of the next step — or executed on the main thread between steps."
+    why: "Mid-step mutations invalidate the broadphase tree and constraint island bookkeeping, causing crashes or silently dropped contacts. Deferred mutation preserves solver invariants without requiring per-call locks in the hot path."
+    adr: docs/architecture/adr-0009-physics-architecture.md
+    added: 2026-04-15
+
+  - pattern: heap_allocation_on_audio_callback
+    status: active
+    description: "Code executing on the XAudio2 callback thread (DSP effects, voice callbacks, mixer tick) must not allocate from the heap (no new/delete/malloc/free, no std::string growth, no std::vector push_back without a pre-reserved capacity). Parameter updates from the main thread use atomic double-buffered structures; the audio thread only reads."
+    why: "Heap allocation under the audio callback causes lock contention with the general allocator and unbounded latency, which leads to audible buffer underruns (crackles, stutters). Double-buffered params give the main thread a way to publish changes without blocking the callback."
+    adr: docs/architecture/adr-0010-audio-architecture.md
+    added: 2026-04-15
+
+  - pattern: occlusion_raycast_over_budget
+    status: active
+    description: "Audio occlusion raycasts per emitter must not exceed 10 Hz. Raycasts across all emitters are staggered to spread load, and submitted to JobSystem in batches. The entire occlusion feature can be disabled globally on low-end configs via AudioOcclusion::SetEnabled(false)."
+    why: "A scene with 256 emitters occluding at render rate would consume the entire physics raycast budget (ADR-0009) and starve gameplay queries. Rate-limiting + staggering keeps audio occlusion a minor cost (≤ 0.2 ms/frame) rather than a dominant one."
+    adr: docs/architecture/adr-0010-audio-architecture.md
+    added: 2026-04-15
+
+  - pattern: cross_thread_input_read
+    status: active
+    description: "InputManager and its per-device classes (Keyboard, Mouse, Gamepad, IMEHandler) are read-only-safe from the main thread only. Worker-thread code must not call IsPressed / GetMousePoint / GetStick / GetCompositionText. Pass a snapshot down or marshal back via JobSystem::SubmitMainThread."
+    why: "Input state is mutated inside InputManager::Update() on the main thread without locks. Cross-thread reads observe partially-updated state (torn writes on edge counters, half-flushed wheel accumulator) and break ActionMapping's guarantees. Single-thread ownership is the cheapest correctness story."
+    adr: docs/architecture/adr-0011-input-architecture.md
+    added: 2026-04-16
+
+  - pattern: private_input_thread
+    status: active
+    description: "Input subsystem code must not spawn its own message-pump thread or polling thread. InputManager hooks into Window::AddMessageProc and runs Update() from the application's main loop. Gamepad polling happens inside Update(), not on a background thread."
+    why: "A private input thread fragments the OS message pump, races with WndProc message dispatch, and breaks IME (IMM32 messages must arrive on the window's owning thread). It also defeats the deterministic insertion point needed for future replay/netcode IInputSource indirection."
+    adr: docs/architecture/adr-0011-input-architecture.md
+    added: 2026-04-16
+
+  - pattern: direct_imgui_focus_steal
+    status: active
+    description: "Game code and the retained UIContext must not bypass ImGui's input-capture flags. Before consuming a click or keypress, check ImGui::GetIO().WantCaptureMouse / WantCaptureKeyboard (via ImGuiManager::IsCapturing()) and yield if true. Conversely, ImGui usage must not directly mutate UIContext focus."
+    why: "ImGui maintains its own focus state machine; bypassing the WantCapture flags causes double-handling (click registers in both stacks) and visible focus desyncs. The priority order ImGui → UIContext → game is the only contract that keeps both stacks coherent."
+    adr: docs/architecture/adr-0012-gui-architecture.md
+    added: 2026-04-16
+
+  - pattern: nondeterministic_in_rollback_gameplay
+    status: active
+    description: "Gameplay code reachable during the rollback re-simulation window must not call time(NULL), gettimeofday, std::random_device, std::rand, or iterate hash containers (std::unordered_*, gx::HashMap) where iteration order affects state. Use the replicated gx::Random seed for any randomness; use gx::VectorMap or archetype iteration for deterministic ordering. Fast-math compiler flags are disabled in physics + rollback translation units."
+    why: "RollbackNetcode rewinds and re-simulates frames with the corrected opponent input. If gameplay logic produces different output for identical inputs (because a hash iteration changes order, or a random uses a fresh seed), the re-simulated state diverges from the original, breaking the rollback contract and producing visible desync. Determinism is the load-bearing assumption."
+    adr: docs/architecture/adr-0013-networking-architecture.md
+    added: 2026-04-16
+
+  - pattern: raw_pointer_in_replication_payload
+    status: active
+    description: "Replication payloads (ReplicatedProperty values, RPC arguments, snapshot deltas) must not contain raw pointers, std::shared_ptr, or any address-shaped reference. Entity references on the wire are gx::EntityHandle (idx32+gen32, ECS opaque per ADR-0004); asset references are gx::AssetId (FNV-1a 64 per ADR-0007); physics body references are gx::BodyHandle. Pointer addresses are not stable across processes or even across runs of the same process."
+    why: "Sending a pointer over the network is undefined-behaviour-shaped: the remote process has no mapping; address-space layout randomisation guarantees the address is meaningless; even a same-machine peer will not have the same heap layout. Stable opaque identifiers are the only correct cross-process reference shape."
+    adr: docs/architecture/adr-0013-networking-architecture.md
+    added: 2026-04-16
+
+  - pattern: nondeterministic_reduction_in_rollback_physics_stage
+    status: active
+    description: "Physics solver code reachable inside the rollback re-simulation window must not perform shared-accumulator reductions whose result depends on completion order. Island solve writes per-island into pre-allocated slots indexed by deterministic island-ID; final merge runs on the main thread after a barrier in ascending island-ID order. No std::atomic<float> add, no parallel-reduce-into-shared, no Job-completion-order-dependent state mutation. Floating-point fast-math (/fp:fast, -ffast-math) is disabled in physics + rollback translation units; compiler flag drift is treated as a build break."
+    why: "Work-stealing schedulers (per ADR-0006) make Job completion order nondeterministic by design. ADR-0013 rollback re-runs PhysicsWorld::Step expecting byte-identical state across runs and across CPUs (AMD vs Intel); any reduction whose result depends on the order summands arrive in will silently desync rollback. ADR-0009 §15 codifies the deterministic-merge pattern; this pattern bans the failure mode."
+    adr: docs/architecture/adr-0009-physics-architecture.md
+    added: 2026-04-16
+
+  - pattern: wall_clock_dt_in_animation_tick
+    status: active
+    description: "Code reachable inside Animator::Update / AnimationLayer evaluation / IK solve / MotionMatching / SpringBone step / ProceduralAnimation overlays must not read wall-clock time (Time::DeltaTime, std::chrono::steady_clock::now, QueryPerformanceCounter for dt). The dt parameter passed to the animation tick is the fixed timestep (per ADR-0009) — use only that. Rendering interpolation factor for smooth visuals is computed outside the animation tick and applied at the render side."
+    why: "ADR-0013 RollbackNetcode re-simulates the animation tick during rollback re-runs. If animation reads wall-clock time, the same input produces different poses on rewind (the wall clock advanced), breaking byte-identical rollback. The fixed-dt-in / interpolation-out separation per ADR-0009 §15 is the only correct shape for rollback-safe animation."
+    adr: docs/architecture/adr-0014-animation-pipeline.md
+    added: 2026-04-16
+
+  - pattern: skeleton_as_ecs_component
+    status: active
+    description: "gx::Skeleton (bone hierarchy with parent indices, bind pose matrices, humanoid mapping) must NOT be stored as an ECS component. ECS components are POD per ADR-0004 forbidden_pattern virtual_or_inherited_ecs_component; Skeleton's hierarchical pointer-rich shape doesn't fit. ECS holds only an opaque AssetHandle<Skeleton> on a component; the Skeleton resource lives in the Animation module and is shared across Animator instances."
+    why: "Decomposing Skeleton into per-bone ECS components explodes query cost (15 entities per humanoid character) and forces polymorphism for state-machine / blend-tree node types that fights ECS's flat archetype storage. The handle-from-ECS escape hatch (matching ADR-0009 BodyHandle) is the established pattern for non-POD subsystem state."
+    adr: docs/architecture/adr-0014-animation-pipeline.md
+    added: 2026-04-16
+
+  - pattern: internal_only_extension_point
+    status: active
+    description: "Any extension point intended for Layer 2 users (custom render pass, custom shader, custom MaterialDomain, custom audio DSP effect, custom asset provider, custom physics shape, custom widget, custom IFileProvider) MUST NOT live under detail:: namespace, in *_internal.h header, or behind a friend class declaration. If it's an extension point, it's public, headers-installed, and Doxygen-documented per ADR-0017 L2.1/L2.3/L2.4."
+    why: "ADR-0017 commits the SDK to a two-layer accessibility pillar — Layer 1 beginners + Layer 2 motivated users who modify the core. Hiding extension points behind detail:: kills the Layer 2 promise. Users hit a wall the moment they try to extend, fork the engine, and the SDK loses its identity."
+    adr: docs/architecture/adr-0017-two-layer-accessibility-pillar.md
+    added: 2026-04-16
+
+  - pattern: undocumented_layer1_api
+    status: active
+    description: "Public functions in gx:: namespace exposed via the Compat layer (Compat_*.cpp / GXLib.h / GX/*.h) MUST have a Doxygen /// block including: brief description, return value semantics, one usage example. Empty comments, single-line bare descriptions, and autogenerated boilerplate are forbidden. Per ADR-0017 L1.4."
+    why: "Layer 1 beginners discover the API by reading headers — no other channel exists for them. Empty docs force them to read the implementation, which defeats the beginner-usable promise. The Compat layer is the SDK's selling point and must be self-documenting."
+    adr: docs/architecture/adr-0017-two-layer-accessibility-pillar.md
+    added: 2026-04-16
+
+  - pattern: silent_failure_in_compat_layer
+    status: active
+    description: "Compat layer functions returning int MUST return -1 on failure AND log a human-readable error via gx::Logger / GX_LOG_ERROR with at least the function name and the input that failed (e.g., file path, asset id). Returning -1 silently with no log entry is forbidden — Layer 1 users cannot diagnose engine internals. Functions returning void on failure paths must also log. Per ADR-0017 L1.3."
+    why: "Beginners hit failures (file not found, GPU init quirk, asset format mismatch) and have no way to diagnose them if the engine returns silently. They see a black window and give up. A single GX_LOG_ERROR line transforms a frustrating dead-end into a search-engine-able message."
+    adr: docs/architecture/adr-0017-two-layer-accessibility-pillar.md
+    added: 2026-04-16
+
+  - pattern: layer1_breaking_change_without_compat_shim
+    status: active
+    description: "Renaming, removing, or signature-changing a Layer 1 procedural function (anything in gx:: Compat layer that mirrors a DXLib name OR is documented as Layer 1 in the SDK headers) requires either: (a) keeping the old function as a thin shim with [[deprecated]] attribute pointing at the new name, OR (b) a major version bump documented in CHANGELOG.md with a complete migration table from old name → new name. Per ADR-0017 L1 stability requirement."
+    why: "Layer 1 stability is GXLib's selling point — DXLib porting + lifelong stability of the procedural surface. A free hand to rename / remove these functions silently breaks user code on engine update and turns the SDK into 'just another moving target'. Shim + deprecate is the documented escape hatch."
+    adr: docs/architecture/adr-0017-two-layer-accessibility-pillar.md
+    added: 2026-04-16
+
+  - pattern: tcp_for_realtime_gameplay
+    status: active
+    description: "Real-time gameplay traffic (input streams, snapshots, world state replication, RPCs delivered every tick) must use UDPSocket + ReliableChannel, not TCPSocket. TCP is reserved for matchmaking (HTTPS), cloud save (HTTPS), HTTP services, and pre-game session setup."
+    why: "TCP head-of-line blocking stalls all subsequent packets when one is lost — fatal for a 30/60 Hz gameplay tick. ReliableChannel's ACK-bitfield model lets gameplay continue past lost packets while still recovering them, and lets you mix reliable and unreliable traffic on one channel. TCP is the wrong abstraction for real-time games even though it sounds simpler."
+    adr: docs/architecture/adr-0013-networking-architecture.md
+    added: 2026-04-16
+
+  - pattern: widget_mutation_off_main_thread
+    status: active
+    description: "gx::GUI::Widget tree mutations (SetRoot, AddChild, RemoveChild, SetStyle, property writes, DataBinding subscribe/unsubscribe, UITween::Play) must happen on the main thread only. Worker-thread code marshals via JobSystem::SubmitMainThread."
+    why: "UIContext::Update reads and mutates the widget tree without locks. Cross-thread mutation tears the tree mid-layout, corrupts focus pointers, and races DataBinding notification queues. Single-thread ownership matches the rendering and input-handling contracts."
+    adr: docs/architecture/adr-0012-gui-architecture.md
+    added: 2026-04-16
+
+  - pattern: touch_as_first_class_input
+    status: active
+    description: "GXLib/Input/TouchInput is a stub. Game code and engine subsystems must not depend on touch input as a first-class input source. UI consumers may not assume touch events. A future ADR superseding this rule is required to elevate touch."
+    why: "Touch is not currently a supported scope (Windows desktop / gamepad / K+M only per technical-preferences.md). Building features on the stub gives a false sense of coverage and creates silent breakage when the stub is later replaced with a real backend."
+    adr: docs/architecture/adr-0011-input-architecture.md
+    added: 2026-04-16
 
 # Example:
 #

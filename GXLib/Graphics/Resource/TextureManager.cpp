@@ -1,0 +1,243 @@
+/// @file TextureManager.cpp
+/// @brief ハンドルベースのテクスチャ管理の実装
+#include "pch_graphics.h"
+#include "Graphics/Resource/TextureManager.h"
+#include "Core/Logger.h"
+
+namespace gx
+{
+
+bool TextureManager::Initialize(ID3D12Device* device, ID3D12CommandQueue* cmdQueue)
+{
+    m_device   = device;
+    m_cmdQueue = cmdQueue;
+
+    // 全テクスチャのSRVを格納するshader-visibleヒープを1つ作成
+    if (!m_srvHeap.Initialize(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, k_MaxTextures, true))
+    {
+        GX_LOG_ERROR("Failed to create SRV heap for TextureManager");
+        return false;
+    }
+
+    m_entries.reserve(k_MaxTextures);
+    GX_LOG_INFO("TextureManager initialized (max: %u textures)", k_MaxTextures);
+    return true;
+}
+
+int TextureManager::AllocateHandle()
+{
+    // 解放済みハンドルがあればそちらを優先再利用
+    if (!m_freeHandles.empty())
+    {
+        int handle = m_freeHandles.back();
+        m_freeHandles.pop_back();
+        return handle;
+    }
+
+    if (m_nextHandle >= static_cast<int>(k_MaxTextures))
+    {
+        GX_LOG_ERROR("TextureManager: handle limit reached (max: %u)", k_MaxTextures);
+        return -1;
+    }
+
+    int handle = m_nextHandle++;
+    if (handle >= static_cast<int>(m_entries.size()))
+    {
+        m_entries.resize(handle + 1);
+    }
+    return handle;
+}
+
+int TextureManager::LoadTexture(const gx::WString& filePath)
+{
+    // 同一パスのテクスチャはキャッシュから返す（二重読み込み防止）
+    auto it = m_pathCache.find(filePath);
+    if (it != m_pathCache.end())
+    {
+        return it->second;
+    }
+
+    int handle = AllocateHandle();
+    if (handle < 0) return -1;
+
+    uint32_t srvIndex = m_srvHeap.AllocateIndex();
+    if (srvIndex == DescriptorHeap::k_InvalidIndex)
+    {
+        m_freeHandles.push_back(handle);
+        return -1;
+    }
+
+    auto& entry = m_entries[handle];
+    entry.texture = std::make_unique<Texture>();
+    entry.filePath = filePath;
+    entry.isRegionOnly = false;
+    entry.region = TextureRegion{ 0.0f, 0.0f, 1.0f, 1.0f, handle };
+
+    if (!entry.texture->LoadFromFile(m_device, m_cmdQueue, filePath, &m_srvHeap, srvIndex))
+    {
+        entry.texture.reset();
+        m_freeHandles.push_back(handle);
+        m_srvHeap.Free(srvIndex);
+        return -1;
+    }
+
+    m_pathCache[filePath] = handle;
+    return handle;
+}
+
+int TextureManager::CreateTextureFromMemory(const void* pixels, uint32_t width, uint32_t height)
+{
+    int handle = AllocateHandle();
+    if (handle < 0) return -1;
+
+    uint32_t srvIndex = m_srvHeap.AllocateIndex();
+    if (srvIndex == DescriptorHeap::k_InvalidIndex)
+    {
+        m_freeHandles.push_back(handle);
+        return -1;
+    }
+
+    auto& entry = m_entries[handle];
+    entry.texture = std::make_unique<Texture>();
+    entry.isRegionOnly = false;
+    entry.region = TextureRegion{ 0.0f, 0.0f, 1.0f, 1.0f, handle };
+
+    if (!entry.texture->CreateFromMemory(m_device, m_cmdQueue, pixels, width, height, &m_srvHeap, srvIndex))
+    {
+        entry.texture.reset();
+        m_freeHandles.push_back(handle);
+        m_srvHeap.Free(srvIndex);
+        return -1;
+    }
+
+    return handle;
+}
+
+bool TextureManager::UpdateTextureFromMemory(int handle, const void* pixels, uint32_t width, uint32_t height)
+{
+    if (handle < 0 || handle >= static_cast<int>(m_entries.size()))
+        return false;
+
+    auto& entry = m_entries[handle];
+    if (!entry.texture || entry.isRegionOnly)
+        return false;
+
+    return entry.texture->UpdatePixels(m_device, m_cmdQueue, pixels, width, height);
+}
+
+Texture* TextureManager::GetTexture(int handle)
+{
+    if (handle < 0 || handle >= static_cast<int>(m_entries.size()))
+        return nullptr;
+
+    auto& entry = m_entries[handle];
+    if (entry.isRegionOnly)
+    {
+        // リージョンハンドルの場合、元テクスチャの実体を返す
+        return GetTexture(entry.region.textureHandle);
+    }
+    return entry.texture.get();
+}
+
+const TextureRegion& TextureManager::GetRegion(int handle) const
+{
+    static const TextureRegion defaultRegion;
+    if (handle < 0 || handle >= static_cast<int>(m_entries.size()))
+        return defaultRegion;
+    return m_entries[handle].region;
+}
+
+static const gx::WString s_emptyPath;
+
+const gx::WString& TextureManager::GetFilePath(int handle) const
+{
+    if (handle < 0 || handle >= static_cast<int>(m_entries.size()))
+        return s_emptyPath;
+    return m_entries[handle].filePath;
+}
+
+void TextureManager::ReleaseTexture(int handle)
+{
+    if (handle < 0 || handle >= static_cast<int>(m_entries.size()))
+        return;
+
+    auto& entry = m_entries[handle];
+
+    // パスキャッシュからも消しておく（同一パスの再読み込みを可能にするため）
+    if (!entry.filePath.empty())
+    {
+        m_pathCache.erase(entry.filePath);
+        entry.filePath.clear();
+    }
+
+    entry.texture.reset();
+    entry.isRegionOnly = false;
+    m_freeHandles.push_back(handle);
+}
+
+int TextureManager::CreateRegionHandles(int baseHandle, int allNum, int xNum, int yNum, int xSize, int ySize)
+{
+    Texture* baseTex = GetTexture(baseHandle);
+    if (!baseTex)
+        return -1;
+
+    float texWidth  = static_cast<float>(baseTex->GetWidth());
+    float texHeight = static_cast<float>(baseTex->GetHeight());
+
+    int firstHandle = -1;
+
+    // 各区画のUV矩形を計算してリージョンハンドルを連番で割り当てる
+    for (int i = 0; i < allNum; ++i)
+    {
+        int col = i % xNum;
+        int row = i / xNum;
+
+        int handle = AllocateHandle();
+        if (handle < 0)
+        {
+            GX_LOG_ERROR("TextureManager: Failed to allocate region handle %d/%d", i, allNum);
+            return firstHandle;
+        }
+        if (firstHandle == -1) firstHandle = handle;
+
+        auto& entry = m_entries[handle];
+        entry.texture.reset();     // テクスチャ実体はbaseHandleが持つ
+        entry.isRegionOnly = true;
+        entry.region.textureHandle = baseHandle;
+        entry.region.u0 = (col * xSize) / texWidth;
+        entry.region.v0 = (row * ySize) / texHeight;
+        entry.region.u1 = ((col + 1) * xSize) / texWidth;
+        entry.region.v1 = ((row + 1) * ySize) / texHeight;
+    }
+
+    return firstHandle;
+}
+
+bool TextureManager::ReloadTextureInPlace(int handle, const gx::WString& filePath)
+{
+    if (handle < 0 || handle >= static_cast<int>(m_entries.size()))
+        return false;
+
+    auto& entry = m_entries[handle];
+    if (!entry.texture || entry.isRegionOnly)
+        return false;
+
+    // SRVインデックスを保持
+    uint32_t srvIndex = entry.texture->GetSRVIndex();
+
+    // 新しいテクスチャをロード
+    auto newTexture = std::make_unique<Texture>();
+    if (!newTexture->LoadFromFile(m_device, m_cmdQueue, filePath, &m_srvHeap, srvIndex))
+    {
+        GX_LOG_WARN("TextureManager::ReloadTextureInPlace: failed for handle %d", handle);
+        return false;
+    }
+
+    // 差し替え
+    entry.texture = std::move(newTexture);
+    entry.filePath = filePath;
+    GX_LOG_INFO("TextureManager::ReloadTextureInPlace: handle %d reloaded", handle);
+    return true;
+}
+
+} // namespace gx

@@ -1,0 +1,70 @@
+/// @file Fence.cpp
+/// @brief GPU同期用フェンスの実装
+#include "pch_graphics.h"
+#include "Graphics/Device/Fence.h"
+#include "Core/Logger.h"
+
+namespace gx
+{
+
+Fence::~Fence()
+{
+    if (m_event)
+    {
+        CloseHandle(m_event);
+        m_event = nullptr;
+    }
+}
+
+bool Fence::Initialize(ID3D12Device* device)
+{
+    HRESULT hr = device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence));
+    if (FAILED(hr))
+    {
+        GX_LOG_ERROR("Failed to create fence (HRESULT: 0x%08X)", hr);
+        return false;
+    }
+
+    // GPU完了時にシグナルされるWindowsイベントを作成
+    m_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+    if (!m_event)
+    {
+        GX_LOG_ERROR("Failed to create fence event");
+        return false;
+    }
+
+    m_fenceValue = 0;
+    return true;
+}
+
+uint64_t Fence::Signal(ID3D12CommandQueue* queue)
+{
+    // フェンス値を+1してからGPU側にSignalを送る
+    // GPUがこのSignal地点まで処理を終えると、フェンスの完了値がこの値になる
+    m_fenceValue++;
+    HRESULT hr = queue->Signal(m_fence.Get(), m_fenceValue);
+    if (FAILED(hr))
+    {
+        GX_LOG_ERROR("Failed to signal fence (HRESULT: 0x%08X)", hr);
+    }
+    return m_fenceValue;
+}
+
+void Fence::WaitForValue(uint64_t value)
+{
+    // GPUがまだ指定値に達していなければ、イベント待機でCPUを止める
+    if (m_fence->GetCompletedValue() < value)
+    {
+        m_fence->SetEventOnCompletion(value, m_event);
+        WaitForSingleObject(m_event, INFINITE);
+    }
+}
+
+void Fence::WaitForGPU(ID3D12CommandQueue* queue)
+{
+    // Signal + WaitForValueの一括呼び出し
+    uint64_t value = Signal(queue);
+    WaitForValue(value);
+}
+
+} // namespace gx

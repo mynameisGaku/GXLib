@@ -1,0 +1,82 @@
+/// @file InstanceBuffer.cpp
+/// @brief インスタンシング描画用データバッファの実装
+#include "pch_graphics.h"
+#include "Graphics/3D/InstanceBuffer.h"
+#include "Math/MathConvert.h"
+#include "Core/Logger.h"
+
+namespace gx
+{
+
+bool InstanceBuffer::Initialize(ID3D12Device* device, uint32_t maxInstances)
+{
+    m_maxInstances = maxInstances;
+    uint32_t bufferSize = maxInstances * sizeof(InstanceData);
+
+    if (!m_buffer.Initialize(device, bufferSize, sizeof(InstanceData)))
+    {
+        GX_LOG_ERROR("InstanceBuffer: failed to initialize (max=%u)", maxInstances);
+        return false;
+    }
+
+    m_instances.reserve(maxInstances);
+    return true;
+}
+
+void InstanceBuffer::Reset()
+{
+    m_instances.clear();
+}
+
+void InstanceBuffer::AddInstance(const Transform3D& transform)
+{
+    if (m_instances.size() >= m_maxInstances)
+    {
+        GX_LOG_WARN("InstanceBuffer: max instances (%u) exceeded", m_maxInstances);
+        return;
+    }
+
+    InstanceData data;
+    XMStoreFloat4x4(XM(&data.world), XMMatrixTranspose(ToXMMATRIX(transform.GetWorldMatrix())));
+    XMStoreFloat4x4(XM(&data.worldInvTranspose), XMMatrixTranspose(ToXMMATRIX(transform.GetWorldInverseTranspose())));
+    m_instances.push_back(data);
+}
+
+void InstanceBuffer::AddInstance(const Matrix4x4& worldMatrix)
+{
+    if (m_instances.size() >= m_maxInstances)
+    {
+        GX_LOG_WARN("InstanceBuffer: max instances (%u) exceeded", m_maxInstances);
+        return;
+    }
+
+    InstanceData data;
+    XMMATRIX xmWorld = XMLoadFloat4x4(XM(&worldMatrix));
+    XMStoreFloat4x4(XM(&data.world), XMMatrixTranspose(xmWorld));
+    XMMATRIX invTranspose = XMMatrixTranspose(XMMatrixInverse(nullptr, xmWorld));
+    XMStoreFloat4x4(XM(&data.worldInvTranspose), XMMatrixTranspose(invTranspose));
+    m_instances.push_back(data);
+}
+
+void InstanceBuffer::Upload(uint32_t frameIndex)
+{
+    if (m_instances.empty()) return;
+
+    void* mapped = m_buffer.Map(frameIndex);
+    if (!mapped)
+    {
+        GX_LOG_ERROR("InstanceBuffer: failed to map buffer");
+        return;
+    }
+
+    uint32_t copySize = static_cast<uint32_t>(m_instances.size() * sizeof(InstanceData));
+    memcpy(mapped, m_instances.data(), copySize);
+    m_buffer.Unmap(frameIndex);
+}
+
+D3D12_GPU_VIRTUAL_ADDRESS InstanceBuffer::GetGPUVirtualAddress(uint32_t frameIndex) const
+{
+    return m_buffer.GetGPUVirtualAddress(frameIndex);
+}
+
+} // namespace gx

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GXLib APIリファレンス</title>
+<link rel="stylesheet" href="style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- Top Bar -->
+<header id="topbar">
+  <div class="topbar-left">
+    <button id="menu-toggle" class="icon-btn" aria-label="Toggle sidebar">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <div class="logo">
+      <span class="logo-gx">GX</span><span class="logo-lib">Lib</span>
+      <span class="logo-tag">APIリファレンス</span>
+    </div>
+  </div>
+  <div class="topbar-center">
+    <div class="search-box" id="search-box">
+      <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <input type="text" id="search-input" placeholder="クラス、メソッド、列挙型を検索… (Ctrl+K)" autocomplete="off" spellcheck="false">
+      <kbd class="search-kbd">Ctrl+K</kbd>
+      <div id="search-results" class="search-results hidden"></div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div id="stats" class="stats"></div>
+  </div>
+</header>
+
+<!-- Sidebar -->
+<aside id="sidebar" class="sidebar">
+  <div class="sidebar-header">
+    <span class="sidebar-title">モジュール</span>
+  </div>
+  <nav id="sidebar-nav" class="sidebar-nav"></nav>
+</aside>
+
+<!-- Sidebar overlay for mobile -->
+<div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+<!-- Main Content -->
+<main id="main">
+  <div id="breadcrumb" class="breadcrumb"></div>
+  <div id="content" class="content"></div>
+</main>
+
+<!-- Glossary tooltips are created dynamically by app.js -->
+
+<script src="api_data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
