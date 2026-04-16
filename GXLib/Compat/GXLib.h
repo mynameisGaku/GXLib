@@ -807,6 +807,7 @@ class Renderer3D;
 class Camera3D;
 class PostEffectPipeline;
 class InputManager;
+class AudioManager;
 
 /// @brief 3Dレンダラーを取得する
 Renderer3D&         GetRenderer3D();
@@ -819,6 +820,9 @@ PostEffectPipeline& GetPostEffects();
 
 /// @brief 入力マネージャーを取得する
 InputManager&       GetInputManager();
+
+/// @brief オーディオマネージャーを取得する (L2: AudioBus / AudioMixer 操作用)
+AudioManager&       GetAudioManager();
 
 // ============================================================================
 // float座標版（サブピクセル精度で描画）

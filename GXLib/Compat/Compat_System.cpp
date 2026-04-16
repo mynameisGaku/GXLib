@@ -138,5 +138,6 @@ Renderer3D&         GetRenderer3D()     { return Ctx::Instance().renderer3D; }
 Camera3D&           GetCamera3D()       { return Ctx::Instance().camera; }
 PostEffectPipeline& GetPostEffects()    { return Ctx::Instance().postEffect; }
 InputManager&       GetInputManager()   { return Ctx::Instance().inputManager; }
+AudioManager&       GetAudioManager()   { return Ctx::Instance().audioManager; }
 
 } // namespace gx

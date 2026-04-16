@@ -19,8 +19,8 @@
 #
 # STATUS VALUES: active | deprecated | superseded-by: TR-[system]-NNN
 
-version: 3
-last_updated: "2026-04-16"
+version: 4
+last_updated: "2026-04-17"
 
 requirements:
   # ─── doc (ADR-0001 Documentation strategy) ────────────────────────────────
@@ -205,6 +205,112 @@ requirements:
     added: 2026-04-15
     revised: ""
 
+  # ─── edit (ADR-0015 Editor Architecture) ──────────────────────────────────
+  - id: TR-edit-001
+    system: edit
+    source_adr: docs/architecture/adr-0015-editor.md
+    requirement: "Play-in-Editor: Stopped/Playing/Paused state machine with EnterPlayMode / ExitPlayMode / Pause / Resume / StepFrame / Update, plus OnEnterPlay / OnExitPlay callbacks."
+    status: active
+    added: 2026-04-17
+    revised: ""
+
+  - id: TR-edit-002
+    system: edit
+    source_adr: docs/architecture/adr-0015-editor.md
+    requirement: "PIE snapshot captures entity id/name/active/transform only; non-replicated runtime state (particles, audio voices, network) resets on Stop. Deep snapshot is a future ADR."
+    status: active
+    added: 2026-04-17
+    revised: ""
+
+  - id: TR-edit-003
+    system: edit
+    source_adr: docs/architecture/adr-0015-editor.md
+    requirement: "Undo/Redo via ICommand + ValueCommand<T> + UndoSystem; main-thread-only; forbidden during EventBus::IsReplayMode() rollback window."
+    status: active
+    added: 2026-04-17
+    revised: ""
+
+  - id: TR-edit-004
+    system: edit
+    source_adr: docs/architecture/adr-0015-editor.md
+    requirement: "Reflection via GX_REFLECT_* macros with anonymous-namespace registrar; macro in header is forbidden (ODR)."
+    status: active
+    added: 2026-04-17
+    revised: ""
+
+  - id: TR-edit-005
+    system: edit
+    source_adr: docs/architecture/adr-0015-editor.md
+    requirement: "NodeGraph runtime (NodeDef / NodeInstance / NodeGraph / PinType) peers Lua (ADR-0005); same gameplay-authority rules."
+    status: active
+    added: 2026-04-17
+    revised: ""
+
+  - id: TR-edit-006
+    system: edit
+    source_adr: docs/architecture/adr-0015-editor.md
+    requirement: "Shipping-build exclusion: GX_EDITOR CMake option; GX_EDITOR=OFF drops GXLib_Editor from link; runtime UndoSystem / NodeGraph / Reflect remain available in Core."
+    status: active
+    added: 2026-04-17
+    revised: ""
+
+  - id: TR-edit-007
+    system: edit
+    source_adr: docs/architecture/adr-0015-editor.md
+    requirement: "Editor panels must not steal focus during PIE Play with captureInput=true (ADR-0012 §9 reaffirmation)."
+    status: active
+    added: 2026-04-17
+    revised: ""
+
+  # ─── bus (ADR-0016 EventBus / Cross-System Communication) ─────────────────
+  - id: TR-bus-001
+    system: bus
+    source_adr: docs/architecture/adr-0016-eventbus.md
+    requirement: "Type-safe pub/sub via std::type_index routing: Subscribe<T>(cb) → EventHandle, Unsubscribe, Fire<T>, Queue<T>, DispatchQueued, Clear. One singleton bus, no siblings."
+    status: active
+    added: 2026-04-17
+    revised: ""
+
+  - id: TR-bus-002
+    system: bus
+    source_adr: docs/architecture/adr-0016-eventbus.md
+    requirement: "Handler categorisation: Subscribe<T>(cb, HandlerCategory) with Idempotent and SideEffect; one-arg Subscribe defaults to SideEffect."
+    status: active
+    added: 2026-04-17
+    revised: ""
+
+  - id: TR-bus-003
+    system: bus
+    source_adr: docs/architecture/adr-0016-eventbus.md
+    requirement: "Replay-suppression: SetReplayMode(bool) / IsReplayMode() — SideEffect handlers skipped in replay, Idempotent handlers run; Queue during replay is a no-op. Lifts ADR-0013 §13 forward-declaration."
+    status: active
+    added: 2026-04-17
+    revised: ""
+
+  - id: TR-bus-004
+    system: bus
+    source_adr: docs/architecture/adr-0016-eventbus.md
+    requirement: "Threading: Subscribe/Unsubscribe/Fire/DispatchQueued/Clear are main-thread-only. Worker threads use QueueFromWorker<T> SPSC lane only. Fire from worker is a forbidden pattern."
+    status: active
+    added: 2026-04-17
+    revised: ""
+
+  - id: TR-bus-005
+    system: bus
+    source_adr: docs/architecture/adr-0016-eventbus.md
+    requirement: "AnimationEventDispatcher → global bus bridge via SetGlobalBusBridge(bool); bridged events emit AnimationEventFired on the global bus and respect categorisation."
+    status: active
+    added: 2026-04-17
+    revised: ""
+
+  - id: TR-bus-006
+    system: bus
+    source_adr: docs/architecture/adr-0016-eventbus.md
+    requirement: "Dispatch order = insertion order within handler vector; copy-before-iterate for re-entrancy safety; deterministic under rollback re-simulation."
+    status: active
+    added: 2026-04-17
+    revised: ""
+
   # ─── charter-level gaps (no ADR yet — placeholder for future registration) ─
-  # These are NOT registered here; they will be added when their ADR is written.
-  # Tracked in docs/architecture/architecture-traceability.md "Known Gaps".
+  # Closed: charter TR-chr-001..010 all covered by ADRs 0001-0016.
+  # Future deferred items tracked in docs/architecture/architecture-traceability.md "Deferred / Forward-Looking Items".

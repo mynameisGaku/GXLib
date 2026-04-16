@@ -18,7 +18,6 @@
 #include "GXLib.h"
 #include "Graphics/3D/ShaderRegistry.h"
 #include "Graphics/3D/Renderer3D.h"
-#include "Core/Engine.h"
 #include <cmath>
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
@@ -42,8 +41,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
     desc.psEntry         = "PSMain";
     desc.supportsSkinning = false;  // このサンプルはスタティックメッシュのみ
 
-    // Engine から Renderer3D → ShaderRegistry を取得して登録
-    auto& registry = gx::Engine::Instance().GetRenderer3D().GetShaderRegistry();
+    // Compat API で Renderer3D → ShaderRegistry を取得して登録
+    auto& registry = gx::GetRenderer3D().GetShaderRegistry();
     bool registered = registry.RegisterCustomShaderModel(RAINBOW_ID, desc);
     if (!registered)
     {

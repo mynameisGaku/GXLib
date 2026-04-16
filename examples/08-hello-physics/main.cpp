@@ -3,8 +3,9 @@
 ///
 /// 学習ポイント / Learning points:
 ///   - gx::PhysicsWorld2D の初期化と毎フレーム Step
-///   - AddBody でボックス剛体を落下させる
-///   - Raycast でマウス位置から壁までの距離を測る
+///   - AddBody() で RigidBody2D* を取得し、プロパティを直接設定
+///   - ColliderShape2D で AABB (ボックス) 形状を定義
+///   - Raycast(origin, dir, maxDist, &outBody, &outPoint) で光線判定
 ///   - 固定タイムステップ (ADR-0009: variable_timestep_in_physics_solver 禁止)
 ///
 /// 注: Physics は Layer 1.5 (DXLib に相当機能なし)。
@@ -13,7 +14,6 @@
 #include "GXLib.h"
 #include "Physics/PhysicsWorld2D.h"
 #include "Physics/RigidBody2D.h"
-#include "Physics/PhysicsShape.h"
 #include <cstdlib>
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
@@ -26,21 +26,23 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
     SetDrawScreen(GX_SCREEN_BACK);
 
     // =========================================================================
-    // PhysicsWorld2D: 固定タイムステップ 60Hz (ADR-0009 準拠)
+    // PhysicsWorld2D: 重力を設定し、毎フレーム固定 dt で Step する
     // =========================================================================
     gx::PhysicsWorld2D world;
-    world.SetGravity({ 0.0f, 980.0f });   // 下向き重力 (px/s^2)
-    world.SetTimestep(1.0f / 60.0f);
+    world.SetGravity({ 0.0f, 980.0f });
 
-    // 床 (静的ボディ)
-    gx::BodyDesc2D floorDesc;
-    floorDesc.position = { 640.0f, 680.0f };
-    floorDesc.isStatic = true;
-    floorDesc.shape    = gx::PhysicsShape2D::Box({ 600.0f, 20.0f });
-    auto floorBody = world.AddBody(floorDesc);
+    constexpr float FIXED_DT = 1.0f / 60.0f;
+    float accumulator = 0.0f;
 
-    // SPACE で落下させる箱を10個スポーン
-    gx::Vector<gx::BodyHandle2D> boxes;
+    // 床 (静的ボディ): AddBody() でポインタ取得→プロパティ直接設定
+    auto* floor = world.AddBody();
+    floor->position    = { 640.0f, 680.0f };
+    floor->bodyType    = gx::BodyType2D::Static;
+    floor->shape.type  = gx::ShapeType2D::AABB;
+    floor->shape.halfExtents = { 600.0f, 20.0f };
+
+    // SPACE で落下させる箱のポインタ配列
+    gx::Vector<gx::RigidBody2D*> boxes;
 
     unsigned int white  = GetColor(255, 255, 255);
     unsigned int green  = GetColor(80, 220, 80);
@@ -61,53 +63,60 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
         {
             for (int i = 0; i < 10; ++i)
             {
-                gx::BodyDesc2D d;
-                d.position = { 100.0f + static_cast<float>(std::rand() % 1000), 50.0f };
-                d.isStatic = false;
-                d.mass     = 1.0f;
-                d.restitution = 0.4f;
-                d.shape = gx::PhysicsShape2D::Box({ 20.0f, 20.0f });
-                boxes.push_back(world.AddBody(d));
+                auto* b = world.AddBody();
+                b->position    = { 100.0f + static_cast<float>(std::rand() % 1000), 50.0f };
+                b->bodyType    = gx::BodyType2D::Dynamic;
+                b->mass        = 1.0f;
+                b->restitution = 0.4f;
+                b->shape.type  = gx::ShapeType2D::AABB;
+                b->shape.halfExtents = { 10.0f, 10.0f };
+                boxes.push_back(b);
             }
         }
         spaceWasDown = spaceDown;
 
-        // 物理ステップ (固定 dt アキュムレータは内部で処理)
-        world.Step(dt);
+        // 物理ステップ (固定 dt アキュムレータ — ADR-0009 準拠)
+        accumulator += dt;
+        while (accumulator >= FIXED_DT)
+        {
+            world.Step(FIXED_DT);
+            accumulator -= FIXED_DT;
+        }
 
         // =====================================================================
         // マウス位置からレイキャスト (下向き)
         // =====================================================================
         int mx = 0, my = 0;
         GetMousePoint(&mx, &my);
-        gx::RaycastHit2D hit;
+        gx::RigidBody2D* hitBody = nullptr;
+        gx::Vector2 hitPoint;
         bool hasHit = world.Raycast(
             { static_cast<float>(mx), static_cast<float>(my) },
-            { 0.0f, 1.0f },           // 下向き
+            { 0.0f, 1.0f },
             2000.0f,
-            hit);
+            &hitBody, &hitPoint);
 
         // 床 (green box)
         DrawBox(640 - 600, 680 - 20, 640 + 600, 680 + 20, green, TRUE);
 
-        // 動的ボックスを描画
-        for (auto h : boxes)
+        // 動的ボックスを描画 (ポインタ直接アクセス)
+        for (auto* b : boxes)
         {
-            auto* body = world.GetBody(h);
-            if (!body) continue;
-            auto p = body->GetPosition();
-            DrawBox(static_cast<int>(p.x) - 10, static_cast<int>(p.y) - 10,
-                    static_cast<int>(p.x) + 10, static_cast<int>(p.y) + 10,
-                    yellow, TRUE);
+            int px = static_cast<int>(b->position.x);
+            int py = static_cast<int>(b->position.y);
+            int hw = static_cast<int>(b->shape.halfExtents.x);
+            int hh = static_cast<int>(b->shape.halfExtents.y);
+            DrawBox(px - hw, py - hh, px + hw, py + hh, yellow, TRUE);
         }
 
         // Raycast レイと当たり点
         DrawLine(mx, my, mx, my + 400, white);
         if (hasHit)
         {
-            DrawCircle(static_cast<int>(hit.point.x), static_cast<int>(hit.point.y),
+            DrawCircle(static_cast<int>(hitPoint.x), static_cast<int>(hitPoint.y),
                        6, red, TRUE);
-            DrawFormatString(mx + 12, my - 10, red, "Hit @ %.0f", hit.distance);
+            float dist = hitPoint.y - static_cast<float>(my);
+            DrawFormatString(mx + 12, my - 10, red, "Hit @ %.0f", dist);
         }
 
         DrawFormatString(10, 10, white, "FPS: %.1f  Bodies: %zu",

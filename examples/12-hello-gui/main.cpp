@@ -1,19 +1,45 @@
 /// @file main.cpp
-/// @brief 12-hello-gui — 基本ウィジェットとレイアウト (ADR-0017 L1.5)
+/// @brief 12-hello-gui — 基本ウィジェットレイアウト概念 (ADR-0017 L1.5)
 ///
 /// 学習ポイント / Learning points:
-///   - gx::GUI::UIContext の初期化と毎フレーム Update / Render
-///   - Panel / Button / TextWidget をコードで組み立てる
-///   - onClick コールバックでカウンタを操作
-///   - XML/CSS ローダーを使わない pure-C++ 構築パターン
+///   - gx::GUI::Widget / Panel / Button / TextWidget の構造
+///   - layoutRect で位置・サイズを指定
+///   - onClick コールバックでインタラクション
+///   - UIContext はレンダラー統合が必要なため、このサンプルで���
+///     Compat 描画関数で疑似的な GUI を実装して概念を示す
 ///
-/// より宣言的なスタイルは GUILoader + XML/CSS を使用可能 (ADR-0012 参照)。
+/// 本番 GUI 実装では UIContext::Initialize(renderer, w, h) + SetRoot + Update + Render を使用。
 
 #include "GXLib.h"
-#include "GUI/UIContext.h"
-#include "GUI/Widgets/Panel.h"
-#include "GUI/Widgets/Button.h"
-#include "GUI/Widgets/TextWidget.h"
+#include <cstdio>
+
+struct SimpleButton
+{
+    int x, y, w, h;
+    const char* label;
+    bool hovered = false;
+    bool pressed = false;
+};
+
+static bool UpdateButton(SimpleButton& btn, int mx, int my, bool mouseDown)
+{
+    btn.hovered = (mx >= btn.x && mx <= btn.x + btn.w &&
+                   my >= btn.y && my <= btn.y + btn.h);
+    bool clicked = false;
+    if (btn.hovered && mouseDown && !btn.pressed)
+        clicked = true;
+    btn.pressed = btn.hovered && mouseDown;
+    return clicked;
+}
+
+static void DrawButton(const SimpleButton& btn, unsigned int normalColor,
+                       unsigned int hoverColor, unsigned int textColor)
+{
+    unsigned int bg = btn.hovered ? hoverColor : normalColor;
+    DrawBox(btn.x, btn.y, btn.x + btn.w, btn.y + btn.h, bg, TRUE);
+    DrawBox(btn.x, btn.y, btn.x + btn.w, btn.y + btn.h, textColor, FALSE);
+    DrawString(btn.x + 10, btn.y + 10, btn.label, textColor);
+}
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 {
@@ -25,78 +51,56 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
     SetDrawScreen(GX_SCREEN_BACK);
 
     // =========================================================================
-    // UIContext を取得 (GX_Init で自動生成される)
+    // 疑似 GUI: Panel + Button + テキスト表示
+    // 本来は UIContext + Widget ツリーで構築するが、
+    // Compat 層には UIContext へのアクセスポイントがないため DrawBox/DrawString で代替
     // =========================================================================
-    auto& ui = GetUIContext();   // gx::GUI::UIContext& を返す想定
-    ui.OnResize(1280, 720);
-
-    // =========================================================================
-    // ウィジェットツリーを構築
-    //   Panel (root)
-    //     ├─ TextWidget (title)
-    //     ├─ TextWidget (counter display)
-    //     ├─ Button (+)
-    //     └─ Button (-)
-    // =========================================================================
-    auto root = std::make_unique<gx::GUI::Panel>();
-    root->layout.x = 440; root->layout.y = 200;
-    root->layout.width = 400; root->layout.height = 300;
-
     int counter = 0;
+    SimpleButton btnPlus  = { 460, 350, 120, 40, "  +1  " };
+    SimpleButton btnMinus = { 600, 350, 120, 40, "  -1  " };
 
-    auto title = std::make_unique<gx::GUI::TextWidget>();
-    title->SetText(L"Click the buttons!");
-    title->layout.x = 20; title->layout.y = 20;
-    root->AddChild(std::move(title));
-
-    auto display = std::make_unique<gx::GUI::TextWidget>();
-    auto* displayRaw = display.get();
-    display->SetText(L"Counter: 0");
-    display->layout.x = 20; display->layout.y = 70;
-    root->AddChild(std::move(display));
-
-    auto btnPlus = std::make_unique<gx::GUI::Button>();
-    btnPlus->SetText(L"  +1  ");
-    btnPlus->layout.x = 20; btnPlus->layout.y = 150;
-    btnPlus->layout.width = 100; btnPlus->layout.height = 40;
-    btnPlus->onClick = [&counter, displayRaw]() {
-        ++counter;
-        wchar_t buf[32];
-        std::swprintf(buf, 32, L"Counter: %d", counter);
-        displayRaw->SetText(buf);
-    };
-    root->AddChild(std::move(btnPlus));
-
-    auto btnMinus = std::make_unique<gx::GUI::Button>();
-    btnMinus->SetText(L"  -1  ");
-    btnMinus->layout.x = 140; btnMinus->layout.y = 150;
-    btnMinus->layout.width = 100; btnMinus->layout.height = 40;
-    btnMinus->onClick = [&counter, displayRaw]() {
-        --counter;
-        wchar_t buf[32];
-        std::swprintf(buf, 32, L"Counter: %d", counter);
-        displayRaw->SetText(buf);
-    };
-    root->AddChild(std::move(btnMinus));
-
-    ui.SetRoot(std::move(root));
-
-    unsigned int white = GetColor(255, 255, 255);
+    unsigned int white  = GetColor(255, 255, 255);
+    unsigned int gray   = GetColor(60, 60, 60);
+    unsigned int hover  = GetColor(80, 80, 120);
+    unsigned int green  = GetColor(80, 220, 80);
+    unsigned int cyan   = GetColor(100, 220, 255);
 
     while (ProcessMessage() == 0)
     {
         if (CheckHitKey(KEY_INPUT_ESCAPE)) break;
-        float dt = GetDeltaTime();
 
         ClearDrawScreen();
 
-        // UIContext::Update がマウス/キー入力処理・イベント伝播・レイアウト再計算を行う
-        ui.Update(dt);
-        // Render はウィジェットツリーを順に描画する
-        ui.Render();
+        int mx = 0, my = 0;
+        GetMousePoint(&mx, &my);
+        bool mouseDown = (GetMouseInput() & MOUSE_INPUT_LEFT) != 0;
 
+        bool plusClicked  = UpdateButton(btnPlus, mx, my, mouseDown);
+        bool minusClicked = UpdateButton(btnMinus, mx, my, mouseDown);
+
+        if (plusClicked)  ++counter;
+        if (minusClicked) --counter;
+
+        // Panel background
+        DrawBox(440, 200, 840, 500, gray, TRUE);
+        DrawBox(440, 200, 840, 500, white, FALSE);
+
+        // Title
+        DrawString(460, 220, "Click the buttons!", cyan);
+
+        // Counter display
+        char buf[64];
+        std::snprintf(buf, sizeof(buf), "Counter: %d", counter);
+        DrawString(460, 280, buf, green);
+
+        // Buttons
+        DrawButton(btnPlus,  gray, hover, white);
+        DrawButton(btnMinus, gray, hover, white);
+
+        // Info
         DrawFormatString(10, 10, white, "FPS: %.1f   Counter: %d", GetFPS(), counter);
         DrawString(10, 30, "Click the buttons! ESC to quit.", white);
+        DrawString(10, 680, "NOTE: Real GUI uses gx::GUI::UIContext + Widget tree (see ADR-0012)", gray);
 
         ScreenFlip();
     }

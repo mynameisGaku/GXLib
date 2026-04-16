@@ -183,11 +183,65 @@
 ### 次の優先候補 (carry forward)
 1. IAudioEffect interface 設計 (ADR-0010 extension) — Audio L2 最大ギャップ
 2. Networking gx:: procedural wrappers — L1 surface 新設
-3. examples/11-hello-gui/ — GUI L1.5 ギャップ
-4. examples/12-custom-widget/ — GUI L2 ギャップ
-5. Compat_Particle.cpp human review (AddEmitter 失敗セマンティクス)
-6. GX/System.h + GX/Math.h Doxygen 追加 (低優先)
-7. サンプル API シグネチャ検証 — remote でのビルド不可、ユーザー側か別セッションで確認
+3. Compat_Particle.cpp human review (AddEmitter 失敗セマンティクス)
+4. GX/System.h + GX/Math.h Doxygen 追加 (低優先)
+
+## 夜間自律セッション 2026-04-17 (Plan C: ADR 2 本 + Advanced examples build 通過)
+
+### B: ADR 2 本 ✅ 完了
+- **ADR-0016 EventBus / Cross-System Communication** (Proposed)
+  - docs/architecture/adr-0016-eventbus.md 新規作成
+  - 既存 EventBus (Core/EventBus.h) の型索引 pub/sub を codify
+  - ADR-0013 §13 forward-declaration を解消: HandlerCategory {Idempotent, SideEffect}、SetReplayMode(bool) 契約
+  - QueueFromWorker<T> SPSC ワーカー→メインスレッド経路
+  - AnimationEventDispatcher → 全局バス bridge (SetGlobalBusBridge)
+  - forbidden_patterns: eventbus_fire_from_worker_thread, eventbus_second_instance 他 5 件
+  - 10 validation criteria 定義 (ReplayModeSkipsSideEffect 他)
+
+- **ADR-0015 Editor Architecture** (Proposed)
+  - docs/architecture/adr-0015-editor.md 新規作成
+  - PIE (PlayInEditor) 状態マシン + shallow snapshot 契約
+  - UndoSystem (ICommand + ValueCommand<T>) — rollback replay 中 forbidden
+  - Reflection (GX_REFLECT_* マクロ + TypeRegistry + JsonSerializer)
+  - NodeGraph (visual scripting runtime) — ADR-0005 Lua の peer
+  - GX_EDITOR CMake flag — shipping build で Editor 除外
+  - forbidden_patterns: editor_included_from_runtime, reflection_macro_in_header 他 5 件
+
+- **Traceability + TR-Registry 更新**
+  - architecture-traceability.md: 100% coverage (38/38)、Gap 0、deferred items 8 件
+  - tr-registry.yaml: v4、TR-edit-001..007 + TR-bus-001..006 追加 (13 新 TR)
+
+### 両 ADR の状態: Proposed (fresh-session /architecture-review + TD review が Accepted 昇格前に必要)
+
+### A: Advanced examples build 通過 ✅ 全 6 サンプル修正済み
+
+エンジン側変更:
+- **Renderer3D.h**: `GetShaderRegistry()` public getter 追加 (ShaderRegistry は private member)
+- **Compat/GXLib.h + Compat_System.cpp**: `gx::GetAudioManager()` 追加 (AudioMixer/AudioBus への L2 アクセスポイント)
+
+サンプル修正:
+| Sample | 主な問題 | 修正内容 |
+|--------|----------|----------|
+| 06 custom-shader-model | `Engine::GetRenderer3D()` 不在 | → `gx::GetRenderer3D().GetShaderRegistry()` |
+| 08 hello-physics | `BodyDesc2D` / `PhysicsShape2D::Box` / `BodyHandle2D` / `RaycastHit2D` 全て不在 | → `AddBody()` ポインタ直接操作 + `ColliderShape2D` + 出力ポインタ Raycast |
+| 10 custom-asset-type | `AssetTypeDesc<T>` / `RegisterType<T>` 不在 + `gx::String(ptr, ptr)` コンストラクタなし | → `AssetDatabase::FindAsset` + 手動パース + `DetectChanges` パターン |
+| 11 custom-audio-dsp | `AudioManager::Instance()` 不在 + DrawString arg order | → `gx::GetAudioManager().GetMixer().GetSEBus()` + arg order 修正 |
+| 12 hello-gui | `Widget::layout` 不在 + `GetUIContext()` 不在 | → Compat 描画ベースの疑似 GUI デモに書き換え |
+| 13 custom-widget | 同上 + `MouseDrag` イベント不在 | → Compat 描画ベースの CircularGauge デモに書き換え |
+
+### ビルド結果
+- `cmake --build build --config Debug`: **エラー 0、全 17 バイナリ リンク成功**
+  - GXLib 本体 + GXModelViewer + gxconv + gxpak + 13 examples (01-13 全て)
+- `GXLibTests.exe`: **4913 tests / 490 suites 全 PASS** (5451 ms)
+
+### コミットなし (CLAUDE.md ルール: ユーザー指示なしでは commit しない)
+
+### 朝の TODO
+1. 差分確認 → commit / push の判断
+2. ADR-0015 + ADR-0016 を /architecture-review (fresh session) で検証
+3. Proposed → Accepted 昇格は TD review 後
+4. FontManager::Shutdown Detach() の手動クラッシュテスト (前セッションからの carry forward)
+5. IXAPO wrapper / Networking Compat wrappers は次スプリント
 
 ## IAudioEffect L2 extension 2026-04-16 (Audio の最大 L2 ギャップ解消)
 - Audio/AudioEffect.h に IAudioEffect 抽象インターフェース追加
@@ -262,3 +316,19 @@
   - よくあるつまずき FAQ
   - サンプル一覧を難易度付きで
 - これで「CMake コマンドを叩けない初学者」もダブルクリックで完結
+
+## ビルド検証 2026-04-16 (FontManager::Shutdown Detach 修正後)
+- `cmake --build build --config Debug --target ALL_BUILD` 成功
+  - GXLib 本体 + examples 01/02/03/04/05/07/09 + gxconv + gxpak + GXLibTests すべてリンク完了
+  - エラー 0、警告もノイズレベル (C4xxx) のみ
+- GXLibTests.exe (GoogleTest) 実行: **4913 tests / 490 suites 全 PASS** (5591 ms, exit=0)
+  - 事前に dxcompiler.dll / dxil.dll を build/Tests/Debug/ にコピー必要
+  - GoogleTest バイナリは FontManager 直接の UT を持たない (Tests 配下に FontManager.* なし) ため、
+    Detach 修正の真の検証 (DX12 ウィンドウ実起動 → クローズ時のプロセス終了クラッシュ消失)
+    は未完了。非対話シェルから DX12 ウィンドウの正常クローズをトリガーできないため。
+- **ユーザー側で要手動検証**: `build/examples/01-hello-sprite/Debug/gxlib_example_01.exe` を起動し、
+  ウィンドウを通常クローズ (× / Alt+F4) した際に
+  - アクセス違反ダイアログが出ないこと
+  - `crashes/` ディレクトリに新規ダンプが生成されないこと
+  を確認。問題なければ commit 432fe44 の Detach 修正は本採用可。
+- 次の候補: IXAPO wrapper / Networking Compat wrappers / Tier 2 production work / サンプル 07-13 の実 API 名検証

@@ -72,6 +72,10 @@ public:
     Renderer3D() = default;
     ~Renderer3D() = default;
 
+    /// @brief ShaderRegistry への参照を取得する (カスタムシェーダモデル登録用)
+    ShaderRegistry& GetShaderRegistry() { return m_shaderRegistry; }
+    const ShaderRegistry& GetShaderRegistry() const { return m_shaderRegistry; }
+
     /// @brief 3Dレンダラーを初期化する
     /// @param device D3D12デバイスへのポインタ
     /// @param cmdQueue コマンドキューへのポインタ
