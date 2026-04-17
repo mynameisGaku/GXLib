@@ -2,6 +2,7 @@
 /// @brief アニメーションイベントディスパッチャーの実装
 #include "pch_graphics.h"
 #include "Graphics/3D/AnimationEventDispatcher.h"
+#include "Core/EventBus.h"
 
 namespace gx
 {
@@ -56,6 +57,17 @@ void AnimationEventDispatcher::Update(const AnimationClip* clip, float previousT
         if (m_globalHandler)
         {
             m_globalHandler(*evt);
+            handled = true;
+        }
+
+        if (m_globalBusBridge)
+        {
+            AnimationEventFired fired;
+            fired.eventName  = evt->name;
+            fired.time       = evt->time;
+            fired.floatParam = evt->floatParam;
+            fired.intParam   = evt->intParam;
+            EventBus::Instance().Fire(fired);
             handled = true;
         }
 

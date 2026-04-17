@@ -17,6 +17,16 @@ namespace gx
 /// @brief アニメーションイベントコールバック型
 using AnimationEventCallback = std::function<void(const AnimationEvent& event)>;
 
+/// @brief グローバル EventBus に発行されるアニメーションイベント (ADR-0016 §7)
+/// SetGlobalBusBridge(true) 時に AnimationEventDispatcher から自動発行される。
+struct AnimationEventFired
+{
+    gx::String eventName;   ///< イベント名
+    float time = 0.0f;      ///< 発火時刻 (秒)
+    float floatParam = 0.0f;///< 汎用パラメータ
+    int   intParam = 0;     ///< 汎用パラメータ
+};
+
 /// @brief アニメーションイベントディスパッチャー
 /// AnimationPlayerと連携して、再生中のアニメーション内の特定時刻でイベントを発火する。
 class AnimationEventDispatcher
@@ -61,10 +71,18 @@ public:
     /// @return 登録されていれば true
     bool HasHandler(const gx::String& eventName) const;
 
+    /// @brief グローバル EventBus へのブリッジを有効/無効にする (ADR-0016 §7)
+    /// 有効時、発火した各イベントは EventBus::Fire<AnimationEventFired> も呼ぶ。
+    void SetGlobalBusBridge(bool on) { m_globalBusBridge = on; }
+
+    /// @brief ブリッジが有効か
+    bool IsGlobalBusBridged() const { return m_globalBusBridge; }
+
 private:
     gx::HashMap<gx::String, AnimationEventCallback> m_handlers;
     AnimationEventCallback m_globalHandler;
     uint32_t m_firedCount = 0;
+    bool m_globalBusBridge = false;  ///< EventBus ブリッジ (ADR-0016 §7)
 };
 
 } // namespace gx
