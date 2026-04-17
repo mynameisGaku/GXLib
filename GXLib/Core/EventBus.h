@@ -10,6 +10,9 @@
 #include "pch_common.h"
 #include <typeindex>
 #include <any>
+#include <mutex>
+#include <thread>
+#include <cassert>
 
 namespace gx
 {
@@ -100,6 +103,8 @@ public:
     template<typename T>
     void Fire(const T& event)
     {
+        assert(std::this_thread::get_id() == m_mainThreadId
+               && "EventBus::Fire must be called from the main thread (eventbus_fire_from_worker_thread)");
         auto key = std::type_index(typeid(T));
         auto it = m_handlers.find(key);
         if (it == m_handlers.end()) return;
@@ -126,10 +131,33 @@ public:
         m_queue.push_back({ key, [ptr](const void**) { return static_cast<const void*>(ptr.get()); }, ptr });
     }
 
+    /// @brief ワーカースレッドからイベントを遅延キューに追加する (ADR-0016 §5)
+    /// mutex で保護されたキューに push する。メインスレッドの DispatchQueued() でドレインされる。
+    /// @tparam T イベント型
+    /// @param event キューに追加するイベントデータ
+    template<typename T>
+    void QueueFromWorker(const T& event)
+    {
+        auto key = std::type_index(typeid(T));
+        auto ptr = std::make_shared<T>(event);
+        std::lock_guard<std::mutex> lock(m_workerMutex);
+        m_workerQueue.push_back({ key, [ptr](const void**) { return static_cast<const void*>(ptr.get()); }, ptr });
+    }
+
     /// @brief キューに溜まったイベントを全て配信する
+    /// ワーカーキューを先にドレインし、次にメインスレッドキューを処理する。
     /// リプレイモード中は SideEffect カテゴリのハンドラをスキップする。
     void DispatchQueued()
     {
+        // ワーカーキューをメインキューの先頭にドレイン
+        {
+            std::lock_guard<std::mutex> lock(m_workerMutex);
+            if (!m_workerQueue.empty())
+            {
+                m_queue.insert(m_queue.begin(), m_workerQueue.begin(), m_workerQueue.end());
+                m_workerQueue.clear();
+            }
+        }
         auto queue = std::move(m_queue);
         m_queue.clear();
         for (auto& entry : queue)
@@ -152,10 +180,12 @@ public:
     {
         m_handlers.clear();
         m_queue.clear();
+        std::lock_guard<std::mutex> lock(m_workerMutex);
+        m_workerQueue.clear();
     }
 
 private:
-    EventBus() = default;
+    EventBus() : m_mainThreadId(std::this_thread::get_id()) {}
 
     /// @brief 内部ハンドラ情報
     struct Handler
@@ -174,9 +204,12 @@ private:
     };
 
     gx::HashMap<std::type_index, gx::Vector<Handler>> m_handlers;  ///< 型→ハンドラリストのマップ
-    gx::Vector<QueuedEvent> m_queue;    ///< 遅延発行キュー
-    uint64_t m_nextId = 0;               ///< 次に割り当てる購読ID
-    bool m_replayMode = false;           ///< リプレイモード (ADR-0016 §4)
+    gx::Vector<QueuedEvent> m_queue;         ///< メインスレッド遅延発行キュー
+    gx::Vector<QueuedEvent> m_workerQueue;  ///< ワーカースレッドキュー (mutex 保護)
+    std::mutex m_workerMutex;               ///< ワーカーキュー用ミューテックス
+    std::thread::id m_mainThreadId;         ///< メインスレッドID (Fire assertion 用)
+    uint64_t m_nextId = 0;                  ///< 次に割り当てる購読ID
+    bool m_replayMode = false;              ///< リプレイモード (ADR-0016 §4)
 };
 
 } // namespace gx

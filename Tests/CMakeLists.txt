@@ -259,6 +259,7 @@ set(TEST_SOURCES
     # EventBus stories (ADR-0016)
     unit/eventbus/handler_category_test.cpp
     unit/eventbus/replay_mode_test.cpp
+    unit/eventbus/queue_from_worker_test.cpp
 )
 
 add_executable(GXLibTests ${TEST_SOURCES})
