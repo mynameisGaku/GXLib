@@ -261,6 +261,7 @@ set(TEST_SOURCES
     unit/eventbus/replay_mode_test.cpp
     unit/eventbus/queue_from_worker_test.cpp
     unit/eventbus/animation_bridge_test.cpp
+    unit/eventbus/dispatch_order_test.cpp
 )
 
 add_executable(GXLibTests ${TEST_SOURCES})
