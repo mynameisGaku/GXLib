@@ -824,6 +824,84 @@ InputManager&       GetInputManager();
 /// @brief オーディオマネージャーを取得する (L2: AudioBus / AudioMixer 操作用)
 AudioManager&       GetAudioManager();
 
+class NetworkManager;
+
+/// @brief ネットワークマネージャーを取得する (L2: 直接 API 操作用)
+NetworkManager&     GetNetworkManager();
+
+// ============================================================================
+// ネットワーク (GXLib 独自 — DXLib に相当なし)
+// ============================================================================
+
+/// @brief サーバーを開始する
+/// @param port 待ち受けポート番号
+/// @param maxClients 最大接続クライアント数 (デフォルト 16)
+/// @return 成功 0, 失敗 -1
+int GX_StartServer(int port, int maxClients = 16);
+
+/// @brief サーバーを停止する
+void GX_StopServer();
+
+/// @brief サーバーから全クライアントにデータ送信
+/// @param data 送信データ
+/// @param size データサイズ (バイト)
+/// @return 成功 0, 失敗 -1
+int GX_Broadcast(const void* data, int size);
+
+/// @brief サーバーから指定クライアントにデータ送信
+/// @param clientId クライアントID
+/// @param data 送信データ
+/// @param size データサイズ (バイト)
+/// @return 成功 0, 失敗 -1
+int GX_SendToClient(int clientId, const void* data, int size);
+
+/// @brief クライアントとしてサーバーに接続
+/// @param host ホストアドレス (IP or hostname)
+/// @param port ポート番号
+/// @return 成功 0, 失敗 -1
+int GX_Connect(const char* host, int port);
+
+/// @brief サーバーから切断
+void GX_Disconnect();
+
+/// @brief クライアントからサーバーにデータ送信
+/// @param data 送信データ
+/// @param size データサイズ (バイト)
+/// @return 成功 0, 失敗 -1
+int GX_ClientSend(const void* data, int size);
+
+/// @brief 接続中かどうかを返す
+/// @return 接続中 1, 切断 0
+int GX_IsNetConnected();
+
+/// @brief ネットワーク更新 (毎フレーム呼ぶ)
+void GX_NetworkUpdate();
+
+/// @brief 現在の接続クライアント数を返す
+int GX_GetNetClientCount();
+
+/// @brief サーバーモードかどうかを返す
+/// @return サーバー 1, クライアントまたは未接続 0
+int GX_IsNetServer();
+
+/// @brief クライアント接続時のコールバックを設定する
+/// @param callback 接続時に呼ばれる関数 (引数: clientId)
+void GX_SetOnClientConnect(void(*callback)(int clientId));
+
+/// @brief クライアント切断時のコールバックを設定する
+/// @param callback 切断時に呼ばれる関数 (引数: clientId)
+void GX_SetOnClientDisconnect(void(*callback)(int clientId));
+
+/// @brief データ受信時のコールバックを設定する
+/// @param callback 受信時に呼ばれる関数 (引数: fromClient, data, size)
+void GX_SetOnReceive(void(*callback)(int fromClient, const void* data, int size));
+
+/// @brief RTT (往復遅延) をミリ秒で取得
+float GX_GetNetRTT();
+
+/// @brief パケットロス率を取得 (0.0〜1.0)
+float GX_GetNetPacketLoss();
+
 // ============================================================================
 // float座標版（サブピクセル精度で描画）
 // ============================================================================

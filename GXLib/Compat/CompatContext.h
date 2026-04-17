@@ -35,6 +35,7 @@
 #include "Compat/ImGuiManager.h"
 #include "Graphics/QualitySettings.h"
 #include "Graphics/Rendering/LoadingScreen.h"
+#include "IO/Network/NetworkManager.h"
 
 #include <thread>
 #include <atomic>
@@ -120,6 +121,16 @@ public:
     // --- 3Dオーディオ ---
     gx::AudioEmitter         audioEmitter3D;   ///< 3Dサウンド用エミッター（簡易API用）
     gx::AudioListener        audioListener3D;  ///< 3Dサウンド用リスナー（簡易API用）
+
+    // --- ネットワーク (lazy init — 初回アクセス時に生成) ---
+    std::unique_ptr<gx::NetworkManager> networkManager;
+    gx::NetworkManager& EnsureNetwork() {
+        if (!networkManager) networkManager = std::make_unique<gx::NetworkManager>();
+        return *networkManager;
+    }
+
+    // Receive callback (stored for Compat layer)
+    std::function<void(int, const void*, int)> onNetReceive;
 
     // --- デバッグオーバーレイ ---
     gx::ImGuiManager   imguiManager;                        ///< ImGui ライフサイクル管理
