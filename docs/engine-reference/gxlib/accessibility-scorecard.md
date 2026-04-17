@@ -1,6 +1,6 @@
 # GXLib Accessibility Scorecard
 
-> **Generated**: 2026-04-16
+> **Generated**: 2026-04-18
 > **Pillar**: ADR-0017 Two-Layer Accessibility
 > **Scoring method**: per-subsystem evaluation against L1.1–L1.5 (beginner-usable) and L2.1–L2.5 (core-modifiable)
 
@@ -67,11 +67,11 @@
 | L1.5 | ✅ | examples/02-hello-sound |
 | **L1 subtotal** | **4.5/5** | |
 | L2.1 | ✅ | IAudioEffect interface public in Audio/AudioEffect.h (ADR-0017 L2 added). AudioBus::AddEffect / RemoveEffect registration API public. |
-| L2.2 | ⚠️ | examples/11-custom-audio-dsp demonstrates Tremolo derivation + registration. **Process() dispatch pending IXAPO wrapper** (sample documents the limitation). |
+| L2.2 | ✅ | examples/11-custom-audio-dsp demonstrates Tremolo derivation + registration. IXAPO bridge (XAPOBridge.h) now dispatches Process() via SetEffectChain. |
 | L2.3 | ✅ | Threading contract (audio callback thread, no heap, atomic params) documented in Doxygen + README |
 | L2.4 | ✅ | Transitive types (AudioBus, AudioManager) public |
-| L2.5 | ⚠️ | Effect can be authored + registered app-side today; actual PCM processing activation pending IXAPO wrapper integration |
-| **L2 subtotal** | **4/5** | **REMAINING GAP**: IXAPO wrapper to dispatch IAudioEffect::Process from audio callback thread |
+| L2.5 | ✅ | Effect can be authored + registered + dispatched app-side via XAPOBridge (2026-04-17) |
+| **L2 subtotal** | **5/5** | IXAPO bridge closes the L2 gap |
 
 ### Physics
 
@@ -81,8 +81,8 @@
 | L1.2 | ✅ | Reasonable defaults (fixed-timestep 60Hz per ADR-0009) |
 | L1.3 | N/A | Not a Compat-layer subsystem |
 | L1.4 | ✅ | Good Doxygen on public physics API |
-| L1.5 | ❌ | No examples/hello-physics sample yet |
-| **L1 subtotal** | **3/5** |  |
+| L1.5 | ✅ | examples/08-hello-physics (PhysicsWorld2D + RigidBody + Raycast) |
+| **L1 subtotal** | **4/5** | Sample 08 closes L1.5 gap |
 | L2.1 | ✅ | PhysicsShape public, RagdollBuilder public, PhysicsMaterial via AssetDB |
 | L2.2 | ❌ | No custom-physics-shape or custom-ragdoll-chain example |
 | L2.3 | ✅ | PhysicsShape interface documented (sphere/box/capsule/cylinder/convexhull/mesh) |
@@ -101,11 +101,11 @@
 | L1.5 | ✅ | All L1 examples transitively demonstrate assets |
 | **L1 subtotal** | **4/5** |  |
 | L2.1 | ✅ | IFileProvider public, AssetDatabase::RegisterType<T> public |
-| L2.2 | ❌ | No examples/custom-asset-type / custom-file-provider sample |
+| L2.2 | ✅ | examples/10-custom-asset-type (AssetDatabase FindAsset + DetectChanges pattern) |
 | L2.3 | ✅ | Provider + type registration contracts documented |
 | L2.4 | ✅ | AssetHandle<T>, AssetId public |
 | L2.5 | ✅ | Registering new asset types works app-side |
-| **L2 subtotal** | **4/5** | **GAP**: Missing L2.2 in-repo example |
+| **L2 subtotal** | **5/5** | Sample 10 closes L2.2 gap |
 
 ### Input
 
@@ -145,12 +145,12 @@
 
 | Criterion | Score | Notes |
 |-----------|-------|-------|
-| L1.1 | ❌ | No Compat-flat networking API (`gx::StartServer` etc) |
-| L1.2 | ⚠️ | NetworkManager requires explicit port+maxClients config |
-| L1.3 | ⚠️ | NetworkManager returns bool, not -1 int |
-| L1.4 | ⚠️ | NetworkManager.h has Doxygen but examples sparse |
-| L1.5 | ❌ | No examples/hello-network sample |
-| **L1 subtotal** | **1.5/5** | **GAP**: Networking has no L1 surface |
+| L1.1 | ✅ | 17 GX_* procedural functions: GX_StartServer / GX_Connect / GX_Broadcast / GX_ClientSend + stats + callbacks (2026-04-17) |
+| L1.2 | ✅ | GX_StartServer(port, maxClients=16) — sensible default |
+| L1.3 | ✅ | All GX_* functions return 0/-1 with GX_LOG_ERROR on failure |
+| L1.4 | ✅ | GXLib.h full Doxygen on all 17 networking functions |
+| L1.5 | ⚠️ | No examples/hello-network sample yet (Compat wrappers exist) |
+| **L1 subtotal** | **4.5/5** | GX_* wrappers close the L1 gap (2026-04-17) |
 | L2.1 | ✅ | All layers public per ADR-0013 (NetworkReplicator / ReplicatedProperty<T> / RollbackNetcode) |
 | L2.2 | ❌ | No in-repo multiplayer sample |
 | L2.3 | ✅ | ADR-0013 documents layering + contracts |
@@ -166,8 +166,8 @@
 | L1.2 | ✅ | Default playback rate = 1.0 |
 | L1.3 | ✅ | Compat_3D anim paths log via GX_VALIDATE_MODEL_HANDLE + animIndex range checks (Sprint 1 T1.1) |
 | L1.4 | ✅ | Compat/GXLib.h documents all anim functions |
-| L1.5 | ⚠️ | No examples/hello-animation sample (04-hello-3d is static) |
-| **L1 subtotal** | **4.5/5** | |
+| L1.5 | ✅ | examples/09-hello-animation (LoadModel + PlayModelAnimation + clip switching) |
+| **L1 subtotal** | **5/5** | Sample 09 closes L1.5 gap |
 | L2.1 | ✅ | Skeleton / Animator / BlendTree / IK suite all public per ADR-0014 |
 | L2.2 | ❌ | No examples/custom-ik-solver or custom-animation-layer sample |
 | L2.3 | ✅ | IK / state machine / blend tree contracts documented |
@@ -183,14 +183,14 @@
 | L1.2 | ✅ | Default archetype behaviour sensible |
 | L1.3 | N/A | Not a Compat layer |
 | L1.4 | ✅ | ADR-0004 + World.h / Query.h well-documented |
-| L1.5 | ❌ | No examples/hello-ecs sample |
-| **L1 subtotal** | **3/5** | |
+| L1.5 | ✅ | examples/07-hello-ecs (World + AddComponent + ForEach particle bounce) |
+| **L1 subtotal** | **4/5** | Sample 07 closes L1.5 gap |
 | L2.1 | ✅ | World / Query / System public; POD-component rule enforced |
-| L2.2 | ❌ | No in-repo ECS sample |
+| L2.2 | ✅ | examples/07-hello-ecs (ECS World usage pattern) |
 | L2.3 | ✅ | POD-component + command-buffer contracts documented |
 | L2.4 | ✅ | EntityHandle / component types public |
 | L2.5 | ✅ | Defining new components + systems works app-side |
-| **L2 subtotal** | **4/5** | |
+| **L2 subtotal** | **5/5** | Sample 07 closes L2.2 gap |
 
 ---
 
@@ -199,23 +199,26 @@
 | Subsystem | L1 | L2 | Status |
 |-----------|----|----|--------|
 | Graphics | 5.0 | 5.0 | ✅ Full pillar compliance |
-| Audio | 4.5 | 4.0 | ⚠️ IAudioEffect interface added; IXAPO wrapper pending for actual Process() dispatch |
-| Physics | 3.0 | 3.0 | ⚠️ Missing L1/L2 examples |
-| Asset DB | 4.0 | 4.0 | ⚠️ Missing custom-asset-type example |
+| Audio | 4.5 | 5.0 | ✅ IXAPO bridge completes L2 (2026-04-17) |
+| Physics | 4.0 | 3.0 | ⚠️ Missing custom-physics L2 example |
+| Asset DB | 4.0 | 5.0 | ✅ Sample 10 closes L2 gap |
 | Input | 5.0 | 4.5 | ✅ Near-full compliance |
-| GUI | 4.5 | 5.0 | ✅ Near-full compliance (samples 12/13 added) |
-| Networking | 1.5 | 3.0 | ❌ Largest gap — no L1 surface, no sample |
-| Animation | 4.5 | 4.0 | ⚠️ Missing custom-IK example |
-| ECS | 3.0 | 4.0 | ⚠️ Missing hello-ecs example |
+| GUI | 4.5 | 5.0 | ✅ Samples 12/13 now use real Widget API via GetUIContext() |
+| Networking | 4.5 | 3.0 | ⚠️ L1 wrappers added (17 GX_*); missing network sample + L2 stubs |
+| Animation | 5.0 | 4.0 | ⚠️ Missing custom-IK L2 example |
+| ECS | 4.0 | 5.0 | ✅ Sample 07 closes both gaps |
 
-**Average across 9 subsystems**: L1 = 3.8/5 (76%), L2 = 3.7/5 (74%)
+**Average across 9 subsystems**: L1 = 4.5/5 (90%), L2 = 4.4/5 (88%)
 
-**After today's additions** (examples 07-11 + IAudioEffect):
-- Physics L1: 3.0 → 4.0 (sample 08)
-- Asset DB L2: 4.0 → 5.0 (sample 10)
-- Animation L1: 4.5 → 5.0 (sample 09)
-- ECS L1: 3.0 → 4.0 (sample 07)
-- Audio L2: 1.5 → 4.0 (IAudioEffect interface + sample 11)
+### Progression
+
+| Date | L1 avg | L2 avg | Notes |
+|------|--------|--------|-------|
+| 2026-04-16 (initial) | 50% | 36% | Pillar established |
+| 2026-04-16 (sprint 1) | 68% | 40% | Silent-failure logging + Doxygen |
+| 2026-04-16 (sprint 2) | 76% | 74% | Extension APIs + IAudioEffect + samples 01-06 |
+| 2026-04-16 (batch) | 84% | 86% | Samples 07-13 + GUI/Networking wrappers |
+| 2026-04-18 (current) | **90%** | **88%** | IXAPO bridge + Networking Compat + GetUIContext + Widget examples + EventBus replay |
 
 **Revised average**: L1 = 4.1/5 (82%), L2 = 4.1/5 (82%)
 
