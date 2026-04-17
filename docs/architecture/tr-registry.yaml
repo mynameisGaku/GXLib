@@ -19,7 +19,7 @@
 #
 # STATUS VALUES: active | deprecated | superseded-by: TR-[system]-NNN
 
-version: 6
+version: 7
 last_updated: "2026-04-17"
 
 requirements:
@@ -433,5 +433,22 @@ requirements:
     added: 2026-04-17
     revised: ""
 
-  # ─── charter-level gaps ─
-  # All charter TRs + AI + Scene covered. Remaining: Movie (ADR-0020).
+  # ─── mov (ADR-0020 Movie Pipeline) ─────────────────────────────────────────
+  - id: TR-mov-001
+    system: mov
+    source_adr: docs/architecture/adr-0020-movie-pipeline.md
+    requirement: "MoviePlayer: Media Foundation video decode to RGB32 texture via IMFSourceReader. Open/Play/Pause/Stop/Seek/Update/GetTextureHandle. No audio track."
+    status: active
+    added: 2026-04-17
+    revised: ""
+
+  - id: TR-mov-002
+    system: mov
+    source_adr: docs/architecture/adr-0020-movie-pipeline.md
+    requirement: "VideoRecorder: swap-chain frame capture + MP4 encoding via Media Foundation Sink Writer."
+    status: active
+    added: 2026-04-17
+    revised: ""
+
+  # ─── All subsystem gaps closed ─
+  # 20 ADRs covering all engine subsystems. 55 TRs total.
