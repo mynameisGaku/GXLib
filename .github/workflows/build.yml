@@ -37,3 +37,53 @@ jobs:
           name: test-results-${{ matrix.config }}
           path: build/Testing/
           retention-days: 7
+
+  # ADR-0015: GX_EDITOR=OFF shipping build must succeed
+  build-no-editor:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Configure CMake (GX_EDITOR=OFF)
+        run: cmake -B build -S . -DGX_EDITOR=OFF -DGX_BUILD_EXAMPLES=OFF
+
+      - name: Build (shipping config)
+        run: cmake --build build --config Release --parallel
+
+  # ADR-0015: No #include "Editor/..." from runtime modules
+  lint-editor-boundary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check editor includes from runtime
+        run: |
+          # Fail if any runtime module includes Editor headers
+          VIOLATIONS=$(grep -rn '#include.*"Editor/' \
+            GXLib/Graphics/ GXLib/Audio/ GXLib/Physics/ \
+            GXLib/IO/ GXLib/Input/ GXLib/Core/ GXLib/ECS/ \
+            GXLib/AI/ GXLib/Script/ GXLib/Compat/ GXLib/GX/ \
+            GXLib/GUI/ GXLib/Movie/ GXLib/Math/ GXLib/Container/ \
+            2>/dev/null || true)
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::Editor headers included from runtime modules (editor_included_from_runtime):"
+            echo "$VIOLATIONS"
+            exit 1
+          fi
+          echo "No editor boundary violations found."
+
+      - name: Check reflection macros in headers
+        run: |
+          # Fail if GX_REFLECT_BEGIN appears in any .h file
+          VIOLATIONS=$(grep -rn 'GX_REFLECT_BEGIN' --include='*.h' GXLib/ 2>/dev/null || true)
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::GX_REFLECT_BEGIN found in headers (reflection_macro_in_header):"
+            echo "$VIOLATIONS"
+            exit 1
+          fi
+          echo "No reflection macro violations found."
