@@ -188,13 +188,18 @@ target_link_libraries(GXLib_GUI PUBLIC GXLib_Graphics GXLib_Input)
 # =============================================================================
 # GXLib_Editor — Gizmo, EntityPicker, ShaderGraph, SceneViewport, TerrainSculptor, etc.
 # 依存: GXLib_Graphics, GXLib_Scene
+# ADR-0015: GX_EDITOR=OFF で shipping ビルドから除外可能
 # =============================================================================
-file(GLOB_RECURSE EDITOR_SOURCES "Editor/*.cpp" "Editor/*.h")
-add_library(GXLib_Editor STATIC ${EDITOR_SOURCES})
-gxlib_setup_module(GXLib_Editor pch_graphics.h)
-set_target_properties(GXLib_Editor PROPERTIES FOLDER "Engine")
-target_link_libraries(GXLib_Editor PUBLIC GXLib_Graphics GXLib_Scene GXLib_Core)
-target_include_directories(GXLib_Editor PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/imgui)
+option(GX_EDITOR "Build the Editor module (PIE, panels, gizmo)" ON)
+
+if (GX_EDITOR)
+    file(GLOB_RECURSE EDITOR_SOURCES "Editor/*.cpp" "Editor/*.h")
+    add_library(GXLib_Editor STATIC ${EDITOR_SOURCES})
+    gxlib_setup_module(GXLib_Editor pch_graphics.h)
+    set_target_properties(GXLib_Editor PROPERTIES FOLDER "Engine")
+    target_link_libraries(GXLib_Editor PUBLIC GXLib_Graphics GXLib_Scene GXLib_Core)
+    target_include_directories(GXLib_Editor PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/imgui)
+endif()
 
 # =============================================================================
 # GXLib_Script — ScriptEngine, ScriptBindings [optional: GX_ENABLE_LUA]
@@ -260,8 +265,11 @@ target_link_libraries(GXLib PUBLIC
     GXLib_ECS
     GXLib_Graphics
     GXLib_GUI
-    GXLib_Editor
 )
+
+if (GX_EDITOR)
+    target_link_libraries(GXLib PUBLIC GXLib_Editor)
+endif()
 
 if (GX_ENABLE_LUA)
     target_link_libraries(GXLib PUBLIC GXLib_Script)
@@ -308,10 +316,14 @@ install(FILES
 )
 
 # ライブラリインストール（Debug/Release を $<CONFIG> で分岐）
-install(TARGETS
+set(_INSTALL_TARGETS
     GXLib GXLib_Container GXLib_Foundation GXLib_Core GXLib_Input GXLib_Audio
     GXLib_IO GXLib_Physics GXLib_AI GXLib_Scene GXLib_ECS
-    GXLib_Graphics GXLib_GUI GXLib_Editor
+    GXLib_Graphics GXLib_GUI)
+if (GX_EDITOR)
+    list(APPEND _INSTALL_TARGETS GXLib_Editor)
+endif()
+install(TARGETS ${_INSTALL_TARGETS}
     ARCHIVE DESTINATION lib/$<CONFIG>
 )
 
