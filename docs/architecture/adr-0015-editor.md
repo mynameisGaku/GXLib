@@ -1,7 +1,7 @@
 # ADR-0015: Editor Architecture (Play-in-Editor, Reflection, Undo/Redo, Node Graph, Panels)
 
 ## Status
-Proposed
+Accepted
 
 ## Date
 2026-04-16

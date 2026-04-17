@@ -1,7 +1,7 @@
 # ADR-0016: EventBus / Cross-System Communication (Type-Safe Pub/Sub with Replay-Suppression Contract)
 
 ## Status
-Proposed
+Accepted
 
 ## Date
 2026-04-16
