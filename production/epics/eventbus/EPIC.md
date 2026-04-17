@@ -4,7 +4,17 @@
 > **ADR**: docs/architecture/adr-0016-eventbus.md
 > **Architecture Module**: GXLib/Core/EventBus.h
 > **Status**: Ready
-> **Stories**: Not yet created — run `/create-stories eventbus`
+> **Stories**: 5 stories created (3 Logic, 2 Integration)
+
+## Stories
+
+| # | Story | Type | Status | TR-ID | ADR |
+|---|-------|------|--------|-------|-----|
+| 001 | HandlerCategory enum + Subscribe overload | Logic | Ready | TR-bus-002 | ADR-0016 §3 |
+| 002 | SetReplayMode replay suppression | Logic | Ready | TR-bus-003 | ADR-0016 §4 |
+| 003 | QueueFromWorker thread-safe worker route | Integration | Ready | TR-bus-004 | ADR-0016 §5 |
+| 004 | AnimationEventDispatcher global bus bridge | Integration | Ready | TR-bus-005 | ADR-0016 §7 |
+| 005 | Dispatch order determinism verification | Logic | Ready | TR-bus-006 | ADR-0016 §6 |
 
 ## Overview
 
