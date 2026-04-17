@@ -5,6 +5,7 @@
 #include "Compat/CompatContext.h"
 #include "Graphics/Rendering/ParticleSystem2D.h"
 #include "Graphics/Rendering/ParticleEmitter2D.h"
+#include "Core/Logger.h"
 
 using Ctx = gx_internal::CompatContext;
 
@@ -12,6 +13,12 @@ namespace gx {
 
 int CreateParticle2D(int textureHandle, float x, float y, int count)
 {
+    if (count < 0)
+    {
+        GX_LOG_ERROR("CreateParticle2D: count=%d is negative", count);
+        return -1;
+    }
+
     auto& ctx = Ctx::Instance();
 
     EmitterConfig2D config;
@@ -22,6 +29,12 @@ int CreateParticle2D(int textureHandle, float x, float y, int count)
     config.maxParticles = static_cast<uint32_t>((std::max)(count, 100));
 
     int handle = ctx.particleSystem2D.AddEmitter(config);
+    if (handle < 0)
+    {
+        GX_LOG_ERROR("CreateParticle2D: AddEmitter failed (pool exhausted?)");
+        return -1;
+    }
+
     ctx.particleSystem2D.SetPosition(handle, x, y);
 
     if (count > 0)
@@ -35,7 +48,7 @@ int CreateParticle2D(int textureHandle, float x, float y, int count)
 int UpdateParticles()
 {
     auto& ctx = Ctx::Instance();
-    ctx.particleSystem2D.Update(1.0f / 60.0f);
+    ctx.particleSystem2D.Update(GetDeltaTime());
     return 0;
 }
 

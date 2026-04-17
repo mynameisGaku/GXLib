@@ -61,7 +61,7 @@ This ADR codifies the existing shape, freezes the replay-suppression contract re
   - During replay mode, `Fire<T>` and `DispatchQueued` invoke only `Idempotent`-categorised handlers; `SideEffect`-categorised handlers are skipped entirely (not queued, not deferred — skipped).
 - **Threading contract:**
   - `Subscribe`, `Unsubscribe`, `Fire`, `Queue`, `DispatchQueued`, `Clear` — main-thread-only.
-  - Worker-thread (ADR-0006 JobSystem) event production uses a `QueueFromWorker<T>` path that pushes into a lock-guarded per-worker SPSC buffer, which main-thread's `DispatchQueued` drains before running the main-thread queue. This path is the ONLY sanctioned cross-thread route.
+  - Worker-thread (ADR-0006 JobSystem) event production uses a `QueueFromWorker<T>` path that pushes into a shared mutex-guarded queue (matching the JobSystem's own shared-queue model), which main-thread's `DispatchQueued` drains before running the main-thread queue. This path is the ONLY sanctioned cross-thread route. `QueueFromWorker<T>` is a **new API** to be added to EventBus — it does not exist in the current header-only implementation.
   - `Fire<T>` from a worker thread is a forbidden pattern (`eventbus_fire_from_worker_thread`).
 - **AnimationEventDispatcher bridge:** AnimationEventDispatcher is a per-AnimationPlayer local mechanism (by-name callback registry on a single clip). When an AnimationPlayer opts into the global bus (new method `AnimationEventDispatcher::SetGlobalBusBridge(bool)`), each fired AnimationEvent is additionally `Fire<AnimationEventFired>`-emitted on the global EventBus. The global bridge's handlers respect categorisation; dispatcher-local handlers remain outside the replay-suppression system (author's responsibility).
 - **Determinism:** dispatch order within a type = insertion order into the handler vector. Handler vector is never reordered. `Clear()` is the only way to drop the vector wholesale.
@@ -109,12 +109,12 @@ Concrete rules:
 
 5. **Threading.**
    - Main-thread-only for `Subscribe` / `Unsubscribe` / `Fire` / `DispatchQueued` / `SetReplayMode` / `Clear`.
-   - Worker threads (ADR-0006 JobSystem) use a separate SPSC lane:
+   - Worker threads (ADR-0006 JobSystem) use a dedicated cross-thread queue:
      ```cpp
      template<typename T>
-     void EventBus::QueueFromWorker(const T& event); // thread-safe, lock-guarded
+     void EventBus::QueueFromWorker(const T& event); // thread-safe, mutex-guarded
      ```
-     Backed by per-worker ring-buffer flushed by the main thread at the start of `DispatchQueued`. The main-thread drain path dispatches them through the same categorisation + replay-mode logic.
+     **New API** — not yet in the current EventBus header. Backed by a single shared mutex-guarded queue (consistent with the JobSystem's own shared-queue + mutex model from ADR-0006). Main thread drains this queue at the start of `DispatchQueued`, before processing the main-thread-local queue. The drain path dispatches through the same categorisation + replay-mode logic.
    - `Fire<T>` from a worker thread is a forbidden pattern (`eventbus_fire_from_worker_thread`). Callers must either (a) `QueueFromWorker<T>` to let the main thread fire, or (b) `SubmitMainThread([]{ EventBus::Instance().Fire(...); })` via ADR-0006.
 
 6. **Dispatch determinism.**
@@ -131,7 +131,7 @@ Concrete rules:
 
 8. **Queue semantics.**
    - `Queue<T>(event)` copies the event into a `shared_ptr<T>` (current behaviour, unchanged) and enqueues. Subscribers receive `const T&` on `DispatchQueued`.
-   - `DispatchQueued` drains the main-thread queue and the worker-thread SPSC lanes in that order (main-thread-local events first, then worker-produced). Deterministic.
+   - `DispatchQueued` drains the worker-thread shared queue first, then the main-thread-local queue. Both are processed in FIFO order. Deterministic (same Subscribe order → same dispatch order).
    - No priority. Games that need priority implement it in their event type + subscriber filter, not in the bus.
 
 9. **Subscription lifetime.**
@@ -164,7 +164,7 @@ Concrete rules:
    │       (Vector<H> is insertion-ordered)          │
    │                                                 │
    │  m_queue (main-thread)                          │
-   │  m_workerQueues[N] (SPSC, per worker)           │
+   │  m_workerQueue (shared, mutex-guarded)            │
    │                                                 │
    │  m_replayMode (bool)                            │
    │                                                 │
@@ -176,7 +176,7 @@ Concrete rules:
    └─────────────────────────────────────────────────┘
        ▲
        │ EventBus::Instance().QueueFromWorker<T>(e)
-       │ (lock-guarded push into per-worker SPSC lane)
+       │ (mutex-guarded push into shared worker queue)
        │
    Worker thread (ADR-0006 JobSystem)
 
@@ -216,7 +216,7 @@ public:
     template<typename T> void Queue(const T& event);  // main-thread-only
     void DispatchQueued();                             // drains worker lanes first, then main queue
 
-    template<typename T> void QueueFromWorker(const T& event); // thread-safe SPSC
+    template<typename T> void QueueFromWorker(const T& event); // thread-safe, mutex-guarded (new API)
 
     void SetReplayMode(bool on);
     bool IsReplayMode() const;
@@ -311,7 +311,8 @@ struct AnimationEventFired {
 - **Memory**: `m_handlers` = #types × (HashMap entry + per-type handler vector). Typical game: ~50 event types × ~5 handlers each × (64 bytes per handler entry) = ~16 KB. `m_queue` scales with deferred-event backlog; budget default 10k pending entries ≈ max ~1 MB depending on payload size.
 - **Load Time**: No load cost — header-only, singleton lazily constructed.
 - **Rollback overhead**: Replay mode adds one branch per handler invocation. Over an 8-frame rollback window with ~100 events per frame and ~5 handlers each, that's 4000 branch predictions, fully predicted, negligible.
-- **Worker lane cost**: `QueueFromWorker<T>` uses a lock-free SPSC ring per worker (designed for JobSystem's fixed worker count from ADR-0006). Lock-free push cost ≈ 20 ns per event.
+- **Worker queue cost**: `QueueFromWorker<T>` uses a shared mutex-guarded queue (consistent with the JobSystem's own shared-queue model). Mutex push cost ≈ 50-100 ns per event under low contention; acceptable for the expected worker-event volume (tens per frame, not thousands).
+- **Fire<T> allocation**: The handler-vector copy in `Fire<T>` allocates on every call (`gx::Vector` copy constructor). At typical subscriber counts (1-10 handlers, ≤ 640 bytes), the SBO or arena allocator absorbs this. For event types fired 100+ times per frame, this becomes measurable (~10-50 μs cumulative). **Accepted trade-off** for re-entrancy safety. If profiling shows this as a bottleneck, migration to a generation-counter + deferred-erase pattern (no copy, mark-and-skip stale entries) is the documented escape hatch.
 
 ## Migration Plan
 
@@ -338,7 +339,11 @@ Not applicable for a greenfield context, but this ADR adds to an existing interf
 
 - ADR-0001 (Documentation strategy)
 - ADR-0004 (ECS — ECS system updates are the main producers/consumers of EventBus events; the ECS archetype determinism combines with EventBus insertion order to give a deterministic event stream per tick)
-- ADR-0006 (Job System — the `QueueFromWorker<T>` route relies on the ADR-0006 fixed-worker-count model)
+- ADR-0006 (Job System — the `QueueFromWorker<T>` route uses the same shared-queue + mutex model as the JobSystem itself)
+
+### DLL Boundary Limitation
+
+EventBus uses `std::type_index(typeid(T))` as routing key. On MSVC, `type_info` identity is per-module. If GXLib is packaged as a DLL, `Fire<MyEvent>` from DLL A will not reach handlers subscribed from DLL B (different `type_info` addresses for the same type). Migration to string-keyed or hash-keyed dispatch would be required before DLL packaging. This is not a concern for the current static-library configuration.
 - ADR-0009 (Physics — §15 deterministic reduction order is what EventBus replay mode preserves for physics-caused events)
 - ADR-0013 (Networking — §13 forward-declared this ADR; this ADR lifts the forward-declaration and binds the `HandlerCategory` + `SetReplayMode` interface)
 - ADR-0014 (Animation — §17 AnimationEventDispatcher is a producer; this ADR specifies the bridge to the global bus)

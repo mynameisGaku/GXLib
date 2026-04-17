@@ -11,6 +11,8 @@
 #include "Audio/AudioEffect.h"   // IAudioEffect 完全定義 (ADR-0017 L2)
 #include <memory>
 
+namespace gx { class XAPOBridge; }
+
 namespace gx
 {
 /// @addtogroup grp_audio
@@ -105,6 +107,9 @@ private:
 
     // Layer 2 DSP エフェクトチェーン (ADR-0017 L2)
     std::unique_ptr<IAudioEffect> m_effects[k_MaxEffectsPerBus];
+
+    XAPOBridge* m_xapoBridge = nullptr;
+    void RebuildEffectChain();
 };
 
 /// @}

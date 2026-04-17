@@ -237,11 +237,51 @@
 ### コミットなし (CLAUDE.md ルール: ユーザー指示なしでは commit しない)
 
 ### 朝の TODO
-1. 差分確認 → commit / push の判断
-2. ADR-0015 + ADR-0016 を /architecture-review (fresh session) で検証
-3. Proposed → Accepted 昇格は TD review 後
+1. ~~差分確認 → commit / push の判断~~ DONE (af7c4f7)
+2. ~~ADR-0015 + ADR-0016 を /architecture-review (fresh session) で検証~~ DONE (下記)
+3. Proposed → Accepted 昇格: パッチ適用済み、次回 review で PASS 確認後に昇格
 4. FontManager::Shutdown Detach() の手動クラッシュテスト (前セッションからの carry forward)
-5. IXAPO wrapper / Networking Compat wrappers は次スプリント
+5. IXAPO wrapper — 進行中 (下記)
+6. Compat_Particle.cpp — 分析完了、修正待ち (下記)
+
+## /architecture-review 2026-04-17 (fresh session)
+- Verdict: CONCERNS
+- Requirements: 38 total — 38 covered (100%)
+- Charter gaps: 0 (全 10 charter TR closed)
+- ADR-0013 §13 forward-declaration: RESOLVED by ADR-0016
+- Engine specialist findings: 2 REAL ISSUE + 3 MINOR CONCERN
+  1. 🔴 ADR-0016 §5 QueueFromWorker described nonexistent SPSC per-worker infra → PATCHED (shared mutex queue に修正、new API として明記)
+  2. 🔴 ADR-0016 Fire<T> allocation cost undocumented → PATCHED (Performance セクションに trade-off + escape hatch 追記)
+  3. ⚠️ type_index DLL boundary limitation → PATCHED (ADR-0015 + ADR-0016 both)
+  4. ⚠️ Reflection registrar DLL boundary → PATCHED (ADR-0015)
+  5. ⚠️ PIE rotation Euler round-trip → PATCHED (ADR-0015)
+- Subsystem gaps (not charter-level): AI, Scene, Movie — retroactive, non-urgent
+- Report: docs/architecture/architecture-review-2026-04-17.md
+- Promotion path: パッチ適用済み → 再度 review で PASS 確認 → Accepted 昇格
+
+## Compat_Particle.cpp 修正 2026-04-17
+- 3 defects fixed:
+  1. CreateParticle2D: AddEmitter return guarded with `if (handle < 0)` + GX_LOG_ERROR
+  2. `#include "Core/Logger.h"` 追加
+  3. `count < 0` precondition check + GX_LOG_ERROR
+- Advisory fix: UpdateParticles `1.0f/60.0f` → `GetDeltaTime()` (実フレームレート対応)
+- Status: ✅ 修正済み、ビルド OK
+
+## IXAPO wrapper 実装 2026-04-17
+- Audio/XAPOBridge.h 新規作成:
+  - IXAPO を直接実装 (手動 COM — xapobase.lib 依存なし)
+  - Process() で AudioBus::m_effects[] 全スロットの IAudioEffect::Process() を呼び出し
+  - float32 in-place 処理 (XAudio2 SubmixVoice 内部フォーマット)
+  - Reset() で全 IAudioEffect::Reset() を伝播
+  - XAPO_FLAG_INPLACE_REQUIRED で in-place effect として登録
+- AudioBus.h/cpp 修正:
+  - XAPOBridge* m_xapoBridge メンバ + RebuildEffectChain() private メソッド追加
+  - AddEffect(): 登録後に RebuildEffectChain() → SetEffectChain 自動更新
+  - RemoveEffect(): 削除後に RebuildEffectChain() → チェーン縮小 or null 化
+  - Shutdown(): SetEffectChain(nullptr) + bridge Release
+- ビルド結果: エラー 0、17 バイナリ全リンク、4913 テスト全 PASS
+- Scorecard 影響: Audio L2 に IXAPO 配線追加 → IAudioEffect::Process() が実際に呼ばれるようになる
+- 残課題: 実際のオーディオ再生での Process() 実行確認は手動テスト必要
 
 ## IAudioEffect L2 extension 2026-04-16 (Audio の最大 L2 ギャップ解消)
 - Audio/AudioEffect.h に IAudioEffect 抽象インターフェース追加

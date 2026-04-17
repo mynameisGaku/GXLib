@@ -402,6 +402,14 @@ Not applicable — this ADR is retroactive. Going forward:
 - **PIE input capture coexistence (ADR-0012 §9)**: PIE with `captureInput=true` — editor panels do not receive keyboard input while the PIE viewport has focus.
 - **Gizmo shipping**: `GX_EDITOR=OFF` frame graph does NOT include a Gizmo pass — verified by frame-graph introspection test.
 
+### DLL Boundary Limitation
+
+Reflection uses `std::type_index(typeid(T))` via `TypeRegistry`, and the anonymous-namespace registrar pattern produces TU-local static initialisers. Both are safe for the current static-library configuration. If GXLib is ever packaged as a DLL: (1) `TypeRegistry::Get<T>()` from a different module than the registrar will fail silently (different `type_info` per module on MSVC), and (2) the same type registered in multiple modules will produce duplicate entries. Migration to a central registration init function would be required.
+
+### PIE Rotation Round-Trip Note
+
+`PIEEntityState` stores rotation as three Euler floats (`rotX/Y/Z`). If `Transform` internally stores a Quaternion, the `GetRotation()` → Euler → `SetRotation(euler)` → Quaternion round-trip may introduce floating-point rounding in the gimbal-lock region. This is a known limitation of the shallow snapshot approach; deep snapshot (future ADR) would serialize the native Quaternion directly.
+
 ## Related Decisions
 
 - ADR-0001 (Documentation strategy)

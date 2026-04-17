@@ -2,7 +2,8 @@
 /// @brief オーディオバスの実装
 #include "pch_audio.h"
 #include "Audio/AudioBus.h"
-#include "Audio/AudioEffect.h"   // IAudioEffect full definition (ADR-0017 L2)
+#include "Audio/AudioEffect.h"
+#include "Audio/XAPOBridge.h"
 #include "Core/Logger.h"
 
 namespace gx
@@ -79,10 +80,15 @@ void AudioBus::Shutdown()
 {
     if (m_submixVoice)
     {
+        m_submixVoice->SetEffectChain(nullptr);
         m_submixVoice->DestroyVoice();
         m_submixVoice = nullptr;
     }
-    // カスタムエフェクトも破棄
+    if (m_xapoBridge)
+    {
+        m_xapoBridge->Release();
+        m_xapoBridge = nullptr;
+    }
     for (auto& e : m_effects) e.reset();
 }
 
@@ -100,6 +106,7 @@ int AudioBus::AddEffect(std::unique_ptr<IAudioEffect> effect)
     {
         if (!m_effects[i]) {
             m_effects[i] = std::move(effect);
+            RebuildEffectChain();
             return static_cast<int>(i);
         }
     }
@@ -112,6 +119,7 @@ void AudioBus::RemoveEffect(int index)
 {
     if (index < 0 || index >= static_cast<int>(k_MaxEffectsPerBus)) return;
     m_effects[index].reset();
+    RebuildEffectChain();
 }
 
 size_t AudioBus::GetEffectCount() const
@@ -125,6 +133,51 @@ IAudioEffect* AudioBus::GetEffect(int index)
 {
     if (index < 0 || index >= static_cast<int>(k_MaxEffectsPerBus)) return nullptr;
     return m_effects[index].get();
+}
+
+void AudioBus::RebuildEffectChain()
+{
+    if (!m_submixVoice) return;
+
+    bool hasAny = false;
+    for (const auto& e : m_effects) if (e) { hasAny = true; break; }
+
+    if (!hasAny)
+    {
+        m_submixVoice->SetEffectChain(nullptr);
+        if (m_xapoBridge)
+        {
+            m_xapoBridge->Release();
+            m_xapoBridge = nullptr;
+        }
+        return;
+    }
+
+    if (!m_xapoBridge)
+        m_xapoBridge = new XAPOBridge();
+
+    for (size_t i = 0; i < k_MaxEffectsPerBus; ++i)
+        m_xapoBridge->SetEffectSlot(i, m_effects[i].get());
+
+    XAUDIO2_EFFECT_DESCRIPTOR desc = {};
+    desc.pEffect        = m_xapoBridge;
+    desc.InitialState   = TRUE;
+    desc.OutputChannels = 2;
+
+    XAUDIO2_EFFECT_CHAIN chain = {};
+    chain.EffectCount = 1;
+    chain.pEffectDescriptors = &desc;
+
+    HRESULT hr = m_submixVoice->SetEffectChain(&chain);
+    if (FAILED(hr))
+    {
+        GX_LOG_ERROR("AudioBus '%s': SetEffectChain failed: 0x%08X",
+                     m_name.c_str(), static_cast<unsigned>(hr));
+    }
+    else
+    {
+        m_submixVoice->EnableEffect(0);
+    }
 }
 
 } // namespace gx
