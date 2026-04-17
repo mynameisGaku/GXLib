@@ -139,5 +139,26 @@ Camera3D&           GetCamera3D()       { return Ctx::Instance().camera; }
 PostEffectPipeline& GetPostEffects()    { return Ctx::Instance().postEffect; }
 InputManager&       GetInputManager()   { return Ctx::Instance().inputManager; }
 AudioManager&       GetAudioManager()   { return Ctx::Instance().audioManager; }
+NetworkManager&     GetNetworkManager() { return Ctx::Instance().EnsureNetwork(); }
+GUI::UIContext&     GetUIContext()      { return Ctx::Instance().EnsureUIContext(); }
 
 } // namespace gx
+
+// ============================================================================
+// CompatContext — lazy init helpers (outside gx namespace)
+// ============================================================================
+gx::GUI::UIContext& gx_internal::CompatContext::EnsureUIContext()
+{
+    if (!uiContext)
+    {
+        uiRenderer = std::make_unique<gx::GUI::UIRenderer>();
+        uiRenderer->Initialize(
+            graphicsDevice.GetDevice(), commandQueue.GetQueue(),
+            swapChain.GetWidth(), swapChain.GetHeight(),
+            &spriteBatch, &textRenderer, &fontManager);
+
+        uiContext = std::make_unique<gx::GUI::UIContext>();
+        uiContext->Initialize(uiRenderer.get(), swapChain.GetWidth(), swapChain.GetHeight());
+    }
+    return *uiContext;
+}

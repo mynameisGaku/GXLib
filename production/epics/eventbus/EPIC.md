@@ -3,7 +3,7 @@
 > **Layer**: Core
 > **ADR**: docs/architecture/adr-0016-eventbus.md
 > **Architecture Module**: GXLib/Core/EventBus.h
-> **Status**: Ready
+> **Status**: Complete
 > **Stories**: 5 stories created (3 Logic, 2 Integration)
 
 ## Stories

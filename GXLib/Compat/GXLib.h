@@ -825,9 +825,14 @@ InputManager&       GetInputManager();
 AudioManager&       GetAudioManager();
 
 class NetworkManager;
+namespace GUI { class UIContext; }
 
 /// @brief ネットワークマネージャーを取得する (L2: 直接 API 操作用)
 NetworkManager&     GetNetworkManager();
+
+/// @brief UIContext を取得する (L2: Widget ツリー操作用)
+/// 初回呼び出し時に UIRenderer + UIContext を自動初期化する。
+GUI::UIContext&     GetUIContext();
 
 // ============================================================================
 // ネットワーク (GXLib 独自 — DXLib に相当なし)

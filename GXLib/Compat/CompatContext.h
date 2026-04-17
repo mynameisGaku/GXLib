@@ -36,6 +36,8 @@
 #include "Graphics/QualitySettings.h"
 #include "Graphics/Rendering/LoadingScreen.h"
 #include "IO/Network/NetworkManager.h"
+#include "GUI/UIContext.h"
+#include "GUI/UIRenderer.h"
 
 #include <thread>
 #include <atomic>
@@ -121,6 +123,11 @@ public:
     // --- 3Dオーディオ ---
     gx::AudioEmitter         audioEmitter3D;   ///< 3Dサウンド用エミッター（簡易API用）
     gx::AudioListener        audioListener3D;  ///< 3Dサウンド用リスナー（簡易API用）
+
+    // --- GUI UIContext (lazy init) ---
+    std::unique_ptr<gx::GUI::UIRenderer> uiRenderer;
+    std::unique_ptr<gx::GUI::UIContext>  uiContext;
+    gx::GUI::UIContext& EnsureUIContext();
 
     // --- ネットワーク (lazy init — 初回アクセス時に生成) ---
     std::unique_ptr<gx::NetworkManager> networkManager;
