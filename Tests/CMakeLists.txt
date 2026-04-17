@@ -258,6 +258,7 @@ set(TEST_SOURCES
     test_ConvolutionReverb.cpp
     # EventBus stories (ADR-0016)
     unit/eventbus/handler_category_test.cpp
+    unit/eventbus/replay_mode_test.cpp
 )
 
 add_executable(GXLibTests ${TEST_SOURCES})

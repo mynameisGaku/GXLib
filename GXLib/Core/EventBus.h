@@ -86,7 +86,15 @@ public:
         }
     }
 
+    /// @brief リプレイモードを設定する (ADR-0016 §4, ADR-0013 §13)
+    /// ロールバック再シミュレーション中に true にすると SideEffect ハンドラが抑制される。
+    void SetReplayMode(bool on) { m_replayMode = on; }
+
+    /// @brief 現在リプレイモードか取得する
+    bool IsReplayMode() const { return m_replayMode; }
+
     /// @brief イベントを同期発行する（即座に全ハンドラを呼ぶ）
+    /// リプレイモード中は SideEffect カテゴリのハンドラをスキップする。
     /// @tparam T イベント型
     /// @param event 発行するイベントデータ
     template<typename T>
@@ -96,24 +104,30 @@ public:
         auto it = m_handlers.find(key);
         if (it == m_handlers.end()) return;
 
-        // コピーして反復（再入安全）
         auto copy = it->second;
         for (auto& handler : copy)
+        {
+            if (m_replayMode && handler.category == HandlerCategory::SideEffect)
+                continue;
             handler.callback(&event);
+        }
     }
 
     /// @brief イベントを遅延キューに追加する
+    /// リプレイモード中はキューに追加しない (no-op)。
     /// @tparam T イベント型
     /// @param event キューに追加するイベントデータ
     template<typename T>
     void Queue(const T& event)
     {
+        if (m_replayMode) return;
         auto key = std::type_index(typeid(T));
         auto ptr = std::make_shared<T>(event);
         m_queue.push_back({ key, [ptr](const void**) { return static_cast<const void*>(ptr.get()); }, ptr });
     }
 
     /// @brief キューに溜まったイベントを全て配信する
+    /// リプレイモード中は SideEffect カテゴリのハンドラをスキップする。
     void DispatchQueued()
     {
         auto queue = std::move(m_queue);
@@ -125,7 +139,11 @@ public:
             auto copy = it->second;
             const void* data = entry.data.get();
             for (auto& handler : copy)
+            {
+                if (m_replayMode && handler.category == HandlerCategory::SideEffect)
+                    continue;
                 handler.callback(data);
+            }
         }
     }
 
@@ -158,6 +176,7 @@ private:
     gx::HashMap<std::type_index, gx::Vector<Handler>> m_handlers;  ///< 型→ハンドラリストのマップ
     gx::Vector<QueuedEvent> m_queue;    ///< 遅延発行キュー
     uint64_t m_nextId = 0;               ///< 次に割り当てる購読ID
+    bool m_replayMode = false;           ///< リプレイモード (ADR-0016 §4)
 };
 
 } // namespace gx
