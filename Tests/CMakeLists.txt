@@ -256,6 +256,8 @@ set(TEST_SOURCES
     test_TLSSocket.cpp
     test_DecalProjector.cpp
     test_ConvolutionReverb.cpp
+    # EventBus stories (ADR-0016)
+    unit/eventbus/handler_category_test.cpp
 )
 
 add_executable(GXLibTests ${TEST_SOURCES})

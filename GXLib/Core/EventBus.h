@@ -14,6 +14,13 @@
 namespace gx
 {
 
+/// @brief ハンドラのカテゴリ (リプレイ抑制用、ADR-0016 §3)
+enum class HandlerCategory
+{
+    Idempotent,  ///< 決定的な状態変更のみ — リプレイ中も実行される
+    SideEffect   ///< 外部に影響する処理 (音声/VFX/ネット送信) — リプレイ中は抑制
+};
+
 /// @brief イベント購読のハンドル（Unsubscribe用）
 struct EventHandle
 {
@@ -35,20 +42,31 @@ public:
         return instance;
     }
 
-    /// @brief イベントを購読する
+    /// @brief イベントを購読する (カテゴリ指定、ADR-0016 §3)
     /// @tparam T イベント型
     /// @param callback イベント受信時に呼ばれるコールバック
+    /// @param category ハンドラカテゴリ (リプレイ抑制に影響)
     /// @return 購読ハンドル（Unsubscribe用）
     template<typename T>
-    EventHandle Subscribe(std::function<void(const T&)> callback)
+    EventHandle Subscribe(std::function<void(const T&)> callback, HandlerCategory category)
     {
         auto key = std::type_index(typeid(T));
         uint64_t id = ++m_nextId;
         auto wrapper = [cb = std::move(callback)](const void* ptr) {
             cb(*static_cast<const T*>(ptr));
         };
-        m_handlers[key].push_back({ id, std::move(wrapper) });
+        m_handlers[key].push_back({ id, std::move(wrapper), category });
         return EventHandle{ id };
+    }
+
+    /// @brief イベントを購読する (デフォルト: SideEffect)
+    /// @tparam T イベント型
+    /// @param callback イベント受信時に呼ばれるコールバック
+    /// @return 購読ハンドル（Unsubscribe用）
+    template<typename T>
+    EventHandle Subscribe(std::function<void(const T&)> callback)
+    {
+        return Subscribe<T>(std::move(callback), HandlerCategory::SideEffect);
     }
 
     /// @brief 購読を解除する
@@ -124,8 +142,9 @@ private:
     /// @brief 内部ハンドラ情報
     struct Handler
     {
-        uint64_t id;                                 ///< 購読ID
-        std::function<void(const void*)> callback;   ///< 型消去されたコールバック
+        uint64_t id;                                          ///< 購読ID
+        std::function<void(const void*)> callback;            ///< 型消去されたコールバック
+        HandlerCategory category = HandlerCategory::SideEffect; ///< カテゴリ (ADR-0016)
     };
 
     /// @brief 遅延キュー内のイベント情報
