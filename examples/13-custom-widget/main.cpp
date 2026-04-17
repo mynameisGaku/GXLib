@@ -1,67 +1,78 @@
 /// @file main.cpp
-/// @brief 13-custom-widget — カスタムウィジェット概念 (ADR-0017 L2)
+/// @brief 13-custom-widget — Widget 派生カスタムウィジェット (ADR-0017 L2)
 ///
-/// Layer 2 拡張ポイント: gx::GUI::Widget を派生して独自ウィジェットを定義する。
+/// Layer 2 拡張ポイント: gx::GUI::Widget を派生して独自ウィジェットを定義し、
+/// UIContext のウィジェットツリーに組み込む。
 ///
 /// 学習ポイント / Learning points:
 ///   - Widget を派生して RenderSelf / OnEvent / GetType をオーバーライド
-///   - カスタムウィジェットの描画 + インタラクションパターン
-///   - このサンプルは UIContext 依存を避けるため Compat ��画で自己完��
-///     本番では UIContext ツリーに組み込んで使う (ADR-0012)
-///
-/// 「CircularGauge」��マウスクリック/ドラッグで値変更するデモ。
+///   - layoutRect で位置・サイズ指定
+///   - UIEvent の MouseDown + MouseMove で値変更
+///   - GetUIContext() で UIContext に組み込み
 
 #include "GXLib.h"
+#include "GUI/UIContext.h"
+#include "GUI/Widget.h"
+#include "GUI/UIRenderer.h"
+#include "Input/InputManager.h"
 #include <cmath>
-#include <cstdio>
 
 // =========================================================================
-// カスタムウィジェット概念: CircularGauge (Compat 描画ベース)
-// 本番では gx::GUI::Widget 派生 + RenderSelf + OnEvent オーバーライド
+// カスタムウィジェット: CircularGauge
 // =========================================================================
-class CircularGauge
+class CircularGauge : public gx::GUI::Widget
 {
 public:
-    float cx, cy, radius;
-    float value = 0.5f;
+    gx::GUI::WidgetType GetType() const override { return gx::GUI::WidgetType::Canvas; }
+    float GetIntrinsicWidth() const override { return 120.0f; }
+    float GetIntrinsicHeight() const override { return 120.0f; }
 
-    void Draw() const
+    void RenderSelf(gx::GUI::UIRenderer& /*renderer*/) override
     {
-        int icx = static_cast<int>(cx);
-        int icy = static_cast<int>(cy);
-        int ir  = static_cast<int>(radius);
+        int cx = static_cast<int>(layoutRect.x + layoutRect.width * 0.5f);
+        int cy = static_cast<int>(layoutRect.y + layoutRect.height * 0.5f);
+        int r  = static_cast<int>(layoutRect.width * 0.45f);
 
-        DrawCircle(icx, icy, ir, GetColor(40, 40, 60), TRUE);
+        DrawCircle(cx, cy, r, GetColor(40, 40, 60), TRUE);
 
-        float angle = 6.2831f * value;
+        float angle = 6.2831f * m_value;
         constexpr int SEG = 48;
         for (int i = 0; i < SEG; ++i)
         {
             float a0 = (angle * static_cast<float>(i)) / SEG - 1.5708f;
             float a1 = (angle * static_cast<float>(i + 1)) / SEG - 1.5708f;
-            int x0 = icx + static_cast<int>(std::cos(a0) * radius);
-            int y0 = icy + static_cast<int>(std::sin(a0) * radius);
-            int x1 = icx + static_cast<int>(std::cos(a1) * radius);
-            int y1 = icy + static_cast<int>(std::sin(a1) * radius);
-            DrawTriangle(icx, icy, x0, y0, x1, y1, GetColor(100, 200, 255), TRUE);
+            int x0 = cx + static_cast<int>(std::cos(a0) * r);
+            int y0 = cy + static_cast<int>(std::sin(a0) * r);
+            int x1 = cx + static_cast<int>(std::cos(a1) * r);
+            int y1 = cy + static_cast<int>(std::sin(a1) * r);
+            DrawTriangle(cx, cy, x0, y0, x1, y1, GetColor(100, 200, 255), TRUE);
         }
 
-        DrawCircle(icx, icy, ir, GetColor(200, 200, 220), FALSE);
+        DrawCircle(cx, cy, r, GetColor(200, 200, 220), FALSE);
     }
 
-    bool HandleInput(int mx, int my, bool mouseDown)
+    bool OnEvent(const gx::GUI::UIEvent& event) override
     {
-        float dx = static_cast<float>(mx) - cx;
-        float dy = static_cast<float>(my) - cy;
-        float dist = std::sqrt(dx * dx + dy * dy);
-
-        if (!mouseDown || dist > radius) return false;
-
-        float angle = std::atan2(dy, dx) + 1.5708f;
-        if (angle < 0.0f) angle += 6.2831f;
-        value = angle / 6.2831f;
-        return true;
+        if (event.type == gx::GUI::UIEventType::MouseDown ||
+            (event.type == gx::GUI::UIEventType::MouseMove && pressed))
+        {
+            float cx = layoutRect.x + layoutRect.width * 0.5f;
+            float cy = layoutRect.y + layoutRect.height * 0.5f;
+            float dx = event.mouseX - cx;
+            float dy = event.mouseY - cy;
+            float angle = std::atan2(dy, dx) + 1.5708f;
+            if (angle < 0.0f) angle += 6.2831f;
+            m_value = angle / 6.2831f;
+            return true;
+        }
+        return Widget::OnEvent(event);
     }
+
+    float GetValue() const { return m_value; }
+    void SetValue(float v) { m_value = v; }
+
+private:
+    float m_value = 0.5f;
 };
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
@@ -73,35 +84,33 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
     if (GX_Init() == -1) return -1;
     SetDrawScreen(GX_SCREEN_BACK);
 
-    CircularGauge gauge;
-    gauge.cx = 640.0f;
-    gauge.cy = 360.0f;
-    gauge.radius = 80.0f;
+    auto& ui = gx::GetUIContext();
+
+    auto gauge = std::make_unique<CircularGauge>();
+    auto* gaugeRaw = gauge.get();
+    gauge->layoutRect.x = 580; gauge->layoutRect.y = 300;
+    gauge->layoutRect.width = 120; gauge->layoutRect.height = 120;
+
+    ui.SetRoot(std::move(gauge));
 
     unsigned int white = GetColor(255, 255, 255);
     unsigned int cyan  = GetColor(100, 220, 255);
-    unsigned int gray  = GetColor(120, 120, 120);
 
     while (ProcessMessage() == 0)
     {
         if (CheckHitKey(KEY_INPUT_ESCAPE)) break;
+        float dt = GetDeltaTime();
 
         ClearDrawScreen();
 
-        int mx = 0, my = 0;
-        GetMousePoint(&mx, &my);
-        bool mouseDown = (GetMouseInput() & MOUSE_INPUT_LEFT) != 0;
-
-        gauge.HandleInput(mx, my, mouseDown);
-        gauge.Draw();
+        ui.Update(dt, gx::GetInputManager());
+        ui.Render();
 
         DrawFormatString(10, 10, white, "FPS: %.1f", GetFPS());
         DrawFormatString(10, 30, cyan,
-                         "CircularGauge value : %.2f  (click/drag the circle)",
-                         gauge.value);
-        DrawString(10, 50, "Custom widget concept -- derived from gx::GUI::Widget in production.", white);
-        DrawString(10, 680, "NOTE: Real custom widgets override Widget::RenderSelf + OnEvent (see ADR-0012)", gray);
-        DrawString(10, 700, "ESC: quit", white);
+                         "CircularGauge value : %.2f  (click or drag the circle)",
+                         gaugeRaw->GetValue());
+        DrawString(10, 50, "Custom widget derived from gx::GUI::Widget. ESC to quit.", white);
 
         ScreenFlip();
     }
