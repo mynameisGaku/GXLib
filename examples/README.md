@@ -17,8 +17,11 @@ Layer 1.5 samples — the bridge between the 35-line `template/main.cpp` and the
 | 09 | hello-animation | L1.5 | `PlayModelAnimation` — skeletal animation + clip switching |
 | 10 | custom-asset-type | L2 | `AssetDatabase::RegisterType<T>` — custom asset type with hot reload |
 | 11 | custom-audio-dsp | L2 | `IAudioEffect` — custom DSP effects on an AudioBus (threading-safe tremolo demo) |
-| 12 | hello-gui | L1.5 | `gx::GUI::UIContext` — code-built widget tree (Panel/Button/Text, onClick) |
-| 13 | custom-widget | L2 | `gx::GUI::Widget` derivation — CircularGauge custom render + drag-to-set |
+| 12 | hello-gui | L1.5 | `gx::GetUIContext()` — real Widget tree (Panel/Button/TextWidget, onClick, layoutRect) |
+| 13 | custom-widget | L2 | `gx::GUI::Widget` derivation — CircularGauge (RenderSelf + OnEvent override) |
+| 14 | hello-network | L1 | `GX_StartServer` / `GX_Connect` / `GX_Broadcast` — simple chat demo |
+| 15 | hello-physics3d | L2 | `PhysicsWorld3D` — CreateBoxShape + AddBody + Step + GetPosition |
+| 16 | custom-ik | L2 | `LookAtIK` — head bone tracks mouse cursor (IK API pattern) |
 
 **Layer 1** — DXLib-compatible procedural API only (`GXLib.h`).
 **Layer 2** — Direct access to engine subsystems via accessor returns.
@@ -37,7 +40,7 @@ cmake --build build --config Debug
 ```
 
 `GX_BUILD_EXAMPLES=ON` is the default. The generated Visual Studio solution
-(`build/GXLib.sln`) groups all 13 samples under the `Examples/` folder.
+(`build/GXLib.sln`) groups all 16 samples under the `Examples/` folder.
 Right-click any sample → **"Set as Startup Project"** → F5 to run.
 
 To skip examples: `cmake -B build -S . -DGX_BUILD_EXAMPLES=OFF`
