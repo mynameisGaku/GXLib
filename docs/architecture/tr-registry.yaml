@@ -19,7 +19,7 @@
 #
 # STATUS VALUES: active | deprecated | superseded-by: TR-[system]-NNN
 
-version: 5
+version: 6
 last_updated: "2026-04-17"
 
 requirements:
@@ -368,7 +368,70 @@ requirements:
     added: 2026-04-17
     revised: ""
 
-  # ─── charter-level gaps (no ADR yet — placeholder for future registration) ─
-  # Closed: charter TR-chr-001..010 all covered by ADRs 0001-0016.
-  # AI subsystem added as ADR-0018.
-  # Remaining subsystem gaps: Scene (ADR-0019), Movie (ADR-0020) — tracked in architecture-traceability.md.
+  # ─── scn (ADR-0019 Scene Architecture) ─────────────────────────────────────
+  - id: TR-scn-001
+    system: scn
+    source_adr: docs/architecture/adr-0019-scene-architecture.md
+    requirement: "Entity/Component model: Entity with embedded Transform3D, O(1) component lookup by ComponentType enum, parent/child hierarchy, deferred destroy."
+    status: active
+    added: 2026-04-17
+    revised: ""
+
+  - id: TR-scn-002
+    system: scn
+    source_adr: docs/architecture/adr-0019-scene-architecture.md
+    requirement: "SceneManager: stack-based transitions (ChangeScene/PushScene/PopScene), fade with configurable duration, SceneFactory deferred construction."
+    status: active
+    added: 2026-04-17
+    revised: ""
+
+  - id: TR-scn-003
+    system: scn
+    source_adr: docs/architecture/adr-0019-scene-architecture.md
+    requirement: "ScenePersistence: dual-format (text .gxscene + binary .gxscbin) save/load preserving entity name, ID, active, transform, hierarchy, components."
+    status: active
+    added: 2026-04-17
+    revised: ""
+
+  - id: TR-scn-004
+    system: scn
+    source_adr: docs/architecture/adr-0019-scene-architecture.md
+    requirement: "Prefab system: JSON-blob capture/instantiate + PrefabVariantSystem with nested variant overrides (property-level + component-level)."
+    status: active
+    added: 2026-04-17
+    revised: ""
+
+  - id: TR-scn-005
+    system: scn
+    source_adr: docs/architecture/adr-0019-scene-architecture.md
+    requirement: "SceneSnapshot + SimulationManager: in-memory checkpoint for PIE (Play/Pause/Resume/Stop/Step) and game checkpoints."
+    status: active
+    added: 2026-04-17
+    revised: ""
+
+  - id: TR-scn-006
+    system: scn
+    source_adr: docs/architecture/adr-0019-scene-architecture.md
+    requirement: "SceneStreamer: distance-based additive loading with hysteresis (loadRadius < unloadRadius), ForceLoad/Unload, callbacks on state transitions."
+    status: active
+    added: 2026-04-17
+    revised: ""
+
+  - id: TR-scn-007
+    system: scn
+    source_adr: docs/architecture/adr-0019-scene-architecture.md
+    requirement: "SceneRenderer lives in Graphics/3D/, NOT Core/Scene/. Scene owns no rendering code."
+    status: active
+    added: 2026-04-17
+    revised: ""
+
+  - id: TR-scn-008
+    system: scn
+    source_adr: docs/architecture/adr-0019-scene-architecture.md
+    requirement: "EntityBridge: bidirectional OOP Entity ↔ ECS World sync via process-global static mapping. ClearMappings() required on scene unload."
+    status: active
+    added: 2026-04-17
+    revised: ""
+
+  # ─── charter-level gaps ─
+  # All charter TRs + AI + Scene covered. Remaining: Movie (ADR-0020).
