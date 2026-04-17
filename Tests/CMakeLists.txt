@@ -262,6 +262,8 @@ set(TEST_SOURCES
     unit/eventbus/queue_from_worker_test.cpp
     unit/eventbus/animation_bridge_test.cpp
     unit/eventbus/dispatch_order_test.cpp
+    # Movie (ADR-0020)
+    unit/movie/movie_player_test.cpp
 )
 
 add_executable(GXLibTests ${TEST_SOURCES})
