@@ -8,10 +8,10 @@
 
 | Status | Count | % |
 |--------|-------|---|
-| ✅ Covered | 38 | 100% |
+| ✅ Covered | 45 | 100% |
 | ⚠️ Partial | 0 | 0% |
 | ❌ Gap | 0 | 0% |
-| **Total** | **38** | **100%** |
+| **Total** | **45** | **100%** |
 
 ## Full Matrix
 
@@ -49,6 +49,11 @@ These are NOT charter gaps — they are future ADR topics flagged for tracking o
 | TR-defer-cross-platform | Non-Windows socket backend | Before any non-Windows port | ADR-0013 Migration Plan + ADR-0002 Windows-only scope |
 | TR-defer-remote-editor | Remote editor (separate process via IPC) | When team / platforms diversify | ADR-0015 Alternative 2 rejection rationale |
 | TR-defer-game-shipping-preset | `game-shipping` CMake preset (GX_EDITOR=OFF + LTCG) | Before first non-internal shipping build | ADR-0015 Migration Plan |
+| TR-defer-ecs-ai-bridge | ECS-AI bridge components (BTComponent / NavAgentComponent) | When a game needs 1000+ AI agents batch-ticked via ECS + JobSystem | ADR-0018 Migration Plan |
+| TR-defer-full-orca | Full ORCA LP solver for RVO | When crowd density exceeds 100 agents and oscillation is visible | ADR-0018 §7 simplified model |
+| TR-defer-recast-generation | Automated navmesh generation from 3D scene geometry | When manual triangle-mesh authoring becomes impractical | ADR-0018 Migration Plan |
+| TR-defer-scene-architecture | Scene subsystem ADR (SceneManager / Prefabs / Persistence) | Medium priority retroactive — code exists since Phase 2 | Architecture review 2026-04-17 subsystem gap |
+| TR-defer-movie-pipeline | Movie subsystem ADR (video playback / recording) | Low priority retroactive — code exists since Phase 4 | Architecture review 2026-04-17 subsystem gap |
 
 ## Superseded Requirements
 
@@ -62,4 +67,6 @@ None.
 | 2026-04-16 | 85% | After ADR-0006 (Job), 0007 (AssetDB), 0008 (Rendering), 0009 (Physics), 0010 (Audio); 5 charter gaps remain (Networking, Input, GUI, Editor, Animation) |
 | 2026-04-16 (run 2) | 94% | After ADR-0011 (Input), 0012 (GUI), 0013 (Networking); 2 charter gaps remain (Editor, Animation, both retroactive) |
 | 2026-04-16 (run 3 — TD review) | 94% | ADR-0014 (Animation) closes Animation; ADR-0013 §13 forward-declares EventBus ADR (pending) |
-| 2026-04-17 (overnight autonomous) | 100% | ADR-0015 (Editor) + ADR-0016 (EventBus) close all remaining charter gaps and lift the ADR-0013 §13 forward-declaration. **Fresh-session /architecture-review + TD independent review required before promoting 0015 + 0016 from Proposed → Accepted.** |
+| 2026-04-17 (overnight autonomous) | 100% | ADR-0015 (Editor) + ADR-0016 (EventBus) close all remaining charter gaps and lift the ADR-0013 §13 forward-declaration. |
+| 2026-04-17 (fresh-session review) | 100% | ADR-0015 + ADR-0016 patched (engine specialist findings), promoted to Accepted. All 17 ADRs Accepted. |
+| 2026-04-17 (ADR-0018 AI) | 100% (45 TRs) | ADR-0018 AI Architecture (Accepted). +7 TRs (ai-001..007). Subsystem gaps reduced to Scene + Movie. |

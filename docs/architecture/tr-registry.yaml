@@ -19,7 +19,7 @@
 #
 # STATUS VALUES: active | deprecated | superseded-by: TR-[system]-NNN
 
-version: 4
+version: 5
 last_updated: "2026-04-17"
 
 requirements:
@@ -311,6 +311,64 @@ requirements:
     added: 2026-04-17
     revised: ""
 
+  # ─── ai (ADR-0018 AI Architecture) ─────────────────────────────────────────
+  - id: TR-ai-001
+    system: ai
+    source_adr: docs/architecture/adr-0018-ai-architecture.md
+    requirement: "BehaviorTree: BTNode hierarchy (Selector/Sequence/Parallel + decorators + Action/Condition) with Blackboard shared state and Running-resumption per-frame Tick."
+    status: active
+    added: 2026-04-17
+    revised: ""
+
+  - id: TR-ai-002
+    system: ai
+    source_adr: docs/architecture/adr-0018-ai-architecture.md
+    requirement: "GOAPPlanner: backward A* from goal state with WorldState (bool KV), action preconditions/effects/cost, iteration cap, and plan validation."
+    status: active
+    added: 2026-04-17
+    revised: ""
+
+  - id: TR-ai-003
+    system: ai
+    source_adr: docs/architecture/adr-0018-ai-architecture.md
+    requirement: "NavMesh (2D grid): uniform-cell A* with diagonal heuristic, optional path smoothing, dynamic obstacles (AABB/Cylinder) with handle-based lifecycle."
+    status: active
+    added: 2026-04-17
+    revised: ""
+
+  - id: TR-ai-004
+    system: ai
+    source_adr: docs/architecture/adr-0018-ai-architecture.md
+    requirement: "NavMesh3D (voxel): 3D A* with 26-neighbor connectivity, VoxelState bitmask filter, off-mesh links (jump/ladder/teleport), raycast."
+    status: active
+    added: 2026-04-17
+    revised: ""
+
+  - id: TR-ai-005
+    system: ai
+    source_adr: docs/architecture/adr-0018-ai-architecture.md
+    requirement: "PolyNavMesh (triangle mesh): A* on polygon centroids + Simple Stupid Funnel Algorithm for smooth waypoints, shared-edge adjacency, slope filtering."
+    status: active
+    added: 2026-04-17
+    revised: ""
+
+  - id: TR-ai-006
+    system: ai
+    source_adr: docs/architecture/adr-0018-ai-architecture.md
+    requirement: "RVO: stateless ComputeAvoidanceVelocity with half-responsibility VO model, XZ-plane projection, speed clamping."
+    status: active
+    added: 2026-04-17
+    revised: ""
+
+  - id: TR-ai-007
+    system: ai
+    source_adr: docs/architecture/adr-0018-ai-architecture.md
+    requirement: "AI module has zero compile-time dependency on ECS/Physics/JobSystem. All calls synchronous. Threading is caller's responsibility."
+    status: active
+    added: 2026-04-17
+    revised: ""
+
   # ─── charter-level gaps (no ADR yet — placeholder for future registration) ─
   # Closed: charter TR-chr-001..010 all covered by ADRs 0001-0016.
-  # Future deferred items tracked in docs/architecture/architecture-traceability.md "Deferred / Forward-Looking Items".
+  # AI subsystem added as ADR-0018.
+  # Remaining subsystem gaps: Scene (ADR-0019), Movie (ADR-0020) — tracked in architecture-traceability.md.
