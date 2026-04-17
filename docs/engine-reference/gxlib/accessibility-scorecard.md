@@ -84,11 +84,11 @@
 | L1.5 | ✅ | examples/08-hello-physics (PhysicsWorld2D + RigidBody + Raycast) |
 | **L1 subtotal** | **4/5** | Sample 08 closes L1.5 gap |
 | L2.1 | ✅ | PhysicsShape public, RagdollBuilder public, PhysicsMaterial via AssetDB |
-| L2.2 | ❌ | No custom-physics-shape or custom-ragdoll-chain example |
+| L2.2 | ✅ | examples/15-hello-physics3d (CreateBoxShape + AddBody + Step + GetPosition) |
 | L2.3 | ✅ | PhysicsShape interface documented (sphere/box/capsule/cylinder/convexhull/mesh) |
 | L2.4 | ✅ | Vector3 / Matrix4x4 public |
 | L2.5 | ✅ | Deriving PhysicsShape works app-side |
-| **L2 subtotal** | **3/5** |  |
+| **L2 subtotal** | **4/5** | Sample 15 closes L2.2 gap |
 
 ### Asset Database / IO
 
@@ -149,8 +149,8 @@
 | L1.2 | ✅ | GX_StartServer(port, maxClients=16) — sensible default |
 | L1.3 | ✅ | All GX_* functions return 0/-1 with GX_LOG_ERROR on failure |
 | L1.4 | ✅ | GXLib.h full Doxygen on all 17 networking functions |
-| L1.5 | ⚠️ | No examples/hello-network sample yet (Compat wrappers exist) |
-| **L1 subtotal** | **4.5/5** | GX_* wrappers close the L1 gap (2026-04-17) |
+| L1.5 | ✅ | examples/14-hello-network (GX_StartServer / GX_Connect / GX_Broadcast chat demo) |
+| **L1 subtotal** | **5/5** | Full L1 compliance (2026-04-18) |
 | L2.1 | ✅ | All layers public per ADR-0013 (NetworkReplicator / ReplicatedProperty<T> / RollbackNetcode) |
 | L2.2 | ❌ | No in-repo multiplayer sample |
 | L2.3 | ✅ | ADR-0013 documents layering + contracts |
@@ -200,15 +200,15 @@
 |-----------|----|----|--------|
 | Graphics | 5.0 | 5.0 | ✅ Full pillar compliance |
 | Audio | 4.5 | 5.0 | ✅ IXAPO bridge completes L2 (2026-04-17) |
-| Physics | 4.0 | 3.0 | ⚠️ Missing custom-physics L2 example |
+| Physics | 4.0 | 4.0 | ⚠️ L2.2 closed (sample 15); custom-ragdoll example still missing |
 | Asset DB | 4.0 | 5.0 | ✅ Sample 10 closes L2 gap |
 | Input | 5.0 | 4.5 | ✅ Near-full compliance |
 | GUI | 4.5 | 5.0 | ✅ Samples 12/13 now use real Widget API via GetUIContext() |
-| Networking | 4.5 | 3.0 | ⚠️ L1 wrappers added (17 GX_*); missing network sample + L2 stubs |
+| Networking | 5.0 | 3.0 | ⚠️ L1 full; L2 stubs remain (STUN/CloudSave sim) |
 | Animation | 5.0 | 4.0 | ⚠️ Missing custom-IK L2 example |
 | ECS | 4.0 | 5.0 | ✅ Sample 07 closes both gaps |
 
-**Average across 9 subsystems**: L1 = 4.5/5 (90%), L2 = 4.4/5 (88%)
+**Average across 9 subsystems**: L1 = 4.6/5 (92%), L2 = 4.5/5 (90%)
 
 ### Progression
 
