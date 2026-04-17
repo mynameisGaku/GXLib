@@ -283,6 +283,40 @@
 - Scorecard 影響: Audio L2 に IXAPO 配線追加 → IAudioEffect::Process() が実際に呼ばれるようになる
 - 残課題: 実際のオーディオ再生での Process() 実行確認は手動テスト必要
 
+## Networking Compat wrappers 2026-04-17
+- Compat_Network.cpp 新規作成: 17 GX_* 関数
+  - Server: GX_StartServer / StopServer / Broadcast / SendToClient
+  - Client: GX_Connect / Disconnect / ClientSend / IsNetConnected
+  - Common: GX_NetworkUpdate / GetNetClientCount / IsNetServer
+  - Callbacks: GX_SetOnClientConnect / Disconnect / Receive
+  - Stats: GX_GetNetRTT / GetNetPacketLoss
+  - L2: gx::GetNetworkManager()
+- CompatContext: lazy-init NetworkManager via EnsureNetwork()
+- Scorecard 影響: Networking L1 1.5/5 → 大幅改善
+
+## ADR-0018 AI Architecture 2026-04-17
+- BehaviorTree + GOAP + NavMesh (2D/3D/Poly) + RVO + NavAgent
+- Zero ECS/Physics/JobSystem 依存。全同期。7 TRs。
+
+## ADR-0019 Scene Architecture 2026-04-17
+- Entity/Component + SceneManager + Persistence + Prefab/Variant + Snapshot + Streamer
+- SceneRenderer 分離 (Graphics/3D/, not Core/Scene/)
+- EntityBridge OOP↔ECS。8 TRs。
+
+## ADR-0020 Movie Pipeline 2026-04-17
+- MoviePlayer (Media Foundation 再生) + VideoRecorder (フレームキャプチャ)
+- 最小サブシステム (~426 行)。2 TRs。
+
+## GX/System.h + Math.h Doxygen — 既に完了済み (前セッションで対応済み)
+
+### 本セッション最終状態
+- ADR: 20 本 (全 Accepted)
+- TR: 55 件 (tr-registry v7)
+- Subsystem gaps: 0 (全エンジンサブシステム ADR 化完了)
+- Commits: 8 本 (af7c4f7, 1cc9311, 31c168c, 7a9e694, 6cc41f7, 51454e2, b7bae6d + 前コミット)
+- ビルド: 17 バイナリ OK、4913 テスト PASS
+- 残: FontManager Detach() 手動テスト (ユーザー帰宅後)
+
 ## IAudioEffect L2 extension 2026-04-16 (Audio の最大 L2 ギャップ解消)
 - Audio/AudioEffect.h に IAudioEffect 抽象インターフェース追加
   - Process(buffer, sampleCount, channels, sampleRate)
