@@ -169,7 +169,7 @@
 | L1.5 | ✅ | examples/09-hello-animation (LoadModel + PlayModelAnimation + clip switching) |
 | **L1 subtotal** | **5/5** | Sample 09 closes L1.5 gap |
 | L2.1 | ✅ | Skeleton / Animator / BlendTree / IK suite all public per ADR-0014 |
-| L2.2 | ❌ | No examples/custom-ik-solver or custom-animation-layer sample |
+| L2.2 | ✅ | examples/16-custom-ik (LookAtIK setup + mouse target tracking pattern) |
 | L2.3 | ✅ | IK / state machine / blend tree contracts documented |
 | L2.4 | ✅ | Bone / Transform3D public |
 | L2.5 | ✅ | Deriving IKSolver works app-side |
@@ -205,10 +205,10 @@
 | Input | 5.0 | 4.5 | ✅ Near-full compliance |
 | GUI | 4.5 | 5.0 | ✅ Samples 12/13 now use real Widget API via GetUIContext() |
 | Networking | 5.0 | 3.0 | ⚠️ L1 full; L2 stubs remain (STUN/CloudSave sim) |
-| Animation | 5.0 | 4.0 | ⚠️ Missing custom-IK L2 example |
+| Animation | 5.0 | 5.0 | ✅ Full compliance (sample 16 closes L2.2) |
 | ECS | 4.0 | 5.0 | ✅ Sample 07 closes both gaps |
 
-**Average across 9 subsystems**: L1 = 4.6/5 (92%), L2 = 4.5/5 (90%)
+**Average across 9 subsystems**: L1 = 4.6/5 (92%), L2 = 4.6/5 (92%)
 
 ### Progression
 
