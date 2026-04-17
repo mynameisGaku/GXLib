@@ -283,6 +283,41 @@
 - Scorecard 影響: Audio L2 に IXAPO 配線追加 → IAudioEffect::Process() が実際に呼ばれるようになる
 - 残課題: 実際のオーディオ再生での Process() 実行確認は手動テスト必要
 
+## Session 2026-04-17〜18 最終サマリー
+
+### 数字
+- **24 commits** (af7c4f7 → c3deeea)
+- **20 ADRs** (全 Accepted、0015-0020 は今セッション)
+- **55 TRs** (tr-registry v7)
+- **18 epics** (全レイヤー)
+- **5 EventBus stories** (全実装 + テスト済み)
+- **4957 tests** (セッション開始 4913 → +44 新規)
+- **16 examples** (セッション開始 13 → +3 新規: 14-16)
+- **Scorecard**: L1 50%→92%, L2 36%→92%
+- **Stage**: Technical Setup → **Pre-Production** (gate PASS)
+
+### 主要成果
+1. /architecture-review (fresh session) + engine specialist review → ADR-0016 パッチ
+2. IXAPO bridge 実装 (Audio L2 最大ギャップ解消)
+3. Compat_Particle.cpp 修正 (3 defects)
+4. ADR-0015 Editor + ADR-0016 EventBus → Accepted 昇格
+5. ADR-0018 AI + ADR-0019 Scene + ADR-0020 Movie
+6. Networking Compat wrappers (17 GX_* 関数)
+7. GetUIContext / GetAudioManager / GetShaderRegistry engine API 追加
+8. EventBus epic 全 5 stories 実装 (HandlerCategory + ReplayMode + QueueFromWorker + AnimationBridge + DispatchOrder)
+9. GX_EDITOR=OFF CI gate + editor boundary lint
+10. Master architecture.md + Control manifest + Gate PASS
+11. Examples 12/13 を実 Widget API に書き換え
+12. Examples 14 (network), 15 (physics3d), 16 (custom-ik) 追加
+13. MoviePlayer テスト 8 件 (初のテストカバレッジ)
+14. Sprint 001 計画 + GX_EDITOR=OFF ローカルビルド検証
+
+### 残タスク
+- FontManager Detach() 手動クラッシュテスト
+- IXAPO Process() 実オーディオ検証
+- git remote 設定 (origin が CCGS テンプレートを指してる)
+- build_no_editor/ 一時ディレクトリ削除
+
 ## Networking Compat wrappers 2026-04-17
 - Compat_Network.cpp 新規作成: 17 GX_* 関数
   - Server: GX_StartServer / StopServer / Broadcast / SendToClient
