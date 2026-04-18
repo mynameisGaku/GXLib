@@ -21,7 +21,7 @@ Accepted
 
 | Field | Value |
 |-------|-------|
-| **Depends On** | ADR-0001 (documentation strategy), ADR-0004 (ECS — EntityBridge syncs OOP Entity ↔ ECS World), ADR-0007 (Asset Database — scene files, prefab JSON, streaming volumes flow through AssetDB), ADR-0015 (Editor — SimulationManager/SceneSnapshot are the PIE backend; SceneHierarchyPanel navigates Entity tree) |
+| **Depends On** | ADR-0001 (documentation strategy), ADR-0004 (ECS — EntityBridge syncs OOP Entity ↔ ECS World), ADR-0007 (Asset Database — scene files, prefab JSON, streaming volumes flow through AssetDB), ADR-0015 (Editor — SimulationManager/SceneSnapshot are the PIE backend; SceneHierarchyPanel navigates Entity tree), ADR-0016 (EventBus — Scene is a prime event producer: scene-loaded, entity-created/destroyed, streaming-volume transitions. Subscribers categorise handlers per ADR-0016 §3 rules.) |
 | **Enables** | Future ADRs on level-of-detail scene authoring, additive scene composition workflows, collaborative scene editing, deterministic scene replay |
 | **Blocks** | None (code already exists since Phases 0-5; retroactive) |
 | **Ordering Note** | ADR-0004 (ECS) and ADR-0015 (Editor) both reference Scene concepts; this ADR makes those references concrete. |
@@ -95,6 +95,8 @@ Concrete rules:
    - Persists: scene name, entity (name, ID, active, transform position/rotation/scale, parent name, components).
    - `SceneSerializer`: JSON-specific, operates on existing `Scene&` (in-place load). `ModelLoadCallback` resolves asset paths.
    - Neither format persists runtime state (particle emitters, audio voices, network sessions).
+   - **Atomicity invariant (REQUIRED)**: `SaveToFile` MUST use the temp-file + rename pattern — write to `path + ".tmp"`, flush and close, then atomic rename to `path`. A crash, power loss, or exception during serialisation MUST NOT leave the destination path in a partially-written state. This protects editor-authored scenes (which may be the only copy of authored content) against the torn-write failure mode. The `std::filesystem::rename` implementation on MSVC uses `MoveFileExW` with replace semantics, which is atomic for files on the same volume.
+   - **Forbidden**: writing directly to the destination path with `std::ofstream(finalPath)` — the `scene_save_non_atomic` forbidden pattern (added 2026-04-18).
 
 6. **Prefab system.**
    - `Prefab`: JSON blob. `CaptureFromEntity` serialises; `Instantiate(scene)` deserialises into a new entity.
@@ -102,6 +104,7 @@ Concrete rules:
    - Variant overrides are additive; `RevertOverride` restores base value; `RevertAllOverrides` resets to base.
 
 7. **Checkpoint (SceneSnapshot + SimulationManager).**
+   - **Layering with ADR-0015**: `SimulationManager` + `SceneSnapshot` in this ADR are **Core-layer, not editor-exclusive** — they serve as the underlying state machine and scene-state-capture mechanism. The editor-facing `PlayInEditor` (ADR-0015 §3) orchestrates editor UX on top by delegating to `SimulationManager`. Games may use `SimulationManager` + `SceneSnapshot` directly for checkpoint / rewind features without pulling in any Editor code; when `GX_EDITOR=OFF`, `PlayInEditor` is excluded from link but `SimulationManager` + `SceneSnapshot` remain available.
    - `SceneSnapshot::Capture(scene)` stores entity state (ID, name, active, transform, parent, limited component data).
    - `SceneSnapshot::Restore(scene)` writes back. Same shallow-snapshot limitation as ADR-0015 §4.
    - `SimulationManager`: state machine (`Stopped → Playing → Paused → Playing → Stopped`). Owns a `SceneSnapshot`. `Play` captures; `Stop` restores; `Step` advances one fixed-dt frame while Paused.
@@ -133,9 +136,10 @@ Concrete rules:
 
 12. **Forbidden patterns.**
     - `scene_entity_raw_delete` — never `delete` an Entity pointer; use `Scene::DestroyEntity` (deferred).
-    - `scene_renderer_in_core` — no `#include "Graphics/..."` from `Core/Scene/` files.
+    - `scene_renderer_in_core` — no `#include "Graphics/..."` from `Core/Scene/` files. `SceneSerializer.cpp` was relocated to `Graphics/3D/` on 2026-04-18 (E2 / story 005) to restore this invariant; the header `SceneSerializer.h` stays in `Core/Scene/` with only a forward declaration of `Model`.
     - `entity_bridge_stale_mapping` — `EntityBridge::ClearMappings()` must be called when a Scene is destroyed; stale mappings cause dangling ECS entity references.
     - `two_custom_components` — Entity supports only one `ComponentType::Custom`; adding both NameComponent and TagComponent as Custom components will collide.
+    - `scene_save_non_atomic` (added 2026-04-18) — `SaveToFile` must use temp-file + rename (see §5 atomicity invariant). Writing directly to the destination path is forbidden.
 
 ## Alternatives Considered
 
@@ -220,6 +224,7 @@ Not applicable — retroactive ADR. Going forward:
 - ADR-0007 (Asset Database — scene files, prefab JSON, streaming volumes flow through AssetDB)
 - ADR-0008 (Rendering — SceneRenderer submits to Renderer3D; GBuffer pass consumes MeshRendererComponent)
 - ADR-0015 (Editor — SimulationManager is the PIE backend; SceneHierarchyPanel, EntityPicker navigate Entity tree)
+- ADR-0016 (EventBus — Scene emits lifecycle events (scene-loaded, entity-created/destroyed, streaming transitions) via the global bus; subscribers categorise per ADR-0016 §3)
 - ADR-0017 (Two-Layer Accessibility — Scene is L1.5: not in DXLib Compat, but usable without ECS)
 - `GXLib/Core/Scene/*.{h,cpp}` (source of truth for Core layer)
 - `GXLib/Graphics/3D/SceneRenderer.{h,cpp}` (rendering separation)

@@ -21,7 +21,7 @@ Accepted
 
 | Field | Value |
 |-------|-------|
-| **Depends On** | ADR-0001 (documentation strategy), ADR-0002 (DX12 backend — GraphicsDevice + TextureManager for decoded frame upload) |
+| **Depends On** | ADR-0001 (documentation strategy), ADR-0002 (DX12 backend — GraphicsDevice + TextureManager for decoded frame upload), ADR-0007 (Asset Database — declared dependency for the documented AssetDatabase bypass, see §7 Known Exception) |
 | **Enables** | Future ADRs on cutscene systems, in-game video replay, streaming video textures |
 | **Blocks** | None (code already exists; retroactive) |
 
@@ -73,7 +73,31 @@ Concrete rules:
 
 6. **Forbidden patterns.**
    - `movie_audio_assumption` — do not assume `MoviePlayer` plays audio; it doesn't. Use AudioManager separately.
-   - `mf_global_init` — do not call `MFStartup`/`MFShutdown` outside of `MoviePlayer::Open`/`Close` or `VideoRecorder` lifecycle. Each instance manages its own MF session.
+   - `mf_global_init` — do not call `MFStartup` / `MFShutdown` directly from any subsystem. All MF-consuming code (currently `MoviePlayer` and `VideoRecorder`, plus any future MF-using subsystem) MUST go through `gx::MFPlatform::Acquire()` / `Release()` (Core layer). The wrapper owns the process-global MF refcount; bypassing it causes premature teardown when multiple subsystems coexist. Resolved 2026-04-18 (E4 / story 007): `MFPlatform` added at `GXLib/Core/MFPlatform.{h,cpp}`; both consumers migrated.
+   - `movie_in_rollback_window` — `MoviePlayer::Update` uses wall-clock frame-interval timing; do NOT drive a `MoviePlayer` inside an ADR-0013 rollback re-simulation window. MoviePlayer is intended for cutscenes, which typically pause gameplay and therefore do not intersect rollback.
+
+## Known Exception: AssetDatabase Bypass
+
+MoviePlayer (`Open(filePath, …)`) intentionally bypasses ADR-0007 AssetDatabase.
+The reason is technical, not architectural: Media Foundation's `IMFSourceReader`
+requires a seekable OS file path or an `IMFByteStream`, neither of which the
+current AssetDatabase provider chain produces for streamed video.
+
+**Consequences of the bypass** (all acknowledged):
+- `MoviePlayer` cannot participate in hot reload (ADR-0007 §3)
+- `MoviePlayer` cannot be mod-remapped via `AssetRemapper` (ADR-0007 §5)
+- Video files cannot be packed into `.gxa`/`.pak` archives — they must ship as
+  loose files on disk
+- Video paths are the only place in the engine where `fopen`-equivalent
+  filesystem calls may appear outside an AssetDatabase provider. This is a
+  documented exception to the Control-Manifest Foundation rule "no direct
+  filesystem in subsystems."
+
+**Future extension** (deferred, not committed): implement an `IMFByteStream`
+adapter over `IFileProvider` so `MoviePlayer` can accept an `AssetId`. At that
+point this exception is removed and the `mf_global_init` forbidden-pattern
+rewrite is completed as one change. Until then, callers accept the above
+limitations.
 
 ## Alternatives Considered
 

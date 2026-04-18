@@ -98,6 +98,7 @@ Concrete rules:
    - Rationale: games want runtime reflection (for save/load via JsonSerializer) and runtime UndoSystem (for in-game "undo last turn" features) and runtime NodeGraph (for ability trees, quest graphs) — those are Core, not Editor.
 
 3. **Play-in-Editor (PIE).**
+   - **Layering with ADR-0019**: `PlayInEditor` in this ADR is the editor-facing orchestrator — it owns the PIE UX (OnEnterPlay / OnExitPlay callbacks, input-capture toggles, editor-panel focus integration). The underlying state-machine and snapshot/restore mechanics are implemented by `SimulationManager` + `SceneSnapshot` (ADR-0019 §7), which are **Core-layer** and reusable for non-editor checkpoint scenarios (in-game rewind / save points). `PlayInEditor::EnterPlayMode()` delegates to `SimulationManager::Play()`; `PIESnapshot` is a thin wrapper around `SceneSnapshot`. This division keeps `SimulationManager` + `SceneSnapshot` available when `GX_EDITOR=OFF`.
    - Single state machine: `Stopped → Playing → Paused → Playing → Stopped`.
    - `EnterPlayMode` captures a snapshot (entity transform + active + name) BEFORE entering Playing. `ExitPlayMode` restores from the snapshot. This is intentional shallow-snapshot; see (4).
    - `Pause` / `Resume` flip Playing ↔ Paused without touching the snapshot.

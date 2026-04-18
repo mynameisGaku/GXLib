@@ -115,10 +115,12 @@ Concrete rules:
    - `HasReachedDestination()` returns true when within `stoppingDistance` of final waypoint.
 
 9. **Threading contract.**
-   - All AI API calls are main-thread-only by convention. No internal synchronisation.
-   - Callers who want parallel AI ticks (e.g., 100 BehaviorTree instances) submit them as independent Jobs via ADR-0006. Since each BehaviorTree/NavAgent owns private state (no shared mutation), this is safe as long as no two Jobs share the same BehaviorTree or NavAgent instance.
-   - NavMesh builds (`Build`, `BuildFromGeometry`, `BuildFromTerrain`) are heavy and should run off the main thread (background Job) with a completion callback. The NavMesh must not be queried during build.
-   - GOAPPlanner::MakePlan is pure (reads action list, writes a new Plan) — safe to call from any thread if the action list is not mutated concurrently.
+   - AI objects (BehaviorTree, NavAgent, NavMesh, NavMesh3D, PolyNavMesh, GOAPPlanner) are **per-instance non-reentrant**: each instance must be owned by a single thread at any given time. The AI module provides no internal synchronisation — the caller guarantees exclusivity of each instance.
+   - This permits parallel AI ticking via ADR-0006 JobSystem: 100 BehaviorTree instances across 100 Jobs is safe iff each Job owns its own Tree. Sharing a single BehaviorTree, NavAgent, or NavMesh across two concurrent Jobs is undefined behaviour.
+   - Single-threaded usage (all AI on the main thread) is the simplest safe mode and is the default for non-batched gameplay. Parallel usage is opt-in by the caller via JobSystem submission.
+   - NavMesh builds (`Build`, `BuildFromGeometry`, `BuildFromTerrain`) are heavy and should run off the main thread (background Job) with a completion callback. The NavMesh must not be queried during build — queriers must synchronise against build completion (see `navmesh_query_during_build` forbidden pattern in §10).
+   - GOAPPlanner::MakePlan is pure (reads action list, writes a new Plan) — safe to call concurrently from multiple threads if the action list is not mutated concurrently.
+   - **EventBus interaction (ADR-0016 §5)**: an AI Action running on a worker Job MUST use `EventBus::QueueFromWorker<T>` to produce events — calling `Fire<T>` from a worker thread is the `eventbus_fire_from_worker_thread` forbidden pattern (ADR-0016). This applies equally whether the worker tick is ticking AI or other gameplay.
 
 10. **Forbidden patterns.**
     - `blackboard_iteration_in_rollback` — iterating `Blackboard::GetAll()` (HashMap) inside a rollback re-simulation window. Use key-by-key `Get()` instead.
