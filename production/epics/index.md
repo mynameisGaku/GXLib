@@ -22,16 +22,18 @@ implementation against an accepted ADR. This is an ADR-only project (no GDDs per
 | [GUI](gui/EPIC.md) | Presentation | ADR-0012 | GXLib/GUI/ | Ready | UIContext not exposed via Compat layer |
 | [Animation Pipeline](animation/EPIC.md) | Presentation | ADR-0014 | GXLib/Graphics/3D/{Skeleton,Animator,...} | Ready | AnimationEventDispatcher SetGlobalBusBridge missing |
 | [Movie Pipeline](movie/EPIC.md) | Presentation | ADR-0020 | GXLib/Movie/ | Ready | **Zero test coverage** |
+| [Architecture Fixes (2026-04-18)](arch-fixes-2026-04-18/EPIC.md) | Cross-cutting | ADR-0015/0018/0019/0020 | AI, Core/Scene, Movie, Editor | **✅ Complete** | 7 issues from 2026-04-18 fresh-session review — all fixed in-session, build + 4957 tests pass |
 
 ## Priority Order
 
 Epics with implementation gaps (not just verification) should be scheduled first:
 
-1. **EventBus** — 3 TRs not yet implemented (bus-002, bus-003, bus-004); blocks Job System cross-thread events and Editor replay
-2. **Animation Pipeline** — SetGlobalBusBridge not implemented; blocks EventBus integration for animation events
-3. **Movie Pipeline** — no test coverage; invisible regression risk
-4. **Editor** — CI gates missing; build hygiene risk
-5. **GUI** — UIContext Compat gap; affects DXLib-sourced consumer projects
-6. **Audio** — IXAPO dispatch needs runtime verification
+1. ~~**Architecture Fixes (2026-04-18)**~~ ✅ **COMPLETE 2026-04-18** — all 7 issues resolved in-session; build + 4957 tests pass; fresh-session review recommended before gate advance
+2. **EventBus** — 3 TRs not yet implemented (bus-002, bus-003, bus-004); blocks Job System cross-thread events and Editor replay
+3. **Animation Pipeline** — SetGlobalBusBridge not implemented; blocks EventBus integration for animation events
+4. **Movie Pipeline** — no test coverage; invisible regression risk
+5. **Editor** — CI gates missing; build hygiene risk
+6. **GUI** — UIContext Compat gap; affects DXLib-sourced consumer projects
+7. **Audio** — IXAPO dispatch needs runtime verification
 
 All other epics are verification and documentation closure.

@@ -19,8 +19,13 @@
 #
 # STATUS VALUES: active | deprecated | superseded-by: TR-[system]-NNN
 
-version: 7
-last_updated: "2026-04-17"
+version: 8
+last_updated: "2026-04-18"
+# v8 note: /architecture-review 2026-04-18 (fresh session) confirmed all 55
+# TRs remain valid and covered. No new TRs added, none deprecated. Version
+# bumped to reflect the reviewed baseline. See
+# docs/architecture/architecture-review-2026-04-18.md for open issues against
+# ADRs (ADR text/code fixes required; TR registry itself unaffected).
 
 requirements:
   # ─── doc (ADR-0001 Documentation strategy) ────────────────────────────────

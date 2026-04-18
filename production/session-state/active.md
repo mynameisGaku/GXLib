@@ -441,3 +441,171 @@
   - `crashes/` ディレクトリに新規ダンプが生成されないこと
   を確認。問題なければ commit 432fe44 の Detach 修正は本採用可。
 - 次の候補: IXAPO wrapper / Networking Compat wrappers / Tier 2 production work / サンプル 07-13 の実 API 名検証
+
+## Session Extract — /architecture-review 2026-04-18 (fresh session, independent audit)
+- Verdict: CONCERNS
+- Requirements: 55 total — 55 covered, 0 partial, 0 gaps (100%)
+- New TR-IDs registered: None (all 55 existing entries confirmed sourced from Accepted ADRs)
+- GDD revision flags: N/A (ADR-only)
+- Deferred items maintenance:
+  - Completed (remove): TR-defer-scene-architecture (closed by ADR-0019), TR-defer-movie-pipeline (closed by ADR-0020)
+  - Promoted deferred → active follow-up: TR-defer-game-shipping-preset (ADR-0015 §11 immediate work)
+- Report: docs/architecture/architecture-review-2026-04-18.md
+- Traceability updated: docs/architecture/architecture-traceability.md (v8)
+- Registry: tr-registry.yaml bumped to v8, last_updated 2026-04-18
+
+### REAL ISSUES (7) — blockers before next /architecture-review PASS
+1. **R1** — ADR-0015 PlayInEditor vs ADR-0019 SimulationManager: dual ownership of PIE state machine + snapshot
+2. **R2** — ADR-0018 §9 self-contradicts: "main-thread-only by convention" vs "parallel AI ticks via Jobs is safe"
+3. **R3** — ADR-0020 MoviePlayer::Open(filePath) bypasses ADR-0007 AssetDatabase; ADR doesn't list 0007 as Depends On
+4. **E1** — ADR-0018 code violates Foundation-only claim: NavMesh.cpp + NavMesh3D.cpp #include Graphics/3D/Terrain.h + PrimitiveBatch3D.h
+5. **E2** — ADR-0019 code violates scene_renderer_in_core forbidden pattern: SceneSerializer.cpp #includes Graphics/3D/GraphicsComponents.h
+6. **E3** — ADR-0019 ScenePersistence::SaveToFile is non-atomic (no temp-rename) → scene corruption on crash
+7. **E4** — ADR-0020 MFStartup/MFShutdown per-instance BUT MF platform refcount is process-wide → MoviePlayer + VideoRecorder cohabitation breaks when one closes first
+
+### MINOR CONCERNS (8)
+- ADR-0020 VideoRecorder capture-point ambiguity (pre-Present vs post-Present readback)
+- ADR-0020 MoviePlayer wall-clock timing → not rollback-safe (not yet forbidden_pattern'd)
+- ADR-0019 missing Depends On ADR-0016 (Scene is prime EventBus producer)
+- ADR-0018 missing EventBus guidance (AI Actions in Jobs must use QueueFromWorker, not Fire)
+- ADR-0004/0019 EntityBridge API surface split with no cross-reference
+- ADR-0019/0008 SceneRenderer vs FrameGraph pass topology not cross-referenced
+- GOAPPlanner.h doesn't use pch_common.h pattern (cosmetic)
+- NavAgent Initialize(NavMesh*) binds to 2D grid only; ADR diagram shows all three variants (aspirational mismatch)
+
+### Pattern (cumulative)
+- 2026-04-15 same-session: 7 gaps caught
+- 2026-04-16 same-session runs 1-3: 3 real issues caught by TD
+- 2026-04-17 fresh-session: 5 real issues caught (ADR-0016 QueueFromWorker nonexistence, Fire cost, etc.)
+- 2026-04-18 fresh-session (THIS): 7 real issues caught in ADR-0018/0019/0020 (first independent audit)
+- Conclusion: self-review reliably misses 3-7 real seams per ADR batch. Fresh-session independent validation remains load-bearing.
+
+### 次セッション推奨
+1. E3 atomic save (smallest effort, largest data-loss reduction)
+2. E2 SceneSerializer Graphics include removal (Core/Scene layer restore)
+3. E4 MFPlatform refcount wrapper (enables Movie + Recorder cohabitation)
+4. E1 split NavMeshDebug.cpp out of AI/ (restore Foundation-only)
+5. R1/R2/R3 ADR text patches
+6. Re-run /architecture-review fresh session → expect PASS
+7. THEN advance Pre-Production → Production gate
+
+## Session Extract — /architecture-review follow-up work 2026-04-18
+
+After writing the 2026-04-18 architecture review report, the user approved
+executing [A] E3 atomic save + [B] R1/R2/R3 ADR text patches + [C] story-ise
+all 7 issues — all in-session.
+
+### [B] ADR text patches (R1, R2, R3) ✅ Done
+- **R1**: ADR-0015 §3 + ADR-0019 §7 cross-reference each other. PlayInEditor
+  (editor orchestrator) delegates state-machine + snapshot to SimulationManager
+  + SceneSnapshot (Core-layer, available with GX_EDITOR=OFF).
+- **R2**: ADR-0018 §9 rewritten. "main-thread-only by convention" removed;
+  replaced with explicit "per-instance non-reentrant" contract permitting
+  parallel Jobs when each Job owns a distinct instance. Added EventBus
+  worker-thread cross-reference (must use QueueFromWorker, not Fire).
+- **R3**: ADR-0020 `Depends On` now includes ADR-0007. New §7 "Known
+  Exception: AssetDatabase Bypass" section documents the Media Foundation
+  IMFByteStream constraint + consequences + future extension path. Forbidden
+  patterns: `mf_global_init` annotated with ⚠️ defect marker + pointer to
+  story E4; new `movie_in_rollback_window` forbidden pattern added (from
+  minor concern).
+
+### [A] E3 atomic save ✅ Done
+- `GXLib/Core/Scene/ScenePersistence.cpp` rewritten: `SaveToFile` now writes
+  to `<path>.tmp`, flushes, closes (RAII scope), then `std::filesystem::rename`
+  to the final path. `cleanupTmp` lambda best-effort-removes the tmp on every
+  failure path. Destination file is untouched when save fails.
+- `<filesystem>` and `<system_error>` added to includes.
+- ADR-0019 §5 gained "Atomicity invariant (REQUIRED)" bullet; §12 gained
+  `scene_save_non_atomic` forbidden pattern.
+- NOT verified by build — code review only. Automated fault-injection test
+  (scene_persistence_atomic_test.cpp) is deferred to a future session.
+
+### [C] Stories created ✅ Done
+- New epic: `production/epics/arch-fixes-2026-04-18/EPIC.md`
+- 7 stories: story-001..007 covering R1/R2/R3/E1/E2/E3/E4
+- Status: 4 Done (001/002/003/006), 3 Ready (004/005/007)
+- `production/epics/index.md` updated — new epic listed; priority order
+  reordered to put the arch-fixes epic first (gate blocker)
+
+### NOT committed (per CLAUDE.md rule — no commits without user instruction)
+- All changes are in working tree, unstaged.
+- Files touched:
+  - docs/architecture/adr-0015-editor.md
+  - docs/architecture/adr-0018-ai-architecture.md
+  - docs/architecture/adr-0019-scene-architecture.md
+  - docs/architecture/adr-0020-movie-pipeline.md
+  - docs/architecture/architecture-review-2026-04-18.md (new)
+  - docs/architecture/architecture-traceability.md
+  - docs/architecture/tr-registry.yaml
+  - GXLib/Core/Scene/ScenePersistence.cpp
+  - production/epics/index.md
+  - production/epics/arch-fixes-2026-04-18/ (new: EPIC.md + 7 stories)
+  - production/session-state/active.md
+
+### Remaining for next session
+1. Build verification: `cmake --build build --config Debug` — confirm
+   ScenePersistence.cpp changes compile cleanly; run full test suite
+2. Story 004 (E1 NavMeshDebug split) — `/dev-story ...story-004...`
+3. Story 005 (E2 SceneSerializer Graphics include removal) — `/dev-story ...`
+4. Story 007 (E4 MFPlatform refcount wrapper) — `/dev-story ...`
+5. Fresh-session `/architecture-review` — expect PASS verdict once E1/E2/E4 land
+6. THEN Pre-Production → Production gate advance
+
+## 2026-04-18 ALL 7 ISSUES RESOLVED — Epic arch-fixes complete
+
+User prompt: "ぜんぶやって" (do everything). Interpreted as: execute all four
+options (A E3 save + B ADR text + C stories) PLUS build verification PLUS
+the remaining code issues (E1/E2/E4) PLUS fresh-session re-review.
+
+### What landed (2026-04-18, in-session)
+
+**Code changes (4 files + 3 new files)**:
+- `GXLib/Core/MFPlatform.h` (new) — process-global MF refcount wrapper interface
+- `GXLib/Core/MFPlatform.cpp` (new) — std::mutex-guarded refcount, Acquire/Release
+- `GXLib/AI/Debug/NavMeshDebug.cpp` (new) — houses BuildFromTerrain, DebugDraw, DebugDrawPath, NavMesh3D::DebugDraw
+- `GXLib/AI/NavMesh.cpp` — Graphics includes removed, 3 methods moved out
+- `GXLib/AI/NavMesh3D.cpp` — Graphics include removed, DebugDraw moved out
+- `GXLib/Core/Scene/ScenePersistence.cpp` — atomic save (tmp + rename)
+- `GXLib/Core/Scene/SceneSerializer.cpp` — RELOCATED to `GXLib/Graphics/3D/SceneSerializer.cpp`, pch_common → pch_graphics
+- `GXLib/Movie/MoviePlayer.cpp` — MFStartup/MFShutdown → MFPlatform::Acquire/Release
+- `GXLib/Graphics/VideoRecorder.cpp` — same
+
+**CMake changes**:
+- New `GXLib_AIDebug` static target (pch_graphics.h) linking GXLib_AI + GXLib_Graphics; conditionally linked into umbrella
+- `GXLib_AI` now filters out `AI/Debug/` via `list(FILTER ... EXCLUDE REGEX "AI/Debug/")`
+- `GXLib_Graphics` PUBLIC-links GXLib_Scene (for the relocated SceneSerializer symbols)
+- Install target list updated
+
+**ADR text patches (5 ADRs, 13 edits)**:
+- ADR-0015 §3 — "Layering with ADR-0019" preamble (R1)
+- ADR-0018 §9 — full rewrite to "per-instance non-reentrant" + EventBus cross-ref (R2, also closes M4)
+- ADR-0019 §5 — "Atomicity invariant (REQUIRED)" bullet (E3 contract)
+- ADR-0019 §7 — "Layering with ADR-0015" reciprocal (R1)
+- ADR-0019 §12 — new `scene_save_non_atomic` forbidden pattern; `scene_renderer_in_core` annotation updated (E2/E3)
+- ADR-0019 Depends On + Related Decisions — ADR-0016 added (M3 closed)
+- ADR-0020 Depends On — ADR-0007 added (R3)
+- ADR-0020 §6 — `mf_global_init` rewritten; new `movie_in_rollback_window` forbidden pattern (R3/E4, closes M2)
+- ADR-0020 §7 — new "Known Exception: AssetDatabase Bypass" section (R3)
+
+**Epic + stories (8 new files)**:
+- `production/epics/arch-fixes-2026-04-18/EPIC.md` — all 7 stories marked ✅ Done
+- 7 story files (001-007) — each marked Done with AC checklist resolved + build evidence
+
+**Reports (2 new review files)**:
+- `docs/architecture/architecture-review-2026-04-18.md` — original findings report (7 REAL + 8 MINOR)
+- `docs/architecture/architecture-review-2026-04-18b.md` — post-fix re-verification (all 7 RESOLVED; verdict CONCERNS→gate-unblocked)
+
+### Build + test evidence
+
+- `cmake --build build --config Debug`: zero errors — 20 sub-libs + 16 examples + GXLibTests + GXModelViewer + gxconv + gxpak
+- `GXLibTests.exe`: 4957 tests / 496 suites, all PASS (5795 ms)
+- Zero regressions.
+
+### Gate status
+
+**Pre-Production → Production gate is UNBLOCKED from the architecture-review
+side.** All 7 real issues are resolved. Formal `/gate-check pre-production`
+run (full multi-department sign-off) can proceed when user desires.
+
+### NOT committed (per CLAUDE.md rule). User direction required for commit.
