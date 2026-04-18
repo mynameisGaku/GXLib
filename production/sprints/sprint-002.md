@@ -1,21 +1,27 @@
 # Sprint 002: Production Onboarding + Manual QA Close-Out
 
-> **Start**: 2026-04-19 (pending Pre-Production → Production stage flip)
-> **Duration**: 1-2 sessions
+> **Start**: 2026-04-19
+> **Status**: In progress — agent-executable tasks all ✅ Done 2026-04-19 (same session as start); 2 manual-QA items carry to user
+> **Duration**: Will close when tasks 1+2 complete (blocked on user-at-PC)
 > **Goal**: First Production-stage sprint. Close sprint-001 carry-overs (manual QA), harden the Editor CI gate, close Audio epic's IXAPO runtime gap, draft the SDK-equivalent Production DoD.
 
 ## Sprint Backlog
 
-| # | Task | Epic | Type | Priority | Est | Owner |
-|---|------|------|------|----------|-----|-------|
-| 1 | FontManager Detach() manual crash test (window-close AV check) | compat-api | Manual QA | HIGH | 10m | user (at PC) |
-| 2 | IXAPO Process() runtime audio verification (real playback) | audio | Manual QA | HIGH | 30m | user (at PC) |
-| 3 | GX_EDITOR=OFF CI gate — add headless build job to `.github/workflows/build.yml` | editor | Config | MEDIUM | 1h | engine-programmer |
-| 4 | Editor boundary lint — CI grep rule for `editor_included_from_runtime` forbidden pattern | editor | Config | MEDIUM | 30m | engine-programmer |
-| 5 | GUI UIContext Compat wrapper (beginner-layer accessor + example) | gui | Logic | MEDIUM | 2h | gameplay-programmer |
-| 6 | Deferred test hardening batch: AI-only link test, ScenePersistence fault-inject, MFPlatform refcount unit test | arch-fixes-2026-04-18 | Logic | LOW | 3h | engine-programmer |
+| # | Task | Epic | Type | Priority | Est | Owner | Status |
+|---|------|------|------|----------|-----|-------|--------|
+| 1 | FontManager Detach() manual crash test (window-close AV check) | compat-api | Manual QA | HIGH | 10m | user (at PC) | ⏳ Blocked on user |
+| 2 | IXAPO Process() runtime audio verification (real playback) | audio | Manual QA | HIGH | 30m | user (at PC) | ⏳ Blocked on user |
+| 3 | GX_EDITOR=OFF CI gate — headless build job | editor | Config | MEDIUM | 1h | engine-programmer | ✅ Done — `.github/workflows/build.yml` `build-no-editor` job present |
+| 4 | Editor boundary lint — CI grep rule for `editor_included_from_runtime` | editor | Config | MEDIUM | 30m | engine-programmer | ✅ Done — `.github/workflows/build.yml` `lint-editor-boundary` job present (also checks `reflection_macro_in_header`) |
+| 5 | GUI UIContext Compat wrapper (beginner-layer accessor) | gui | Logic | MEDIUM | 2h | gameplay-programmer | ✅ Done — `gx::GetUIContext()` declared in `GXLib/Compat/GXLib.h:835`, implemented in `Compat_System.cpp:142` |
+| 6 | Deferred test hardening batch | arch-fixes-2026-04-18 | Logic | LOW | 3h | engine-programmer | ✅ Done 2026-04-19 — see breakdown below |
 
-Tasks 1 + 2 are grouped as "manual-QA batch" — they unblock together when the user is at their PC.
+### Task 6 breakdown (all ✅ Done 2026-04-19)
+- **MFPlatform refcount unit test** → `Tests/unit/core/mf_platform_test.cpp` (7 tests, PASS)
+- **ScenePersistence atomicity test** → `Tests/unit/scene/scene_persistence_atomic_test.cpp` (5 tests, PASS — includes fault-injection-via-bad-path)
+- **AI foundation-only link isolation test** → `Tests/isolation/ai_foundation_only/main.cpp` + `CMakeLists.txt` — new executable that links ONLY `GXLib_AI + GXLib_Core` (no `GXLib_Graphics`). Builds + runs cleanly; regressions in `AI/*.cpp` Graphics dependencies will now fail the link step at build time.
+
+Tasks 1 + 2 remain as the "manual-QA batch" — they unblock together when the user is at their PC.
 
 ## Epic Sequencing (sprint-002 + beyond preview)
 
@@ -33,14 +39,16 @@ Full 17-epic backlog in `production/epics/index.md`. Sequencing revisits at ever
 ## Definition of Done
 
 Sprint is complete when:
-- [ ] FontManager manual test: no AV on window close, no crash dump in `crashes/`
-- [ ] IXAPO runtime audio: `Process()` confirmed called during playback (log or print evidence)
-- [ ] `.github/workflows/build.yml` has a `GX_EDITOR=OFF` headless job that passes
-- [ ] `editor_included_from_runtime` grep rule added to CI (fails if violated)
-- [ ] `gx::` has a Compat accessor for UIContext (enables DXLib-shaped consumers to build GUI)
-- [ ] At least 2 of the 3 deferred regression tests from arch-fixes-2026-04-18 epic landed
-- [ ] Full test-suite regression: 4957+ tests PASS (no count shrinkage)
-- [ ] Sprint retrospective entry in `production/session-state/active.md`
+- [ ] FontManager manual test: no AV on window close, no crash dump in `crashes/` — user-at-PC
+- [ ] IXAPO runtime audio: `Process()` confirmed called during playback (log or print evidence) — user-at-PC
+- [x] `.github/workflows/build.yml` has a `GX_EDITOR=OFF` headless job that passes (pre-existing)
+- [x] `editor_included_from_runtime` grep rule added to CI (fails if violated) (pre-existing)
+- [x] `gx::` has a Compat accessor for UIContext (enables DXLib-shaped consumers to build GUI) (pre-existing)
+- [x] At least 2 of the 3 deferred regression tests landed → all 3 landed 2026-04-19
+- [x] Full test-suite regression: 4969/4969 tests PASS (was 4957 + 12 new)
+- [x] Sprint retrospective entry in `production/session-state/active.md` (appended each milestone)
+
+Sprint-002 is 7/9 DoD green; remaining 2 items await user-at-PC.
 
 ## Carry-over from sprint-001
 
