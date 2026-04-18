@@ -54,6 +54,15 @@ Concrete rules:
    - Supported formats: MP4, WMV, AVI (whatever codecs Windows Media Foundation supports on the target machine).
 
 2. **VideoRecorder (recording).**
+   - **Capture point**: called by the host after the final render pass and
+     **before** the Present barrier. `CaptureFrame` resource-barriers the
+     back buffer assuming `D3D12_RESOURCE_STATE_RENDER_TARGET`; callers who
+     have already transitioned to `PRESENT` state must move the capture
+     earlier in the frame.
+   - **Thread**: `CaptureFrame` + `IMFSinkWriter::WriteSample` run on the
+     caller's thread (typically the main render thread). Media Foundation
+     Sink Writer internally dispatches encoding onto its own worker pool;
+     the caller does not block on encode completion.
    - Captures rendered frames from the swap chain at a specified frame rate.
    - Encodes to MP4 via Media Foundation Sink Writer.
    - Start/Stop API driven by the caller.
@@ -73,8 +82,12 @@ Concrete rules:
 
 6. **Forbidden patterns.**
    - `movie_audio_assumption` — do not assume `MoviePlayer` plays audio; it doesn't. Use AudioManager separately.
-   - `mf_global_init` — do not call `MFStartup` / `MFShutdown` directly from any subsystem. All MF-consuming code (currently `MoviePlayer` and `VideoRecorder`, plus any future MF-using subsystem) MUST go through `gx::MFPlatform::Acquire()` / `Release()` (Core layer). The wrapper owns the process-global MF refcount; bypassing it causes premature teardown when multiple subsystems coexist. Resolved 2026-04-18 (E4 / story 007): `MFPlatform` added at `GXLib/Core/MFPlatform.{h,cpp}`; both consumers migrated.
+   - `mf_global_init` — do not call `MFStartup` / `MFShutdown` directly from any subsystem. All MF-consuming code (currently `MoviePlayer` and `VideoRecorder`, plus any future MF-using subsystem) MUST go through `gx::MFPlatform::Acquire()` / `Release()` (Core layer). The wrapper owns the process-global MF refcount; bypassing it causes premature teardown when multiple subsystems coexist.
    - `movie_in_rollback_window` — `MoviePlayer::Update` uses wall-clock frame-interval timing; do NOT drive a `MoviePlayer` inside an ADR-0013 rollback re-simulation window. MoviePlayer is intended for cutscenes, which typically pause gameplay and therefore do not intersect rollback.
+
+### Resolution log
+
+- 2026-04-18 (story E4 / 007): `mf_global_init` contract implemented. `MFPlatform` added at `GXLib/Core/MFPlatform.{h,cpp}`; `MoviePlayer` and `VideoRecorder` migrated.
 
 ## Known Exception: AssetDatabase Bypass
 

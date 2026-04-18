@@ -273,7 +273,12 @@ enum class PIEState : uint32_t { Stopped = 0, Playing, Paused };
 struct PIEConfig { bool startPaused, captureInput, showDebugOverlay,
                    simulatePhysics, simulateAI, simulateAudio;
                    float fixedTimeStep; };
-struct PIESnapshot { uint32_t entityCount, componentCount; bool hasData; };
+// PIESnapshot is an editor-facing thin wrapper: it owns a
+// gx::SceneSnapshot (ADR-0019 §7) under the hood. The fields below are
+// summary metadata shown in editor UI; the actual restore state lives in
+// the wrapped SceneSnapshot.
+struct PIESnapshot { uint32_t entityCount, componentCount; bool hasData;
+                     /* gx::SceneSnapshot inner — see ADR-0019 §7 */ };
 
 class PlayInEditor {
 public:

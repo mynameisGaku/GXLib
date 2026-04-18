@@ -121,13 +121,23 @@ Concrete rules:
    - `UpdateAnimations(scene, dt)` ticks all `Animator` components before render.
    - `SceneRenderStats` tracks visible/culled entities, draw calls, instanced batches.
    - Lives in `Graphics/3D/`, NOT `Core/Scene/`. Scene has no graphics dependency.
+   - **FrameGraph integration (ADR-0008)**: `SceneRenderer::Render` is not itself a FrameGraph pass — it is the orchestration layer that walks the Scene and feeds `MeshRendererComponent` draw data into the FrameGraph pass chain (`GBufferPass` → `DeferredShadePass` → `ForwardPlusPass` etc.). `Animator::UpdateAnimations` runs before the `ComputeSkinningPass` registered by ADR-0014. Consumers that bypass `SceneRenderer` and submit draws directly to the FrameGraph still see correct ordering as long as they run after `SceneManager::Update`.
 
 10. **EntityBridge (OOP ↔ ECS).**
+    - **API surface** (this ADR + ADR-0004 describe the same class from two angles):
+      - `Attach(Node*, Entity)` / `Detach(Entity)` — ADR-0004 §Decision for creating the OOP↔ECS binding at entity creation time.
+      - `ImportEntity(world, entity)` / `ExportEntity(world, ecsId, entity)` — this ADR, for one-shot copy of a scene entity into/out of the ECS World.
+      - `SyncSceneToWorld` / `SyncWorldToScene` — batch-sync all mapped entities per frame.
+      - `ClearMappings()` — required on scene unload.
+    - The two naming conventions coexist because `Attach/Detach` is the
+      lifecycle-registration verb (pair with entity creation), while
+      `Import/Export/Sync*` is the data-movement verb (pair with per-frame
+      state transfer). Same class, complementary surfaces.
     - `ImportEntity(world, entity)` creates an ECS entity with BridgePosition/Rotation/Scale/Name components.
     - `ExportEntity(world, ecsId, entity)` writes back from ECS to OOP.
-    - `SyncSceneToWorld` / `SyncWorldToScene` batch-sync all mapped entities.
     - Static process-global maps (`s_entityMap`, `s_reverseMap`). `ClearMappings()` required on scene unload.
     - `BridgeName[64]` — max 63 chars. Known constraint.
+    - **Stale-sync detection**: when a caller mutates `Entity::GetTransform()` without subsequently calling `SyncSceneToWorld` before the next ECS consumer (physics step, rendering, etc.), the ECS side sees the pre-mutation state. Debug builds SHOULD assert in `World::Get<BridgePosition>()` when the corresponding OOP entity's transform has been marked dirty since the last sync. (Implementation detail: maintain a `m_dirty` flag on Transform3D that `SetPosition/SetRotation/SetScale` set, and `SyncSceneToWorld` clears. Assertion is debug-only — no overhead in release.)
 
 11. **TransitionEffect.**
     - 8 built-in types: Fade, Wipe, WipeVertical, CircleOpen, CircleClose, Dissolve, SlideLeft, SlideRight.
