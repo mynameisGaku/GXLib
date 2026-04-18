@@ -167,6 +167,9 @@ endif()
 if (NOT GX_SDK_ONLY)
     enable_testing()
     add_subdirectory(Tests)
+    # ADR-0018 E1 regression test — links ONLY GXLib_AI (+ Core), not Graphics.
+    # If AI/*.cpp regains a Graphics include, this target fails to link.
+    add_subdirectory(Tests/isolation/ai_foundation_only)
     add_subdirectory(tools/gxconv)
     add_subdirectory(tools/gxpak)
     add_subdirectory(GXModelViewer)

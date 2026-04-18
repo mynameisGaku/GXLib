@@ -264,6 +264,9 @@ set(TEST_SOURCES
     unit/eventbus/dispatch_order_test.cpp
     # Movie (ADR-0020)
     unit/movie/movie_player_test.cpp
+    # Arch-fixes 2026-04-18 regression tests (sprint-002 Task 6)
+    unit/core/mf_platform_test.cpp
+    unit/scene/scene_persistence_atomic_test.cpp
 )
 
 add_executable(GXLibTests ${TEST_SOURCES})
