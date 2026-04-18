@@ -119,12 +119,31 @@ target_include_directories(GXLib_Physics PRIVATE ${CMAKE_SOURCE_DIR}/extern)
 # =============================================================================
 # GXLib_AI — NavMesh, NavAgent
 # 依存: GXLib_Foundation
+# ADR-0018 §Constraints: AI は Foundation-only。Graphics 依存の
+# DebugDraw/BuildFromTerrain は AI/Debug/ に分離し GXLib_AIDebug へ。
 # =============================================================================
 file(GLOB_RECURSE AI_SOURCES "AI/*.cpp" "AI/*.h")
+# AI/Debug/ は Graphics 依存なので別モジュール (GXLib_AIDebug) に分離
+list(FILTER AI_SOURCES EXCLUDE REGEX "AI/Debug/")
 add_library(GXLib_AI STATIC ${AI_SOURCES})
 gxlib_setup_module(GXLib_AI pch_common.h)
 set_target_properties(GXLib_AI PROPERTIES FOLDER "Engine")
 target_link_libraries(GXLib_AI PUBLIC GXLib_Foundation)
+
+# =============================================================================
+# GXLib_AIDebug — NavMesh::DebugDraw / BuildFromTerrain, NavMesh3D::DebugDraw
+# 依存: GXLib_AI + GXLib_Graphics
+# ADR-0018 E1 (2026-04-18): Graphics 依存メソッドを core AI から分離し、
+# GXLib_AI の Foundation-only 契約を復元するための兄弟ターゲット。
+# 呼び出し側が DebugDraw を使う場合のみリンク。
+# =============================================================================
+file(GLOB_RECURSE AI_DEBUG_SOURCES "AI/Debug/*.cpp" "AI/Debug/*.h")
+if (AI_DEBUG_SOURCES)
+    add_library(GXLib_AIDebug STATIC ${AI_DEBUG_SOURCES})
+    gxlib_setup_module(GXLib_AIDebug pch_graphics.h)
+    set_target_properties(GXLib_AIDebug PROPERTIES FOLDER "Engine")
+    target_link_libraries(GXLib_AIDebug PUBLIC GXLib_AI GXLib_Graphics)
+endif()
 
 # =============================================================================
 # GXLib_Scene — Entity, Component, Scene, SceneSerializer
@@ -157,10 +176,12 @@ add_library(GXLib_Graphics STATIC ${GRAPHICS_SOURCES})
 gxlib_setup_module(GXLib_Graphics pch_graphics.h)
 set_target_properties(GXLib_Graphics PROPERTIES FOLDER "Engine")
 target_link_libraries(GXLib_Graphics PUBLIC
-    GXLib_Core gxloader
+    GXLib_Core GXLib_Scene gxloader
     d3d12.lib dxgi.lib dxcompiler.lib dxguid.lib
     ole32.lib dwrite.lib d2d1.lib windowscodecs.lib
 )
+# GXLib_Scene を追加 (2026-04-18 E2): SceneSerializer.cpp を Core/Scene/ から
+# Graphics/3D/ に移動した結果、Graphics 側で Scene 型の完全定義が必要。
 target_include_directories(GXLib_Graphics PUBLIC ${CMAKE_SOURCE_DIR}/gxformat)
 
 # FBX SDK (optional)
@@ -267,6 +288,12 @@ target_link_libraries(GXLib PUBLIC
     GXLib_GUI
 )
 
+# GXLib_AIDebug (ADR-0018 E1, 2026-04-18): umbrella に合流させるので
+# 通常の GXLib リンクユーザーは DebugDraw/BuildFromTerrain を自動的に使える。
+if (TARGET GXLib_AIDebug)
+    target_link_libraries(GXLib PUBLIC GXLib_AIDebug)
+endif()
+
 if (GX_EDITOR)
     target_link_libraries(GXLib PUBLIC GXLib_Editor)
 endif()
@@ -320,6 +347,9 @@ set(_INSTALL_TARGETS
     GXLib GXLib_Container GXLib_Foundation GXLib_Core GXLib_Input GXLib_Audio
     GXLib_IO GXLib_Physics GXLib_AI GXLib_Scene GXLib_ECS
     GXLib_Graphics GXLib_GUI)
+if (TARGET GXLib_AIDebug)
+    list(APPEND _INSTALL_TARGETS GXLib_AIDebug)
+endif()
 if (GX_EDITOR)
     list(APPEND _INSTALL_TARGETS GXLib_Editor)
 endif()

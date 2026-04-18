@@ -6,6 +6,8 @@
 #include "Core/Scene/Components.h"
 #include <fstream>
 #include <sstream>
+#include <filesystem>
+#include <system_error>
 
 namespace gx
 {
@@ -618,26 +620,65 @@ std::unique_ptr<Scene> ScenePersistence::DeserializeFromBinary(const gx::Vector<
 
 bool ScenePersistence::SaveToFile(const Scene& scene, const gx::String& path, SceneFileFormat format)
 {
+    // ADR-0019 §5 atomicity invariant: serialise to sibling .tmp, flush+close,
+    // then atomic rename over the destination. A crash / power loss / exception
+    // during serialisation must not leave the destination path in a partial
+    // state (torn-write protection for editor-authored scenes).
+    const std::string finalPath(path.c_str());
+    const std::string tmpPath = finalPath + ".tmp";
+
+    auto cleanupTmp = [&tmpPath]()
+    {
+        std::error_code ec;
+        std::filesystem::remove(tmpPath, ec);
+    };
+
     if (format == SceneFileFormat::Text)
     {
         gx::String text = SerializeToString(scene);
 
-        std::ofstream file(path.c_str(), std::ios::out);
-        if (!file.is_open()) return false;
+        {
+            std::ofstream file(tmpPath, std::ios::out | std::ios::trunc);
+            if (!file.is_open()) return false;
 
-        file << text;
-        return file.good();
+            file << text;
+            file.flush();
+            if (!file.good())
+            {
+                file.close();
+                cleanupTmp();
+                return false;
+            }
+        } // RAII close — buffer flushed, descriptor released before rename
     }
     else // Binary
     {
         auto bin = SerializeToBinary(scene);
 
-        std::ofstream file(path.c_str(), std::ios::out | std::ios::binary);
-        if (!file.is_open()) return false;
+        {
+            std::ofstream file(tmpPath, std::ios::out | std::ios::binary | std::ios::trunc);
+            if (!file.is_open()) return false;
 
-        file.write(reinterpret_cast<const char*>(bin.data()), static_cast<std::streamsize>(bin.size()));
-        return file.good();
+            file.write(reinterpret_cast<const char*>(bin.data()),
+                       static_cast<std::streamsize>(bin.size()));
+            file.flush();
+            if (!file.good())
+            {
+                file.close();
+                cleanupTmp();
+                return false;
+            }
+        } // RAII close
     }
+
+    std::error_code ec;
+    std::filesystem::rename(tmpPath, finalPath, ec);
+    if (ec)
+    {
+        cleanupTmp(); // best-effort; rename failure leaves original intact
+        return false;
+    }
+    return true;
 }
 
 std::unique_ptr<Scene> ScenePersistence::LoadFromFile(const gx::String& path, SceneFileFormat format)

@@ -1,6 +1,12 @@
-#include "pch_common.h"
-/// @file SceneSerializer.cpp
-/// @brief シーン直列化実装
+#include "pch_graphics.h"
+/// @file Graphics/3D/SceneSerializer.cpp
+/// @brief SceneSerializer implementation — lives in Graphics module because
+///        JSON (de)serialisation of MeshRenderer/SkinnedMeshRenderer/Camera/
+///        Light components requires full definitions from
+///        `Graphics/3D/GraphicsComponents.h`. The header `SceneSerializer.h`
+///        stays in `Core/Scene/` with only a forward declaration of `Model`.
+///        Moved here 2026-04-18 to resolve ADR-0019 §12
+///        `scene_renderer_in_core` forbidden-pattern violation (E2).
 
 #include "Core/Scene/SceneSerializer.h"
 #include "Graphics/3D/GraphicsComponents.h"

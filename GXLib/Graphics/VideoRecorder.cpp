@@ -3,6 +3,7 @@
 #include "pch_graphics.h"
 #include "Graphics/VideoRecorder.h"
 #include "Core/Logger.h"
+#include "Core/MFPlatform.h"
 
 // Media Foundationヘッダー
 #include <mfapi.h>
@@ -55,10 +56,12 @@ bool VideoRecorder::Initialize(ID3D12Device* device)
 
 bool VideoRecorder::InitMediaFoundation()
 {
-    HRESULT hr = MFStartup(MF_VERSION);
-    if (FAILED(hr))
+    // ADR-0020 E4 (2026-04-18): MFPlatform refcount wrapper 経由で初期化する。
+    // 以前は MFStartup を直接呼んでいたが、MoviePlayer と併用時に
+    // 一方の Shutdown が他方のセッションを巻き込む defect があった。
+    if (!MFPlatform::Acquire())
     {
-        GX_LOG_ERROR("VideoRecorder: MFStartup failed (HRESULT: 0x%08X)", hr);
+        GX_LOG_ERROR("VideoRecorder: MFPlatform::Acquire failed");
         return false;
     }
     m_mfInitialized = true;
@@ -69,7 +72,8 @@ void VideoRecorder::ShutdownMediaFoundation()
 {
     if (m_mfInitialized)
     {
-        MFShutdown();
+        // ADR-0020 E4 (2026-04-18): MFPlatform::Release で refcount デクリメント。
+        MFPlatform::Release();
         m_mfInitialized = false;
     }
 }

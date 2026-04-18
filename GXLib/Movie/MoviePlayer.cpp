@@ -5,6 +5,7 @@
 #include <mferror.h>
 #include "Movie/MoviePlayer.h"
 #include "Core/Logger.h"
+#include "Core/MFPlatform.h"
 
 #pragma comment(lib, "mfplat.lib")
 #pragma comment(lib, "mfreadwrite.lib")
@@ -28,14 +29,17 @@ bool MoviePlayer::Open(const gx::String& filePath, GraphicsDevice& device, Textu
     Close();
     m_texManager = &texManager;
 
-    // Media Foundation を初期化。Windowsの動画再生APIを使うための準備。
-    HRESULT hr = MFStartup(MF_VERSION);
-    if (FAILED(hr))
+    // ADR-0020 E4 (2026-04-18): MFPlatform の refcount ラッパー経由で初期化する。
+    // 以前は MFStartup を直接呼んでいたが、MF platform は process-global の
+    // 参照カウント方式のため、MoviePlayer + VideoRecorder 併用時に
+    // 一方の Close が他方のセッションを巻き込んで tear down する defect があった。
+    if (!MFPlatform::Acquire())
     {
-        GX_LOG_ERROR("MoviePlayer: MFStartup failed: 0x%08X", hr);
+        GX_LOG_ERROR("MoviePlayer: MFPlatform::Acquire failed");
         return false;
     }
     m_mfInitialized = true;
+    HRESULT hr = S_OK;
 
     // パスを wide 文字列へ変換（WinAPI用）。
     int wLen = MultiByteToWideChar(CP_UTF8, 0, filePath.c_str(), -1, nullptr, 0);
@@ -153,7 +157,9 @@ void MoviePlayer::Close()
 
     if (m_mfInitialized)
     {
-        MFShutdown();
+        // ADR-0020 E4 (2026-04-18): MFPlatform::Release で refcount デクリメント。
+        // 最後の Release が 0 到達時に実際の MFShutdown を呼ぶ。
+        MFPlatform::Release();
         m_mfInitialized = false;
     }
 

@@ -1,10 +1,14 @@
 /// @file NavMesh3D.cpp
 /// @brief NavMesh3D の実装
+///
+/// ADR-0018 §Constraints: AI module links only GXLib_Foundation. Do NOT add
+/// any `Graphics/` include here. `NavMesh3D::DebugDraw` lives in
+/// `GXLib/AI/Debug/NavMeshDebug.cpp` under the sibling `GXLib_AIDebug`
+/// static lib.
 #include "pch_common.h"
 
 #include "AI/NavMesh3D.h"
 #include "Math/MathConvert.h"
-#include "Graphics/3D/PrimitiveBatch3D.h"
 #include "Core/Logger.h"
 #include <queue>
 
@@ -674,88 +678,8 @@ bool NavMesh3D::Raycast(const Vector3& origin, const Vector3& direction, float m
 }
 
 // ============================================================================
-// DebugDraw
+// DebugDraw — moved to GXLib/AI/Debug/NavMeshDebug.cpp (2026-04-18, E1)
 // ============================================================================
-void NavMesh3D::DebugDraw(PrimitiveBatch3D& batch, bool showBlocked) const
-{
-    if (m_voxels.empty()) return;
-
-    const Vector4 openColor    = { 0.1f, 0.8f, 0.2f, 0.3f };
-    const Vector4 blockedColor = { 0.9f, 0.15f, 0.1f, 0.3f };
-    const Vector4 waterColor   = { 0.1f, 0.3f, 0.9f, 0.3f };
-    const Vector4 airColor     = { 0.7f, 0.7f, 0.9f, 0.2f };
-
-    float half = m_voxelSize * 0.45f;
-
-    // サーフェスボクセルのみ描画（少なくとも1つのBlocked隣接またはグリッド境界を持つボクセル）
-    for (int z = 0; z < m_sizeZ; ++z)
-    {
-        for (int y = 0; y < m_sizeY; ++y)
-        {
-            for (int x = 0; x < m_sizeX; ++x)
-            {
-                VoxelState state = m_voxels[VoxelIndex(x, y, z)];
-                if (state == VoxelState::Blocked && !showBlocked) continue;
-
-                // サーフェスボクセル判定: 面隣接にBlockedまたは範囲外があるか？
-                bool isSurface = false;
-                static const int fd[][3] = {{-1,0,0},{1,0,0},{0,-1,0},{0,1,0},{0,0,-1},{0,0,1}};
-                for (int d = 0; d < 6; ++d)
-                {
-                    int nx = x + fd[d][0];
-                    int ny = y + fd[d][1];
-                    int nz = z + fd[d][2];
-                    if (!IsInBounds(nx, ny, nz))
-                    {
-                        isSurface = true;
-                        break;
-                    }
-                    if (m_voxels[VoxelIndex(nx, ny, nz)] != state)
-                    {
-                        isSurface = true;
-                        break;
-                    }
-                }
-
-                if (!isSurface) continue;
-
-                Vector3 center = VoxelToWorld(x, y, z);
-                const Vector4* color = &openColor;
-                if (state == VoxelState::Blocked) color = &blockedColor;
-                else if (state == VoxelState::Water) color = &waterColor;
-                else if (state == VoxelState::Air) color = &airColor;
-
-                // ワイヤーフレームボックスを描画（12辺）
-                Vector3 corners[8] = {
-                    { center.x - half, center.y - half, center.z - half },
-                    { center.x + half, center.y - half, center.z - half },
-                    { center.x + half, center.y - half, center.z + half },
-                    { center.x - half, center.y - half, center.z + half },
-                    { center.x - half, center.y + half, center.z - half },
-                    { center.x + half, center.y + half, center.z - half },
-                    { center.x + half, center.y + half, center.z + half },
-                    { center.x - half, center.y + half, center.z + half },
-                };
-
-                // 底面
-                batch.DrawLine(corners[0], corners[1], *color);
-                batch.DrawLine(corners[1], corners[2], *color);
-                batch.DrawLine(corners[2], corners[3], *color);
-                batch.DrawLine(corners[3], corners[0], *color);
-                // 上面
-                batch.DrawLine(corners[4], corners[5], *color);
-                batch.DrawLine(corners[5], corners[6], *color);
-                batch.DrawLine(corners[6], corners[7], *color);
-                batch.DrawLine(corners[7], corners[4], *color);
-                // 垂直辺
-                batch.DrawLine(corners[0], corners[4], *color);
-                batch.DrawLine(corners[1], corners[5], *color);
-                batch.DrawLine(corners[2], corners[6], *color);
-                batch.DrawLine(corners[3], corners[7], *color);
-            }
-        }
-    }
-}
 
 // ============================================================================
 // GetOpenVoxelCount

@@ -1,11 +1,15 @@
 #include "pch_common.h"
 /// @file NavMesh.cpp
-/// @brief Grid-based navigation mesh with A* pathfinding
+/// @brief Grid-based navigation mesh with A* pathfinding.
+///
+/// ADR-0018 §Constraints: AI module links only GXLib_Foundation. Do NOT add
+/// any `Graphics/` include here. Graphics-dependent helpers
+/// (BuildFromTerrain, DebugDraw, DebugDrawPath) live in
+/// `GXLib/AI/Debug/NavMeshDebug.cpp` under the sibling `GXLib_AIDebug`
+/// static lib.
 
 #include "AI/NavMesh.h"
 #include "Math/MathConvert.h"
-#include "Graphics/3D/Terrain.h"
-#include "Graphics/3D/PrimitiveBatch3D.h"
 #include "Core/Logger.h"
 #include <queue>
 
@@ -60,38 +64,8 @@ bool NavMesh::Build(float worldMinX, float worldMinZ,
 }
 
 // ============================================================================
-// BuildFromTerrain
+// BuildFromTerrain — moved to GXLib/AI/Debug/NavMeshDebug.cpp (2026-04-18, E1)
 // ============================================================================
-bool NavMesh::BuildFromTerrain(const Terrain& terrain,
-                               float cellSize, float maxClimb, float maxSlope)
-{
-    // Terrain is centered at origin: originX = -width/2, originZ = -depth/2
-    float worldMinX = terrain.GetOriginX();
-    float worldMinZ = terrain.GetOriginZ();
-    float worldMaxX = worldMinX + terrain.GetWidth();
-    float worldMaxZ = worldMinZ + terrain.GetDepth();
-
-    if (!Build(worldMinX, worldMinZ, worldMaxX, worldMaxZ, cellSize, maxClimb, maxSlope))
-        return false;
-
-    // Sample terrain heights at each cell center
-    for (int z = 0; z < m_gridHeight; ++z)
-    {
-        for (int x = 0; x < m_gridWidth; ++x)
-        {
-            Vector3 worldPos = CellToWorld(x, z);
-            float h = terrain.GetHeight(worldPos.x, worldPos.z);
-            m_grid[static_cast<size_t>(z) * m_gridWidth + x].height = h;
-        }
-    }
-
-    // Apply slope/climb filtering
-    ApplySlopeFilter(maxClimb, maxSlope);
-
-    Logger::Info("NavMesh::BuildFromTerrain - terrain (%.1fx%.1f) -> %dx%d grid",
-                 terrain.GetWidth(), terrain.GetDepth(), m_gridWidth, m_gridHeight);
-    return true;
-}
 
 // ============================================================================
 // BuildFromGeometry
@@ -507,61 +481,9 @@ bool NavMesh::IsWalkable(const Vector3& position) const
 }
 
 // ============================================================================
-// DebugDraw
+// DebugDraw / DebugDrawPath — moved to GXLib/AI/Debug/NavMeshDebug.cpp
+// (2026-04-18, E1)
 // ============================================================================
-void NavMesh::DebugDraw(PrimitiveBatch3D& batch) const
-{
-    if (!m_built) return;
-
-    const Vector4 walkableColor   = { 0.1f, 0.8f, 0.2f, 0.4f };
-    const Vector4 unwalkableColor = { 0.9f, 0.15f, 0.1f, 0.5f };
-    const float drawOffset = 0.05f; // Slight Y offset to avoid z-fighting
-
-    for (int z = 0; z < m_gridHeight; ++z)
-    {
-        for (int x = 0; x < m_gridWidth; ++x)
-        {
-            const Cell& cell = m_grid[static_cast<size_t>(z) * m_gridWidth + x];
-            Vector3 center = CellToWorld(x, z);
-            center.y = cell.height + drawOffset;
-
-            const Vector4& color = cell.walkable ? walkableColor : unwalkableColor;
-
-            float half = m_cellSize * 0.45f; // Slightly smaller than cell to see grid lines
-
-            // Draw cell as 4 lines (rectangle outline on XZ plane)
-            Vector3 p0 = { center.x - half, center.y, center.z - half };
-            Vector3 p1 = { center.x + half, center.y, center.z - half };
-            Vector3 p2 = { center.x + half, center.y, center.z + half };
-            Vector3 p3 = { center.x - half, center.y, center.z + half };
-
-            batch.DrawLine(p0, p1, color);
-            batch.DrawLine(p1, p2, color);
-            batch.DrawLine(p2, p3, color);
-            batch.DrawLine(p3, p0, color);
-        }
-    }
-}
-
-// ============================================================================
-// DebugDrawPath
-// ============================================================================
-void NavMesh::DebugDrawPath(PrimitiveBatch3D& batch,
-                            const gx::Vector<Vector3>& path,
-                            const Vector4& color) const
-{
-    if (path.size() < 2) return;
-
-    const float yOffset = 0.15f;
-    for (size_t i = 0; i + 1 < path.size(); ++i)
-    {
-        Vector3 a = path[i];
-        Vector3 b = path[i + 1];
-        a.y += yOffset;
-        b.y += yOffset;
-        batch.DrawLine(a, b, color);
-    }
-}
 
 // ============================================================================
 // WorldToCell / CellToWorld / Heuristic
