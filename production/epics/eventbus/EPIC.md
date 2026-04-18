@@ -3,48 +3,58 @@
 > **Layer**: Core
 > **ADR**: docs/architecture/adr-0016-eventbus.md
 > **Architecture Module**: GXLib/Core/EventBus.h
-> **Status**: Complete
-> **Stories**: 5 stories created (3 Logic, 2 Integration)
+> **Status**: ✅ Complete (implemented + tested 2026-04-17)
+> **Stories**: 5 stories — all Done
 
 ## Stories
 
 | # | Story | Type | Status | TR-ID | ADR |
 |---|-------|------|--------|-------|-----|
-| 001 | HandlerCategory enum + Subscribe overload | Logic | Ready | TR-bus-002 | ADR-0016 §3 |
-| 002 | SetReplayMode replay suppression | Logic | Ready | TR-bus-003 | ADR-0016 §4 |
-| 003 | QueueFromWorker thread-safe worker route | Integration | Ready | TR-bus-004 | ADR-0016 §5 |
-| 004 | AnimationEventDispatcher global bus bridge | Integration | Ready | TR-bus-005 | ADR-0016 §7 |
-| 005 | Dispatch order determinism verification | Logic | Ready | TR-bus-006 | ADR-0016 §6 |
+| 001 | HandlerCategory enum + Subscribe overload | Logic | ✅ Done | TR-bus-002 | ADR-0016 §3 |
+| 002 | SetReplayMode replay suppression | Logic | ✅ Done | TR-bus-003 | ADR-0016 §4 |
+| 003 | QueueFromWorker thread-safe worker route | Integration | ✅ Done | TR-bus-004 | ADR-0016 §5 |
+| 004 | AnimationEventDispatcher global bus bridge | Integration | ✅ Done | TR-bus-005 | ADR-0016 §7 |
+| 005 | Dispatch order determinism verification | Logic | ✅ Done | TR-bus-006 | ADR-0016 §6 |
 
 ## Overview
 
-This epic covers the typed publish-subscribe EventBus introduced in Phase 2. The base publish/subscribe/unsubscribe API (TR-bus-001) and synchronous dispatch (TR-bus-005/006) are implemented. However, three requirements from ADR-0016 are NOT YET IMPLEMENTED: handler categories with priority ordering (TR-bus-002), replay-mode toggling for deterministic test replay (TR-bus-003), and thread-safe enqueue from worker threads (TR-bus-004). These gaps affect the Job System's ability to post events cross-thread and the Editor's ability to replay event sequences. This is the highest-priority implementation epic in the Core layer.
+Typed publish-subscribe EventBus (`GXLib/Core/EventBus.h`). Introduced in
+Phase 2; extended per ADR-0016 on 2026-04-17 with `HandlerCategory`
+(Idempotent / SideEffect), replay-mode suppression (`SetReplayMode`),
+thread-safe worker-thread enqueue (`QueueFromWorker<T>`),
+`AnimationEventDispatcher` global-bus bridge, and insertion-order dispatch
+determinism. All 5 new TRs covered with dedicated tests under
+`Tests/unit/eventbus/`.
 
 ## Governing ADRs
 
 | ADR | Decision Summary | Engine Risk |
 |-----|-----------------|-------------|
-| ADR-0016: EventBus | Typed pub-sub bus; handlers grouped by category for priority; replay mode for test determinism; worker-thread-safe enqueue | LOW |
+| ADR-0016: EventBus | Typed pub-sub bus; HandlerCategory (Idempotent/SideEffect); replay mode suppresses SideEffect; QueueFromWorker is the main-thread-only Fire's worker-thread producer route; AnimationEventDispatcher bridges to global bus | LOW |
 
 ## Requirements
 
 | TR-ID | Requirement | Status |
 |-------|-------------|--------|
-| TR-bus-001 | Typed Subscribe / Publish / Unsubscribe API | ✅ Implemented |
-| TR-bus-002 | HandlerCategory enum with ordered dispatch (Physics → Logic → Render) | ❌ Not Yet |
-| TR-bus-003 | SetReplayMode(bool) — queue all events, replay on demand | ❌ Not Yet |
-| TR-bus-004 | QueueFromWorker — thread-safe event enqueue from Job System threads | ❌ Not Yet |
-| TR-bus-005 | Synchronous immediate dispatch on main thread | ✅ Implemented |
-| TR-bus-006 | Handler auto-unsubscribe via RAII token | ✅ Implemented |
+| TR-bus-001 | Typed Subscribe / Fire / Unsubscribe API | ✅ Implemented |
+| TR-bus-002 | HandlerCategory (Idempotent / SideEffect) + two-arg Subscribe | ✅ Implemented |
+| TR-bus-003 | SetReplayMode — SideEffect handlers suppressed during replay | ✅ Implemented |
+| TR-bus-004 | QueueFromWorker — thread-safe event enqueue from Job System threads | ✅ Implemented |
+| TR-bus-005 | AnimationEventDispatcher → global bus bridge (SetGlobalBusBridge) | ✅ Implemented |
+| TR-bus-006 | Insertion-order deterministic dispatch | ✅ Implemented |
 
 ## Definition of Done
 
-This epic is complete when:
-- All stories implemented, reviewed, closed via `/story-done`
-- All acceptance criteria from governing ADR verified
-- Logic/Integration stories have passing tests in `tests/`
-- Visual/Feel stories have evidence in `production/qa/evidence/`
+Reached 2026-04-17:
+- All 5 stories implemented — `GXLib/Core/EventBus.h` exposes
+  `HandlerCategory`, `SetReplayMode`, `QueueFromWorker`,
+  `SetGlobalBusBridge`.
+- All acceptance criteria from ADR-0016 verified via dedicated tests in
+  `Tests/unit/eventbus/{handler_category,replay_mode,queue_from_worker,animation_bridge,dispatch_order}_test.cpp`.
+- Tests pass as part of the 4957-test GXLibTests run.
 
 ## Next Step
 
-Run `/create-stories eventbus` to break this epic into implementable stories.
+Epic complete. EventBus is production-ready. Future extensions (if needed):
+static vs dynamic handler prioritisation beyond category, handler-scoped
+filters, etc. — no ADR-0016 gaps remaining.

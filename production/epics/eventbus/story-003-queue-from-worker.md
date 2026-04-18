@@ -1,7 +1,7 @@
 # Story 003: Add QueueFromWorker thread-safe worker route
 
 > **Epic**: EventBus
-> **Status**: Ready
+> **Status**: ✅ Done (2026-04-17 — implemented + tested)
 > **Layer**: Core
 > **Type**: Integration
 > **Manifest Version**: 2026-04-17

@@ -1,7 +1,7 @@
 # Story 001: Add HandlerCategory enum + Subscribe overload
 
 > **Epic**: EventBus
-> **Status**: Ready
+> **Status**: ✅ Done (2026-04-17 — implemented + tested)
 > **Layer**: Core
 > **Type**: Logic
 > **Manifest Version**: 2026-04-17

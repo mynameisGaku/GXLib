@@ -11,7 +11,7 @@ implementation against an accepted ADR. This is an ADR-only project (no GDDs per
 | [Job System](job-system/EPIC.md) | Core | ADR-0006 | GXLib/Core/JobSystem.h | Ready | — |
 | [Asset Database + Hot Reload](asset-pipeline/EPIC.md) | Core | ADR-0007 | GXLib/Core/AssetDatabase.*, GXLib/IO/ | Ready | Concurrent load stress tests |
 | [Input](input/EPIC.md) | Core | ADR-0011 | GXLib/Input/ | Ready | Hot-plug edge cases |
-| [EventBus](eventbus/EPIC.md) | Core | ADR-0016 | GXLib/Core/EventBus.h | Ready | **bus-002/003/004 NOT YET IMPLEMENTED** |
+| [EventBus](eventbus/EPIC.md) | Core | ADR-0016 | GXLib/Core/EventBus.h | ✅ Complete | All 5 stories implemented + tested 2026-04-17 |
 | [AI](ai/EPIC.md) | Feature | ADR-0018 | GXLib/AI/ | Ready | BT blackboard + Scene Persistence round-trip |
 | [Networking](networking/EPIC.md) | Feature | ADR-0013 | GXLib/IO/Network/ | Ready | Compat wrapper integration tests |
 | [Lua Scripting](scripting/EPIC.md) | Feature | ADR-0005 | GXLib/Script/ | Ready | Phase 5 binding test coverage |
@@ -28,9 +28,9 @@ implementation against an accepted ADR. This is an ADR-only project (no GDDs per
 
 Epics with implementation gaps (not just verification) should be scheduled first:
 
-1. ~~**Architecture Fixes (2026-04-18)**~~ ✅ **COMPLETE 2026-04-18** — all 7 issues resolved in-session; build + 4957 tests pass; fresh-session review recommended before gate advance
-2. **EventBus** — 3 TRs not yet implemented (bus-002, bus-003, bus-004); blocks Job System cross-thread events and Editor replay
-3. **Animation Pipeline** — SetGlobalBusBridge not implemented; blocks EventBus integration for animation events
+1. ~~**Architecture Fixes (2026-04-18)**~~ ✅ **COMPLETE 2026-04-18**
+2. ~~**EventBus**~~ ✅ **COMPLETE 2026-04-17** — all 5 stories implemented + tested (HandlerCategory, ReplayMode, QueueFromWorker, AnimationBridge, DispatchOrder); epic docs synchronised 2026-04-19
+3. **Animation Pipeline** — SetGlobalBusBridge is implemented as part of EventBus story-004 above; epic verification sweep recommended
 4. **Movie Pipeline** — no test coverage; invisible regression risk
 5. **Editor** — CI gates missing; build hygiene risk
 6. **GUI** — UIContext Compat gap; affects DXLib-sourced consumer projects

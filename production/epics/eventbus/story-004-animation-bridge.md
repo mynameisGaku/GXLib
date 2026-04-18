@@ -1,7 +1,7 @@
 # Story 004: AnimationEventDispatcher global bus bridge
 
 > **Epic**: EventBus
-> **Status**: Ready
+> **Status**: ✅ Done (2026-04-17 — implemented + tested)
 > **Layer**: Core
 > **Type**: Integration
 > **Manifest Version**: 2026-04-17

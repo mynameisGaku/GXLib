@@ -1,7 +1,7 @@
 # Story 005: Dispatch order determinism verification
 
 > **Epic**: EventBus
-> **Status**: Ready
+> **Status**: ✅ Done (2026-04-17 — implemented + tested)
 > **Layer**: Core
 > **Type**: Logic
 > **Manifest Version**: 2026-04-17
