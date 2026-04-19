@@ -4,6 +4,91 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [SDK Sprint 2] - 2026-04-19
+
+### Stage transition
+- **Pre-Production → Production** (production/stage.txt flipped 2026-04-19
+  after TD-PHASE-GATE READY + PR-PHASE-GATE CONCERNS-then-resolved). The
+  architecture foundation is stable; Production sprint cadence begins.
+
+### Architecture review + fixes
+- `/architecture-review` 2026-04-18 (fresh-session, independent) found
+  **7 REAL ISSUES** across ADR-0018/0019/0020 (the three newest ADRs being
+  audited for the first time by external agents).
+- All 7 issues **resolved in-session** 2026-04-18:
+  - **R1** ADR-0015 + ADR-0019 bidirectional cross-reference for the
+    PIE/SimulationManager layering (PlayInEditor orchestrates UX,
+    SimulationManager + SceneSnapshot are the Core-layer backend).
+  - **R2** ADR-0018 §9 threading contract rewritten to "per-instance
+    non-reentrant" (removed the self-contradictory "main-thread-only by
+    convention" claim); added EventBus worker-thread cross-reference.
+  - **R3** ADR-0020 declares the AssetDatabase bypass as a Known Exception
+    (§7 new section); Depends On now lists ADR-0007; new
+    `movie_in_rollback_window` forbidden pattern.
+  - **E1** AI module Graphics dependency split — created
+    `GXLib/AI/Debug/NavMeshDebug.cpp` and the new `GXLib_AIDebug` sibling
+    CMake target. Core `NavMesh.cpp` + `NavMesh3D.cpp` are now genuinely
+    Foundation-only.
+  - **E2** SceneSerializer.cpp relocated from `Core/Scene/` to
+    `Graphics/3D/` to restore the `scene_renderer_in_core` forbidden
+    pattern. `GXLib_Graphics` PUBLIC-links `GXLib_Scene`.
+  - **E3** `ScenePersistence::SaveToFile` now uses a temp-file + rename
+    pattern (`std::filesystem::rename`). Destination is untouched on any
+    failure. ADR-0019 §5 gains the atomicity invariant as REQUIRED.
+  - **E4** New `GXLib/Core/MFPlatform.{h,cpp}` — process-global Media
+    Foundation refcount wrapper. MoviePlayer + VideoRecorder migrated to
+    `MFPlatform::Acquire`/`Release`. Cohabitation scenario (one closes
+    while the other is live) no longer tears down MF prematurely.
+- Post-fix `/architecture-review 2026-04-18b` PASS — zero REAL ISSUES
+  remaining for the first time in the project's review history.
+- ADR polish: M1 (VideoRecorder capture-point + thread), M5 (EntityBridge
+  API cross-reference between ADR-0004 and ADR-0019), M6 (SceneRenderer
+  FrameGraph cross-reference), M8 (EntityBridge stale-sync debug assertion)
+  + 2 cosmetic items closed 2026-04-19.
+
+### Added
+- **`GXLib/Core/MFPlatform`** (h + cpp): process-wide Media Foundation
+  refcount wrapper. Acquire/Release/IsInitialized/GetRefCount.
+- **`GXLib/AI/Debug/NavMeshDebug.cpp`**: Graphics-dependent AI methods
+  (BuildFromTerrain, DebugDraw, DebugDrawPath, NavMesh3D::DebugDraw) —
+  packaged in the new `GXLib_AIDebug` sibling target.
+- **Epic `arch-fixes-2026-04-18`**: 7 stories documenting R1/R2/R3 +
+  E1/E2/E3/E4 resolutions, all Done.
+- **Sprint plans**: `sprint-001.md` closed, `sprint-002.md` drafted with
+  epic-sequencing lookahead for sprint-003 through -005.
+- **SDK Production DoD document** at `.claude/docs/sdk-production-dod.md`
+  — codifies the game-DoD → SDK-DoD recalibration so future gate-checks
+  don't flag N/A game-design items as CONCERNS.
+- **12 regression tests** for E1/E3/E4 fixes:
+  - `Tests/unit/core/mf_platform_test.cpp` (7 tests)
+  - `Tests/unit/scene/scene_persistence_atomic_test.cpp` (5 tests)
+- **AI foundation-only link isolation test**: new executable at
+  `Tests/isolation/ai_foundation_only/` that links only `GXLib_AI +
+  GXLib_Core`. Fails to link if E1 regresses.
+
+### Changed
+- `GXLib/Movie/MoviePlayer.cpp`: `MFStartup/MFShutdown` → `MFPlatform::Acquire/Release`.
+- `GXLib/Graphics/VideoRecorder.cpp`: same migration.
+- `GXLib/Core/Scene/ScenePersistence.cpp`: `SaveToFile` now atomic (temp
+  + rename).
+- `GXLib/AI/NavMesh.cpp` + `NavMesh3D.cpp`: Graphics includes removed.
+- `GXLib/CMakeLists.txt`: new `GXLib_AIDebug` target; `GXLib_Graphics`
+  now PUBLIC-links `GXLib_Scene`.
+- `tr-registry.yaml` bumped to v8.
+- `production/stage.txt`: `Pre-Production` → `Production`.
+
+### Fixed
+- Animation epic status synced — `SetGlobalBusBridge` was implemented
+  2026-04-17 via EventBus story-004 but the epic doc still said "not
+  yet". Corrected.
+- GUI epic status — `gx::GetUIContext()` Compat wrapper was already
+  landed; epic index "UIContext not exposed" note was stale.
+- Editor epic status — CI gates (build-no-editor + lint-editor-boundary)
+  were already landed; epic index "CI gates missing" note was stale.
+
+### Test suite
+- 4957 → **4969 tests** (+12 new regression tests, zero regressions).
+
 ## [SDK Sprint 1] - 2026-04-18
 
 ### Added
