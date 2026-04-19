@@ -24,6 +24,7 @@ docs/consistency-failures.md
 
 # === Build Output ===
 build/
+build_*/
 builds/
 bin/
 obj/
@@ -34,6 +35,10 @@ dist/
 *.so
 *.dylib
 *.app
+
+# === Runtime auto-generated ===
+# ImGui window layout state — per-machine, regenerated on first run.
+imgui.ini
 
 # === Engine: Godot ===
 .godot/
