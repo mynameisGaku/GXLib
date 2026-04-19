@@ -1,6 +1,6 @@
 # Architecture Traceability Index
 
-> **Last Updated**: 2026-04-18 (fresh-session review — 3 independent agents)
+> **Last Updated**: 2026-04-19 (ADR-0021 Proposed — Volumetric Cloud Architecture AC7/AC8-class target)
 > **Engine**: Custom — GXLib (Phase 5)
 > **Source of requirements**: ADR `## Context → Requirements` sections + charter-level subsystem needs (ADR-only project per ADR-0001; no GDDs)
 
@@ -8,10 +8,20 @@
 
 | Status | Count | % |
 |--------|-------|---|
-| ✅ Covered | 55 | 100% |
+| ✅ Covered | 75 | 100% |
 | ⚠️ Partial | 0 | 0% |
 | ❌ Gap | 0 | 0% |
-| **Total (registry v8)** | **55** | **100%** |
+| **Total (registry v9)** | **75** | **100%** |
+
+## ADR-0021 Volumetric Cloud Architecture (Proposed 2026-04-19)
+
+20 new TRs (TR-cloud-001 .. TR-cloud-020) pin the AC7/AC8-quality target.
+ADR is **Proposed** pending fresh-session `/architecture-review`; Phase B
+(data model implementation) starts after Accepted promotion.
+
+Supporting document:
+`docs/engine-reference/gxlib/volumetric-clouds-analysis-2026-04-19.md`
+(current-state inventory + gap analysis + phased roadmap + bibliography).
 
 ## Full Matrix
 
@@ -102,3 +112,4 @@ None.
 | 2026-04-17 (ADR-0019/0020) | 100% (55 TRs) | Scene + Movie ADRs close remaining subsystem gaps. Registry v7. |
 | 2026-04-18 (fresh-session review) | 100% (55 TRs) | Coverage stable. 7 REAL ISSUES + 8 MINOR CONCERNS detected in ADR-0018/0019/0020 (first independent audit). Verdict: CONCERNS. See `architecture-review-2026-04-18.md`. |
 | 2026-04-18b (post-fix re-verification) | 100% (55 TRs) | All 7 REAL ISSUES resolved in-session (R1/R2/R3 ADR-text + E1/E2/E3/E4 code+CMake+ADR). Build ✅ (20 sub-libs, 16 examples, GXModelViewer) + 4957 tests pass. Verdict: **CONCERNS (gate-unblocked)** — 4 minor + 2 cosmetic documentation items remain, none block advancement. See `architecture-review-2026-04-18b.md`. |
+| 2026-04-19 (ADR-0021 Proposed) | 100% (75 TRs) | 20 new TR-cloud-* added (ADR-0021 Volumetric Cloud Architecture, Proposed). Target: AC7 trueSKY parity (Phase E, binding) + optional AC8 Cloudly-class (Phase F, aspirational). Requires fresh-session `/architecture-review` before Phase B coding starts. |

@@ -19,13 +19,16 @@
 #
 # STATUS VALUES: active | deprecated | superseded-by: TR-[system]-NNN
 
-version: 8
-last_updated: "2026-04-18"
-# v8 note: /architecture-review 2026-04-18 (fresh session) confirmed all 55
-# TRs remain valid and covered. No new TRs added, none deprecated. Version
-# bumped to reflect the reviewed baseline. See
-# docs/architecture/architecture-review-2026-04-18.md for open issues against
-# ADRs (ADR text/code fixes required; TR registry itself unaffected).
+version: 9
+last_updated: "2026-04-19"
+# v9 note: ADR-0021 Volumetric Cloud Architecture (Proposed) adds
+# TR-cloud-001 .. TR-cloud-020. These TRs pin the AC7/AC8-quality
+# target documented in
+# docs/engine-reference/gxlib/volumetric-clouds-analysis-2026-04-19.md.
+# Phase B-F implementation will refine these; IDs are permanent once
+# ADR-0021 is Accepted.
+# v8 note (kept): /architecture-review 2026-04-18 (fresh session)
+# confirmed all 55 TRs remain valid. No deprecations this bump.
 
 requirements:
   # ─── doc (ADR-0001 Documentation strategy) ────────────────────────────────
@@ -455,5 +458,168 @@ requirements:
     added: 2026-04-17
     revised: ""
 
+  # ─── cloud (ADR-0021 Volumetric Cloud Architecture, Proposed 2026-04-19) ──
+  # AC7/AC8-quality multi-layer weather-map-driven gameplay-integrated clouds.
+  # Phase A (foundation docs) complete; Phase B (data model) is the next sprint.
+  - id: TR-cloud-001
+    system: cloud
+    source_adr: docs/architecture/adr-0021-volumetric-cloud-architecture.md
+    requirement: "WeatherMap: 512² RGB 2D texture (R=coverage, G=precipitation, B=cloudType), runtime-editable via SetRegion, JSON load/save per ADR-0019 §5 atomic invariant."
+    status: active
+    added: 2026-04-19
+    revised: ""
+
+  - id: TR-cloud-002
+    system: cloud
+    source_adr: docs/architecture/adr-0021-volumetric-cloud-architecture.md
+    requirement: "CloudLayer struct (altitude band + HeightDensityCurve + dominant CloudType) + CloudField aggregate (N layers + WeatherMap + Atmosphere reference)."
+    status: active
+    added: 2026-04-19
+    revised: ""
+
+  - id: TR-cloud-003
+    system: cloud
+    source_adr: docs/architecture/adr-0021-volumetric-cloud-architecture.md
+    requirement: "Multi-layer ray march: default 3 layers (low stratus / mid cumulus / high cirrus), depth-sorted back-to-front, combined transmittance accumulation."
+    status: active
+    added: 2026-04-19
+    revised: ""
+
+  - id: TR-cloud-004
+    system: cloud
+    source_adr: docs/architecture/adr-0021-volumetric-cloud-architecture.md
+    requirement: "Gameplay query API: CloudQuery::IsInCloud(Vec3), DensityAlongRay(Vec3, Vec3, float), GetCloudTypeAt(Vec3), SunTransmittance(Vec3), BatchSample(Vec3[], CloudSample[])."
+    status: active
+    added: 2026-04-19
+    revised: ""
+
+  - id: TR-cloud-005
+    system: cloud
+    source_adr: docs/architecture/adr-0021-volumetric-cloud-architecture.md
+    requirement: "CloudShadowPass: low-res cascaded transmittance map (1024² × 2 cascade), feeds sun direct-light multiplication in DeferredShadePass (terrain + objects receive cloud shadow)."
+    status: active
+    added: 2026-04-19
+    revised: ""
+
+  - id: TR-cloud-006
+    system: cloud
+    source_adr: docs/architecture/adr-0021-volumetric-cloud-architecture.md
+    requirement: "Atmosphere LUT full coupling per Hillaire 2020: shared transmittance + multi-scattering LUT with SkyAtmosphere (ADR-0008), distant clouds aerial perspective auto-correct."
+    status: active
+    added: 2026-04-19
+    revised: ""
+
+  - id: TR-cloud-007
+    system: cloud
+    source_adr: docs/architecture/adr-0021-volumetric-cloud-architecture.md
+    requirement: "Temporal reconstruction: 1/16 pixel checkerboard pattern, 16-frame full-image reconstruction via reprojection + cloud-velocity advection, 3×3 min/max clamp + 15% relaxation to prevent ghosting."
+    status: active
+    added: 2026-04-19
+    revised: ""
+
+  - id: TR-cloud-008
+    system: cloud
+    source_adr: docs/architecture/adr-0021-volumetric-cloud-architecture.md
+    requirement: "Curl noise advection: detail UV displacement via 128² 2D curl texture for morphing evolution; animated over time."
+    status: active
+    added: 2026-04-19
+    revised: ""
+
+  - id: TR-cloud-009
+    system: cloud
+    source_adr: docs/architecture/adr-0021-volumetric-cloud-architecture.md
+    requirement: "Lightning: CloudField::TriggerLightning(Vec3 epicenter) → local emissive point light + 3D attenuated flash + EventBus LightningStrikeEvent (handler category SideEffect)."
+    status: active
+    added: 2026-04-19
+    revised: ""
+
+  - id: TR-cloud-010
+    system: cloud
+    source_adr: docs/architecture/adr-0021-volumetric-cloud-architecture.md
+    requirement: "Precipitation particles: GPU particle emission from cloud density + WeatherMap.G channel, rain/snow switching via temperature."
+    status: active
+    added: 2026-04-19
+    revised: ""
+
+  - id: TR-cloud-011
+    system: cloud
+    source_adr: docs/architecture/adr-0021-volumetric-cloud-architecture.md
+    requirement: "Keyframe sequencer: CloudKeyframe struct (WeatherMap + layer state snapshot) Vector, CloudFieldAnimator linear-blend between keyframes, JSON timeline authorable."
+    status: active
+    added: 2026-04-19
+    revised: ""
+
+  - id: TR-cloud-012
+    system: cloud
+    source_adr: docs/architecture/adr-0021-volumetric-cloud-architecture.md
+    requirement: "JSON weather map format + 5+ built-in preset library (clear, overcast, storm_front, scattered_cumulus, hurricane) shipped with engine."
+    status: active
+    added: 2026-04-19
+    revised: ""
+
+  - id: TR-cloud-013
+    system: cloud
+    source_adr: docs/architecture/adr-0021-volumetric-cloud-architecture.md
+    requirement: "Performance budget: cloud pass total ≤3 ms at 1080p 60fps MED quality tier (Phase D binding). Measured budget table: WeatherMapUpdate 0.1 + CloudShadow 0.3 + VolumetricCloud 1.5 + CloudTemporal 0.4 + CloudComposite 0.2 = 2.5 ms baseline + 0.5 ms headroom."
+    status: active
+    added: 2026-04-19
+    revised: ""
+
+  - id: TR-cloud-014
+    system: cloud
+    source_adr: docs/architecture/adr-0021-volumetric-cloud-architecture.md
+    requirement: "Quality tier presets LOW / MED / HIGH (+ ULTRA in Phase F): layer count, checkerboard resolution, march step count, and temporal strategy selectable at runtime via SetQualityTier()."
+    status: active
+    added: 2026-04-19
+    revised: ""
+
+  - id: TR-cloud-015
+    system: cloud
+    source_adr: docs/architecture/adr-0021-volumetric-cloud-architecture.md
+    requirement: "Async GPU readback ring buffer (3 frames) for CloudQuery; no blocking Map() on main thread. 1-frame query latency acceptable."
+    status: active
+    added: 2026-04-19
+    revised: ""
+
+  - id: TR-cloud-016
+    system: cloud
+    source_adr: docs/architecture/adr-0021-volumetric-cloud-architecture.md
+    requirement: "Middleware adoption is forbidden: no trueSKY, no UE5 VolumetricCloud port, no 3rd-party cloud middleware. Self-hosted implementation only (GXLib SDK thesis per ADR-0002)."
+    status: active
+    added: 2026-04-19
+    revised: ""
+
+  - id: TR-cloud-017
+    system: cloud
+    source_adr: docs/architecture/adr-0021-volumetric-cloud-architecture.md
+    requirement: "Per-pixel terrain cloud-shadow raymarch is forbidden (cost prohibitive). Terrain samples cascaded low-res transmittance map (TR-cloud-005) via bilinear sample."
+    status: active
+    added: 2026-04-19
+    revised: ""
+
+  - id: TR-cloud-018
+    system: cloud
+    source_adr: docs/architecture/adr-0021-volumetric-cloud-architecture.md
+    requirement: "FrameGraph 5 new passes (registered as ADR-0008 addendum): WeatherMapUpdatePass, CloudShadowPass, VolumetricCloudPass, CloudTemporalPass, CloudCompositePass."
+    status: active
+    added: 2026-04-19
+    revised: ""
+
+  - id: TR-cloud-019
+    system: cloud
+    source_adr: docs/architecture/adr-0021-volumetric-cloud-architecture.md
+    requirement: "EventBus integration (ADR-0016): LightningStrikeEvent (epicenter, intensity, timestamp) + WeatherChangeEvent (from_preset, to_preset, transition_seconds). Both SideEffect category."
+    status: active
+    added: 2026-04-19
+    revised: ""
+
+  - id: TR-cloud-020
+    system: cloud
+    source_adr: docs/architecture/adr-0021-volumetric-cloud-architecture.md
+    requirement: "Optional voxel accelerator (Phase F, aspirational AC8-class): Nubis Cubed 2023-inspired region-focused voxel volume + SDF compression + fluid-sim-driven modeling. Ships only if Phase F executed."
+    status: active
+    added: 2026-04-19
+    revised: ""
+
   # ─── All subsystem gaps closed ─
-  # 20 ADRs covering all engine subsystems. 55 TRs total.
+  # 21 ADRs covering all engine subsystems. 75 TRs total (55 + 20 for ADR-0021).
