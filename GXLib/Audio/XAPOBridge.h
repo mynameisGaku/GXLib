@@ -71,7 +71,16 @@ public:
         wcscpy_s(props->CopyrightInfo, L"GXLib");
         props->MajorVersion = 1;
         props->MinorVersion = 0;
-        props->Flags = XAPO_FLAG_INPLACE_REQUIRED;
+        // 2026-04-19 defect fix: XAudio2 が SetEffectChain で要求する標準
+        // MUST_MATCH フラグ群を全部立てる。INPLACE_REQUIRED だけだと
+        // SetEffectChain が XAUDIO2_E_INVALID_CALL (0x88960001) を返す。
+        // Microsoft XAPO サンプル準拠 — IN_PLACE_SUPPORTED で in-place も
+        // out-of-place も受け付け、実装は in-place で動作する。
+        props->Flags = XAPO_FLAG_CHANNELS_MUST_MATCH
+                     | XAPO_FLAG_FRAMERATE_MUST_MATCH
+                     | XAPO_FLAG_BITSPERSAMPLE_MUST_MATCH
+                     | XAPO_FLAG_BUFFERCOUNT_MUST_MATCH
+                     | XAPO_FLAG_INPLACE_SUPPORTED;
         props->MinInputBufferCount = 1;
         props->MaxInputBufferCount = 1;
         props->MinOutputBufferCount = 1;

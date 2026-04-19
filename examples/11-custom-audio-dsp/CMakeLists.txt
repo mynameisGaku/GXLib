@@ -20,6 +20,15 @@ add_custom_command(TARGET gxlib_example_11 POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${_SHADERS_SRC}" "$<TARGET_FILE_DIR:gxlib_example_11>/Shaders"
     COMMENT "Copying Shaders")
+
+# Copy example-local Assets/ (test_tone.wav for the IXAPO verification test)
+if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Assets")
+    add_custom_command(TARGET gxlib_example_11 POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_CURRENT_SOURCE_DIR}/Assets"
+            "$<TARGET_FILE_DIR:gxlib_example_11>/Assets"
+        COMMENT "Copying example Assets")
+endif()
 set_target_properties(gxlib_example_11 PROPERTIES
     VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:gxlib_example_11>")
 if (COMMAND gxlib_copy_runtime_dlls)

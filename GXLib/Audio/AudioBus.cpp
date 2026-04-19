@@ -159,20 +159,29 @@ void AudioBus::RebuildEffectChain()
     for (size_t i = 0; i < k_MaxEffectsPerBus; ++i)
         m_xapoBridge->SetEffectSlot(i, m_effects[i].get());
 
+    // OutputChannels must match the SubmixVoice's channel count. Hardcoding 2
+    // fails SetEffectChain silently if the device/Master is not stereo.
+    // 2026-04-19 defect fix: query via GetVoiceDetails.
+    XAUDIO2_VOICE_DETAILS submixDetails = {};
+    m_submixVoice->GetVoiceDetails(&submixDetails);
+
     XAUDIO2_EFFECT_DESCRIPTOR desc = {};
     desc.pEffect        = m_xapoBridge;
     desc.InitialState   = TRUE;
-    desc.OutputChannels = 2;
+    desc.OutputChannels = submixDetails.InputChannels;
 
     XAUDIO2_EFFECT_CHAIN chain = {};
     chain.EffectCount = 1;
     chain.pEffectDescriptors = &desc;
 
     HRESULT hr = m_submixVoice->SetEffectChain(&chain);
+    m_lastEffectChainHR = static_cast<long>(hr);
+    m_lastEffectChainOutputChannels = submixDetails.InputChannels;
     if (FAILED(hr))
     {
-        GX_LOG_ERROR("AudioBus '%s': SetEffectChain failed: 0x%08X",
-                     m_name.c_str(), static_cast<unsigned>(hr));
+        GX_LOG_ERROR("AudioBus '%s': SetEffectChain failed: 0x%08X (ch=%u, sr=%u)",
+                     m_name.c_str(), static_cast<unsigned>(hr),
+                     submixDetails.InputChannels, submixDetails.InputSampleRate);
     }
     else
     {

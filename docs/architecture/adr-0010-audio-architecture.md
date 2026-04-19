@@ -3,6 +3,65 @@
 ## Status
 Accepted
 
+## Audio routing defects resolved 2026-04-19
+
+IXAPO runtime verification (sprint-002 Task 2) surfaced three engine
+defects in the AudioBus / SourceVoice / XAPOBridge wiring that rendered
+the Layer-2 `IAudioEffect` extension functionally inert despite passing
+unit tests. Fixed same-session:
+
+1. **MusicPlayer SourceVoice bypassed AudioBus**.
+   `CreateSourceVoice` was called with no `pSendList`, defaulting to
+   MasteringVoice direct. Audio never flowed through the BGM bus's
+   SubmixVoice → `Process()` never dispatched regardless of
+   `AddEffect` success.
+   Fix: added `MusicPlayer::SetOutputSubmixVoice(IXAudio2SubmixVoice*)`;
+   `AudioManager::Initialize` calls it with
+   `mixer.GetBGMBus().GetSubmixVoice()` after mixer init succeeds.
+   `CreateSourceVoice` now uses a `XAUDIO2_VOICE_SENDS` list pointing
+   at the BGM SubmixVoice.
+
+2. **AudioBus effect chain `OutputChannels` hardcoded to 2**.
+   `AudioBus::RebuildEffectChain` set
+   `XAUDIO2_EFFECT_DESCRIPTOR::OutputChannels = 2` regardless of the
+   SubmixVoice's actual channel count. On devices where MasteringVoice
+   is stereo (2 ch) this accidentally matched; on any other device
+   (mono, 5.1, 7.1) the mismatch would silently fail `SetEffectChain`.
+   Fix: query `GetVoiceDetails` on the SubmixVoice and pass
+   `InputChannels` to `OutputChannels`.
+
+3. **XAPOBridge registration flags insufficient** — user-observed
+   root cause.
+   `GetRegistrationProperties` set only `XAPO_FLAG_INPLACE_REQUIRED`.
+   XAudio2 rejects XAPO registrations missing the standard
+   `XAPO_FLAG_*_MUST_MATCH` set — `SetEffectChain` returns
+   `XAUDIO2_E_INVALID_CALL (0x88960001)`. `AudioBus::AddEffect`
+   succeeds as far as our code sees (HRESULT wasn't surfaced), but
+   XAudio2 never dispatches the XAPO's `Process()`.
+   Fix: `Flags = XAPO_FLAG_CHANNELS_MUST_MATCH
+   | XAPO_FLAG_FRAMERATE_MUST_MATCH
+   | XAPO_FLAG_BITSPERSAMPLE_MUST_MATCH
+   | XAPO_FLAG_BUFFERCOUNT_MUST_MATCH
+   | XAPO_FLAG_INPLACE_SUPPORTED` (Microsoft XAPO sample standard set).
+
+All three defects are now regression-guarded by
+`examples/11-custom-audio-dsp/` which displays the `SetEffectChain`
+HRESULT and a live `Process() calls` counter on screen. If any of
+these three regresses, the counter stays at 0 (visible in the example
+window) rather than silently failing.
+
+Additionally: `AudioBus` now exposes `GetLastEffectChainStatus()` and
+`GetLastEffectChainOutputChannels()` diagnostic getters so any future
+runtime verification can read the HRESULT without adding new
+instrumentation.
+
+**Out of scope but tracked**: `SoundPlayer` has the same SubmixVoice-
+bypass issue as MusicPlayer had before the fix. SE-bus `IAudioEffect`
+chains still don't receive audio. Tracked as
+`TR-defer-soundplayer-bus-routing` in
+`architecture-traceability.md`. Fix pattern is identical to
+MusicPlayer's.
+
 ## Date
 2026-04-15
 

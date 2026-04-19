@@ -25,6 +25,12 @@ bool AudioManager::Initialize()
     {
         GX_LOG_WARN("AudioManager: Mixer initialization failed, continuing without mixer");
     }
+    else
+    {
+        // 2026-04-19 defect fix: MusicPlayer を BGM バスにルーティングする。
+        // Mixer 初期化に成功した時のみ呼ぶ (失敗時は Master 直結のフォールバック動作)。
+        m_musicPlayer.SetOutputSubmixVoice(m_mixer.GetBGMBus().GetSubmixVoice());
+    }
 
     m_entries.reserve(k_MaxSounds);
     GX_LOG_INFO("AudioManager initialized (max: %u sounds, X3DAudio: %s)",

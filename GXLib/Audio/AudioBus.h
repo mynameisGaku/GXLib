@@ -97,6 +97,12 @@ public:
     /// @brief 指定インデックスのエフェクトを取得 (読み取り専用)
     IAudioEffect* GetEffect(int index);
 
+    /// @brief 最後の SetEffectChain の HRESULT (診断用)。S_OK = 0。
+    long GetLastEffectChainStatus() const { return m_lastEffectChainHR; }
+
+    /// @brief 最後に SetEffectChain で試みた OutputChannels (診断用)。
+    unsigned int GetLastEffectChainOutputChannels() const { return m_lastEffectChainOutputChannels; }
+
 private:
     static constexpr size_t k_MaxEffectsPerBus = 4;  ///< ADR-0010 §8 による
 
@@ -104,6 +110,8 @@ private:
     gx::String m_name;
     float m_volume = 1.0f;
     bool m_muted = false;
+    long m_lastEffectChainHR = 0;                  ///< 最後の SetEffectChain HRESULT (診断)
+    unsigned int m_lastEffectChainOutputChannels = 0; ///< 最後に試みた OutputChannels (診断)
 
     // Layer 2 DSP エフェクトチェーン (ADR-0017 L2)
     std::unique_ptr<IAudioEffect> m_effects[k_MaxEffectsPerBus];

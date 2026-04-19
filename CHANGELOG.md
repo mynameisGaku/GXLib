@@ -4,6 +4,72 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Audio routing hotfix] - 2026-04-19
+
+Post-sprint-003 hotfix, driven by the sprint-002 manual-QA IXAPO
+verification that landed the same day. Three audio-pipeline engine
+defects resolved + 1 documented-as-deferred. Sprint-001 and Sprint-002
+both reach 100% DoD closure.
+
+### Fixed
+- **MusicPlayer SourceVoice bypassed AudioBus**: `CreateSourceVoice`
+  now takes a `XAUDIO2_VOICE_SENDS` targeting the BGM bus SubmixVoice
+  (via new `MusicPlayer::SetOutputSubmixVoice`). Previously defaulted
+  to MasteringVoice direct, skipping every AudioBus effect chain —
+  `IAudioEffect` `Process()` was never dispatched regardless of
+  `AddEffect` success.
+- **AudioBus `OutputChannels` hardcoded to 2**: `RebuildEffectChain`
+  now queries `GetVoiceDetails` on the SubmixVoice and passes
+  `InputChannels` to `XAUDIO2_EFFECT_DESCRIPTOR::OutputChannels`.
+  Previous 2-channel hardcode silently failed `SetEffectChain` on any
+  non-stereo device.
+- **XAPOBridge registration flags insufficient**: `GetRegistrationProperties`
+  set only `XAPO_FLAG_INPLACE_REQUIRED`, making XAudio2 reject the chain
+  with `XAUDIO2_E_INVALID_CALL (0x88960001)`. Now uses the Microsoft
+  XAPO sample standard set: `XAPO_FLAG_CHANNELS_MUST_MATCH |
+  FRAMERATE_MUST_MATCH | BITSPERSAMPLE_MUST_MATCH |
+  BUFFERCOUNT_MUST_MATCH | INPLACE_SUPPORTED`.
+
+### Added
+- `MusicPlayer::SetOutputSubmixVoice` — routes the SourceVoice to a
+  target SubmixVoice at Play time.
+- `AudioBus::GetLastEffectChainStatus()` + `GetLastEffectChainOutputChannels()`
+  — diagnostic getters so consumer apps and the IXAPO verification
+  example can surface registration status without rebuilding the engine.
+- `examples/11-custom-audio-dsp/Assets/audio/test_tone.wav` — 440 Hz
+  mono 22050 Hz sine wave, 2s (~88 KB), procedurally generated. The
+  example's test source (Compat `LoadSoundMem` + `PlaySoundMem(LOOP)`
+  routes through MusicPlayer → BGM bus → Tremolo).
+- example-11 `Runtime diagnostics` panel showing `Process()` call
+  count, total frames, format, and `SetEffectChain` HRESULT live.
+  Regression guard: if any of the three defects above reintroduces,
+  the counter visibly stays at 0.
+
+### Changed
+- `examples/11-custom-audio-dsp/main.cpp`: Tremolo now attached to BGM
+  bus (previously SE bus — the Compat `PlayMusic`/`PlaySoundMem(LOOP)`
+  route lands on BGM, so SE bus attachment made the Tremolo unreachable).
+  The example's Tremolo class now has an atomic `Process()` call
+  counter + last-format observation for diagnostic display.
+- Added "Audio routing defects resolved 2026-04-19" section to ADR-0010
+  documenting all three defects + the SoundPlayer sibling issue.
+
+### Added to deferred tracking
+- `TR-defer-soundplayer-bus-routing` — same fix as MusicPlayer but for
+  `SoundPlayer` → SE bus. Mechanical, not landed because no consumer
+  currently needs SE-bus effects runtime-validated.
+- `TR-defer-compat-playmusic-ogg` — `Compat::PlayMusic` currently loads
+  via `Sound::LoadFromFile` which only parses WAV. Route `.ogg`
+  extensions to the existing `OggStream` class. Separate from IXAPO.
+
+### Sprint closes
+- **Sprint-001 Complete** (DoD 5/5 green): FontManager Detach manual
+  crash test PASS (user verified at PC 2026-04-19 — no AV, no crash
+  dumps).
+- **Sprint-002 Complete** (DoD 9/9 green): IXAPO Process() runtime
+  verification PASS — `Process()` calls counter reached 1271+ within
+  seconds of launch, audible Tremolo on 440 Hz test tone.
+
 ## [SDK Sprint 3] - 2026-04-19
 
 ### Added

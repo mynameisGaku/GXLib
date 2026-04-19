@@ -9,8 +9,8 @@
 
 | # | Task | Epic | Type | Priority | Est | Owner | Status |
 |---|------|------|------|----------|-----|-------|--------|
-| 1 | FontManager Detach() manual crash test (window-close AV check) | compat-api | Manual QA | HIGH | 10m | user (at PC) | ⏳ Blocked on user |
-| 2 | IXAPO Process() runtime audio verification (real playback) | audio | Manual QA | HIGH | 30m | user (at PC) | ⏳ Blocked on user |
+| 1 | FontManager Detach() manual crash test (window-close AV check) | compat-api | Manual QA | HIGH | 10m | user (at PC) | ✅ **PASS 2026-04-19** (no AV, no crash dump) |
+| 2 | IXAPO Process() runtime audio verification (real playback) | audio | Manual QA | HIGH | 30m | user (at PC) | ✅ **PASS 2026-04-19** — uncovered + fixed 3 engine defects; Process() confirmed called (1271+ calls), Tremolo audibly modulates 440Hz tone |
 | 3 | GX_EDITOR=OFF CI gate — headless build job | editor | Config | MEDIUM | 1h | engine-programmer | ✅ Done — `.github/workflows/build.yml` `build-no-editor` job present |
 | 4 | Editor boundary lint — CI grep rule for `editor_included_from_runtime` | editor | Config | MEDIUM | 30m | engine-programmer | ✅ Done — `.github/workflows/build.yml` `lint-editor-boundary` job present (also checks `reflection_macro_in_header`) |
 | 5 | GUI UIContext Compat wrapper (beginner-layer accessor) | gui | Logic | MEDIUM | 2h | gameplay-programmer | ✅ Done — `gx::GetUIContext()` declared in `GXLib/Compat/GXLib.h:835`, implemented in `Compat_System.cpp:142` |
@@ -49,6 +49,13 @@ Sprint is complete when:
 - [x] Sprint retrospective entry in `production/session-state/active.md` (appended each milestone)
 
 Sprint-002 is 7/9 DoD green; remaining 2 items await user-at-PC.
+
+### 2026-04-19 close-out
+
+Both manual-QA items resolved by user at PC. IXAPO verification uncovered
+and fixed 3 engine defects in the audio routing pipeline — see "Audio
+routing defects 2026-04-19" section in ADR-0010 and CHANGELOG. **Sprint-002
+closes Complete: 9/9 DoD green.**
 
 ## Carry-over from sprint-001
 

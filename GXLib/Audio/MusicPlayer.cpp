@@ -28,7 +28,30 @@ void MusicPlayer::Play(const Sound& sound, bool loop, float volume)
     Stop();
 
     WAVEFORMATEX format = sound.GetFormat();
-    HRESULT hr = m_audioDevice->GetXAudio2()->CreateSourceVoice(&m_voice, &format);
+
+    // 2026-04-19 defect fix: SourceVoice を BGM バス (SubmixVoice) に接続する。
+    // これを指定しないと SourceVoice は MasteringVoice 直結で AudioBus の
+    // エフェクトチェーン (XAPOBridge → IAudioEffect) をバイパスする。
+    // SetOutputSubmixVoice が呼ばれていれば (AudioManager::Initialize で
+    // BGM バスを渡す) そちらを経由する。
+    XAUDIO2_SEND_DESCRIPTOR sendDesc = {};
+    sendDesc.Flags = 0;
+    sendDesc.pOutputVoice = m_outputSubmix; // nullptr なら CreateSourceVoice のデフォルト挙動 (Master 直結)
+
+    XAUDIO2_VOICE_SENDS sendList = {};
+    sendList.SendCount = 1;
+    sendList.pSends = &sendDesc;
+
+    const XAUDIO2_VOICE_SENDS* sendListPtr = (m_outputSubmix != nullptr) ? &sendList : nullptr;
+
+    HRESULT hr = m_audioDevice->GetXAudio2()->CreateSourceVoice(
+        &m_voice, &format,
+        0,            // Flags
+        XAUDIO2_DEFAULT_FREQ_RATIO,
+        nullptr,      // pCallback
+        sendListPtr,  // pSendList (BGM バス経由 or デフォルト)
+        nullptr       // pEffectChain
+    );
     if (FAILED(hr))
     {
         GX_LOG_ERROR("MusicPlayer: CreateSourceVoice failed: 0x%08X", static_cast<unsigned>(hr));

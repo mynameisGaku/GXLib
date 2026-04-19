@@ -39,7 +39,7 @@
 
 Sprint closed 2026-04-19:
 - [x] EventBus epic: all 5 stories Done
-- [ ] FontManager: manual test confirms no AV on window close — **carried to sprint-002** (user-at-PC required)
+- [x] FontManager: manual test confirms no AV on window close — ✅ **PASS 2026-04-19** (user ran example_01, no AV dialog, crashes/ unchanged)
 - [x] MoviePlayer: at least state-machine tests exist (8 tests in `movie_player_test.cpp`)
 - [x] GX_EDITOR=OFF: local cmake build passes (verified 2026-04-17)
 - [x] Full test suite: 4957/4957 tests PASS (exceeded 4921+ target, 2026-04-18)

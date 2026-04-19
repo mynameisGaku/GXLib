@@ -28,6 +28,17 @@ public:
     /// @param audioDevice XAudio2エンジンを持つAudioDeviceへのポインタ
     void Initialize(AudioDevice* audioDevice);
 
+    /// @brief SourceVoice の出力先 SubmixVoice を設定する (通常 BGM バス)
+    ///
+    /// これを設定しない場合、SourceVoice はデフォルトで MasteringVoice に
+    /// 直接送られ、AudioBus のエフェクトチェーン (XAPOBridge 経由の
+    /// IAudioEffect) をバイパスしてしまう。
+    /// 2026-04-19 defect fix: AudioManager::Initialize が
+    /// `SetOutputSubmixVoice(mixer.GetBGMBus().GetSubmixVoice())` を呼ぶ。
+    ///
+    /// @param submix 送り先 SubmixVoice (nullptr で MasteringVoice 直結に戻る)
+    void SetOutputSubmixVoice(IXAudio2SubmixVoice* submix) { m_outputSubmix = submix; }
+
     /// @brief BGMを再生する。既に再生中の場合は停止してから再生する
     /// @param sound 再生するPCMデータ
     /// @param loop trueならループ再生する（デフォルトtrue）
@@ -66,6 +77,7 @@ public:
 private:
     AudioDevice*         m_audioDevice = nullptr;
     IXAudio2SourceVoice* m_voice = nullptr;    ///< 再生用のSourceVoice（1曲分）
+    IXAudio2SubmixVoice* m_outputSubmix = nullptr; ///< 出力先 SubmixVoice (BGM バス、nullptr でマスタ直結)
     bool                 m_isPlaying = false;
     bool                 m_isPaused = false;
 
