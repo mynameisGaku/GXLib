@@ -270,6 +270,8 @@ set(TEST_SOURCES
     # Sprint-003 Task 1 + Task 5: Compat + ECS regression tests
     unit/compat/compat_particle_test.cpp
     unit/ecs/entity_bridge_test.cpp
+    # Sprint-003 Task 3 (Option A): AsyncLoader concurrent caller stress test
+    unit/io/async_loader_concurrent_test.cpp
 )
 
 add_executable(GXLibTests ${TEST_SOURCES})

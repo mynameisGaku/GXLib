@@ -66,6 +66,7 @@ These are NOT charter gaps — they are future ADR topics flagged for tracking o
 | TR-defer-ecs-ai-bridge | ECS-AI bridge components (BTComponent / NavAgentComponent) | When a game needs 1000+ AI agents batch-ticked via ECS + JobSystem | ADR-0018 Migration Plan |
 | TR-defer-full-orca | Full ORCA LP solver for RVO | When crowd density exceeds 100 agents and oscillation is visible | ADR-0018 §7 simplified model |
 | TR-defer-recast-generation | Automated navmesh generation from 3D scene geometry | When manual triangle-mesh authoring becomes impractical | ADR-0018 Migration Plan |
+| TR-defer-asyncloader-jobsystem | Replace AsyncLoader's internal single-worker thread with JobSystem::Submit-per-Load | When asset load throughput becomes a measured bottleneck (likely first shipping game with large cold cache) | ADR-0007 §Known Limitation (added 2026-04-19); current single-worker impl is caller-thread-safe but not parallel |
 
 ### Promoted from deferred to active follow-up (2026-04-18)
 

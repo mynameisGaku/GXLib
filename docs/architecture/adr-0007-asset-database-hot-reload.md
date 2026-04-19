@@ -166,6 +166,35 @@ C++ (recorded contract):
 - **Cons**: Dev iteration requires full restart for every asset edit; Lua script reload (ADR-0005 requirement) impossible; texture/shader tweaking becomes painful
 - **Rejection Reason**: Hot reload is the single biggest dev-iteration win an engine can offer. Non-negotiable.
 
+## Known Limitation: AsyncLoader single-worker implementation
+
+**Current state** (verified 2026-04-19 against `GXLib/IO/AsyncLoader.{h,cpp}`):
+`AsyncLoader` owns **one** private worker thread (`std::thread m_workerThread;`)
+that dequeues `LoadRequest`s from an internal mutex+cv protected queue.
+Requests from arbitrary caller threads are serialised through that single
+worker. `AsyncLoader` does **not** currently dispatch to `JobSystem`
+(ADR-0006) despite the §Requirements wording that says async loads go
+"through IO/AsyncLoader → JobSystem worker threads."
+
+**Consequence**: concurrent `Load()` calls from N caller threads are
+serialised on the AsyncLoader internal thread. True multi-worker
+parallelism for asset I/O is **not** currently available — the ADR
+claim is aspirational for the current code.
+
+**What IS thread-safe (verified by `Tests/unit/io/async_loader_concurrent_test.cpp`
+added 2026-04-19)**:
+- Concurrent `Load()` calls from many threads (mutex-guarded enqueue).
+- Concurrent `GetStatus()` queries.
+- `Update()` pumping on the main thread while worker is loading.
+
+**Migration path**: replace the internal worker thread with a `JobSystem::
+Submit` per `Load()`. Completion queue stays — `Update()` on the main
+thread still fires callbacks. Tracked as `TR-defer-asyncloader-jobsystem`
+in `architecture-traceability.md`. Not gated on any current consumer —
+scheduled as a Sprint-005-or-later epic.
+
+Added 2026-04-19 to close the sprint-003 Task 3 design finding.
+
 ## Consequences
 
 ### Positive
