@@ -667,3 +667,59 @@ stage flip. Continued autonomous execution within agent-executable scope.
 - git remote + push (need user repo URL)
 - FontManager + IXAPO manual verification (user-at-PC)
 - `rm -rf build_no_editor/` (Claude Code sandbox denies destructive ops)
+
+## 2026-04-19 Sprint-003 close — agent-executable scope fully drained
+
+User prompt chain continued "ぜんぶやって" (6x) + design discussion on
+Task 3 (chose Option A+D per user "A") + "任せる" on Task 4 fixture
+strategy.
+
+### Sprint-003 closed (5/6 Done + 1 deferred-with-tracking)
+
+- Task 1 Compat_Particle regression — 3 tests
+- Task 2 Compat Doxygen pass — 13 *F drawing funcs + 6 headers zero-undoc
+- Task 3 AsyncLoader concurrent stress — 4 tests + ADR-0007 §Known
+  Limitation + TR-defer-asyncloader-jobsystem (honest Option A+D path)
+- Task 4 Movie MP4 integration — resolved-as-deferred. Three fixture
+  strategies evaluated, all trade-offs exceed SDK test value; tracked
+  as TR-defer-movie-integration-tests in traceability, ADR-0020
+  §Testing Scope section added. The honest call — consumer games will
+  bring real fixtures when they exist.
+- Task 5 EntityBridge verification — 5 tests
+- Task 6 CHANGELOG + index — [SDK Sprint 3] entry written; index synced
+
+### Design decision log (Task 3 + 4)
+
+Task 3 revealed: ADR-0007 §Requirements claim "async loads go through
+AsyncLoader → JobSystem" but code has a single private worker thread
+instead. Caller-thread-safety verified; multi-worker upgrade deferred
+as a TR-defer entry. The stress test pins what the API actually
+supports, not what the ADR aspires to.
+
+Task 4: binary commit / CMake+ffmpeg / MF in-proc generation all have
+costs exceeding test value for an SDK. GXModelViewer reference-app
+smoke + the 8 state-machine unit tests are sufficient for this Phase.
+
+### Commit chain (this round)
+- `02ac3b9` Close sprint-003 Tasks 1, 2, 5
+- `d9077b5` Close sprint-003 Task 3 (AsyncLoader concurrency audit)
+- (this commit) Close sprint-003 Task 4 deferred + Task 6 CHANGELOG
+  + sprint-003 status flip Complete
+
+### Cumulative tally (today 2026-04-18 + 2026-04-19)
+- 13 commits on main
+- +24 tests (4957 → 4981)
+- Sprint-001 closed, Sprint-002 7/9 (2 manual-QA pending), Sprint-003
+  closed
+- Epics Complete: arch-fixes-2026-04-18, EventBus, Editor, GUI,
+  Animation, Compat-API (+ implicit via ADR coverage for many others)
+- Only open implementation gap: Audio IXAPO runtime verification
+  (user-at-PC)
+- Architecture dimension: 20 ADRs Accepted, 55 TRs covered, 2 /arch-
+  review passes (findings + post-fix), zero REAL ISSUES outstanding
+- Stage: Production (flipped 2026-04-19)
+
+### Blocked on user (unchanged)
+- `git remote set-url origin <user-repo>` then `git push`
+- `rm -rf build_no_editor/` (destructive op sandbox-denied)
+- FontManager Detach + IXAPO runtime — user-at-PC manual QA

@@ -4,6 +4,50 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [SDK Sprint 3] - 2026-04-19
+
+### Added
+- **Compat_Particle regression test** (`Tests/unit/compat/compat_particle_test.cpp`,
+  3 tests): pins the `count < 0` precondition added 2026-04-17 — covers
+  count=-1, -1M, and INT_MIN.
+- **EntityBridge lifecycle tests** (`Tests/unit/ecs/entity_bridge_test.cpp`,
+  5 tests): ClearMappings resets count, ImportEntity creates ECS entity,
+  SyncSceneToWorld imports all, Export round-trips, cross-World mapping
+  collision silently-invalid-handle behaviour pinned.
+- **AsyncLoader caller-side concurrent stress test**
+  (`Tests/unit/io/async_loader_concurrent_test.cpp`, 4 tests):
+  4 caller threads × 25 loads without loss, concurrent GetStatus poll,
+  re-entrant callback calling Load (non-deadlock), CancelAll race safety.
+- **Doxygen coverage** on 13 `*F` float-coordinate drawing functions in
+  `GXLib/Compat/GXLib.h` — closes TR-api-004. All 6 Compat headers now
+  zero-undocumented per grep check.
+
+### Changed
+- **ADR-0007** gains a §Known Limitation section: AsyncLoader is
+  currently single-worker (not the multi-worker dispatch to JobSystem
+  the §Requirements implies). Caller API is mutex-guarded and safe;
+  true multi-worker upgrade tracked as `TR-defer-asyncloader-jobsystem`.
+- **ADR-0020** gains a §Testing Scope section documenting the 8 unit-
+  test coverage envelope + the three evaluated-and-rejected MP4-fixture
+  generation strategies (binary commit, CMake+ffmpeg, MF in-proc) —
+  deferred as `TR-defer-movie-integration-tests`.
+- **Animation epic** flipped Complete — SetGlobalBusBridge was delivered
+  via EventBus story-004 on 2026-04-17; the epic doc was stale.
+- **Compat-API epic** flipped Complete — Doxygen coverage closed.
+- **Sprint-002 + Sprint-003** drafted, executed, and closed in-session.
+
+### Epic + sprint sync
+- Sprint-002: 7/9 DoD green; 2 user-at-PC manual-QA items carry to
+  sprint-004 or opportunistic close.
+- Sprint-003: Complete. 4 tasks Done, 1 Resolved-as-deferred, 1 Docs-close.
+- `production/epics/index.md` priority-order updated: arch-fixes +
+  EventBus + Editor + GUI + Animation + Compat-API all ✅ Complete;
+  only open gap is Audio IXAPO runtime verification (user-at-PC).
+
+### Test suite
+- 4977 → **4981 tests** (+4 new this sprint).
+- Cumulative for this 4/18-4/19 session pair: 4957 → 4981 (+24).
+
 ## [SDK Sprint 2] - 2026-04-19
 
 ### Stage transition

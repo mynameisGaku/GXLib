@@ -89,6 +89,39 @@ Concrete rules:
 
 - 2026-04-18 (story E4 / 007): `mf_global_init` contract implemented. `MFPlatform` added at `GXLib/Core/MFPlatform.{h,cpp}`; `MoviePlayer` and `VideoRecorder` migrated.
 
+## Testing Scope
+
+Added 2026-04-19. Current automated test coverage for `MoviePlayer` /
+`VideoRecorder`:
+
+**Covered** (`Tests/unit/movie/movie_player_test.cpp` — 8 tests):
+- Default state + getter correctness (size 0, duration 0, no texture)
+- State-machine transitions without `Open()` (Play/Pause/Stop/Seek/Close
+  are no-ops in Stopped state)
+- Double-Close safety
+- `MovieState` enum uniqueness
+
+**Not covered** (requires an MP4 fixture): `Open()` + `Update()` decode
+flow, `Seek()` keyframe proximity, `GetPosition()` after decode, frame
+texture handle validity, `VideoRecorder::CaptureFrame` swap-chain
+interaction.
+
+Full Open/Decode/Seek integration tests are **deferred** — tracked as
+`TR-defer-movie-integration-tests` in `architecture-traceability.md`.
+Three fixture-generation strategies were evaluated (commit a 100 KB
+binary, CMake-detected ffmpeg generation, Media-Foundation in-proc
+generation) and all have trade-offs (binary churn, CI dep fragility,
+test-infra complexity) that outweigh the value for an SDK project.
+Consumer games that ship cutscenes are the natural source of realistic
+fixtures. Revisit when such a consumer exists.
+
+For now, `MoviePlayer` + `VideoRecorder` rely on:
+- The 8 unit tests above for state-machine correctness.
+- `GXModelViewer` reference-app smoke testing for end-to-end decode
+  (manual, user-at-PC).
+- The `MFPlatform` refcount unit tests (`Tests/unit/core/mf_platform_test.cpp`)
+  for cohabitation correctness (regression guard for E4).
+
 ## Known Exception: AssetDatabase Bypass
 
 MoviePlayer (`Open(filePath, …)`) intentionally bypasses ADR-0007 AssetDatabase.

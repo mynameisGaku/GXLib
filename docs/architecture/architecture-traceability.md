@@ -67,6 +67,7 @@ These are NOT charter gaps — they are future ADR topics flagged for tracking o
 | TR-defer-full-orca | Full ORCA LP solver for RVO | When crowd density exceeds 100 agents and oscillation is visible | ADR-0018 §7 simplified model |
 | TR-defer-recast-generation | Automated navmesh generation from 3D scene geometry | When manual triangle-mesh authoring becomes impractical | ADR-0018 Migration Plan |
 | TR-defer-asyncloader-jobsystem | Replace AsyncLoader's internal single-worker thread with JobSystem::Submit-per-Load | When asset load throughput becomes a measured bottleneck (likely first shipping game with large cold cache) | ADR-0007 §Known Limitation (added 2026-04-19); current single-worker impl is caller-thread-safe but not parallel |
+| TR-defer-movie-integration-tests | `MoviePlayer` Open/Seek/Decode integration tests driven by a real MP4 fixture | When a real game project in-tree provides cutscene assets that can double as test fixtures | ADR-0020 §Testing Scope (added 2026-04-19). Current `movie_player_test.cpp` covers state machine + getter defaults (8 tests). Full I/O flow requires an MP4 fixture; three candidate generation strategies (commit a binary, CMake+ffmpeg detection, Media Foundation in-proc generation) all have trade-offs that outweigh the test value for an SDK. Deferred until a consumer game brings real fixtures. |
 
 ### Promoted from deferred to active follow-up (2026-04-18)
 
