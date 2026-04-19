@@ -13,15 +13,25 @@
 | ❌ Gap | 0 | 0% |
 | **Total (registry v9)** | **75** | **100%** |
 
-## ADR-0021 Volumetric Cloud Architecture (Proposed 2026-04-19)
+## ADR-0021 Volumetric Cloud Architecture (Accepted 2026-04-19)
 
-20 new TRs (TR-cloud-001 .. TR-cloud-020) pin the AC7/AC8-quality target.
-ADR is **Proposed** pending fresh-session `/architecture-review`; Phase B
-(data model implementation) starts after Accepted promotion.
+20 TRs (TR-cloud-001 .. TR-cloud-020) pin the AC7/AC8-quality target.
+ADR **Accepted** same-session after independent TD + technical-artist
+review (CONCERNS × 2) + 18 targeted patches resolving 20+ real issues
+(phantom API, SkyAtmosphere hidden scope, CloudType naming collision,
+Phase ordering dependency, HIGH-tier budget contradiction, 4 missing
+forbidden patterns, Detection mechanisms for all, motion-vector
+contract, multi-layer compositing model, temporal history separation,
+hot-reload, cross-ADR integration). See ADR Review history section.
 
 Supporting document:
 `docs/engine-reference/gxlib/volumetric-clouds-analysis-2026-04-19.md`
 (current-state inventory + gap analysis + phased roadmap + bibliography).
+
+**Next**: Phase B (data model foundation — WeatherMap + CloudLayer
++ CloudField + FileWatcher hot-reload + 5+ preset JSON) starts when
+implementation session begins. Phase D.0 (SkyAtmosphere LUT + density
+compute module) is the Phase C gating dependency.
 
 ## Full Matrix
 
@@ -113,3 +123,4 @@ None.
 | 2026-04-18 (fresh-session review) | 100% (55 TRs) | Coverage stable. 7 REAL ISSUES + 8 MINOR CONCERNS detected in ADR-0018/0019/0020 (first independent audit). Verdict: CONCERNS. See `architecture-review-2026-04-18.md`. |
 | 2026-04-18b (post-fix re-verification) | 100% (55 TRs) | All 7 REAL ISSUES resolved in-session (R1/R2/R3 ADR-text + E1/E2/E3/E4 code+CMake+ADR). Build ✅ (20 sub-libs, 16 examples, GXModelViewer) + 4957 tests pass. Verdict: **CONCERNS (gate-unblocked)** — 4 minor + 2 cosmetic documentation items remain, none block advancement. See `architecture-review-2026-04-18b.md`. |
 | 2026-04-19 (ADR-0021 Proposed) | 100% (75 TRs) | 20 new TR-cloud-* added (ADR-0021 Volumetric Cloud Architecture, Proposed). Target: AC7 trueSKY parity (Phase E, binding) + optional AC8 Cloudly-class (Phase F, aspirational). Requires fresh-session `/architecture-review` before Phase B coding starts. |
+| 2026-04-19 (ADR-0021 Accepted same-session) | 100% (75 TRs) | Same-session TD + technical-artist review caught 20+ real issues (CONCERNS on both); 18 targeted patches applied; Accepted. Phase B load test will surface any remaining architectural concerns. Project pattern: even post-patch, fresh-session re-review next sprint is recommended. See ADR Review history section. |
