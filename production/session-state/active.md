@@ -609,3 +609,61 @@ side.** All 7 real issues are resolved. Formal `/gate-check pre-production`
 run (full multi-department sign-off) can proceed when user desires.
 
 ### NOT committed (per CLAUDE.md rule). User direction required for commit.
+
+## 2026-04-19 Sprint-002 close + Sprint-003 draft + polish
+
+User prompt chain: repeated "ぜんぶやって" (do everything) after Production
+stage flip. Continued autonomous execution within agent-executable scope.
+
+### Landed this round
+- Sprint-002 Task 6 (deferred regression tests) — all 3 items delivered:
+  - `Tests/unit/core/mf_platform_test.cpp` (7 tests, all PASS)
+  - `Tests/unit/scene/scene_persistence_atomic_test.cpp` (5 tests, all PASS)
+  - `Tests/isolation/ai_foundation_only/` (new executable, E1 link-
+    isolation regression guard)
+- Test suite: 4957 → **4969 tests**, zero regressions.
+- Discovered: sprint-002 Tasks 3/4/5 were already landed in prior
+  sessions (CI `build-no-editor` + `lint-editor-boundary` jobs,
+  `gx::GetUIContext()` Compat accessor). Sprint-002 doc + epic index
+  synced to reflect actual state.
+- Animation epic status flipped Complete — SetGlobalBusBridge verified
+  at `AnimationEventDispatcher.h:76`; delivered via EventBus story-004
+  on 2026-04-17.
+- CHANGELOG `[SDK Sprint 2]` entry written (captures stage flip, 7 REAL
+  ISSUES resolution, 12 new regression tests, multiple epic syncs).
+- Sprint-003 drafted: 6 tasks (Compat_Particle regression, Compat
+  Doxygen pass, asset-pipeline concurrent-load stress, movie test
+  expansion, ECS EntityBridge verification, CHANGELOG). Producer-
+  recommended Foundation-layer sequencing applied.
+
+### Commit chain (this round)
+- `1d1dc53` Add arch-fixes-2026-04-18 regression tests (sprint-002 Task 6)
+- `eb68080` Close sprint-002 agent-executable backlog (7/9 DoD green)
+- `f9d2333` Write CHANGELOG Sprint 2 entry + sync Animation epic + draft sprint-003
+
+### Sprint-002 status at end-of-session
+- Agent-executable: 4/4 tasks ✅ Done
+- User-at-PC required: 2 tasks still ⏳ Blocked (FontManager, IXAPO)
+- Sprint-002 will close formally when user completes the 2 manual QA items
+
+### Cumulative "ぜんぶやって" chain
+- Stage flip Pre-Production → Production
+- 10 commits (6fb1b7e → f9d2333)
+- All 7 REAL ISSUES from 2026-04-18 review resolved
+- +12 regression tests (4957 → 4969)
+- 3 sprint plans on file (sprint-001 closed, sprint-002 in-flight,
+  sprint-003 drafted)
+- Epic index fully synced (all "Ready" epics accurately reflect state)
+- CHANGELOG Sprint 1 + Sprint 2 entries
+
+### Next-session candidates (agent-executable)
+1. Sprint-003 Task 1: Compat_Particle regression test
+2. Sprint-003 Task 2: Doxygen pass on Compat/*.h
+3. Sprint-003 Task 3: Asset-pipeline concurrent-load stress test
+4. Sprint-003 Task 5: EntityBridge single-World assertion
+5. Sprint-003 Task 4: MP4 fixture + movie test expansion (needs fixture generation strategy)
+
+### Blocked on user (unchanged)
+- git remote + push (need user repo URL)
+- FontManager + IXAPO manual verification (user-at-PC)
+- `rm -rf build_no_editor/` (Claude Code sandbox denies destructive ops)
