@@ -1,0 +1,8 @@
+{
+  "schema": "gx-weathermap-1",
+  "width": 128,
+  "height": 128,
+  "worldExtent": 20000.0,
+  "fill": { "r": 20, "g": 0, "b": 40, "a": 255 },
+  "regions": []
+}
