@@ -909,28 +909,126 @@ float GX_GetNetPacketLoss();
 
 // ============================================================================
 // float座標版（サブピクセル精度で描画）
+//
+// Float-coordinate variants of the DXLib-shaped int drawing APIs. Useful
+// when drawing from computed positions (animation, physics, smooth
+// camera) where rounding to int introduces jitter. Return value
+// convention matches the int variants: 0 on success, -1 on failure.
+// Closes TR-api-004 (Doxygen coverage) sprint-003 Task 2.
 // ============================================================================
 
 // --- スプライト ---
+
+/// @brief サブピクセル精度で画像を描画する (DrawGraph の float 版)。
+/// @param x 描画左上 X 座標 (pixels)
+/// @param y 描画左上 Y 座標 (pixels)
+/// @param handle LoadGraph で取得したテクスチャハンドル
+/// @param transFlag 透過処理を有効にするか (TRUE/FALSE)
+/// @return 成功 0、失敗 -1
 int DrawGraphF(float x, float y, int handle, int transFlag);
+
+/// @brief サブピクセル精度で画像を回転・拡縮描画する (DrawRotaGraph の float 版)。
+/// @param cx 回転中心 X (pixels)
+/// @param cy 回転中心 Y (pixels)
+/// @param extRate 拡縮率 (1.0 = 等倍)
+/// @param angle 回転角 (ラジアン、時計回り正)
+/// @param handle テクスチャハンドル
+/// @param transFlag 透過処理
+/// @return 成功 0、失敗 -1
 int DrawRotaGraphF(float cx, float cy, double extRate, double angle, int handle, int transFlag);
+
+/// @brief サブピクセル精度で矩形に拡縮描画する (DrawExtendGraph の float 版)。
+/// @param x1,y1 描画先左上 (pixels)
+/// @param x2,y2 描画先右下 (pixels)
+/// @param handle テクスチャハンドル
+/// @param transFlag 透過処理
+/// @return 成功 0、失敗 -1
 int DrawExtendGraphF(float x1, float y1, float x2, float y2, int handle, int transFlag);
+
+/// @brief サブピクセル精度でテクスチャ一部を切り出して描画する (DrawRectGraph の float 版)。
+/// @param x,y 描画先左上 (pixels)
+/// @param srcX,srcY 切り出し元矩形の左上 (texel)
+/// @param w,h 切り出しサイズ (texel)
+/// @param handle テクスチャハンドル
+/// @param transFlag 透過処理
+/// @param turnFlag 左右反転描画を行うか (TRUE/FALSE、既定 FALSE)
+/// @return 成功 0、失敗 -1
 int DrawRectGraphF(float x, float y, int srcX, int srcY, int w, int h,
                    int handle, int transFlag, int turnFlag = FALSE);
+
+/// @brief サブピクセル精度で任意四角形に画像を歪ませて描画する (DrawModiGraph の float 版)。
+/// @param x1..x4,y1..y4 四角形の 4 頂点 (左上→右上→右下→左下の順)
+/// @param handle テクスチャハンドル
+/// @param transFlag 透過処理
+/// @return 成功 0、失敗 -1
 int DrawModiGraphF(float x1, float y1, float x2, float y2, float x3, float y3,
                    float x4, float y4, int handle, int transFlag);
 
 // --- プリミティブ ---
+
+/// @brief サブピクセル精度で線を描画する (DrawLine の float 版)。
+/// @param x1,y1 始点 (pixels)
+/// @param x2,y2 終点 (pixels)
+/// @param color GetColor(r,g,b) 形式の色
+/// @param thickness 線の太さ (pixels、既定 1)
+/// @return 成功 0、失敗 -1
 int DrawLineF(float x1, float y1, float x2, float y2, unsigned int color, int thickness = 1);
+
+/// @brief サブピクセル精度で矩形を描画する (DrawBox の float 版)。
+/// @param x1,y1 左上 (pixels)
+/// @param x2,y2 右下 (pixels)
+/// @param color 描画色
+/// @param fillFlag 塗りつぶし (TRUE) または外枠のみ (FALSE)
+/// @return 成功 0、失敗 -1
 int DrawBoxF(float x1, float y1, float x2, float y2, unsigned int color, int fillFlag);
+
+/// @brief サブピクセル精度で円を描画する (DrawCircle の float 版)。
+/// @param cx,cy 中心座標 (pixels)
+/// @param r 半径 (pixels)
+/// @param color 描画色
+/// @param fillFlag 塗りつぶし (既定 TRUE)
+/// @return 成功 0、失敗 -1
 int DrawCircleF(float cx, float cy, float r, unsigned int color, int fillFlag = TRUE);
+
+/// @brief サブピクセル精度で三角形を描画する (DrawTriangle の float 版)。
+/// @param x1..x3,y1..y3 3 頂点 (pixels)
+/// @param color 描画色
+/// @param fillFlag 塗りつぶし (TRUE) または外枠のみ (FALSE)
+/// @return 成功 0、失敗 -1
 int DrawTriangleF(float x1, float y1, float x2, float y2, float x3, float y3,
                   unsigned int color, int fillFlag);
+
+/// @brief サブピクセル精度で楕円を描画する (DrawOval の float 版)。
+/// @param cx,cy 中心座標 (pixels)
+/// @param rx 水平半径 (pixels)
+/// @param ry 垂直半径 (pixels)
+/// @param color 描画色
+/// @param fillFlag 塗りつぶし
+/// @return 成功 0、失敗 -1
 int DrawOvalF(float cx, float cy, float rx, float ry, unsigned int color, int fillFlag);
+
+/// @brief サブピクセル精度で 1 点を描画する (DrawPixel の float 版)。
+/// @note サブピクセル座標は近傍ピクセルへ丸められる。アンチエイリアスは行わない。
+/// @param x,y 座標 (pixels)
+/// @param color 描画色
+/// @return 成功 0、失敗 -1
 int DrawPixelF(float x, float y, unsigned int color);
 
 // --- テキスト ---
+
+/// @brief サブピクセル精度で文字列を描画する (DrawString の float 版)。
+/// @param x,y 描画左上 (pixels)
+/// @param str 描画する ASCII 文字列
+/// @param color 文字色
+/// @return 成功 0、失敗 -1
 int DrawStringF(float x, float y, const char* str, unsigned int color);
+
+/// @brief サブピクセル精度で指定フォントで文字列を描画する (DrawStringToHandle の float 版)。
+/// @param x,y 描画左上 (pixels)
+/// @param str 描画する文字列
+/// @param color 文字色
+/// @param fontHandle CreateFontToHandle で取得したフォントハンドル
+/// @return 成功 0、失敗 -1
 int DrawStringToHandleF(float x, float y, const char* str, unsigned int color, int fontHandle);
 
 } // namespace gx

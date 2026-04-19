@@ -1,7 +1,7 @@
 # Sprint 003: Compat-API Completion + Asset Pipeline Hardening
 
-> **Start**: pending — opens when sprint-002 closes (2 manual-QA carry-overs)
-> **Status**: Drafted 2026-04-19
+> **Start**: 2026-04-19
+> **Status**: In progress — Tasks 1/2/5 ✅ Done 2026-04-19; Tasks 3/4 carry to sprint-004 (non-blocking).
 > **Duration**: 1-2 sessions
 > **Goal**: Close the compat-api Doxygen gap + Compat_Particle regression
 > test; land the asset-pipeline concurrent-load stress test; tidy the
@@ -9,14 +9,14 @@
 
 ## Sprint Backlog
 
-| # | Task | Epic | Type | Priority | Est | Owner |
-|---|------|------|------|----------|-----|-------|
-| 1 | Compat_Particle regression test (guards AddEmitter return, count precondition, GetDeltaTime fix) | compat-api | Logic | HIGH | 1h | engine-programmer |
-| 2 | Doxygen pass on remaining `Compat/*.h` headers (TR-api-004 close) | compat-api | Docs | MEDIUM | 2h | gameplay-programmer |
-| 3 | Asset-pipeline concurrent-load stress test (N workers, M assets, no leak, no race) | asset-pipeline | Integration | MEDIUM | 2h | engine-programmer |
-| 4 | Movie epic test expansion (MP4 fixture + open/seek/close flow beyond current state-machine tests) | movie | Integration | LOW | 2h | engine-programmer |
-| 5 | ECS EntityBridge single-World-constraint verification + documented assertion | ecs | Logic | LOW | 1h | engine-programmer |
-| 6 | CHANGELOG entry + epics/index.md priority sequencing update | docs | Docs | LOW | 30m | producer |
+| # | Task | Epic | Type | Priority | Est | Owner | Status |
+|---|------|------|------|----------|-----|-------|--------|
+| 1 | Compat_Particle regression test (guards AddEmitter return, count precondition, GetDeltaTime fix) | compat-api | Logic | HIGH | 1h | engine-programmer | ✅ Done 2026-04-19 (3 tests in `Tests/unit/compat/compat_particle_test.cpp` — count<0, large negative, INT_MIN) |
+| 2 | Doxygen pass on remaining `Compat/*.h` headers (TR-api-004 close) | compat-api | Docs | MEDIUM | 2h | gameplay-programmer | ✅ Done 2026-04-19 (13 `*F` float-variant drawing functions in GXLib.h documented; all 6 Compat headers now 0 undocumented per grep check) |
+| 3 | Asset-pipeline concurrent-load stress test (N workers, M assets, no leak, no race) | asset-pipeline | Integration | MEDIUM | 2h | engine-programmer | ⏳ Carry to sprint-004 (requires deeper Job System + AssetDatabase threading-contract review) |
+| 4 | Movie epic test expansion (MP4 fixture + open/seek/close flow beyond current state-machine tests) | movie | Integration | LOW | 2h | engine-programmer | ⏳ Carry to sprint-004 (needs MP4 fixture generation strategy) |
+| 5 | ECS EntityBridge single-World-constraint verification + documented assertion | ecs | Logic | LOW | 1h | engine-programmer | ✅ Done 2026-04-19 (5 tests in `Tests/unit/ecs/entity_bridge_test.cpp` — ClearMappings lifecycle, Import/Export round-trip, cross-world collision pinned) |
+| 6 | CHANGELOG entry + epics/index.md priority sequencing update | docs | Docs | LOW | 30m | producer | ⏳ Partial — CHANGELOG [SDK Sprint 2] covers through this session; Sprint 3 entry deferred until sprint-003 fully closes with tasks 3+4 |
 
 ## Epic sequencing rationale
 

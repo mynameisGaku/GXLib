@@ -267,6 +267,9 @@ set(TEST_SOURCES
     # Arch-fixes 2026-04-18 regression tests (sprint-002 Task 6)
     unit/core/mf_platform_test.cpp
     unit/scene/scene_persistence_atomic_test.cpp
+    # Sprint-003 Task 1 + Task 5: Compat + ECS regression tests
+    unit/compat/compat_particle_test.cpp
+    unit/ecs/entity_bridge_test.cpp
 )
 
 add_executable(GXLibTests ${TEST_SOURCES})
