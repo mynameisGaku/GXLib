@@ -272,6 +272,10 @@ set(TEST_SOURCES
     unit/ecs/entity_bridge_test.cpp
     # Sprint-003 Task 3 (Option A): AsyncLoader concurrent caller stress test
     unit/io/async_loader_concurrent_test.cpp
+    # ADR-0021 Phase B: CloudField / WeatherMap / CloudLayer foundation
+    unit/cloud/cloud_layer_test.cpp
+    unit/cloud/weather_map_test.cpp
+    unit/cloud/cloud_field_test.cpp
 )
 
 add_executable(GXLibTests ${TEST_SOURCES})
